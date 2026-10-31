@@ -68,6 +68,41 @@
       },
       "required" : [ "name", "enabled" ]
     },
+    "AreaSourceView" : {
+      "type" : "string",
+      "enum" : [ "LINKED", "BOUGHT", "RENTED" ]
+    },
+    "AreaView" : {
+      "type" : "object",
+      "properties" : {
+        "id" : {
+          "type" : "integer"
+        },
+        "provider" : {
+          "type" : "string"
+        },
+        "ref" : {
+          "type" : "string"
+        },
+        "world" : {
+          "type" : "string"
+        },
+        "source" : {
+          "$ref" : "#/$defs/AreaSourceView"
+        },
+        "price" : {
+          "type" : "number"
+        },
+        "rentUntil" : {
+          "type" : "string",
+          "format" : "date-time"
+        },
+        "renews" : {
+          "type" : "boolean"
+        }
+      },
+      "required" : [ "id", "provider", "ref", "world", "source", "price", "renews" ]
+    },
     "Branding" : {
       "type" : "object",
       "properties" : {
@@ -192,6 +227,15 @@
           "items" : {
             "$ref" : "#/$defs/PaletteColor"
           }
+        },
+        "areas" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/$defs/AreaView"
+          }
+        },
+        "home" : {
+          "$ref" : "#/$defs/HomeView"
         }
       },
       "required" : [ "id", "name", "joinMode", "founded", "level", "members", "orders", "alerts" ]
@@ -365,6 +409,27 @@
         }
       },
       "required" : [ "type", "v", "plugin", "schema", "node", "features", "limits", "credentials", "userAgent" ]
+    },
+    "HomeView" : {
+      "type" : "object",
+      "properties" : {
+        "world" : {
+          "type" : "string"
+        },
+        "x" : {
+          "type" : "integer"
+        },
+        "y" : {
+          "type" : "integer"
+        },
+        "z" : {
+          "type" : "integer"
+        },
+        "server" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "world", "x", "y", "z" ]
     },
     "InviteView" : {
       "type" : "object",

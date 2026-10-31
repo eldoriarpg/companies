@@ -7,10 +7,10 @@ package de.eldoria.companies.data.repository.impl.mariadb;
 
 import de.chojo.sadu.mapper.wrapper.Row;
 import de.chojo.sadu.queries.api.call.adapter.Adapter;
+import de.eldoria.companies.components.area.AreaSource;
 import de.eldoria.companies.data.repository.AAreaData;
 import de.eldoria.companies.data.repository.impl.TimeColumns;
 import de.eldoria.companies.data.wrapper.area.AreaOffer;
-import de.eldoria.companies.data.wrapper.area.AreaSource;
 import de.eldoria.companies.data.wrapper.area.CompanyArea;
 import org.intellij.lang.annotations.Language;
 import org.jetbrains.annotations.Nullable;

@@ -24,6 +24,8 @@ import java.util.Optional;
  * @param delivered    items delivered to completed orders
  * @param treasury     balance of the treasury
  * @param payoutShare  share of each payout kept in the treasury, limited by the current cap, in percent
+ * @param areas        areas the company uses
+ * @param homeServer   proxy name of the server of the company's home, empty without a home or a name
  */
 public record CompanyView(
         int id,
@@ -39,4 +41,6 @@ public record CompanyView(
         double earned,
         int delivered,
         double treasury,
-        int payoutShare) {}
+        int payoutShare,
+        int areas,
+        String homeServer) {}

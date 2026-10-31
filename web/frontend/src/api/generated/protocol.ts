@@ -48,6 +48,7 @@ export type MemberPermission =
   | 'MANAGE_AREAS';
 export type JoinMode = 'OPEN' | 'APPLICATIONS' | 'INVITE_ONLY';
 export type OrderState = 'UNCLAIMED' | 'CLAIMED' | 'DELIVERED' | 'RECEIVED';
+export type AreaSourceView = 'LINKED' | 'BOUGHT' | 'RENTED';
 export type PatchOp = 'UPSERT' | 'REMOVE' | 'REPLACE';
 export type ErrorCode =
   | 'UNKNOWN_TYPE'
@@ -237,6 +238,8 @@ export interface CompanyView {
   alerts: AlertView[];
   colorName?: string;
   palette?: PaletteColor[];
+  areas?: AreaView[];
+  home?: HomeView;
 }
 export interface LevelView {
   level: number;
@@ -302,6 +305,23 @@ export interface AlertView {
 export interface PaletteColor {
   name: string;
   hex: string;
+}
+export interface AreaView {
+  id: number;
+  provider: string;
+  ref: string;
+  world: string;
+  source: AreaSourceView;
+  price: number;
+  rentUntil?: string;
+  renews: boolean;
+}
+export interface HomeView {
+  world: string;
+  x: number;
+  y: number;
+  z: number;
+  server?: string;
 }
 export interface OwnOrderView {
   id: number;
@@ -388,6 +408,12 @@ export interface ErrorMessage {
   code: ErrorCode;
   message?: string;
 }
+
+export const AreaSourceView = {
+    BOUGHT: "BOUGHT",
+    LINKED: "LINKED",
+    RENTED: "RENTED",
+} as const;
 
 export const CloseReason = {
     CONNECTION_LOST: "CONNECTION_LOST",

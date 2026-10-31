@@ -5,6 +5,8 @@
  */
 package de.eldoria.companies.data.wrapper.area;
 
+import de.eldoria.companies.components.area.ICompanyHome;
+
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -34,4 +36,5 @@ public record CompanyHome(
         float yaw,
         float pitch,
         UUID setBy,
-        LocalDateTime setAt) {}
+        LocalDateTime setAt)
+        implements ICompanyHome {}

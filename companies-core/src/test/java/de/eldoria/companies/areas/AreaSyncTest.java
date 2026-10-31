@@ -8,11 +8,11 @@ package de.eldoria.companies.areas;
 import de.eldoria.companies.components.area.AreaBounds;
 import de.eldoria.companies.components.area.AreaCapability;
 import de.eldoria.companies.components.area.AreaProvider;
+import de.eldoria.companies.components.area.AreaSource;
 import de.eldoria.companies.components.company.CompanyPermission;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteAreaData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteTestDatabase;
 import de.eldoria.companies.data.wrapper.area.AreaOffer;
-import de.eldoria.companies.data.wrapper.area.AreaSource;
 import de.eldoria.companies.data.wrapper.area.CompanyArea;
 import de.eldoria.companies.data.wrapper.company.CompanyDetails;
 import de.eldoria.companies.data.wrapper.company.CompanyMember;
@@ -108,7 +108,8 @@ class AreaSyncTest {
                 () -> now,
                 NODE,
                 Runnable::run,
-                Logger.getAnonymousLogger());
+                Logger.getAnonymousLogger(),
+                ignored -> {});
     }
 
     @AfterEach
@@ -184,7 +185,8 @@ class AreaSyncTest {
                 () -> now,
                 NODE,
                 Runnable::run,
-                Logger.getAnonymousLogger());
+                Logger.getAnonymousLogger(),
+                ignored -> {});
 
         failing.check();
         later();

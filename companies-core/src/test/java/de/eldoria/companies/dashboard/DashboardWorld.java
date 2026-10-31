@@ -52,9 +52,11 @@ import de.eldoria.companies.dashboard.views.OrderCatalogue;
 import de.eldoria.companies.dashboard.views.Views;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteAdapter;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteAlertData;
+import de.eldoria.companies.data.repository.impl.sqlite.SqLiteAreaData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteCompanyData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteDashboardData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteHistoryData;
+import de.eldoria.companies.data.repository.impl.sqlite.SqLiteHomeData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteInboxData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteJobData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteMembershipData;
@@ -194,6 +196,8 @@ public final class DashboardWorld implements AutoCloseable {
     public final SqLiteMembershipData memberships;
     public final SqLiteInboxData inbox;
     public final SqLiteDashboardData dashboard;
+    public final SqLiteAreaData areas;
+    public final SqLiteHomeData homes;
     public final CompaniesApiImpl api;
     public final Views views;
     public final DashboardReads reads;
@@ -243,9 +247,11 @@ public final class DashboardWorld implements AutoCloseable {
                 Times.UTC,
                 Logger.getAnonymousLogger());
         var stats = new SqLiteStatsData(executor);
+        areas = new SqLiteAreaData();
+        homes = new SqLiteHomeData();
         var alerts = new SqLiteAlertData(SqLiteTestDatabase.mapper(), executor);
         api = new CompaniesApiImpl(
-                new CompaniesApiImpl.Repositories(companies, orders, stats, treasury, serverEvents),
+                new CompaniesApiImpl.Repositories(companies, orders, stats, treasury, serverEvents, areas, homes),
                 new CompaniesApiImpl.Server(
                         server::getOfflinePlayer, failure -> Component.text(failure.localeKey()), Times::now),
                 executor);

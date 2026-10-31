@@ -120,6 +120,7 @@ import de.eldoria.companies.data.wrapper.event.ServerEvent;
 import de.eldoria.companies.data.wrapper.nodes.Node;
 import de.eldoria.companies.data.wrapper.offer.EventOffer;
 import de.eldoria.companies.debug.CompaniesDebug;
+import de.eldoria.companies.events.company.CompanyAreasChangeEvent;
 import de.eldoria.companies.integrations.discord.DiscordWebhook;
 import de.eldoria.companies.jobs.JobServices;
 import de.eldoria.companies.jobs.Jobs;
@@ -201,6 +202,7 @@ import de.eldoria.companies.services.notifications.NotificationArgs;
 import de.eldoria.companies.services.notifications.NotificationService;
 import de.eldoria.companies.services.notifications.NotificationType;
 import de.eldoria.companies.updates.Updates;
+import de.eldoria.companies.util.AsyncEvents;
 import de.eldoria.companies.util.Money;
 import de.eldoria.companies.util.StyledMessageSender;
 import de.eldoria.companies.util.Texts;
@@ -343,7 +345,13 @@ public class Companies extends EldoPlugin {
         api = CompaniesApiImpl.create(
                 this,
                 new CompaniesApiImpl.Repositories(
-                        companyData, orderData, information.stats(), economy.treasury(), serverEventData),
+                        companyData,
+                        orderData,
+                        information.stats(),
+                        economy.treasury(),
+                        serverEventData,
+                        areaData,
+                        homeData),
                 Threading.VIRTUAL);
         api.register(this);
         api.areaProviders().settings(configuration::areaSettings);
@@ -624,7 +632,8 @@ public class Companies extends EldoPlugin {
                 InstantSource.system(),
                 configuration.nodeSettings().nodeUid(),
                 Threading.mainThread(this),
-                getLogger());
+                getLogger(),
+                this::areasChanged);
         getServer().getPluginManager().registerEvents(areaSync, this);
         var areaMessages = MessageSender.getPluginMessageSender(this);
         getServer()
@@ -806,6 +815,8 @@ public class Companies extends EldoPlugin {
                     orderData,
                     information.stats(),
                     this.economy.treasury(),
+                    areaData,
+                    homeData,
                     offerData,
                     serverEventData,
                     economy,
@@ -933,6 +944,7 @@ public class Companies extends EldoPlugin {
 
                     @Override
                     public void renewed(CompanyProfile company, CompanyArea area, Duration period) {
+                        areasChanged(company);
                         notifyManagers(
                                 notifications,
                                 company,
@@ -942,6 +954,7 @@ public class Companies extends EldoPlugin {
 
                     @Override
                     public void unpaid(CompanyProfile company, CompanyArea area) {
+                        areasChanged(company);
                         notifyManagers(
                                 notifications,
                                 company,
@@ -951,6 +964,7 @@ public class Companies extends EldoPlugin {
 
                     @Override
                     public void ended(CompanyProfile company, CompanyArea area) {
+                        areasChanged(company);
                         notifyManagers(
                                 notifications,
                                 company,
@@ -961,6 +975,10 @@ public class Companies extends EldoPlugin {
                 () -> configuration.areaSettings().rentWarnHours(),
                 Times::now,
                 getLogger());
+    }
+
+    private void areasChanged(CompanyProfile company) {
+        AsyncEvents.fire(this, new CompanyAreasChangeEvent(company, CompanyAreasChangeEvent.Change.AREAS));
     }
 
     /**

@@ -61,7 +61,9 @@ class PlaceholderRegistryTest {
                         1234.5,
                         640,
                         87.5,
-                        15));
+                        15,
+                        2,
+                        "lobby"));
         rankings.put(TimeRange.ALL, List.of(rank(1, 3, "Best", "TOP", "gold"), rank(2, 7, "<red>Acme", "ACME", null)));
         rankings.put(TimeRange.LAST_7_DAYS, List.of(rank(1, 7, "<red>Acme", "ACME", null)));
         rankings.put(TimeRange.LAST_30_DAYS, List.of());
@@ -121,6 +123,8 @@ class PlaceholderRegistryTest {
         assertEquals("9", registry.resolve(OWNER, "company_orders"));
         assertEquals("$87.50", registry.resolve(OWNER, "company_treasury"));
         assertEquals("15", registry.resolve(OWNER, "company_payout_share"));
+        assertEquals("2", registry.resolve(OWNER, "company_areas"));
+        assertEquals("lobby", registry.resolve(OWNER, "company_home_server"));
     }
 
     @Test
@@ -217,7 +221,7 @@ class PlaceholderRegistryTest {
         List<String> fixed = new ArrayList<>();
         for (var id : registry.ids()) if (!id.contains("<")) fixed.add(id);
 
-        assertEquals(23, fixed.size());
+        assertEquals(25, fixed.size());
         for (var id : fixed) assertFalse(registry.resolve(OWNER, id) == null, id);
         assertTrue(registry.ids().contains("company_rank_<order>[_<range>]"));
         assertTrue(registry.ids().contains("offer_active_count"));

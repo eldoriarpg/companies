@@ -14,7 +14,9 @@ import de.eldoria.companies.commands.support.Senders;
 import de.eldoria.companies.components.company.CompanyPermission;
 import de.eldoria.companies.data.wrapper.area.CompanyHome;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
+import de.eldoria.companies.events.company.CompanyAreasChangeEvent;
 import de.eldoria.companies.menus.Values;
+import de.eldoria.companies.util.AsyncEvents;
 import de.eldoria.companies.util.Permission;
 import de.eldoria.companies.util.Threading;
 import de.eldoria.companies.util.Times;
@@ -121,6 +123,8 @@ public final class HomeCommand {
                             home.setBy(),
                             home.setAt());
                     if (!areas().homes().set(stored)) throw CommandFailure.of(PREFIX + "error.failed");
+                    AsyncEvents.fire(
+                            deps.plugin(), new CompanyAreasChangeEvent(company, CompanyAreasChangeEvent.Change.HOME));
                     return stored;
                 },
                 stored -> deps.messages()

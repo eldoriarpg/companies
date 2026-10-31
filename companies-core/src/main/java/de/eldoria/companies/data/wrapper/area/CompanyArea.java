@@ -5,6 +5,8 @@
  */
 package de.eldoria.companies.data.wrapper.area;
 
+import de.eldoria.companies.components.area.AreaSource;
+import de.eldoria.companies.components.area.ICompanyArea;
 import org.jetbrains.annotations.Nullable;
 
 import java.time.LocalDateTime;
@@ -45,7 +47,8 @@ public record CompanyArea(
         int offer,
         boolean renew,
         boolean rentWarned,
-        boolean rentEnded) {
+        boolean rentEnded)
+        implements ICompanyArea {
     /**
      * An area without an offer, such as a linked one.
      *
@@ -76,6 +79,11 @@ public record CompanyArea(
         this(
                 id, company, provider, ref, world, node, source, linkedBy, price, rentUntil, created, 0, true, false,
                 false);
+    }
+
+    @Override
+    public boolean renews() {
+        return source == AreaSource.RENTED && renew && !rentEnded;
     }
 
     /**

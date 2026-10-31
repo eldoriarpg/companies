@@ -13,17 +13,19 @@ import de.eldoria.companies.commands.support.CommandFailure;
 import de.eldoria.companies.commands.support.PlayerOnly;
 import de.eldoria.companies.commands.support.Senders;
 import de.eldoria.companies.components.area.AreaCapability;
+import de.eldoria.companies.components.area.AreaSource;
 import de.eldoria.companies.components.company.CompanyPermission;
 import de.eldoria.companies.components.company.ICompanyMember;
 import de.eldoria.companies.components.company.TreasuryKind;
 import de.eldoria.companies.data.repository.AAreaData;
 import de.eldoria.companies.data.wrapper.area.AreaOffer;
-import de.eldoria.companies.data.wrapper.area.AreaSource;
 import de.eldoria.companies.data.wrapper.area.CompanyArea;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
+import de.eldoria.companies.events.company.CompanyAreasChangeEvent;
 import de.eldoria.companies.menus.MenuComponents;
 import de.eldoria.companies.menus.Values;
 import de.eldoria.companies.services.TreasuryService;
+import de.eldoria.companies.util.AsyncEvents;
 import de.eldoria.companies.util.Money;
 import de.eldoria.companies.util.Texts;
 import de.eldoria.companies.util.Threading;
@@ -217,6 +219,7 @@ public final class CompanyAreaCommand {
             if (area.rentEnded() || !areas().areas().stopRenewing(area.id())) {
                 throw CommandFailure.of(PREFIX + "error.notRenewing");
             }
+            changed(company);
             return new Cancelled(false, 0);
         }
         if (!area.node().equals(areas().node())) {
@@ -225,6 +228,7 @@ public final class CompanyAreaCommand {
         var cents =
                 AreaPrices.sellBack(area, deps.configuration().areaSettings().sellBackPercent());
         if (!areas().sync().giveBack(area)) throw CommandFailure.of(PREFIX + "error.failed");
+        changed(company);
         if (cents <= 0) return new Cancelled(true, 0);
         var paid = deps.services()
                 .treasury()
@@ -282,6 +286,7 @@ public final class CompanyAreaCommand {
                     () -> CompletableFuture.supplyAsync(() -> claim(area, owner, stored), Threading.VIRTUAL);
             if (offer.price() <= 0) {
                 if (!purchase.get().join()) throw CommandFailure.of(PREFIX + "error.taken");
+                changed(company);
                 return stored.get();
             }
             var kind = offer.kind() == AreaOffer.Kind.RENT ? TreasuryKind.AREA_RENT : TreasuryKind.AREA_BUY;
@@ -294,7 +299,10 @@ public final class CompanyAreaCommand {
                             "#" + offer.id(),
                             purchase)
                     .join();
-            if (result.done()) return stored.get();
+            if (result.done()) {
+                changed(company);
+                return stored.get();
+            }
             if (result.outcome() == TreasuryService.Outcome.PURCHASE_FAILED) {
                 throw CommandFailure.of(PREFIX + "error.taken");
             }
@@ -341,6 +349,10 @@ public final class CompanyAreaCommand {
                 area.rentWarned(),
                 area.rentEnded()));
         return true;
+    }
+
+    private void changed(CompanyProfile company) {
+        AsyncEvents.fire(deps.plugin(), new CompanyAreasChangeEvent(company, CompanyAreasChangeEvent.Change.AREAS));
     }
 
     private void requireManage(CompanyProfile company, Player player) {
@@ -451,6 +463,7 @@ public final class CompanyAreaCommand {
                         throw CommandFailure.of(PREFIX + "error.manage");
                     }
                     if (!areas().sync().unlink(found)) throw CommandFailure.of(PREFIX + "error.failed");
+                    changed(company);
                     return found;
                 },
                 found -> deps.messages().sendMessage(player, PREFIX + "unlinked", Values.number("id", found.id())));
@@ -492,7 +505,9 @@ public final class CompanyAreaCommand {
                 0,
                 null,
                 Times.now());
-        return store.add(area).orElseThrow(() -> CommandFailure.of(PREFIX + "error.taken"));
+        var id = store.add(area).orElseThrow(() -> CommandFailure.of(PREFIX + "error.taken"));
+        changed(company);
+        return id;
     }
 
     private CompanyProfile company(Player player) {

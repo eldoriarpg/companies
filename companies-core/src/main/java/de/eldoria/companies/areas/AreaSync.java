@@ -6,11 +6,11 @@
 package de.eldoria.companies.areas;
 
 import de.eldoria.companies.components.area.AreaCapability;
+import de.eldoria.companies.components.area.AreaSource;
 import de.eldoria.companies.components.company.CompanyPermission;
 import de.eldoria.companies.components.company.ICompanyMember;
 import de.eldoria.companies.data.repository.AAreaData;
 import de.eldoria.companies.data.wrapper.area.AreaOffer;
-import de.eldoria.companies.data.wrapper.area.AreaSource;
 import de.eldoria.companies.data.wrapper.area.CompanyArea;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.events.company.CompanyDisbandEvent;
@@ -45,6 +45,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
 import java.util.function.IntFunction;
 import java.util.function.LongSupplier;
 import java.util.function.Supplier;
@@ -88,6 +89,7 @@ public final class AreaSync implements Listener {
     private final UUID node;
     private final Executor mainThread;
     private final Logger logger;
+    private final Consumer<CompanyProfile> changed;
     private final AtomicBoolean queued = new AtomicBoolean();
     private final InstantSource clock;
     private final Set<CompletableFuture<?>> waiting = ConcurrentHashMap.newKeySet();
@@ -106,6 +108,7 @@ public final class AreaSync implements Listener {
      * @param node        this server
      * @param mainThread  runs the provider calls on the main thread
      * @param logger      reports failures
+     * @param changed     told about a company whose areas a check changed
      */
     public AreaSync(
             AreaProviders providers,
@@ -115,7 +118,8 @@ public final class AreaSync implements Listener {
             InstantSource clock,
             UUID node,
             Executor mainThread,
-            Logger logger) {
+            Logger logger,
+            Consumer<CompanyProfile> changed) {
         this.providers = providers;
         this.areas = areas;
         this.companies = companies;
@@ -124,6 +128,7 @@ public final class AreaSync implements Listener {
         this.node = node;
         this.mainThread = mainThread;
         this.logger = logger;
+        this.changed = changed;
     }
 
     /**
@@ -266,6 +271,8 @@ public final class AreaSync implements Listener {
             }
             var outcome = onMain(() -> new Round(profiles, ours, keepers).run(found));
             for (var change : outcome.changes()) change.write(areas);
+            for (var company : outcome.touched())
+                profiles.getOrDefault(company, Optional.empty()).ifPresent(changed);
             suspected = Map.copyOf(outcome.suspected());
             Map<Integer, Map<UUID, ICompanyMember>> byCompany = new HashMap<>();
             profiles.forEach((id, profile) -> profile.ifPresent(company -> {
@@ -324,6 +331,7 @@ public final class AreaSync implements Listener {
         private final Map<String, Integer> kept = new HashMap<>();
         private final Map<String, CompanyArea> stayed = new HashMap<>();
         private final Map<Integer, Instant> lost = new HashMap<>();
+        private final Set<Integer> touched = new HashSet<>();
         private final Instant now = clock.instant();
 
         private Round(
@@ -347,7 +355,7 @@ public final class AreaSync implements Listener {
                                     !entry.getKey().ref().equals(entry.getValue()))
                             .thenComparing(entry -> entry.getKey().id()))
                     .forEach(entry -> visit(entry.getKey(), entry.getValue()));
-            return new Outcome(changes, kept, lost);
+            return new Outcome(changes, kept, lost, touched);
         }
 
         private void visit(CompanyArea area, String ref) {
@@ -378,7 +386,10 @@ public final class AreaSync implements Listener {
                 return;
             }
             stayed.put(key, area);
-            if (!ref.equals(area.ref())) changes.add(store -> rename(store, area, ref));
+            if (!ref.equals(area.ref())) {
+                touched.add(area.company());
+                changes.add(store -> rename(store, area, ref));
+            }
             kept.put(key, area.company());
             if (area.fromServer()) followOwner(area, ref, profile.get());
             if (!providers.call(id, provider -> provider.capabilities().contains(AreaCapability.TRUST_LIST), false)) {
@@ -414,6 +425,7 @@ public final class AreaSync implements Listener {
                 drop(area, mine);
                 return;
             }
+            touched.add(area.company());
             changes.add(store -> {
                 for (var player : mine) store.addBuilder(other.id(), player);
                 store.remove(area.id());
@@ -454,13 +466,16 @@ public final class AreaSync implements Listener {
         }
 
         private void handBack(CompanyArea area) {
-            if (release(area, keepers.get(area.id()))) changes.add(store -> store.remove(area.id()));
+            if (!release(area, keepers.get(area.id()))) return;
+            touched.add(area.company());
+            changes.add(store -> store.remove(area.id()));
         }
 
         private void drop(CompanyArea area, Set<UUID> mine) {
             for (var player : mine) {
                 providers.call(area.provider(), provider -> provider.removeBuilder(area.ref(), player), false);
             }
+            touched.add(area.company());
             changes.add(store -> store.remove(area.id()));
         }
     }
@@ -556,5 +571,6 @@ public final class AreaSync implements Listener {
         void write(AAreaData areas);
     }
 
-    private record Outcome(List<Change> changes, Map<String, Integer> kept, Map<Integer, Instant> suspected) {}
+    private record Outcome(
+            List<Change> changes, Map<String, Integer> kept, Map<Integer, Instant> suspected, Set<Integer> touched) {}
 }

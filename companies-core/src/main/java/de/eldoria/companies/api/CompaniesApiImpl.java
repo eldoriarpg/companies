@@ -7,7 +7,9 @@ package de.eldoria.companies.api;
 
 import de.eldoria.companies.areas.AreaProviders;
 import de.eldoria.companies.commands.support.CommandFailure;
+import de.eldoria.companies.data.repository.AAreaData;
 import de.eldoria.companies.data.repository.ACompanyData;
+import de.eldoria.companies.data.repository.AHomeData;
 import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.repository.AServerEventData;
 import de.eldoria.companies.data.repository.AStatsData;
@@ -56,6 +58,8 @@ public final class CompaniesApiImpl implements CompaniesApi {
                 repositories.companies(),
                 repositories.stats(),
                 repositories.treasuries(),
+                repositories.areas(),
+                repositories.homes(),
                 writes,
                 server.players(),
                 server.clock(),
@@ -156,13 +160,17 @@ public final class CompaniesApiImpl implements CompaniesApi {
      * @param stats      statistics repository
      * @param treasuries   treasury repository
      * @param serverEvents server event repository
+     * @param areas        the areas of companies
+     * @param homes        the homes of companies
      */
     public record Repositories(
             ACompanyData companies,
             AOrderData orders,
             AStatsData stats,
             ATreasuryData treasuries,
-            AServerEventData serverEvents) {}
+            AServerEventData serverEvents,
+            AAreaData areas,
+            AHomeData homes) {}
 
     /**
      * What the API needs from the server.

@@ -177,6 +177,8 @@ public final class PlaceholderRegistry {
         companyIds.put("company_orders", CompanyId.count(view -> view.orders()));
         companyIds.put("company_treasury", CompanyId.text(view -> money.apply(view.treasury())));
         companyIds.put("company_payout_share", CompanyId.count(view -> view.payoutShare()));
+        companyIds.put("company_areas", CompanyId.count(view -> view.areas()));
+        companyIds.put("company_home_server", CompanyId.text(CompanyView::homeServer));
     }
 
     /**

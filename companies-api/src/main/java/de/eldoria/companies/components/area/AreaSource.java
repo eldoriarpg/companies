@@ -3,7 +3,7 @@
  *
  *     Copyright (C) EldoriaRPG Team and Contributor
  */
-package de.eldoria.companies.data.wrapper.area;
+package de.eldoria.companies.components.area;
 
 /**
  * How a company got an area.

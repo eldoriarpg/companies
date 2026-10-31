@@ -6,8 +6,8 @@
 package de.eldoria.companies.data.repository;
 
 import de.chojo.sadu.queries.configuration.QueryConfiguration;
+import de.eldoria.companies.components.area.AreaSource;
 import de.eldoria.companies.data.wrapper.area.AreaOffer;
-import de.eldoria.companies.data.wrapper.area.AreaSource;
 import de.eldoria.companies.data.wrapper.area.CompanyArea;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;

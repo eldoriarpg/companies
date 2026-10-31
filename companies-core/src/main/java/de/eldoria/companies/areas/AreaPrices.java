@@ -5,7 +5,7 @@
  */
 package de.eldoria.companies.areas;
 
-import de.eldoria.companies.data.wrapper.area.AreaSource;
+import de.eldoria.companies.components.area.AreaSource;
 import de.eldoria.companies.data.wrapper.area.CompanyArea;
 import de.eldoria.companies.util.Money;
 

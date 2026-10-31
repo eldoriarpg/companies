@@ -5,6 +5,7 @@
  */
 package de.eldoria.companies.data.wrapper.area;
 
+import de.eldoria.companies.components.area.AreaSource;
 import org.jetbrains.annotations.Nullable;
 
 import java.time.LocalDateTime;
