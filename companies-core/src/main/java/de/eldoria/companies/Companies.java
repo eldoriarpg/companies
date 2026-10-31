@@ -21,6 +21,7 @@ import de.eldoria.companies.areas.AreaPrices;
 import de.eldoria.companies.areas.AreaRents;
 import de.eldoria.companies.areas.AreaServices;
 import de.eldoria.companies.areas.AreaSync;
+import de.eldoria.companies.areas.CompanyHomes;
 import de.eldoria.companies.areas.HomeTeleports;
 import de.eldoria.companies.boards.SignBoards;
 import de.eldoria.companies.boards.npc.NpcHooks;
@@ -662,6 +663,12 @@ public class Companies extends EldoPlugin {
                 areaSync,
                 configuration.nodeSettings().nodeUid(),
                 () -> configuration.nodeSettings().proxyServer());
+        var companyService = CompanyService.create(
+                this,
+                companyData,
+                treasuryService,
+                OrderCreationService.Wallet.of(economy),
+                configuration::companySettings);
 
         if (commands != null) {
             commands.provide(new CommandDependencies.Services(
@@ -683,12 +690,7 @@ public class Companies extends EldoPlugin {
                     soloOrders,
                     profileService,
                     MemberService.create(this, companyData, notificationService),
-                    CompanyService.create(
-                            this,
-                            companyData,
-                            treasuryService,
-                            OrderCreationService.Wallet.of(economy),
-                            configuration::companySettings),
+                    companyService,
                     orderAccept,
                     CompanyOrderService.create(this, companyData, orderData, outcomes),
                     ownerOrders,
@@ -711,7 +713,13 @@ public class Companies extends EldoPlugin {
         }
         if (api != null)
             api.open(new CompaniesApiImpl.Writes(
-                    orderCreation, membershipService, itemReturnService, serverEventService));
+                    orderCreation,
+                    membershipService,
+                    itemReturnService,
+                    serverEventService,
+                    companyService,
+                    new CompanyHomes(areaServices, configuration::areaSettings, this),
+                    Threading.mainThread(this)));
 
         registerListener(new GuessedOutcomes(orderData, Times.UTC, Threading.VIRTUAL, getLogger()));
         registerListener(new ChunkDeliveries(offerData, Times.UTC, Threading.VIRTUAL, getLogger()));

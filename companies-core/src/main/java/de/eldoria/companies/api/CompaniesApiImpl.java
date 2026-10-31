@@ -6,6 +6,7 @@
 package de.eldoria.companies.api;
 
 import de.eldoria.companies.areas.AreaProviders;
+import de.eldoria.companies.areas.CompanyHomes;
 import de.eldoria.companies.commands.support.CommandFailure;
 import de.eldoria.companies.data.repository.AAreaData;
 import de.eldoria.companies.data.repository.ACompanyData;
@@ -15,6 +16,7 @@ import de.eldoria.companies.data.repository.AServerEventData;
 import de.eldoria.companies.data.repository.AStatsData;
 import de.eldoria.companies.data.repository.ATreasuryData;
 import de.eldoria.companies.orders.OrderCreationService;
+import de.eldoria.companies.services.CompanyService;
 import de.eldoria.companies.services.ItemReturnService;
 import de.eldoria.companies.services.MembershipService;
 import de.eldoria.companies.services.events.ServerEventService;
@@ -62,6 +64,7 @@ public final class CompaniesApiImpl implements CompaniesApi {
                 repositories.homes(),
                 writes,
                 server.players(),
+                server.messages(),
                 server.clock(),
                 executor);
         orders = new OrderApiImpl(repositories.orders(), writes, server.players(), server.messages(), executor);
@@ -191,10 +194,16 @@ public final class CompaniesApiImpl implements CompaniesApi {
      * @param memberships adds members to companies
      * @param itemReturns  stores granted items
      * @param serverEvents creates and ends server events
+     * @param companies    founds companies
+     * @param homes        sets the homes of companies
+     * @param mainThread   runs what has to run on the main thread, such as asking the area plugins
      */
     public record Writes(
             OrderCreationService orders,
             MembershipService memberships,
             ItemReturnService itemReturns,
-            ServerEventService serverEvents) {}
+            ServerEventService serverEvents,
+            CompanyService companies,
+            CompanyHomes homes,
+            Executor mainThread) {}
 }
