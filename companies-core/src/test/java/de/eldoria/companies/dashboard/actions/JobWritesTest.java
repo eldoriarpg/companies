@@ -6,9 +6,9 @@
 package de.eldoria.companies.dashboard.actions;
 
 import de.eldoria.companies.components.company.CompanyPermission;
+import de.eldoria.companies.components.job.JobState;
 import de.eldoria.companies.dashboard.DashboardWorld;
 import de.eldoria.companies.data.wrapper.dashboard.StoredSession;
-import de.eldoria.companies.data.wrapper.job.JobState;
 import de.eldoria.companies.util.Permission;
 import de.eldoria.companies.util.Times;
 import de.eldoria.companies.web.api.Actions;

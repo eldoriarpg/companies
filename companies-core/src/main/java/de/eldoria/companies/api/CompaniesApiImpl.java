@@ -8,13 +8,16 @@ package de.eldoria.companies.api;
 import de.eldoria.companies.areas.AreaProviders;
 import de.eldoria.companies.areas.CompanyHomes;
 import de.eldoria.companies.commands.support.CommandFailure;
+import de.eldoria.companies.configuration.elements.jobs.JobSettings;
 import de.eldoria.companies.data.repository.AAreaData;
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.repository.AHomeData;
+import de.eldoria.companies.data.repository.AJobData;
 import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.repository.AServerEventData;
 import de.eldoria.companies.data.repository.AStatsData;
 import de.eldoria.companies.data.repository.ATreasuryData;
+import de.eldoria.companies.jobs.JobServices;
 import de.eldoria.companies.orders.OrderCreationService;
 import de.eldoria.companies.services.CompanyService;
 import de.eldoria.companies.services.ItemReturnService;
@@ -48,6 +51,7 @@ public final class CompaniesApiImpl implements CompaniesApi {
     private final PlayerApi players;
     private final RankingApi ranking;
     private final ServerEventApi events;
+    private final JobApi jobs;
     private final AreaProviders areas = new AreaProviders(Logger.getLogger("Companies"));
 
     /**
@@ -71,6 +75,7 @@ public final class CompaniesApiImpl implements CompaniesApi {
         players = new PlayerApiImpl(repositories.orders(), writes, executor);
         ranking = new RankingApiImpl(repositories.stats(), server.clock(), executor);
         events = new ServerEventApiImpl(repositories.serverEvents(), writes, server.clock(), executor);
+        jobs = new JobApiImpl(repositories.jobs(), writes, server.players(), executor);
     }
 
     /**
@@ -148,6 +153,11 @@ public final class CompaniesApiImpl implements CompaniesApi {
         return areas;
     }
 
+    @Override
+    public JobApi jobs() {
+        return jobs;
+    }
+
     /**
      * @return the area providers, as the plugin itself uses them
      */
@@ -165,6 +175,7 @@ public final class CompaniesApiImpl implements CompaniesApi {
      * @param serverEvents server event repository
      * @param areas        the areas of companies
      * @param homes        the homes of companies
+     * @param jobs         job repository
      */
     public record Repositories(
             ACompanyData companies,
@@ -173,7 +184,8 @@ public final class CompaniesApiImpl implements CompaniesApi {
             ATreasuryData treasuries,
             AServerEventData serverEvents,
             AAreaData areas,
-            AHomeData homes) {}
+            AHomeData homes,
+            AJobData jobs) {}
 
     /**
      * What the API needs from the server.
@@ -196,6 +208,8 @@ public final class CompaniesApiImpl implements CompaniesApi {
      * @param serverEvents creates and ends server events
      * @param companies    founds companies
      * @param homes        sets the homes of companies
+     * @param jobs         posts jobs
+     * @param jobSettings  the current settings of jobs
      * @param mainThread   runs what has to run on the main thread, such as asking the area plugins
      */
     public record Writes(
@@ -205,5 +219,7 @@ public final class CompaniesApiImpl implements CompaniesApi {
             ServerEventService serverEvents,
             CompanyService companies,
             CompanyHomes homes,
+            JobServices jobs,
+            Supplier<JobSettings> jobSettings,
             Executor mainThread) {}
 }

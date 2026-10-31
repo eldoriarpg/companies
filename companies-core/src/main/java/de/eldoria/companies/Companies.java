@@ -355,7 +355,8 @@ public class Companies extends EldoPlugin {
                         economy.treasury(),
                         serverEventData,
                         areaData,
-                        homeData),
+                        homeData,
+                        jobData),
                 Threading.VIRTUAL);
         api.register(this);
         api.areaProviders().settings(configuration::areaSettings);
@@ -719,6 +720,8 @@ public class Companies extends EldoPlugin {
                     serverEventService,
                     companyService,
                     new CompanyHomes(areaServices, configuration::areaSettings, this),
+                    jobServices,
+                    configuration::jobSettings,
                     Threading.mainThread(this)));
 
         registerListener(new GuessedOutcomes(orderData, Times.UTC, Threading.VIRTUAL, getLogger()));

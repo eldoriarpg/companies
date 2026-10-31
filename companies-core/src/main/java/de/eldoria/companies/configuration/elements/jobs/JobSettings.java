@@ -5,7 +5,7 @@
  */
 package de.eldoria.companies.configuration.elements.jobs;
 
-import de.eldoria.companies.data.wrapper.job.JobKind;
+import de.eldoria.companies.components.job.JobKind;
 
 import java.util.ArrayList;
 import java.util.List;

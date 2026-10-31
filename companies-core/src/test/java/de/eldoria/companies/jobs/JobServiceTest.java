@@ -7,6 +7,8 @@ package de.eldoria.companies.jobs;
 
 import de.eldoria.companies.components.company.CompanyPermission;
 import de.eldoria.companies.components.company.JoinMode;
+import de.eldoria.companies.components.job.JobKind;
+import de.eldoria.companies.components.job.JobState;
 import de.eldoria.companies.configuration.elements.jobs.JobSettings;
 import de.eldoria.companies.configuration.elements.ordersettings.OrderFee;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteCompanyData;
@@ -17,9 +19,7 @@ import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.job.Job;
 import de.eldoria.companies.data.wrapper.job.JobArea;
 import de.eldoria.companies.data.wrapper.job.JobExtension;
-import de.eldoria.companies.data.wrapper.job.JobKind;
 import de.eldoria.companies.data.wrapper.job.JobLand;
-import de.eldoria.companies.data.wrapper.job.JobState;
 import de.eldoria.companies.data.wrapper.job.JobTarget;
 import de.eldoria.companies.orders.OrderTable;
 import de.eldoria.companies.util.TestExecutors;
@@ -256,6 +256,103 @@ class JobServiceTest {
         assertEquals(List.of(10.0), collected);
         assertEquals(JobState.CANCELLED, jobs.job(job.id()).orElseThrow().state());
         assertEquals(JobService.Change.CLOSED, service.cancel(owner, "Ola", job.id()));
+    }
+
+    @Test
+    void anUnchargedJobTakesNothingAndRefundsNothing() {
+        var posted = service.post(
+                owner,
+                JobKind.DIG,
+                "Cellar",
+                200,
+                24,
+                NODE,
+                AREA,
+                JobLand.REGION,
+                "home",
+                JobService.Details.NONE,
+                false);
+        var job = assertInstanceOf(JobService.Posted.Done.class, posted).job();
+
+        assertEquals(1000.0, balances.get(owner), 0.001);
+        assertEquals(0.0, job.fee());
+        assertFalse(jobs.job(job.id()).orElseThrow().charged());
+        assertEquals(JobService.Change.DONE, service.cancel(owner, "Ola", job.id()));
+        assertEquals(1000.0, balances.get(owner), 0.001);
+
+        var lost = assertInstanceOf(
+                        JobService.Posted.Done.class,
+                        service.post(
+                                owner,
+                                JobKind.DIG,
+                                "Cellar",
+                                200,
+                                24,
+                                NODE,
+                                AREA,
+                                JobLand.REGION,
+                                "home",
+                                JobService.Details.NONE,
+                                false))
+                .job();
+        assertTrue(service.landLost(lost, null));
+        assertEquals(1000.0, balances.get(owner), 0.001);
+    }
+
+    @Test
+    void anUnchargedJobThatExpiresRefundsNothing() {
+        var job = uncharged(JobKind.DIG, AREA, JobService.Details.NONE);
+        clock = Clock.fixed(NOW.plusSeconds(8L * 24 * 3600), ZoneOffset.UTC);
+        service();
+
+        assertEquals(List.of(job.id()), service.check().expired());
+
+        assertEquals(1000.0, balances.get(owner), 0.001);
+    }
+
+    @Test
+    void anUnchargedTakenJobWhoseLandChangedHandsStillPaysTheWorkers() {
+        var job = uncharged(JobKind.DIG, AREA, JobService.Details.NONE);
+        service.take(company, manager, job.id());
+        jobs.work(job.id(), company.id(), worker, 10);
+        var taken = jobs.job(job.id()).orElseThrow();
+
+        assertTrue(service.landLost(taken, new DigCheck.Progress(300, 500, new int[] {0, 64, 0})));
+
+        assertEquals(1000.0, balances.get(owner), 0.001);
+        assertEquals(86.4, balances.get(worker), 0.001);
+    }
+
+    @Test
+    void anUnchargedHarvestThatEndsGivesNoBudgetBack() {
+        var job = uncharged(JobKind.HARVEST, AREA, new JobService.Details(null, 1.0, null, null));
+        service.take(company, manager, job.id());
+        service.harvested(job.id(), company.id(), worker, Map.of("WHEAT", 4));
+        clock = Clock.offset(clock, Duration.ofHours(25));
+        service();
+
+        assertEquals(List.of(job.id()), service.check().ended());
+
+        assertEquals(1000.0, balances.get(owner), 0.001);
+    }
+
+    @Test
+    void anUnchargedDisputeSettledForTheOwnerRefundsNothing() {
+        var job = uncharged(JobKind.CONTRACT, POINT, JobService.Details.NONE);
+        service.take(company, manager, job.id());
+        service.disputeAsCompany(company, manager, job.id(), "Owner blocks us");
+
+        assertEquals(JobService.Change.DONE, service.settle("Admin", job.id(), 0));
+
+        assertEquals(1000.0, balances.get(owner), 0.001);
+    }
+
+    private Job uncharged(JobKind kind, JobArea area, JobService.Details details) {
+        var land = kind == JobKind.CONTRACT ? JobLand.NONE : JobLand.REGION;
+        var ref = kind == JobKind.CONTRACT ? null : "home";
+        return ((JobService.Posted.Done)
+                        service.post(owner, kind, "Free", 200, 24, NODE, area, land, ref, details, false))
+                .job();
     }
 
     @Test

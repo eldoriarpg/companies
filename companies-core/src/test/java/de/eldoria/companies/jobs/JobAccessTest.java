@@ -5,19 +5,20 @@
  */
 package de.eldoria.companies.jobs;
 
+import de.eldoria.companies.components.job.JobKind;
+import de.eldoria.companies.components.job.JobState;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteJobData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteTestDatabase;
 import de.eldoria.companies.data.wrapper.job.Job;
 import de.eldoria.companies.data.wrapper.job.JobArea;
 import de.eldoria.companies.data.wrapper.job.JobHarvest;
-import de.eldoria.companies.data.wrapper.job.JobKind;
 import de.eldoria.companies.data.wrapper.job.JobLand;
-import de.eldoria.companies.data.wrapper.job.JobState;
 import de.eldoria.companies.data.wrapper.job.JobTarget;
 import de.eldoria.companies.jobs.hooks.Claim;
 import de.eldoria.companies.jobs.hooks.JobHooks;
 import de.eldoria.companies.jobs.hooks.JobLandHook;
 import org.bukkit.Material;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.block.Block;
 import org.bukkit.block.data.Ageable;
 import org.bukkit.entity.Player;
@@ -471,7 +472,7 @@ class JobAccessTest {
             }
 
             @Override
-            public Claim claim(Player owner, JobArea area) {
+            public Claim claim(OfflinePlayer owner, JobArea area) {
                 return new Claim.None();
             }
 

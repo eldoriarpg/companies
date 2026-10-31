@@ -5,6 +5,8 @@
  */
 package de.eldoria.companies.data.wrapper.job;
 
+import de.eldoria.companies.components.job.IJobArea;
+
 /**
  * The block box of a job in a world, both corners included.
  *
@@ -16,7 +18,7 @@ package de.eldoria.companies.data.wrapper.job;
  * @param maxY  highest y
  * @param maxZ  highest z
  */
-public record JobArea(String world, int minX, int minY, int minZ, int maxX, int maxY, int maxZ) {
+public record JobArea(String world, int minX, int minY, int minZ, int maxX, int maxY, int maxZ) implements IJobArea {
     /**
      * Orders the corners, so the minimum is never above the maximum.
      *

@@ -3,7 +3,7 @@
  *
  *     Copyright (C) EldoriaRPG Team and Contributor
  */
-package de.eldoria.companies.data.wrapper.job;
+package de.eldoria.companies.components.job;
 
 import java.util.EnumSet;
 import java.util.Set;
@@ -37,11 +37,12 @@ public enum JobState {
      */
     SETTLED,
     /**
-     * The owner cancelled it while it was open and got the price back.
+     * It ended unfinished: the owner cancelled it while it was open, or its land changed hands. A charged job's owner
+     * got back what was not earned.
      */
     CANCELLED,
     /**
-     * Nobody took it before it expired; the owner got the price back.
+     * Nobody took it before it expired. A charged job's owner got price and fee back.
      */
     EXPIRED;
 
@@ -57,6 +58,8 @@ public enum JobState {
     public static final Set<JobState> HELD = EnumSet.of(TAKEN, DONE, DISPUTED);
 
     /**
+     * Whether the job is over for good.
+     *
      * @return whether the job is over for good
      */
     public boolean closed() {

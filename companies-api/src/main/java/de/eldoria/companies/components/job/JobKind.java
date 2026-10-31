@@ -3,10 +3,10 @@
  *
  *     Copyright (C) EldoriaRPG Team and Contributor
  */
-package de.eldoria.companies.data.wrapper.job;
+package de.eldoria.companies.components.job;
 
 /**
- * The kind of work a job asks for. Only {@link #DIG} can be created so far; the other kinds follow.
+ * The kind of work a job asks for.
  */
 public enum JobKind {
     /**
@@ -31,6 +31,8 @@ public enum JobKind {
     CONTRACT;
 
     /**
+     * Whether the job has an area in a world that companies get access to.
+     *
      * @return whether the job has an area in a world that companies get access to
      */
     public boolean area() {

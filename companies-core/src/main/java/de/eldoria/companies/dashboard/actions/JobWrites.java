@@ -7,15 +7,15 @@ package de.eldoria.companies.dashboard.actions;
 
 import de.eldoria.companies.commands.support.CommandFailure;
 import de.eldoria.companies.components.company.CompanyPermission;
+import de.eldoria.companies.components.job.JobKind;
+import de.eldoria.companies.components.job.JobState;
 import de.eldoria.companies.configuration.elements.jobs.JobSettings;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.dashboard.StoredSession;
 import de.eldoria.companies.data.wrapper.job.Job;
 import de.eldoria.companies.data.wrapper.job.JobArea;
-import de.eldoria.companies.data.wrapper.job.JobKind;
 import de.eldoria.companies.data.wrapper.job.JobLand;
 import de.eldoria.companies.data.wrapper.job.JobReview;
-import de.eldoria.companies.data.wrapper.job.JobState;
 import de.eldoria.companies.jobs.JobService;
 import de.eldoria.companies.jobs.JobServices;
 import de.eldoria.companies.menus.Values;

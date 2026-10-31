@@ -468,7 +468,28 @@ public enum NotificationType {
             NotificationCategory.MY_ORDERS,
             true,
             new Action("/order job extension grant <job_id>", "words.accept"),
-            new Action("/order job extension refuse <job_id>", "words.deny"));
+            new Action("/order job extension refuse <job_id>", "words.deny")),
+    /**
+     * Nobody took the player's job in time; it was posted without charge, so nothing went back. Arguments:
+     * {@code job_title}.
+     */
+    MY_JOB_EXPIRED_UNCHARGED(78, "notification.myJobExpiredUncharged", NotificationCategory.MY_ORDERS, true, null),
+    /**
+     * The land of the player's job changed hands, so the job was cancelled; it was posted without charge, so nothing
+     * went back. Arguments: {@code job_title}, {@code job_id}.
+     */
+    MY_JOB_LAND_LOST_UNCHARGED(79, "notification.myJobLandLostUncharged", NotificationCategory.MY_ORDERS, true, null),
+    /**
+     * The player's harvest job ended; it was posted without charge, so no budget went back. Arguments:
+     * {@code job_title}, {@code items} (waiting in its stock).
+     */
+    MY_JOB_HARVEST_ENDED_UNCHARGED(
+            80, "notification.myJobHarvestEndedUncharged", NotificationCategory.MY_ORDERS, true, null),
+    /**
+     * An admin settled the dispute about the player's job; it was posted without charge, so nothing went back.
+     * Arguments: {@code job_title}.
+     */
+    MY_JOB_SETTLED_UNCHARGED(81, "notification.myJobSettledUncharged", NotificationCategory.MY_ORDERS, true, null);
 
     private final int id;
     private final String key;

@@ -6,13 +6,13 @@
 package de.eldoria.companies.data.repository;
 
 import de.chojo.sadu.queries.configuration.QueryConfiguration;
+import de.eldoria.companies.components.job.JobKind;
+import de.eldoria.companies.components.job.JobState;
 import de.eldoria.companies.data.wrapper.job.Job;
 import de.eldoria.companies.data.wrapper.job.JobArea;
 import de.eldoria.companies.data.wrapper.job.JobExtension;
 import de.eldoria.companies.data.wrapper.job.JobHarvest;
-import de.eldoria.companies.data.wrapper.job.JobKind;
 import de.eldoria.companies.data.wrapper.job.JobLand;
-import de.eldoria.companies.data.wrapper.job.JobState;
 import de.eldoria.companies.data.wrapper.job.JobTarget;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -104,6 +104,29 @@ public abstract class JobDataContract {
         assertEquals(NOW.plusDays(7), job.expires());
         assertFalse(job.granted());
         assertNull(job.target());
+    }
+
+    @Test
+    void whetherAJobWasChargedIsStored() {
+        var draft = Job.draft(
+                OWNER,
+                JobKind.DIG,
+                "Free",
+                500,
+                0,
+                NODE,
+                new JobArea("world", 0, 60, 0, 5, 70, 5),
+                JobLand.REGION,
+                "home",
+                48,
+                NOW,
+                NOW.plusDays(7));
+
+        var free = jobs.create(draft.withCharged(false)).orElseThrow();
+        var paid = jobs.create(draft).orElseThrow();
+
+        assertFalse(jobs.job(free).orElseThrow().charged());
+        assertTrue(jobs.job(paid).orElseThrow().charged());
     }
 
     @Test

@@ -19,6 +19,7 @@ import de.eldoria.companies.data.wrapper.job.JobLand;
 import de.eldoria.companies.jobs.hooks.Claim;
 import de.eldoria.companies.jobs.hooks.JobLandHook;
 import org.bukkit.Bukkit;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.Nullable;
 
@@ -46,12 +47,14 @@ public final class WorldGuardJobs implements JobLandHook {
     }
 
     @Override
-    public Claim claim(Player owner, JobArea area) {
+    public Claim claim(OfflinePlayer owner, JobArea area) {
         var manager = manager(area.world());
         if (manager == null) return new Claim.None();
         var regions = manager.getApplicableRegions(probe(area));
         if (regions.size() == 0) return new Claim.None();
-        var local = WorldGuardPlugin.inst().wrapPlayer(owner);
+        var local = owner instanceof Player online
+                ? WorldGuardPlugin.inst().wrapPlayer(online)
+                : WorldGuardPlugin.inst().wrapOfflinePlayer(owner);
         ProtectedRegion holding = null;
         for (var region : regions) {
             if (region.getId().startsWith(JOB_REGION)) return new Claim.Foreign(region.getId());

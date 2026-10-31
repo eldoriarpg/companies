@@ -8,6 +8,8 @@ package de.eldoria.companies.data.repository.impl.mariadb;
 import de.chojo.sadu.mapper.wrapper.Row;
 import de.chojo.sadu.queries.api.call.adapter.Adapter;
 import de.chojo.sadu.queries.api.configuration.ConnectedQueryConfiguration;
+import de.eldoria.companies.components.job.JobKind;
+import de.eldoria.companies.components.job.JobState;
 import de.eldoria.companies.data.repository.AJobData;
 import de.eldoria.companies.data.repository.impl.TimeColumns;
 import de.eldoria.companies.data.repository.impl.Transactions;
@@ -15,10 +17,8 @@ import de.eldoria.companies.data.wrapper.job.Job;
 import de.eldoria.companies.data.wrapper.job.JobArea;
 import de.eldoria.companies.data.wrapper.job.JobExtension;
 import de.eldoria.companies.data.wrapper.job.JobHarvest;
-import de.eldoria.companies.data.wrapper.job.JobKind;
 import de.eldoria.companies.data.wrapper.job.JobLand;
 import de.eldoria.companies.data.wrapper.job.JobReview;
-import de.eldoria.companies.data.wrapper.job.JobState;
 import de.eldoria.companies.data.wrapper.job.JobTarget;
 import org.intellij.lang.annotations.Language;
 import org.jetbrains.annotations.Nullable;
@@ -48,7 +48,7 @@ public class MariaDbJobData extends AJobData {
                    min_z, max_x, max_y, max_z, land, land_ref, due_hours, created, expires, taken, due, closed,
                    closed_by, granted, done_at, done_by, rejected, dispute_by, dispute, disputed_at, settled,
                    target_y, target_block, unit_price, paid, extended_hours, extension_requests, extension_hours,
-                   extension_reason, extension_asked
+                   extension_reason, extension_asked, charged
             FROM jobs
             """;
 
@@ -79,8 +79,8 @@ public class MariaDbJobData extends AJobData {
         var insert = """
                 INSERT INTO jobs(owner_uuid, kind, title, description, price, fee, state, node, world, min_x, min_y,
                                  min_z, max_x, max_y, max_z, land, land_ref, due_hours, created, expires, target_y,
-                                 target_block, unit_price)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                 target_block, unit_price, charged)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 RETURNING id""";
         var area = job.area();
         var target = job.target();
@@ -108,7 +108,8 @@ public class MariaDbJobData extends AJobData {
                         .bind(job.expires(), time())
                         .bind(target == null ? null : target.y())
                         .bind(target == null ? null : target.surface())
-                        .bind(harvest == null ? null : harvest.unitPrice()))
+                        .bind(harvest == null ? null : harvest.unitPrice())
+                        .bind(job.charged()))
                 .map(row -> row.getInt(1))
                 .first();
     }
@@ -785,6 +786,7 @@ public class MariaDbJobData extends AJobData {
                         row.getInt("extension_requests"),
                         row.getObject("extension_hours") == null ? null : row.getInt("extension_hours"),
                         row.getString("extension_reason"),
-                        readTime(row, "extension_asked")));
+                        readTime(row, "extension_asked")),
+                row.getBoolean("charged"));
     }
 }

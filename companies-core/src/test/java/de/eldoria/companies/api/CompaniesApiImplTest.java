@@ -41,10 +41,12 @@ import de.eldoria.companies.configuration.elements.CompanySettings;
 import de.eldoria.companies.configuration.elements.OrderSettings;
 import de.eldoria.companies.configuration.elements.UserSettings;
 import de.eldoria.companies.configuration.elements.areas.AreaSettings;
+import de.eldoria.companies.configuration.elements.jobs.JobSettings;
 import de.eldoria.companies.configuration.elements.ordersettings.OrderFee;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteAreaData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteCompanyData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteHomeData;
+import de.eldoria.companies.data.repository.impl.sqlite.SqLiteJobData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteMembershipData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteOrderData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteServerEventData;
@@ -161,7 +163,14 @@ class CompaniesApiImplTest {
 
         api = new CompaniesApiImpl(
                 new CompaniesApiImpl.Repositories(
-                        companyData, orderData, stats, treasuryData, serverEventData, areaData, homeData),
+                        companyData,
+                        orderData,
+                        stats,
+                        treasuryData,
+                        serverEventData,
+                        areaData,
+                        homeData,
+                        new SqLiteJobData()),
                 new CompaniesApiImpl.Server(
                         server::getOfflinePlayer,
                         failure -> failure.message().orElse(Component.text(failure.localeKey())),
@@ -464,6 +473,8 @@ class CompaniesApiImplTest {
                                 api.areaProviders(), areaData, homeData, null, null, UUID.randomUUID(), () -> "hub"),
                         AreaSettings::new,
                         plugin),
+                null,
+                JobSettings::new,
                 Runnable::run));
     }
 

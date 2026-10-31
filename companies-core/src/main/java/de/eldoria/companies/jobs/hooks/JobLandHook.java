@@ -7,6 +7,7 @@ package de.eldoria.companies.jobs.hooks;
 
 import de.eldoria.companies.data.wrapper.job.Job;
 import de.eldoria.companies.data.wrapper.job.JobArea;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 
 import java.util.Collection;
@@ -26,11 +27,11 @@ public interface JobLandHook {
     String plugin();
 
     /**
-     * @param owner the player creating the job
+     * @param owner the player creating the job, online or not
      * @param area  the area of the job
      * @return what the plugin's land says about the area
      */
-    Claim claim(Player owner, JobArea area);
+    Claim claim(OfflinePlayer owner, JobArea area);
 
     /**
      * Gives exactly these players access to the area of a running job, as its kind needs, replacing the access of an
