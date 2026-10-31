@@ -448,7 +448,7 @@ the economy is set up, like the other writes.
 ## Areas: `areas()`
 
 Companies use plots and regions as [areas](../companies/areas.md). They come from area providers: Companies brings
-providers for PlotSquared and WorldGuard, and your plugin can register one for its own plots or claims.
+providers for PlotSquared, WorldGuard, GriefPrevention, HuskClaims, Lands and Towny, and your plugin can register one for its own plots or claims.
 
 | Method                                         | Returns        | What it does                                              |
 |------------------------------------------------|----------------|-----------------------------------------------------------|

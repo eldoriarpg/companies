@@ -23,7 +23,7 @@ Every player has these by default. Take one away to block a feature.
 | `companies.orders.create` | everyone | Create orders: `/order create` and every `/order draft` command. |
 | `companies.orders.repeat` | everyone | Make orders repeat daily or weekly: `/order draft repeat`, the repeat button of the order builder and `/order series resume`. |
 | `companies.orders.solo` | everyone | Take orders alone, without a company: `/order work accept` and the `[Work alone]` button of the order search. Only works while `solo.enabled` is on in [order.yml](../admin/configuration/order-yml.md#solo). |
-| `companies.orders.jobs` | everyone | Post jobs with `/order job dig`: work in an area of your plot, your region or unowned land where the server allows it, which a company takes like an order. See [Jobs](../players/jobs.md). |
+| `companies.orders.jobs` | everyone | Post jobs with `/order job dig`: work in an area of your plot, region or claim, or unowned land where the server allows it, which a company takes like an order. See [Jobs](../players/jobs.md). |
 | `companies.company.create` | everyone | Found a company with `/company create`. |
 | `companies.company.home` | everyone | Teleport to the home of your company: `/company home`. |
 | `companies.company.join` | everyone | Join a company: `/company join`, `/company apply`, `/company apply withdraw` and `/company invites accept`. An online player without it cannot be invited. |

@@ -105,6 +105,9 @@ discord:
 | `historyDays` | number (days) | `90` | How long an ended order stays in the order history. At least 1. Cleaned up by the primary server. | reload |
 | `timezone` | text | empty | The server's time zone as an IANA name, for example `Europe/Berlin` or `America/New_York`. It decides how times are shown in game and where a day starts: for the statistics of the last 7 and 30 days, the end date of repeating orders and the days of the market's price history. Empty uses the machine's zone. An unknown name logs a warning and uses the machine's zone. Times are stored in UTC either way. On a network, set the same zone on every server. | reload |
 
+GriefPrevention, HuskClaims, Lands and Towny have no switch here: they are used whenever they are installed, and
+switched off with `providers` in [areas.yml](./areas-yml.md#area-plugins).
+
 `updates.notice` and `updates.askForAutoUpdate` go to holders of `companies.updates`.
 
 :::note Old files

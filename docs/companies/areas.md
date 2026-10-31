@@ -18,8 +18,11 @@ on its level (`maxAreas` in [company.yml](../admin/configuration/company-yml.md)
 | `/company area buy <offer>` | members with `manage_areas` | Buys or rents an offered area from the treasury. Run it on the server of the area. |
 | `/company area cancel <id>` | members with `manage_areas` | Stops renewing a rent, or sells a bought area back. |
 
-Areas come from [PlotSquared](https://www.spigotmc.org/resources/77506/) plots and
-[WorldGuard](https://enginehub.org/worldguard) regions, as the server set up in [areas.yml](../admin/configuration/areas-yml.md).
+Areas come from the land plugin the server uses: [PlotSquared](https://www.spigotmc.org/resources/77506/) plots,
+[WorldGuard](https://enginehub.org/worldguard) regions, [GriefPrevention](https://modrinth.com/plugin/griefprevention)
+and [HuskClaims](https://modrinth.com/plugin/huskclaims) claims, [Lands](https://www.spigotmc.org/resources/53313/)
+areas or [Towny](https://github.com/TownyAdvanced/Towny) plots, as set up in
+[areas.yml](../admin/configuration/areas-yml.md). Lands areas and Towny plots can be linked but not bought or rented.
 A company links a plot or region a member owns, or buys or rents one the server offers.
 
 ## Linking your own plot or region
@@ -57,6 +60,6 @@ Inside a company's area, its members open containers, take books out of chiseled
 pots only with `containers`. The owner of the company and the owner of the area always may. Players outside the company
 are kept out by the plot or region itself, as before.
 
-`containers` only narrows what members may. The plot or region still decides first: on PlotSquared and WorldGuard a
+`containers` only narrows what members may. The plot, region or claim still decides first: on most land plugins a
 member opens containers only as a builder, so `containers` without `build` lets nobody in. Permission changes made on
 another server reach this rule within half a minute. Containers in minecarts, boats and on animals are not covered.
