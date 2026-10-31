@@ -437,7 +437,38 @@ public enum NotificationType {
     /**
      * The rent of an area ran out after it was cancelled. Arguments: {@code area}.
      */
-    AREA_RENT_ENDED(74, "notification.areaRentEnded", NotificationCategory.COMPANY, false, null);
+    AREA_RENT_ENDED(74, "notification.areaRentEnded", NotificationCategory.COMPANY, false, null),
+    /**
+     * The owner gave the company more time for a job it holds. Arguments: {@code job_title}, {@code job_id},
+     * {@code hours}, {@code due}.
+     */
+    JOB_EXTENDED(
+            75,
+            "notification.jobExtended",
+            NotificationCategory.ORDERS,
+            false,
+            new Action("/company job info <job_id>", "words.info")),
+    /**
+     * The owner refused the company's request for more time. Arguments: {@code job_title}, {@code job_id},
+     * {@code reason} (empty without one).
+     */
+    JOB_EXTENSION_REFUSED(
+            76,
+            "notification.jobExtensionRefused",
+            NotificationCategory.ORDERS,
+            true,
+            new Action("/company job info <job_id>", "words.info")),
+    /**
+     * The company holding the player's job asks for more time. Arguments: {@code job_title}, {@code job_id},
+     * {@code hours}, {@code reason}, {@code duration} (how long its time still runs).
+     */
+    MY_JOB_EXTENSION_ASKED(
+            77,
+            "notification.myJobExtensionAsked",
+            NotificationCategory.MY_ORDERS,
+            true,
+            new Action("/order job extension grant <job_id>", "words.accept"),
+            new Action("/order job extension refuse <job_id>", "words.deny"));
 
     private final int id;
     private final String key;

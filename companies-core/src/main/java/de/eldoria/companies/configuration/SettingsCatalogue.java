@@ -379,6 +379,9 @@ public final class SettingsCatalogue {
         jobs.whole("maxChunks");
         jobs.whole("maxOpenPerOwner");
         jobs.whole("maxDueHours");
+        jobs.flag("extensionsEnabled");
+        jobs.whole("maxTotalHours");
+        jobs.whole("maxExtensionRequests");
         jobs.whole("openDays");
         jobs.whole("approveHours");
 

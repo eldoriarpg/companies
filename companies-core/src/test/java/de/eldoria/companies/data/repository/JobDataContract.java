@@ -8,6 +8,7 @@ package de.eldoria.companies.data.repository;
 import de.chojo.sadu.queries.configuration.QueryConfiguration;
 import de.eldoria.companies.data.wrapper.job.Job;
 import de.eldoria.companies.data.wrapper.job.JobArea;
+import de.eldoria.companies.data.wrapper.job.JobExtension;
 import de.eldoria.companies.data.wrapper.job.JobHarvest;
 import de.eldoria.companies.data.wrapper.job.JobKind;
 import de.eldoria.companies.data.wrapper.job.JobLand;
@@ -373,6 +374,37 @@ public abstract class JobDataContract {
         assertEquals(JobState.OPEN, open.state());
         assertNull(open.review().doneAt());
         assertNull(open.review().doneBy());
+    }
+
+    @Test
+    void aTakenJobGetsMoreTimeOnceAndARequestIsAskedAndRefused() {
+        var id = created(NOW.plusDays(7));
+        var due = NOW.plusHours(48);
+        jobs.take(id, 3, NOW, due);
+
+        assertFalse(jobs.askExtension(id, 3, 6, "Too late", due, 2));
+        assertTrue(jobs.askExtension(id, 3, 6, "Big area", NOW, 2));
+        assertFalse(jobs.askExtension(id, 3, 6, "Again", NOW, 2));
+        var asked = jobs.job(id).orElseThrow().extension();
+        assertEquals(6, asked.askedHours());
+        assertEquals("Big area", asked.reason());
+        assertEquals(NOW, asked.askedAt());
+        assertEquals(1, asked.requests());
+        var stored = jobs.job(id).orElseThrow().due();
+        assertFalse(jobs.extend(id, 3, stored, stored.plusHours(6), 6, NOW.plusMinutes(1), NOW));
+        assertFalse(jobs.extend(id, 3, stored, stored.plusHours(6), 6, null, stored));
+        assertTrue(jobs.extend(id, 3, stored, stored.plusHours(6), 6, NOW, NOW));
+        assertFalse(jobs.extend(id, 3, stored, stored.plusHours(12), 6, null, NOW));
+        var extended = jobs.job(id).orElseThrow();
+        assertEquals(due.plusHours(6), extended.due());
+        assertEquals(6, extended.extension().extendedHours());
+        assertFalse(extended.extension().asked());
+        assertTrue(jobs.askExtension(id, 3, 6, "More", NOW, 2));
+        assertTrue(jobs.refuseExtension(id, 3));
+        assertFalse(jobs.refuseExtension(id, 3));
+        assertFalse(jobs.askExtension(id, 3, 6, "Third", NOW, 2));
+        assertTrue(jobs.release(id, 3));
+        assertEquals(JobExtension.NONE, jobs.job(id).orElseThrow().extension());
     }
 
     private int created(LocalDateTime expires) {

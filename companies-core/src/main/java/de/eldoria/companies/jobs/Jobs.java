@@ -27,6 +27,7 @@ import de.eldoria.companies.services.events.EventTimes;
 import de.eldoria.companies.services.notifications.NotificationArgs;
 import de.eldoria.companies.services.notifications.NotificationService;
 import de.eldoria.companies.services.notifications.NotificationType;
+import de.eldoria.companies.util.Texts;
 import de.eldoria.companies.util.Threading;
 import de.eldoria.companies.util.Times;
 import net.milkbowl.vault.economy.Economy;
@@ -185,6 +186,14 @@ public final class Jobs {
                                 if (detail instanceof Double amount) args.money("amount", economy.format(amount));
                                 yield NotificationType.MY_JOB_SETTLED;
                             }
+                            case EXTENSION_ASKED -> {
+                                if (detail instanceof JobService.Asked asked) {
+                                    args.number("hours", asked.hours())
+                                            .text("reason", asked.reason())
+                                            .text("duration", Texts.prettyDuration(asked.left()));
+                                }
+                                yield NotificationType.MY_JOB_EXTENSION_ASKED;
+                            }
                         };
                 if (type != null) notifications.send(owner, type, args);
             }
@@ -193,6 +202,24 @@ public final class Jobs {
             public void paid(CompanyProfile company, Job job, double paid) {
                 notifications.sendCompany(
                         company, NotificationType.JOB_PAID, args(job).money("amount", economy.format(paid)));
+            }
+
+            @Override
+            public void extended(int company, Job job, int hours, LocalDateTime due) {
+                profile(companies, company)
+                        .ifPresent(found -> notifications.sendCompany(
+                                found,
+                                NotificationType.JOB_EXTENDED,
+                                args(job).number("hours", hours).text("due", EventTimes.show(due, Times.zone()))));
+            }
+
+            @Override
+            public void extensionRefused(int company, Job job, @Nullable String reason) {
+                profile(companies, company)
+                        .ifPresent(found -> notifications.sendCompany(
+                                found,
+                                NotificationType.JOB_EXTENSION_REFUSED,
+                                args(job).text("reason", reason == null ? "" : reason)));
             }
 
             @Override

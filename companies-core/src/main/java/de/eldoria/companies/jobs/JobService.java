@@ -12,6 +12,7 @@ import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.job.Job;
 import de.eldoria.companies.data.wrapper.job.JobArea;
+import de.eldoria.companies.data.wrapper.job.JobExtension;
 import de.eldoria.companies.data.wrapper.job.JobHarvest;
 import de.eldoria.companies.data.wrapper.job.JobKind;
 import de.eldoria.companies.data.wrapper.job.JobLand;
@@ -661,6 +662,124 @@ public final class JobService {
     }
 
     /**
+     * Gives the company holding the owner's job more time, also when it did not ask; an open request of the company is
+     * closed by it. The job may have at most {@link JobSettings#maxTotalHours()} in all, counted from when it was taken.
+     *
+     * @param owner the owner
+     * @param id    id of the job
+     * @param hours the hours to add
+     * @return what came of it
+     */
+    public Change extend(UUID owner, int id, int hours) {
+        if (!settings.get().extensionsEnabled()) return Change.DISABLED;
+        var job = jobs.job(id).orElse(null);
+        if (job == null || !job.owner().equals(owner)) return Change.UNKNOWN;
+        return extend(job, hours, null);
+    }
+
+    /**
+     * Grants the open request of the company holding the owner's job, with the hours it asked for.
+     *
+     * @param owner the owner
+     * @param id    id of the job
+     * @return what came of it
+     */
+    public Change grantExtension(UUID owner, int id) {
+        if (!settings.get().extensionsEnabled()) return Change.DISABLED;
+        var job = jobs.job(id).orElse(null);
+        if (job == null || !job.owner().equals(owner)) return Change.UNKNOWN;
+        if (job.state() != JobState.TAKEN) return Change.CLOSED;
+        var asked = job.extension().askedHours();
+        if (asked == null) return Change.NO_REQUEST;
+        return extend(job, asked, job.extension().askedAt());
+    }
+
+    /**
+     * Extends a taken job whose time has not run out yet, answering the request made at {@code asked} when it is set.
+     */
+    private Change extend(Job job, int hours, @Nullable LocalDateTime asked) {
+        var company = job.company();
+        var due = job.due();
+        var now = now();
+        if (job.state() != JobState.TAKEN || company == null || due == null || !due.isAfter(now)) {
+            return Change.CLOSED;
+        }
+        if (hours < 1 || hours > hoursLeft(job)) return Change.HOURS;
+        var until = due.plusHours(hours);
+        if (!jobs.extend(job.id(), company, due, until, hours, asked, now)) return Change.CLOSED;
+        notices.extended(company, job, hours, until);
+        return Change.DONE;
+    }
+
+    /**
+     * Refuses the open request of the company holding the owner's job.
+     *
+     * @param owner  the owner
+     * @param id     id of the job
+     * @param reason why, blank for no reason
+     * @return what came of it
+     */
+    public Change refuseExtension(UUID owner, int id, String reason) {
+        var text = reason.strip();
+        if (text.length() > JobExtension.MAX_REASON) return Change.REASON;
+        var job = jobs.job(id).orElse(null);
+        if (job == null || !job.owner().equals(owner)) return Change.UNKNOWN;
+        var company = job.company();
+        if (job.state() != JobState.TAKEN || company == null) return Change.CLOSED;
+        if (!job.extension().asked()) return Change.NO_REQUEST;
+        if (!jobs.refuseExtension(job.id(), company)) return Change.NO_REQUEST;
+        notices.extensionRefused(company, job, text.isEmpty() ? null : text);
+        return Change.DONE;
+    }
+
+    /**
+     * Lets a member's company ask the owner of a job it holds for more time. The clock keeps running while the owner
+     * decides.
+     *
+     * @param company the company
+     * @param member  the member asking
+     * @param id      id of the job
+     * @param hours   the hours asked for
+     * @param reason  why
+     * @return what came of it
+     */
+    public Change askExtension(CompanyProfile company, UUID member, int id, int hours, String reason) {
+        var current = settings.get();
+        if (!current.extensionsEnabled()) return Change.DISABLED;
+        if (!mayManage(company, member)) return Change.NO_PERMISSION;
+        var text = reason.strip();
+        if (text.isEmpty() || text.length() > JobExtension.MAX_REASON) return Change.REASON;
+        var job = jobs.job(id).orElse(null);
+        if (job == null) return Change.UNKNOWN;
+        if (job.state() != JobState.TAKEN || !Integer.valueOf(company.id()).equals(job.company())) {
+            return job.state() == JobState.TAKEN ? Change.NOT_YOURS : Change.CLOSED;
+        }
+        var due = job.due();
+        var now = now();
+        if (due == null || !due.isAfter(now)) return Change.CLOSED;
+        if (job.extension().asked()) return Change.ASKED;
+        if (job.extension().requests() >= current.maxExtensionRequests()) return Change.REQUESTS;
+        if (hours < 1 || hours > hoursLeft(job)) return Change.HOURS;
+        if (!jobs.askExtension(id, company.id(), hours, text, now, current.maxExtensionRequests())) {
+            return Change.CLOSED;
+        }
+        notices.owner(job.owner(), Notice.EXTENSION_ASKED, job, new Asked(hours, text, Duration.between(now, due)));
+        return Change.DONE;
+    }
+
+    /**
+     * @param job a taken job
+     * @return how many more hours it may still get, 0 when none
+     */
+    public int hoursLeft(Job job) {
+        return Math.max(
+                0,
+                settings.get().maxTotalHours()
+                        - job.dueHours()
+                        - job.extension().extendedHours());
+    }
+
+    /**
      * Notes that a member's company says the work on a contract is done. It then waits for the owner, who approves or
      * rejects it; without an answer it is approved after {@link JobSettings#approveHours()}.
      *
@@ -1176,6 +1295,21 @@ public final class JobService {
          * @param job     the job whose owner withdrew their dispute
          */
         void withdrawn(int company, Job job);
+
+        /**
+         * @param company id of the company holding the job
+         * @param job     the job as it was before
+         * @param hours   the hours the owner added
+         * @param due     when the company's time runs out now
+         */
+        void extended(int company, Job job, int hours, LocalDateTime due);
+
+        /**
+         * @param company id of the company holding the job
+         * @param job     the job
+         * @param reason  why the owner refused, null without a reason
+         */
+        void extensionRefused(int company, Job job, @Nullable String reason);
     }
 
     /**
@@ -1238,7 +1372,11 @@ public final class JobService {
         /**
          * A harvest job ended. The detail is a {@link Harvested}.
          */
-        HARVEST_ENDED
+        HARVEST_ENDED,
+        /**
+         * The company holding it asks for more time. The detail is an {@link Asked}.
+         */
+        EXTENSION_ASKED
     }
 
     /**
@@ -1248,6 +1386,15 @@ public final class JobService {
      * @param stocked the items waiting in the stock
      */
     public record Harvested(double back, int stocked) {}
+
+    /**
+     * What the company holding a job asks for.
+     *
+     * @param hours  the hours it asks for
+     * @param reason why
+     * @param left   how long its time still runs
+     */
+    public record Asked(int hours, String reason, Duration left) {}
 
     /**
      * Why a job was not posted.
@@ -1406,7 +1553,27 @@ public final class JobService {
          * A harvest job is paid item by item and ends when its time or budget runs out or a side ends it; it has no
          * check, approval or dispute.
          */
-        HARVEST
+        HARVEST,
+        /**
+         * The server lets no job get more time.
+         */
+        DISABLED,
+        /**
+         * The hours are below 1 or more than the job may still get.
+         */
+        HOURS,
+        /**
+         * The company holding the job asks for nothing right now.
+         */
+        NO_REQUEST,
+        /**
+         * The company already waits for an answer to its request.
+         */
+        ASKED,
+        /**
+         * The company asked as often as the server allows for this job.
+         */
+        REQUESTS
     }
 
     /**

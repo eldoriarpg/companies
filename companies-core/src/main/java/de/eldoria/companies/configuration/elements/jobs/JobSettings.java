@@ -28,6 +28,9 @@ public class JobSettings {
     private int maxChunks = 64;
     private int maxOpenPerOwner = 5;
     private int maxDueHours = 168;
+    private boolean extensionsEnabled = true;
+    private int maxTotalHours = 336;
+    private int maxExtensionRequests = 3;
     private int openDays = 7;
     private int approveHours = 72;
 
@@ -167,6 +170,40 @@ public class JobSettings {
 
     public void maxDueHours(int maxDueHours) {
         this.maxDueHours = maxDueHours;
+    }
+
+    /**
+     * @return whether owners may give a taken job more time and companies may ask for it
+     */
+    public boolean extensionsEnabled() {
+        return extensionsEnabled;
+    }
+
+    public void extensionsEnabled(boolean extensionsEnabled) {
+        this.extensionsEnabled = extensionsEnabled;
+    }
+
+    /**
+     * @return the most hours a job may have to finish in all, extensions included, counted from when it was taken; never
+     *     less than {@link #maxDueHours()}
+     */
+    public int maxTotalHours() {
+        return Math.max(maxDueHours(), maxTotalHours);
+    }
+
+    public void maxTotalHours(int maxTotalHours) {
+        this.maxTotalHours = maxTotalHours;
+    }
+
+    /**
+     * @return how often the company holding a job may ask for more time, refused requests included, at least 0
+     */
+    public int maxExtensionRequests() {
+        return Math.max(0, maxExtensionRequests);
+    }
+
+    public void maxExtensionRequests(int maxExtensionRequests) {
+        this.maxExtensionRequests = maxExtensionRequests;
     }
 
     /**

@@ -44,6 +44,7 @@ import java.util.UUID;
  * @param review      how the end of the work is reviewed
  * @param target      the shape a terraform job asks for, null for other kinds
  * @param harvest     the item price and what was paid of a harvest job, null for other kinds
+ * @param extension   the extra time the company holding the job got, and its open request for more
  */
 public record Job(
         int id,
@@ -69,7 +70,8 @@ public record Job(
         boolean granted,
         JobReview review,
         @Nullable JobTarget target,
-        @Nullable JobHarvest harvest) {
+        @Nullable JobHarvest harvest,
+        JobExtension extension) {
     /**
      * The longest title.
      */
@@ -134,7 +136,8 @@ public record Job(
                 false,
                 JobReview.NONE,
                 null,
-                null);
+                null,
+                JobExtension.NONE);
     }
 
     /**
@@ -166,7 +169,8 @@ public record Job(
                 granted,
                 review,
                 target,
-                harvest);
+                harvest,
+                extension);
     }
 
     /**
@@ -198,7 +202,8 @@ public record Job(
                 granted,
                 review,
                 target,
-                harvest);
+                harvest,
+                extension);
     }
 
     /**
@@ -230,7 +235,8 @@ public record Job(
                 granted,
                 review,
                 target,
-                harvest);
+                harvest,
+                extension);
     }
 
     /**
@@ -262,7 +268,8 @@ public record Job(
                 granted,
                 review,
                 target,
-                harvest);
+                harvest,
+                extension);
     }
 
     /**

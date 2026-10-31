@@ -114,6 +114,9 @@ See [Jobs](../players/jobs.md).
 | `/order job dispute <id> <reason>` | `companies.orders.jobs` | Opens a dispute about a job a company holds; an admin settles it. |
 | `/order job withdraw <id>` | `companies.orders.jobs` | Withdraws a dispute you opened; the company works on the job again. |
 | `/order job cancel <id>` | `companies.orders.jobs` | Cancels a job nobody works on. The price comes back, the fee is kept. |
+| `/order job extend <id> <hours>` | `companies.orders.jobs` | Gives the company working on your job more time, within `maxTotalHours`. |
+| `/order job extension grant <id>` | `companies.orders.jobs` | Grants the company's request for more time. |
+| `/order job extension refuse <id> [reason]` | `companies.orders.jobs` | Refuses the company's request for more time. |
 
 ## Companies
 
@@ -276,6 +279,7 @@ See [Event offers](../players/event-offers.md#contests) for a guide.
 | `/company job ghosts next <id>` / `ghosts previous <id>` | none | none | Moves the ghost blocks a layer up or down. |
 | `/company job ghosts off` | none | none | Hides the ghost blocks. |
 | `/company job withdraw <id>` | none | `manage_orders` | Withdraws a dispute the company opened. |
+| `/company job extend <id> <hours> <reason>` | none | `manage_orders` | Asks the owner of a job the company works on for more time. |
 ### Web dashboard
 
 New in 2.1. Works while the server owner enabled the [web dashboard](../admin/dashboard.md).

@@ -12,6 +12,7 @@ import de.eldoria.companies.commands.support.Senders;
 import de.eldoria.companies.configuration.elements.jobs.JobSettings;
 import de.eldoria.companies.data.wrapper.job.Job;
 import de.eldoria.companies.data.wrapper.job.JobArea;
+import de.eldoria.companies.data.wrapper.job.JobExtension;
 import de.eldoria.companies.data.wrapper.job.JobKind;
 import de.eldoria.companies.data.wrapper.job.JobLand;
 import de.eldoria.companies.data.wrapper.job.JobReview;
@@ -32,6 +33,7 @@ import de.eldoria.companies.util.Threading;
 import de.eldoria.companies.util.Times;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
+import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import net.strokkur.commands.Executes;
 import net.strokkur.commands.Subcommand;
 import net.strokkur.commands.arguments.DoubleArg;
@@ -709,6 +711,101 @@ public final class JobCommand {
     }
 
     /**
+     * Gives the company holding a job of the player more time.
+     *
+     * @param sender sender of the command
+     * @param id     id of the job
+     * @param hours  the hours to add
+     */
+    @Executes("extend")
+    public void extend(CommandSender sender, @IntArg(min = 0) int id, @IntArg(min = 1, max = 8760) int hours) {
+        var player = Senders.player(sender);
+        run(
+                player,
+                () -> new Extension(jobs().service().extend(player.getUniqueId(), id, hours), hoursLeft(id)),
+                result -> extension(player, id, result, "extended", hours));
+    }
+
+    /**
+     * Grants the request of the company holding a job of the player for more time.
+     *
+     * @param sender sender of the command
+     * @param id     id of the job
+     */
+    @Executes("extension grant")
+    public void grantExtension(CommandSender sender, @IntArg(min = 0) int id) {
+        var player = Senders.player(sender);
+        run(
+                player,
+                () -> new Extension(jobs().service().grantExtension(player.getUniqueId(), id), hoursLeft(id)),
+                result -> extension(player, id, result, "extensionGranted", 0));
+    }
+
+    /**
+     * Refuses the request of the company holding a job of the player for more time.
+     *
+     * @param sender sender of the command
+     * @param id     id of the job
+     */
+    @Executes("extension refuse")
+    public void refuseExtension(CommandSender sender, @IntArg(min = 0) int id) {
+        refuseExtension(sender, id, "");
+    }
+
+    /**
+     * Refuses the request of the company holding a job of the player for more time, saying why.
+     *
+     * @param sender sender of the command
+     * @param id     id of the job
+     * @param reason why
+     */
+    @Executes("extension refuse")
+    public void refuseExtension(
+            CommandSender sender, @IntArg(min = 0) int id, @StringArg(StringArgType.GREEDY) String reason) {
+        var player = Senders.player(sender);
+        run(
+                player,
+                () -> new Extension(jobs().service().refuseExtension(player.getUniqueId(), id, reason), 0),
+                result -> extension(player, id, result, "extensionRefused", 0));
+    }
+
+    /**
+     * What extending a job came to, with the hours it may still get.
+     *
+     * @param change what came of it
+     * @param left   the hours the job may still get
+     */
+    private record Extension(JobService.Change change, int left) {}
+
+    private int hoursLeft(int id) {
+        return jobs().data().job(id).map(job -> jobs().service().hoursLeft(job)).orElse(0);
+    }
+
+    private void extension(Player player, int id, Extension result, String done, int hours) {
+        var values = new TagResolver[] {
+            Values.number("id", id),
+            Values.number("hours", hours),
+            Values.number("left", result.left()),
+            Values.number("max", JobExtension.MAX_REASON)
+        };
+        var key =
+                switch (result.change()) {
+                    case DONE -> done;
+                    case UNKNOWN, NOT_YOURS -> "error.unknown";
+                    case DISABLED -> "error.extensionsOff";
+                    case HOURS -> "error.extensionHours";
+                    case NO_REQUEST -> "error.noExtensionRequest";
+                    case REASON -> "error.extensionReason";
+                    default -> "error.extensionClosed";
+                };
+        if (result.change() == JobService.Change.DONE) {
+            deps.messages().sendMessage(player, PREFIX + key, values);
+        } else {
+            deps.messages().sendError(player, PREFIX + key, values);
+        }
+    }
+
+    /**
      * Opens a dispute about a job of the player a company holds.
      *
      * @param sender sender of the command
@@ -962,6 +1059,18 @@ public final class JobCommand {
         if (job.state() == JobState.TAKEN && due != null) {
             messages.sendMessage(player, PREFIX + "info.taken", Values.text("time", left(due)));
         }
+        var extension = job.extension();
+        if (job.state() == JobState.TAKEN && extension.extendedHours() > 0) {
+            messages.sendMessage(player, PREFIX + "info.extended", Values.number("hours", extension.extendedHours()));
+        }
+        var asked = extension.askedHours();
+        if (job.state() == JobState.TAKEN && asked != null) {
+            messages.sendMessage(
+                    player,
+                    PREFIX + "info.extensionAsked",
+                    Values.number("hours", asked),
+                    Values.text("reason", Objects.requireNonNullElse(extension.reason(), "")));
+        }
         var review = job.review();
         if (job.state() == JobState.DONE) {
             var approveAt = Objects.requireNonNullElse(review.doneAt(), Times.now())
@@ -985,6 +1094,25 @@ public final class JobCommand {
                 Values.number("cleared", found.cleared()),
                 Values.number("total", found.total())));
         messages.sendMessage(player, buttons(job));
+    }
+
+    private void extensionButtons(MenuText buttons, Job job) {
+        if (!deps.configuration().jobSettings().extensionsEnabled()) return;
+        var id = job.id();
+        if (job.extension().asked()) {
+            buttons.text(
+                            "<act_grant><add>[<i18n:" + PREFIX + "grantButton>]</act_grant> ",
+                            Values.click("act_grant", ClickEvent.runCommand("/order job extension grant " + id)))
+                    .text(
+                            "<act_refuse><remove>[<i18n:" + PREFIX + "refuseButton>]</act_refuse> ",
+                            Values.click(
+                                    "act_refuse",
+                                    ClickEvent.suggestCommand("/order job extension refuse " + id + " ")));
+        }
+        if (jobs().service().hoursLeft(job) <= 0) return;
+        buttons.text(
+                "<act_extend><show>[<i18n:" + PREFIX + "extendButton>]</act_extend>",
+                Values.click("act_extend", ClickEvent.suggestCommand("/order job extend " + id + " ")));
     }
 
     private MenuText buttons(Job job) {
@@ -1022,17 +1150,19 @@ public final class JobCommand {
                                     "<act_stock><show>[<i18n:" + PREFIX + "stockButton>]</act_stock> ",
                                     Values.click("act_stock", ClickEvent.runCommand("/order job stock " + id)))
                             .text(
-                                    "<act_end><remove>[<i18n:" + PREFIX + "endButton>]</act_end>",
+                                    "<act_end><remove>[<i18n:" + PREFIX + "endButton>]</act_end> ",
                                     Values.click("act_end", ClickEvent.suggestCommand("/order job end " + id)));
+                    extensionButtons(buttons, job);
                     return buttons;
                 }
                 buttons.text(
                                 "<act_approve><add>[<i18n:" + PREFIX + "approveEarlyButton>]</act_approve> ",
                                 Values.click("act_approve", ClickEvent.suggestCommand("/order job approve " + id)))
                         .text(
-                                "<act_dispute><remove>[<i18n:" + PREFIX + "disputeButton>]</act_dispute>",
+                                "<act_dispute><remove>[<i18n:" + PREFIX + "disputeButton>]</act_dispute> ",
                                 Values.click(
                                         "act_dispute", ClickEvent.suggestCommand("/order job dispute " + id + " ")));
+                extensionButtons(buttons, job);
             }
             default -> {
                 if (job.kind() == JobKind.HARVEST) {

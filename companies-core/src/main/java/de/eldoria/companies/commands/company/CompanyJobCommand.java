@@ -12,6 +12,7 @@ import de.eldoria.companies.commands.support.Senders;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.job.Job;
 import de.eldoria.companies.data.wrapper.job.JobKind;
+import de.eldoria.companies.data.wrapper.job.JobReview;
 import de.eldoria.companies.data.wrapper.job.JobState;
 import de.eldoria.companies.jobs.Blueprint;
 import de.eldoria.companies.jobs.BuildCheck;
@@ -275,6 +276,38 @@ public final class CompanyJobCommand {
     }
 
     /**
+     * Asks the owner of a job of the player's company for more time.
+     *
+     * @param sender sender of the command
+     * @param id     id of the job
+     * @param hours  the hours asked for
+     * @param reason why
+     */
+    @Executes("extend")
+    public void extend(
+            CommandSender sender,
+            @IntArg(min = 0) int id,
+            @IntArg(min = 1, max = 8760) int hours,
+            @StringArg(StringArgType.GREEDY) String reason) {
+        var player = Senders.player(sender);
+        run(
+                player,
+                () -> jobs().service().askExtension(company(player), player.getUniqueId(), id, hours, reason),
+                change -> {
+                    if (change == JobService.Change.DONE) {
+                        deps.messages()
+                                .sendMessage(
+                                        player,
+                                        PREFIX + "extensionAsked",
+                                        Values.number("id", id),
+                                        Values.number("hours", hours));
+                        return;
+                    }
+                    refused(player, id, change);
+                });
+    }
+
+    /**
      * Withdraws a dispute the player's company opened.
      *
      * @param sender sender of the command
@@ -509,6 +542,14 @@ public final class CompanyJobCommand {
         if (job.state() == JobState.TAKEN) {
             messages.sendMessage(player, PREFIX + "info.due", Values.text("time", left(job.due())));
         }
+        var extension = job.extension();
+        if (job.state() == JobState.TAKEN && extension.extendedHours() > 0) {
+            messages.sendMessage(player, PREFIX + "info.extended", Values.number("hours", extension.extendedHours()));
+        }
+        var asked = extension.askedHours();
+        if (job.state() == JobState.TAKEN && asked != null) {
+            messages.sendMessage(player, PREFIX + "info.extensionAsked", Values.number("hours", asked));
+        }
         var review = job.review();
         var rejected = review.rejected();
         if (job.state() == JobState.TAKEN && rejected != null) {
@@ -549,6 +590,15 @@ public final class CompanyJobCommand {
                     .text(
                             "<act_back><remove>[<i18n:" + PREFIX + "giveBackButton>]</act_back> ",
                             Values.click("act_back", ClickEvent.suggestCommand("/company job giveback " + id)));
+            var limits = deps.configuration().jobSettings();
+            if (limits.extensionsEnabled()
+                    && !job.extension().asked()
+                    && job.extension().requests() < limits.maxExtensionRequests()
+                    && jobs().service().hoursLeft(job) > 0) {
+                buttons.text(
+                        "<act_extend><show>[<i18n:" + PREFIX + "extendButton>]</act_extend> ",
+                        Values.click("act_extend", ClickEvent.suggestCommand("/company job extend " + id + " ")));
+            }
         }
         if ((job.state() == JobState.TAKEN || job.state() == JobState.DONE) && job.kind() != JobKind.HARVEST) {
             buttons.text(
@@ -577,9 +627,25 @@ public final class CompanyJobCommand {
                     case DISPUTED -> "error.disputed";
                     case REASON -> "error.reason";
                     case HARVEST -> "error.harvest";
-                    case DONE, TAKEN, TOO_LONG, AREA, CONTRACT, NOT_DONE, NO_COMPANY -> "error.closed";
+                    case DISABLED -> "error.extensionsOff";
+                    case HOURS -> "error.extensionHours";
+                    case ASKED -> "error.extensionAsked";
+                    case REQUESTS -> "error.extensionRequests";
+                    case DONE, TAKEN, TOO_LONG, AREA, CONTRACT, NOT_DONE, NO_COMPANY, NO_REQUEST -> "error.closed";
                 };
-        deps.messages().sendError(player, PREFIX + key, values);
+        var job = change == JobService.Change.HOURS || change == JobService.Change.REQUESTS
+                ? jobs().data().job(id).orElse(null)
+                : null;
+        var left = job == null ? 0 : jobs().service().hoursLeft(job);
+        var asked = job == null ? 0 : job.extension().requests();
+        deps.messages()
+                .sendError(
+                        player,
+                        PREFIX + key,
+                        values,
+                        Values.number("left", left),
+                        Values.number("max", asked),
+                        Values.number("length", JobReview.MAX_REASON));
     }
 
     /**

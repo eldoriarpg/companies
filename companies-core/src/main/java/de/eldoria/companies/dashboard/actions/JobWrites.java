@@ -295,7 +295,8 @@ public final class JobWrites {
                     case AREA -> "error.inGame";
                     default -> "error.closed";
                 };
-        return answers.refused(request, CommandFailure.of(COMPANY + key, number(id)));
+        return answers.refused(
+                request, CommandFailure.of(COMPANY + key, number(id), Values.number("length", JobReview.MAX_REASON)));
     }
 
     private static boolean owns(JobServices jobs, UUID player, int id) {
