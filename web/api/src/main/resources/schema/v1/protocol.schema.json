@@ -443,7 +443,7 @@
     },
     "MemberPermission" : {
       "type" : "string",
-      "enum" : [ "OWNER", "INVITE", "KICK", "MANAGE_ORDERS", "MANAGE_PERMISSIONS", "EDIT_PROFILE", "TREASURY" ]
+      "enum" : [ "OWNER", "INVITE", "KICK", "MANAGE_ORDERS", "MANAGE_PERMISSIONS", "EDIT_PROFILE", "TREASURY", "BUILD", "CONTAINERS", "MANAGE_AREAS" ]
     },
     "MemberStatsView" : {
       "type" : "object",

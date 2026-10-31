@@ -15,6 +15,7 @@ import de.chojo.sadu.updater.BaseSqlUpdaterBuilder;
 import de.chojo.sadu.updater.QueryReplacement;
 import de.chojo.sadu.updater.SqlUpdater;
 import de.eldoria.companies.api.CompaniesApiImpl;
+import de.eldoria.companies.areas.AreaHooks;
 import de.eldoria.companies.boards.SignBoards;
 import de.eldoria.companies.boards.npc.NpcHooks;
 import de.eldoria.companies.commands.CommandDependencies;
@@ -37,6 +38,7 @@ import de.eldoria.companies.dashboard.DashboardModule;
 import de.eldoria.companies.dashboard.KeyCommandFilter;
 import de.eldoria.companies.data.DataSourceFactory;
 import de.eldoria.companies.data.migration.UtcMigration;
+import de.eldoria.companies.data.repository.AAreaData;
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.repository.ADashboardData;
 import de.eldoria.companies.data.repository.AJobData;
@@ -49,6 +51,7 @@ import de.eldoria.companies.data.repository.AServerEventData;
 import de.eldoria.companies.data.repository.EconomyData;
 import de.eldoria.companies.data.repository.InformationData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbAlertData;
+import de.eldoria.companies.data.repository.impl.mariadb.MariaDbAreaData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbCompanyData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbDashboardData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbHistoryData;
@@ -65,6 +68,7 @@ import de.eldoria.companies.data.repository.impl.mariadb.MariaDbServerEventData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbStatsData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbTreasuryData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresAlertData;
+import de.eldoria.companies.data.repository.impl.postgres.PostgresAreaData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresCompanyData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresDashboardData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresHistoryData;
@@ -81,6 +85,7 @@ import de.eldoria.companies.data.repository.impl.postgres.PostgresServerEventDat
 import de.eldoria.companies.data.repository.impl.postgres.PostgresStatsData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresTreasuryData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteAlertData;
+import de.eldoria.companies.data.repository.impl.sqlite.SqLiteAreaData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteCompanyData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteDashboardData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteHistoryData;
@@ -240,6 +245,7 @@ public class Companies extends EldoPlugin {
     private AOfferData offerData;
     private AServerEventData serverEventData;
     private AJobData jobData;
+    private AAreaData areaData;
     private volatile @Nullable JobServices jobs;
     private InformationData information;
     private EconomyData economy;
@@ -315,6 +321,9 @@ public class Companies extends EldoPlugin {
                         companyData, orderData, information.stats(), economy.treasury(), serverEventData),
                 Threading.VIRTUAL);
         api.register(this);
+        api.areaProviders().settings(configuration::areaSettings);
+        AreaHooks.load(this, api.areaProviders(), name -> configuration.hooks().land(name));
+        getServer().getPluginManager().registerEvents(api.areaProviders(), this);
     }
 
     /**
@@ -1122,6 +1131,7 @@ public class Companies extends EldoPlugin {
                 offerData = new SqLiteOfferData(mapper);
                 serverEventData = new SqLiteServerEventData();
                 jobData = new SqLiteJobData();
+                areaData = new SqLiteAreaData();
                 information = new InformationData(
                         new SqLiteInboxData(Threading.VIRTUAL),
                         new SqLiteStatsData(Threading.VIRTUAL),
@@ -1142,6 +1152,7 @@ public class Companies extends EldoPlugin {
                 offerData = new MariaDbOfferData(mapper);
                 serverEventData = new MariaDbServerEventData();
                 jobData = new MariaDbJobData();
+                areaData = new MariaDbAreaData();
                 information = new InformationData(
                         new MariaDbInboxData(Threading.VIRTUAL),
                         new MariaDbStatsData(Threading.VIRTUAL),
@@ -1162,6 +1173,7 @@ public class Companies extends EldoPlugin {
                 offerData = new PostgresOfferData(mapper);
                 serverEventData = new PostgresServerEventData();
                 jobData = new PostgresJobData();
+                areaData = new PostgresAreaData();
                 information = new InformationData(
                         new PostgresInboxData(Threading.VIRTUAL),
                         new PostgresStatsData(Threading.VIRTUAL),

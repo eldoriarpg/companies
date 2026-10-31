@@ -42,6 +42,18 @@ public enum MemberPermission {
      */
     TREASURY,
     /**
+     * Builds in the company's areas.
+     */
+    BUILD,
+    /**
+     * Opens containers in the company's areas.
+     */
+    CONTAINERS,
+    /**
+     * Sets the home and manages the company's areas.
+     */
+    MANAGE_AREAS,
+    /**
      * A value this version does not know, sent by a newer peer.
      */
     @JsonEnumDefaultValue

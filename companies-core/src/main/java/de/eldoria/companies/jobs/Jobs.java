@@ -83,7 +83,7 @@ public final class Jobs {
             LevelService levels,
             ActiveEvents events,
             FeeReductions fees) {
-        var hooks = JobHooks.create(plugin, name -> configuration.hooks().job(name));
+        var hooks = JobHooks.create(plugin, name -> configuration.hooks().land(name));
         hooks.load();
         var mainThread = Threading.mainThread(plugin);
         var collector = new Collector(plugin, economy, configuration);

@@ -20,6 +20,7 @@ Companies keeps its files in `plugins/Companies/`. They are created with default
 | [system-orders.yml](./system-orders-yml.md) | Orders the server places itself | yes | on reload, one key on restart |
 | [events.yml](./events-yml.md) | How the effects of server events combine | yes | on reload |
 | [jobs.yml](./jobs-yml.md) | Where jobs may lie, how large they may be and how long they run | yes | on reload |
+| [areas.yml](./areas-yml.md) | Where company areas may come from | yes | on reload |
 | [database.yml](./database-yml.md) | Where the data is stored | no | on restart |
 | [node.yml](./node-yml.md) | The role of this server in a network | no | on restart |
 | [boards.yml](./boards-yml.md) | NPCs bound to order boards | no | on reload |
@@ -56,7 +57,7 @@ These need a restart:
 If a file cannot be read, for example because of a YAML error, a wrong type or an unknown value in a fixed list, the
 server log says so. Check it after editing a file.
 
-- `config.yml`, `company.yml`, `user.yml`, `order.yml`, `system-orders.yml`, `events.yml` and `jobs.yml` stay as they are, so you can fix them. Until then Companies
+- `config.yml`, `company.yml`, `user.yml`, `order.yml`, `system-orders.yml`, `events.yml`, `jobs.yml` and `areas.yml` stay as they are, so you can fix them. Until then Companies
   keeps their last values, or uses their defaults right after a start, does not save them and does not share them
   with the other servers of a network. Run `/companyadmin reload` once you fixed the file; it names the files that
   still cannot be read. While `company.yml` cannot be read, the level editor refuses changes. Running on defaults
@@ -88,7 +89,7 @@ export COMPANIES_DISCORD_WEBHOOK='https://discord.com/api/webhooks/...'
 
 When several servers share one database, one server is the primary and the others are secondaries. See [node.yml](./node-yml.md) and [Several servers](../multiserver.md).
 
-- `config.yml`, `company.yml`, `order.yml`, `user.yml`, `system-orders.yml`, `events.yml` and `jobs.yml` are shared. Edit them on any server, see below.
+- `config.yml`, `company.yml`, `order.yml`, `user.yml`, `system-orders.yml`, `events.yml`, `jobs.yml` and `areas.yml` are shared. Edit them on any server, see below.
 - They are stored in the database as numbered revisions. A new revision comes from `/companyadmin reload` followed by `/companyadmin reload confirm` on any server, from the primary when it starts or runs `/companyadmin syncconfiguration`, and from level changes.
 - Every server takes a new revision on its own, at once with a realtime bus or within 30 seconds without one, and when it starts. It saves it over its own file; a change made on that server is kept as a backup first, see [Several servers](../multiserver.md#when-the-configuration-is-copied).
 - `database.yml`, `node.yml`, `boards.yml` and `base_configuration.yml` belong to each server and are never shared.

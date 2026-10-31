@@ -36,7 +36,16 @@ export type VersionState = 'SUPPORTED' | 'DEPRECATED' | 'DISCONTINUED';
 export type PartKind = 'FIELD' | 'MESSAGE' | 'FEATURE' | 'PROTOCOL';
 export type CloseReason = 'LOGOUT' | 'IDLE' | 'EXPIRED' | 'REVOKED' | 'CONNECTION_LOST';
 export type MemberPermission =
-  'OWNER' | 'INVITE' | 'KICK' | 'MANAGE_ORDERS' | 'MANAGE_PERMISSIONS' | 'EDIT_PROFILE' | 'TREASURY';
+  | 'OWNER'
+  | 'INVITE'
+  | 'KICK'
+  | 'MANAGE_ORDERS'
+  | 'MANAGE_PERMISSIONS'
+  | 'EDIT_PROFILE'
+  | 'TREASURY'
+  | 'BUILD'
+  | 'CONTAINERS'
+  | 'MANAGE_AREAS';
 export type JoinMode = 'OPEN' | 'APPLICATIONS' | 'INVITE_ONLY';
 export type OrderState = 'UNCLAIMED' | 'CLAIMED' | 'DELIVERED' | 'RECEIVED';
 export type PatchOp = 'UPSERT' | 'REMOVE' | 'REPLACE';
@@ -416,9 +425,12 @@ export const KeyKind = {
 } as const;
 
 export const MemberPermission = {
+    BUILD: "BUILD",
+    CONTAINERS: "CONTAINERS",
     EDIT_PROFILE: "EDIT_PROFILE",
     INVITE: "INVITE",
     KICK: "KICK",
+    MANAGE_AREAS: "MANAGE_AREAS",
     MANAGE_ORDERS: "MANAGE_ORDERS",
     MANAGE_PERMISSIONS: "MANAGE_PERMISSIONS",
     OWNER: "OWNER",

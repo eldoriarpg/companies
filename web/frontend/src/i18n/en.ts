@@ -754,6 +754,7 @@ export default {
                 guessedLearning: 'Learning of guessed orders',
                 events: 'Server events',
                 jobs: 'Jobs',
+                areas: 'Company areas',
                 solo: 'Solo orders',
             },
             fields: {
@@ -990,6 +991,11 @@ export default {
                     openDays: 'Days a job waits for a company before it expires',
                     approveHours: 'Hours a finished contract waits for its owner before it is approved',
                 },
+                areas: {
+                    enabled: 'Let companies get new areas',
+                    providerOrder: 'Order the area plugins are asked in',
+                    providers: 'Area plugins that may be used',
+                },
             },
         },
         orders: {
@@ -1171,6 +1177,9 @@ export default {
         MANAGE_PERMISSIONS: 'Manage permissions',
         EDIT_PROFILE: 'Edit profile',
         TREASURY: 'Treasury',
+        BUILD: 'Build',
+        CONTAINERS: 'Containers',
+        MANAGE_AREAS: 'Manage areas',
     },
     orders: {
         search: 'Search open orders',

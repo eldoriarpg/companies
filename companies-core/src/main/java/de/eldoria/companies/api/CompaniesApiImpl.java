@@ -5,6 +5,7 @@
  */
 package de.eldoria.companies.api;
 
+import de.eldoria.companies.areas.AreaProviders;
 import de.eldoria.companies.commands.support.CommandFailure;
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.repository.AOrderData;
@@ -27,6 +28,7 @@ import java.util.UUID;
 import java.util.concurrent.Executor;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.logging.Logger;
 
 /**
  * The API of the plugin, registered as a Bukkit service.
@@ -42,6 +44,7 @@ public final class CompaniesApiImpl implements CompaniesApi {
     private final PlayerApi players;
     private final RankingApi ranking;
     private final ServerEventApi events;
+    private final AreaProviders areas = new AreaProviders(Logger.getLogger("Companies"));
 
     /**
      * @param repositories the repositories the API reads from
@@ -131,6 +134,18 @@ public final class CompaniesApiImpl implements CompaniesApi {
     @Override
     public ServerEventApi events() {
         return events;
+    }
+
+    @Override
+    public AreaApi areas() {
+        return areas;
+    }
+
+    /**
+     * @return the area providers, as the plugin itself uses them
+     */
+    public AreaProviders areaProviders() {
+        return areas;
     }
 
     /**

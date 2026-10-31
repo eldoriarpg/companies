@@ -754,6 +754,7 @@ export default {
                 guessedLearning: 'Lernen geschätzter Aufträge',
                 events: 'Server-Events',
                 jobs: 'Jobs',
+                areas: 'Firmengebiete',
                 solo: 'Soloaufträge',
             },
             fields: {
@@ -990,6 +991,11 @@ export default {
                     openDays: 'Tage, die ein Job auf eine Firma wartet, bevor er abläuft',
                     approveHours: 'Stunden, die ein fertiger Auftrag auf seinen Besitzer wartet, bevor er genehmigt wird',
                 },
+                areas: {
+                    enabled: 'Firmen dürfen neue Gebiete bekommen',
+                    providerOrder: 'Reihenfolge, in der die Gebiets-Plugins gefragt werden',
+                    providers: 'Gebiets-Plugins, die genutzt werden dürfen',
+                },
             },
         },
         orders: {
@@ -1171,6 +1177,9 @@ export default {
         MANAGE_PERMISSIONS: 'Rechte verwalten',
         EDIT_PROFILE: 'Profil bearbeiten',
         TREASURY: 'Kasse',
+        BUILD: 'Bauen',
+        CONTAINERS: 'Behälter',
+        MANAGE_AREAS: 'Gebiete verwalten',
     },
     orders: {
         search: 'Offene Aufträge durchsuchen',

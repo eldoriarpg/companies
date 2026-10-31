@@ -754,6 +754,7 @@ export default {
                 guessedLearning: 'Apprentissage des commandes estimées',
                 events: 'Événements du serveur',
                 jobs: 'Travaux',
+                areas: 'Zones des entreprises',
                 solo: 'Commandes solo',
             },
             fields: {
@@ -990,6 +991,11 @@ export default {
                     openDays: "Jours pendant lesquels un travail attend une entreprise avant d'expirer",
                     approveHours: "Heures pendant lesquelles un contrat terminé attend son propriétaire avant d'être approuvé",
                 },
+                areas: {
+                    enabled: 'Les entreprises peuvent obtenir de nouvelles zones',
+                    providerOrder: 'Ordre dans lequel les plugins de zones sont interrogés',
+                    providers: 'Plugins de zones utilisables',
+                },
             },
         },
         orders: {
@@ -1171,6 +1177,9 @@ export default {
         MANAGE_PERMISSIONS: 'Gérer les droits',
         EDIT_PROFILE: 'Modifier le profil',
         TREASURY: 'Trésorerie',
+        BUILD: 'Construire',
+        CONTAINERS: 'Conteneurs',
+        MANAGE_AREAS: 'Gérer les zones',
     },
     orders: {
         search: 'Rechercher des commandes ouvertes',
