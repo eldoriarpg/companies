@@ -75,6 +75,9 @@ pluginManifest {
     optional("HuskClaims") {
         modrinth("huskclaims")
     }
+    optional("Lands") {
+        link("https://www.spigotmc.org/resources/53313/")
+    }
 }
 
 tasks {
@@ -126,7 +129,8 @@ bukkit {
         "WorldGuard",
         "PlotSquared",
         "GriefPrevention",
-        "HuskClaims"
+        "HuskClaims",
+        "Lands"
     )
 
     permissions {

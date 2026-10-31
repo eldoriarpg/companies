@@ -52,6 +52,7 @@ Companies brings these providers:
 | WorldGuard | `worldguard` | the region with the highest priority at a spot, without the global region and the regions of jobs | yes | region members | yes | through its own job regions |
 | GriefPrevention | `griefprevention` | a top-level claim; a subdivision means the claim it lies in | yes | build trust | yes; given back without a keeper it becomes an admin claim | yes |
 | HuskClaims | `huskclaims` | a top-level claim; a child claim means the claim it lies in | yes | the lowest trust level that may place blocks (`build` by default) | yes; only claims with an owner, who gets them back | yes |
+| Lands | `lands` | a Lands area: the whole land in a world, or one of its sub areas | yes | trusted players, with the role Lands gives them | no; Lands sells and rents itself | yes |
 
 PlotSquared and WorldGuard load when the plugin is enabled and `hooks.plotsquared` or `hooks.worldguard` in
 [config.yml](./config-yml.md#generalsettings) is on. The other providers load whenever their plugin is enabled; switch
@@ -64,6 +65,14 @@ may place blocks; a member the owner trusted higher keeps that level, one truste
 may build for the company and no trust after. Players banned from a claim are not made builders. A claim that changes
 hands is moved like HuskClaims' own `/transferclaim`: it loses all its trust, also in child claims, and the claim
 blocks stay with whoever spent them.
+
+Lands notes:
+
+- A builder of a land's default area is trusted on the whole land and becomes a member of it, with what Lands gives
+  trusted members (its role, land chat, spawn) and counted against Lands' member limits. When Lands refuses, for example
+  at its limit, the player does not get build rights there. Sub areas keep their own trust.
+- A land in several worlds is one area per world it is linked in, each counting against `maxAreas`; link it in the
+  world the company works in.
 
 GriefPrevention notes:
 

@@ -9,6 +9,9 @@ repositories {
     maven("https://repo.william278.net/releases") {
         content { includeGroup("net.william278.huskclaims") }
     }
+    maven("https://repo.incredibleplugins.com/releases") {
+        content { includeGroup("com.incredibleplugins") }
+    }
     maven("https://jitpack.io") {
         content { includeGroup("com.github.GriefPrevention") }
     }
@@ -29,6 +32,9 @@ dependencies {
         isTransitive = false
     }
     compileOnly(libs.huskclaims) {
+        isTransitive = false
+    }
+    compileOnly(libs.lands) {
         isTransitive = false
     }
 
