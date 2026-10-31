@@ -6,6 +6,9 @@ repositories {
     maven("https://maven.citizensnpcs.co/repo")
     maven("https://repo.fancyinnovations.com/releases")
     maven("https://maven.enginehub.org/repo/")
+    maven("https://jitpack.io") {
+        content { includeGroup("com.github.GriefPrevention") }
+    }
 }
 
 dependencies {
@@ -19,6 +22,9 @@ dependencies {
     compileOnly(libs.worldguard)
     compileOnly(libs.worldedit)
     compileOnly(libs.plotsquared)
+    compileOnly(libs.griefprevention) {
+        isTransitive = false
+    }
 
     testImplementation(project(":companies-core"))
 }

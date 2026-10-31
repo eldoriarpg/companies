@@ -44,11 +44,33 @@ paid and end when they are due.
 
 ## Area plugins
 
-Companies brings providers for **PlotSquared** (a plot, merged plots counting as one) and **WorldGuard** (the region
-with the highest priority at a spot, without the global region and the regions of jobs). They load when the plugin is
-enabled and `hooks.plotsquared` or `hooks.worldguard` in [config.yml](./config-yml.md#generalsettings) is on. Other plugins can
-add providers for their own plots or claims through the API (`CompaniesApi.areas().register(...)`); their id is what
-`providerOrder` and `providers` name.
+Companies brings these providers:
+
+| Provider | Id | An area is | Link own | Build mirroring | Buy and rent | Jobs |
+|---|---|---|---|---|---|---|
+| PlotSquared | `plotsquared` | a plot, merged plots counting as one | yes | trusted players | yes | yes |
+| WorldGuard | `worldguard` | the region with the highest priority at a spot, without the global region and the regions of jobs | yes | region members | yes | through its own job regions |
+| GriefPrevention | `griefprevention` | a top-level claim; a subdivision means the claim it lies in | yes | build trust | yes; given back without a keeper it becomes an admin claim | yes |
+
+PlotSquared and WorldGuard load when the plugin is enabled and `hooks.plotsquared` or `hooks.worldguard` in
+[config.yml](./config-yml.md#generalsettings) is on. The other providers load whenever their plugin is enabled; switch
+one off with `providers`. A provider switched off carries neither company areas nor jobs.
+
+GriefPrevention notes:
+
+- A claim a company buys counts against the claim blocks of the company's owner.
+- A claim that changes hands loses all its trust: nobody the old owner trusted keeps access. That includes a bought
+  claim moving to the company's new owner; members with `build` get build trust again within half a minute, any other
+  trust has to be given again.
+- GriefPrevention keeps one trust per player. A member the claim's owner gave container or access trust gets build
+  trust while they may build for the company, and no trust after.
+- Subdivisions that do not inherit the claim's trust keep company members out.
+- GriefPrevention deletes claims of owners who stay away long enough. Offer admin claims (they have no keeper and are
+  never deleted for inactivity), or exempt the keeper's account, and keep in mind that a bought claim of an inactive
+  company owner can expire too.
+
+Other plugins can add providers for their own plots or claims through the API (`CompaniesApi.areas().register(...)`);
+their id is what `providerOrder` and `providers` name.
 
 Areas of a provider that is not there, for example because its plugin was removed, stay stored and come back when it
 is there again.

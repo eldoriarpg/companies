@@ -69,6 +69,9 @@ pluginManifest {
     optional("PlotSquared") {
         link("https://www.spigotmc.org/resources/77506/")
     }
+    optional("GriefPrevention") {
+        modrinth("griefprevention")
+    }
 }
 
 tasks {
@@ -118,7 +121,8 @@ bukkit {
         "WorldEdit",
         "FastAsyncWorldEdit",
         "WorldGuard",
-        "PlotSquared"
+        "PlotSquared",
+        "GriefPrevention"
     )
 
     permissions {
