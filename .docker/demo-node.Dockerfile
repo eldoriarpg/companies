@@ -1,8 +1,9 @@
 FROM eclipse-temurin:25-jdk AS companies
 WORKDIR /build
 COPY . .
-RUN ./gradlew :companies-paper:shadowJar --no-daemon -x test \
-    && cp companies-paper/build/libs/companies-paper-*-all.jar /companies.jar
+RUN ./gradlew :companies-paper:shadowJar :companies-demo:jar --no-daemon -x test \
+    && cp companies-paper/build/libs/companies-paper-*-all.jar /companies.jar \
+    && cp "$(ls companies-demo/build/libs/companies-demo-*.jar | grep -v -e sources -e javadoc)" /companies-demo.jar
 
 FROM eclipse-temurin:21-jdk AS plotsquared
 ADD --keep-git-dir=true https://github.com/IntellectualSites/PlotSquared.git#18a4a4126126759c5a7d9c443079f1e537d802f4 /build
@@ -19,6 +20,8 @@ FROM itzg/minecraft-server:2026.10.1-java25
 COPY --from=plugins /demo /demo
 COPY --from=companies /companies.jar /demo/hub/plugins/Companies.jar
 COPY --from=companies /companies.jar /demo/lands/plugins/Companies.jar
+COPY --from=companies /companies-demo.jar /demo/hub/plugins/CompaniesDemo.jar
+COPY --from=companies /companies-demo.jar /demo/lands/plugins/CompaniesDemo.jar
 COPY --from=plotsquared /plotsquared.jar /demo/lands/plugins/PlotSquared.jar
 COPY demo/node/hub /demo/hub
 COPY demo/node/lands /demo/lands

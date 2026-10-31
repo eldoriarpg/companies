@@ -58,7 +58,8 @@ first. **Biggest movers** shows the items whose average price changed in the las
 biggest change first. Opening an item shows its average price per day over a week, a month or three months.
 
 The price history and its changes come from orders companies delivered; orders worked on alone and lines that ask for
-an exact item are not part of them.
+an exact item are not part of them. An item whose delivered orders were removed from the server's history still shows
+what its price history adds up to.
 
 An item or a day with fewer delivered orders than the server's minimum shows no price, and such days do not count
 towards a change, so no single order can be traced back to the player who placed it.

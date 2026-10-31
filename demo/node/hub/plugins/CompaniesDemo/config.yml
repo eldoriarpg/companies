@@ -1,0 +1,65 @@
+database:
+  host: mariadb
+  port: 3306
+  database: companies
+  user: demo
+  password: ${CFG_DB_PASSWORD}
+seed:
+  enabled: true
+  companies:
+    - name: Stonebridge
+      owner: Demo_Ada
+      members: [Demo_Ben, Demo_Cleo]
+    - name: Greenfield Farms
+      owner: Demo_Dora
+      members: [Demo_Emil]
+    - name: Copperworks
+      owner: Demo_Finn
+      members: [Demo_Gina, Demo_Hugo]
+  orders:
+    - owner: Demo_Ivy
+      name: Stone for the town wall
+      lines:
+        - {material: STONE, amount: 256, price: 0.4}
+        - {material: STONE_BRICKS, amount: 64, price: 0.8}
+    - owner: Demo_Jon
+      name: Timber
+      lines:
+        - {material: OAK_LOG, amount: 128, price: 0.6}
+    - owner: Demo_Kai
+      name: Bakery supplies
+      lines:
+        - {material: WHEAT, amount: 192, price: 0.3}
+        - {material: SUGAR_CANE, amount: 64, price: 0.4}
+    - owner: Demo_Lena
+      name: Workshop iron
+      lines:
+        - {material: IRON_INGOT, amount: 64, price: 3.0}
+        - {material: COAL, amount: 128, price: 0.5}
+    - owner: Demo_Mats
+      name: Windows
+      lines:
+        - {material: GLASS, amount: 96, price: 0.7}
+    - owner: Demo_Nora
+      name: Lights for the market
+      lines:
+        - {material: TORCH, amount: 128, price: 0.2}
+        - {material: LANTERN, amount: 16, price: 4.0}
+  market:
+    days: 30
+    prices:
+      STONE: 0.4
+      STONE_BRICKS: 0.8
+      COBBLESTONE: 0.3
+      OAK_LOG: 0.6
+      SPRUCE_PLANKS: 0.4
+      WHEAT: 0.3
+      SUGAR_CANE: 0.4
+      BREAD: 1.2
+      IRON_INGOT: 3.0
+      COAL: 0.5
+      GLASS: 0.7
+      TORCH: 0.2
+      LANTERN: 4.0
+      WHITE_WOOL: 0.9
+      DIAMOND: 25.0

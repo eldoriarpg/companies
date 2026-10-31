@@ -20,6 +20,16 @@ over `/data` on every start; old plugin jars are removed first). EssentialsX 2.2
 does not list Minecraft 26.3 yet; it logs an unsupported version error on start. Images are tagged `dev` on every
 push to `main` and `latest` on every release; `DEMO_TAG=dev` runs the `main` build.
 
+## Starting state
+
+The `CompaniesDemo` plugin (module `companies-demo`) seeds `hub` whenever the Companies database is empty, which it is
+after every reset: the companies, members and item orders of `node/hub/plugins/CompaniesDemo/config.yml` through the
+Companies API, without charging anyone, and the market history from 3 to 30 days ago with the material prices for the
+dashboard, written over its own connection to the database (the last days come from the orders delivered since). A
+seed that stopped halfway is completed on the next start; an order of the seed that was removed is placed again then.
+The server orders come from `system-orders.yml`. The demo players of the seed never join; each name gets the id an
+offline-mode server would give it, and `usercache.json` of both nodes names them.
+
 ## Secrets
 
 The compose file takes its secrets from environment variables and hands them to the containers as files:

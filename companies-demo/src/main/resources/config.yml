@@ -1,0 +1,13 @@
+database:
+  host: localhost
+  port: 3306
+  database: companies
+  user: root
+  password: ''
+seed:
+  enabled: false
+  companies: []
+  orders: []
+  market:
+    days: 30
+    prices: {}

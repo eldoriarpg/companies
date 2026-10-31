@@ -14,7 +14,9 @@ import org.jetbrains.annotations.Nullable;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -163,6 +165,44 @@ public abstract class ADashboardData {
      * @return one row per material
      */
     public abstract List<MarketRow> market();
+
+    /**
+     * What the recorded market history adds up to per material, over the days it keeps.
+     *
+     * @return one row per material, its average weighted by the items of each day
+     */
+    public abstract List<MarketRow> marketHistoryTotals();
+
+    /**
+     * The market as the dashboard lists it: the delivered and received orders of a material, or what its recorded
+     * history adds up to where it has fewer orders than the market shows a price for, such as after its orders were
+     * removed.
+     *
+     * @param minOrders the fewest orders a material needs for its price to be shown
+     * @return one row per material
+     */
+    public List<MarketRow> marketWithHistory(int minOrders) {
+        return merged(market(), marketHistoryTotals(), minOrders);
+    }
+
+    /**
+     * @param live      the delivered and received orders per material
+     * @param history   what the recorded history adds up to per material
+     * @param minOrders the fewest orders a material needs for its price to be shown
+     * @return the live row of each material, or its history where the live row has too few orders to show a price
+     *     and the history has enough
+     */
+    static List<MarketRow> merged(List<MarketRow> live, List<MarketRow> history, int minOrders) {
+        Map<String, MarketRow> rows = new LinkedHashMap<>();
+        for (var row : history) rows.put(row.material(), row);
+        for (var row : live) {
+            var recorded = rows.get(row.material());
+            if (recorded == null || row.orders() >= minOrders || recorded.orders() < minOrders) {
+                rows.put(row.material(), row);
+            }
+        }
+        return List.copyOf(rows.values());
+    }
 
     /**
      * Replaces what is stored for one day of the market history.

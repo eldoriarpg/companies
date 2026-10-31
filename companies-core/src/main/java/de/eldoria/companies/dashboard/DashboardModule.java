@@ -201,7 +201,14 @@ public final class DashboardModule {
                         data.inbox(),
                         data.memberships(),
                         data.treasury(),
-                        new Expiring<>(data.dashboard()::market, MARKET_LIFETIME, clock),
+                        new Expiring<>(
+                                () -> data.dashboard()
+                                        .marketWithHistory(configuration
+                                                .orderSetting()
+                                                .market()
+                                                .minOrders()),
+                                MARKET_LIFETIME,
+                                clock),
                         () -> configuration.orderSetting().market(),
                         new Expiring<>(market::changes, MARKET_LIFETIME, clock),
                         (material, days) -> market.points(
