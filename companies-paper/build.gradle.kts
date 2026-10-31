@@ -78,6 +78,9 @@ pluginManifest {
     optional("Lands") {
         link("https://www.spigotmc.org/resources/53313/")
     }
+    optional("Towny") {
+        link("https://github.com/TownyAdvanced/Towny")
+    }
 }
 
 tasks {
@@ -130,7 +133,8 @@ bukkit {
         "PlotSquared",
         "GriefPrevention",
         "HuskClaims",
-        "Lands"
+        "Lands",
+        "Towny"
     )
 
     permissions {

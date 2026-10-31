@@ -12,6 +12,9 @@ repositories {
     maven("https://repo.incredibleplugins.com/releases") {
         content { includeGroup("com.incredibleplugins") }
     }
+    maven("https://repo.glaremasters.me/repository/towny/") {
+        content { includeGroup("com.palmergames.bukkit.towny") }
+    }
     maven("https://jitpack.io") {
         content { includeGroup("com.github.GriefPrevention") }
     }
@@ -35,6 +38,9 @@ dependencies {
         isTransitive = false
     }
     compileOnly(libs.lands) {
+        isTransitive = false
+    }
+    compileOnly(libs.towny) {
         isTransitive = false
     }
 

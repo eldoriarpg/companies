@@ -53,6 +53,7 @@ Companies brings these providers:
 | GriefPrevention | `griefprevention` | a top-level claim; a subdivision means the claim it lies in | yes | build trust | yes; given back without a keeper it becomes an admin claim | yes |
 | HuskClaims | `huskclaims` | a top-level claim; a child claim means the claim it lies in | yes | the lowest trust level that may place blocks (`build` by default) | yes; only claims with an owner, who gets them back | yes |
 | Lands | `lands` | a Lands area: the whole land in a world, or one of its sub areas | yes | trusted players, with the role Lands gives them | no; Lands sells and rents itself | yes |
+| Towny | `towny` | a resident's plot, or the whole plot group it belongs to; town plots without a resident are the town's land | yes | trusted residents | no; plots stay with residents of their town | yes; town plots refuse jobs |
 
 PlotSquared and WorldGuard load when the plugin is enabled and `hooks.plotsquared` or `hooks.worldguard` in
 [config.yml](./config-yml.md#generalsettings) is on. The other providers load whenever their plugin is enabled; switch
@@ -65,6 +66,14 @@ may place blocks; a member the owner trusted higher keeps that level, one truste
 may build for the company and no trust after. Players banned from a claim are not made builders. A claim that changes
 hands is moved like HuskClaims' own `/transferclaim`: it loses all its trust, also in child claims, and the claim
 blocks stay with whoever spent them.
+
+Towny notes:
+
+- Towny trusts residents only: a member Towny has never seen gets build rights once they joined the server.
+- A plot group is one area when its resident owns every plot of it, otherwise each plot is its own. Builders are
+  trusted on the whole group; one who loses the right is taken off every plot of the group, also where the owner
+  trusted them on a single plot. A group dissolved after it was linked, or no longer wholly the owner's, is unlinked;
+  link its plots anew.
 
 Lands notes:
 
