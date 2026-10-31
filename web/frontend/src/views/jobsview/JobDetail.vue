@@ -9,16 +9,17 @@ import PrimaryButton from '@/components/button/PrimaryButton.vue'
 import SecondaryButton from '@/components/button/SecondaryButton.vue'
 import FigureValue from '@/components/display/FigureValue.vue'
 import ActionNotice from '@/components/feedback/ActionNotice.vue'
+import NumberInput from '@/components/input/NumberInput.vue'
 import TextAreaInput from '@/components/input/TextAreaInput.vue'
 import MutedText from '@/components/typography/MutedText.vue'
 import SectionHeader from '@/components/typography/SectionHeader.vue'
 import {count, dateTime, money} from '~/util/format'
-import {jobSteps, needsText, warns, type JobStep} from '~/util/jobs'
+import {jobSteps, needsHours, needsText, warns, type JobStep} from '~/util/jobs'
 
 /**
- * A job with the steps the player may take on it. A step that needs a reason or a description asks for it first. The
- * owner never sees the company working on the job, and companies never see its owner. Area jobs are posted and checked
- * in game; the page says where.
+ * A job with the steps the player may take on it. A step that needs a reason, a description or a number of hours asks
+ * for it first, and is only sent with hours the job may still get. The owner never sees the company working on the
+ * job, and companies never see its owner. Area jobs are posted and checked in game; the page says where.
  */
 const props = defineProps<{
   details: JobDetails
@@ -37,6 +38,17 @@ const job = computed(() => props.details.job)
 const steps = computed(() => jobSteps(props.details))
 const writing = ref<JobStep | null>(null)
 const text = ref('')
+const hours = ref<number | undefined>()
+
+/**
+ * @param step a step
+ * @returns whether the step waits for hours the job may still get before it is sent
+ */
+function blocked(step: JobStep): boolean {
+  if (writing.value !== step || !needsHours(step)) return false
+  const value = hours.value ?? 0
+  return value < 1 || value > (props.details.hoursLeft ?? 0)
+}
 const stock = computed(() => Object.entries(props.details.stock))
 const finishInGame = computed(() => job.value.ours && job.value.state === 'taken' && job.value.kind !== 'contract' && job.value.kind !== 'harvest')
 
@@ -75,13 +87,22 @@ function send(step: JobStep, id: number, written: string): Promise<JobDetails | 
       return action.run('jobs.withdraw', {job: id})
     case 'cancel':
       return action.run('jobs.cancel', {job: id})
+    case 'extend':
+      return action.run('jobs.extend', {job: id, hours: hours.value ?? 0})
+    case 'ask':
+      return action.run('jobs.extension.ask', {job: id, hours: hours.value ?? 0, reason: written})
+    case 'grant':
+      return action.run('jobs.extension.grant', {job: id})
+    case 'refuse':
+      return action.run('jobs.extension.refuse', {job: id, reason: written})
   }
 }
 
 async function take(step: JobStep): Promise<void> {
-  if (needsText(step) && writing.value !== step) {
+  if ((needsText(step) || needsHours(step)) && writing.value !== step) {
     writing.value = step
     text.value = step === 'describe' ? (props.details.description ?? '') : ''
+    hours.value = undefined
     return
   }
   const id = job.value.id
@@ -113,6 +134,8 @@ async function take(step: JobStep): Promise<void> {
     <MutedText v-if="job.state === 'open' && job.expires" tag="p">{{ t('jobs.expires', {time: dateTime(job.expires, locale)}) }}</MutedText>
     <MutedText v-if="job.due && (job.state === 'taken' || job.state === 'done')" tag="p">{{ t('jobs.due', {time: dateTime(job.due, locale)}) }}</MutedText>
     <MutedText v-if="job.state === 'done' && details.approveAt" tag="p" data-testid="job-approve-at">{{ t('jobs.approveAt', {time: dateTime(details.approveAt, locale)}) }}</MutedText>
+    <MutedText v-if="(details.extendedHours ?? 0) > 0 && job.state === 'taken'" tag="p" data-testid="job-extended">{{ t('jobs.extended', {hours: details.extendedHours}) }}</MutedText>
+    <MutedText v-if="details.request && job.state === 'taken'" tag="p" data-testid="job-extension-request">{{ t(job.mine ? 'jobs.extensionAsked' : 'jobs.extensionWaiting', {hours: details.request.hours, reason: details.request.reason}) }}</MutedText>
     <MutedText v-if="details.rejected && job.state === 'taken'" tag="p">{{ t('jobs.rejected', {reason: details.rejected}) }}</MutedText>
     <MutedText v-if="job.state === 'disputed'" tag="p" data-testid="job-dispute-reason">{{ t('jobs.dispute', {reason: details.dispute ?? ''}) }}</MutedText>
     <MutedText v-if="job.state === 'settled' && details.settled != null" tag="p">{{ t('jobs.settled', {percent: details.settled}) }}</MutedText>
@@ -128,8 +151,16 @@ async function take(step: JobStep): Promise<void> {
     </section>
     <MutedText v-if="finishInGame" tag="p">{{ t('jobs.finishInGame', {id: job.id}) }}</MutedText>
     <ActionNotice :problem="action.problem.value"/>
+    <NumberInput
+        v-if="writing && needsHours(writing)"
+        v-model="hours"
+        :label="t('jobs.hours', {left: details.hoursLeft ?? 0})"
+        :min="1"
+        :max="details.hoursLeft ?? 0"
+        data-testid="job-hours"
+    />
     <TextAreaInput
-        v-if="writing"
+        v-if="writing && needsText(writing)"
         v-model="text"
         :label="t(`jobs.text.${writing}`)"
         :maxlength="writing === 'describe' ? 512 : 256"
@@ -138,8 +169,8 @@ async function take(step: JobStep): Promise<void> {
     />
     <div v-if="steps.length > 0" class="flex flex-wrap gap-2">
       <template v-for="step in steps" :key="step">
-        <SecondaryButton v-if="warns(step)" :disabled="action.busy.value" :data-testid="`job-${step}`" @click="take(step)">{{ t(`jobs.step.${step}`) }}</SecondaryButton>
-        <PrimaryButton v-else :disabled="action.busy.value" :data-testid="`job-${step}`" @click="take(step)">{{ t(`jobs.step.${step}`) }}</PrimaryButton>
+        <SecondaryButton v-if="warns(step)" :disabled="action.busy.value || blocked(step)" :data-testid="`job-${step}`" @click="take(step)">{{ t(`jobs.step.${step}`) }}</SecondaryButton>
+        <PrimaryButton v-else :disabled="action.busy.value || blocked(step)" :data-testid="`job-${step}`" @click="take(step)">{{ t(`jobs.step.${step}`) }}</PrimaryButton>
       </template>
     </div>
   </aside>

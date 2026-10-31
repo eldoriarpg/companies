@@ -118,6 +118,25 @@ Until then, the side that opened the dispute may withdraw it (`/order job withdr
 already said is done waits for your answer again, with the time to approve it running on as before. You may also still approve the
 job, which pays the company in full and ends the dispute.
 
+## More time
+
+A job can turn out to need more time than you gave it, such as levelling a large area. While a company works on your
+job, you may give it more hours: `/order job extend <id> <hours>`. It costs nothing; the price stays as posted.
+
+The company may also ask: `/company job extend <id> <hours> <reason>`. You get a notice with **Grant** and **Refuse**
+(`/order job extension grant <id>`, `/order job extension refuse <id> [reason]`); the request also shows in
+`/order job info`. The company's time keeps running while you decide, and a company may ask only a few times per job
+(3 by default).
+
+More time is given only while the company works on the job and its time has not run out: not while the job waits for
+your approval or is disputed. Giving more time yourself also answers an open request. A request is dropped without
+notice once the job is done, disputed or given back; when the server switches extensions off, open requests can only
+be refused.
+
+A job may have at most `maxTotalHours` in all (336 by default), counted from when the company took it; the time added
+back after a rejection or a dispute does not count. When the job is given back or its time runs out, the next company
+starts with the job's original hours. For a harvest job, more time means harvesting longer from the same budget.
+
 ## Your jobs
 
 | Command | What it does |

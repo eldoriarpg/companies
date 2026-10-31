@@ -1164,6 +1164,21 @@ export interface JobDetails {
     canManage: boolean
     /** Whether the player's company may take the job: it is open and nobody of the company owns it. */
     takeable: boolean
+    /** The hours the owner added for the company working on it; missing from plugins before job extensions. */
+    extendedHours?: number
+    /** The hours it may still get, 0 when it may get none. */
+    hoursLeft?: number
+    /** How often the company working on it may still ask for more time. */
+    requestsLeft?: number
+    /** The company's open request for more time, none without one. */
+    request?: ExtensionRequest | null
+}
+
+/** The open request of the company working on a job for more time. */
+export interface ExtensionRequest {
+    hours: number
+    reason: string
+    asked?: string | null
 }
 
 /** A job an action names. */
@@ -1283,6 +1298,10 @@ export interface WriteActions {
     'jobs.take': {args: JobRef, result: JobDetails}
     'jobs.giveback': {args: JobRef, result: JobDetails}
     'jobs.done': {args: JobRef, result: JobDetails}
+    'jobs.extend': {args: JobRef & {hours: number}, result: JobDetails}
+    'jobs.extension.ask': {args: JobRef & {hours: number, reason: string}, result: JobDetails}
+    'jobs.extension.grant': {args: JobRef, result: JobDetails}
+    'jobs.extension.refuse': {args: JobRef & {reason: string}, result: JobDetails}
     'admin.jobs.disputes': {args: Record<string, never>, result: {disputes: DisputeRow[]}}
     'admin.jobs.settle': {args: JobRef & {percent: number}, result: {disputes: DisputeRow[]}}
     'events.leave': {args: OfferRef, result: EventDetails}

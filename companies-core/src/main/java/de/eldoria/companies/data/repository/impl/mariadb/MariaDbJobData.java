@@ -13,6 +13,7 @@ import de.eldoria.companies.data.repository.impl.TimeColumns;
 import de.eldoria.companies.data.repository.impl.Transactions;
 import de.eldoria.companies.data.wrapper.job.Job;
 import de.eldoria.companies.data.wrapper.job.JobArea;
+import de.eldoria.companies.data.wrapper.job.JobExtension;
 import de.eldoria.companies.data.wrapper.job.JobHarvest;
 import de.eldoria.companies.data.wrapper.job.JobKind;
 import de.eldoria.companies.data.wrapper.job.JobLand;
@@ -46,7 +47,8 @@ public class MariaDbJobData extends AJobData {
             SELECT id, owner_uuid, kind, title, description, price, fee, state, company_id, node, world, min_x, min_y,
                    min_z, max_x, max_y, max_z, land, land_ref, due_hours, created, expires, taken, due, closed,
                    closed_by, granted, done_at, done_by, rejected, dispute_by, dispute, disputed_at, settled,
-                   target_y, target_block, unit_price, paid
+                   target_y, target_block, unit_price, paid, extended_hours, extension_requests, extension_hours,
+                   extension_reason, extension_asked
             FROM jobs
             """;
 
@@ -181,7 +183,12 @@ public class MariaDbJobData extends AJobData {
                     due        = NULL,
                     done_at    = NULL,
                     done_by    = NULL,
-                    rejected   = NULL
+                    rejected   = NULL,
+                    extended_hours     = 0,
+                    extension_requests = 0,
+                    extension_hours    = NULL,
+                    extension_reason   = NULL,
+                    extension_asked    = NULL
                 WHERE id = ?
                   AND state IN (?, ?)
                   AND company_id = ?""";
@@ -226,7 +233,10 @@ public class MariaDbJobData extends AJobData {
                 UPDATE jobs
                 SET state   = ?,
                     done_at = ?,
-                    done_by = ?
+                    done_by = ?,
+                    extension_hours  = NULL,
+                    extension_reason = NULL,
+                    extension_asked  = NULL
                 WHERE id = ?
                   AND state = ?
                   AND company_id = ?""";
@@ -271,7 +281,10 @@ public class MariaDbJobData extends AJobData {
                 SET state       = ?,
                     dispute_by  = ?,
                     dispute     = ?,
-                    disputed_at = ?
+                    disputed_at = ?,
+                    extension_hours  = NULL,
+                    extension_reason = NULL,
+                    extension_asked  = NULL
                 WHERE id = ?
                   AND state = ?
                   AND company_id = ?""";
@@ -641,6 +654,87 @@ public class MariaDbJobData extends AJobData {
                 .changed();
     }
 
+    @Override
+    public boolean extend(
+            int job,
+            int company,
+            LocalDateTime from,
+            LocalDateTime until,
+            int hours,
+            @Nullable LocalDateTime asked,
+            LocalDateTime now) {
+        @Language("mariadb")
+        var update = """
+                UPDATE jobs
+                SET due              = ?,
+                    extended_hours   = extended_hours + ?,
+                    extension_hours  = NULL,
+                    extension_reason = NULL,
+                    extension_asked  = NULL
+                WHERE id = ?
+                  AND state = ?
+                  AND company_id = ?
+                  AND due = ?
+                  AND due > ?""";
+        @Language("mariadb")
+        var answering = update + "\n  AND extension_asked = ?";
+        var call = call().bind(until, time())
+                .bind(hours)
+                .bind(job)
+                .bind(JobState.TAKEN.name())
+                .bind(company)
+                .bind(from, time())
+                .bind(now, time());
+        if (asked == null) return query(update).single(call).update().changed();
+        return query(answering).single(call.bind(asked, time())).update().changed();
+    }
+
+    @Override
+    public boolean askExtension(int job, int company, int hours, String reason, LocalDateTime at, int maxRequests) {
+        @Language("mariadb")
+        var update = """
+                UPDATE jobs
+                SET extension_hours    = ?,
+                    extension_reason   = ?,
+                    extension_asked    = ?,
+                    extension_requests = extension_requests + 1
+                WHERE id = ?
+                  AND state = ?
+                  AND company_id = ?
+                  AND extension_hours IS NULL
+                  AND extension_requests < ?
+                  AND due > ?""";
+        return query(update)
+                .single(call().bind(hours)
+                        .bind(reason)
+                        .bind(at, time())
+                        .bind(job)
+                        .bind(JobState.TAKEN.name())
+                        .bind(company)
+                        .bind(maxRequests)
+                        .bind(at, time()))
+                .update()
+                .changed();
+    }
+
+    @Override
+    public boolean refuseExtension(int job, int company) {
+        @Language("mariadb")
+        var update = """
+                UPDATE jobs
+                SET extension_hours  = NULL,
+                    extension_reason = NULL,
+                    extension_asked  = NULL
+                WHERE id = ?
+                  AND state = ?
+                  AND company_id = ?
+                  AND extension_hours IS NOT NULL""";
+        return query(update)
+                .single(call().bind(job).bind(JobState.TAKEN.name()).bind(company))
+                .update()
+                .changed();
+    }
+
     private Job parse(Row row) throws SQLException {
         Integer companyId = row.getObject("company_id") == null ? null : row.getInt("company_id");
         return new Job(
@@ -685,6 +779,12 @@ public class MariaDbJobData extends AJobData {
                         : new JobTarget(row.getInt("target_y"), row.getString("target_block")),
                 row.getObject("unit_price") == null
                         ? null
-                        : new JobHarvest(row.getDouble("unit_price"), row.getDouble("paid")));
+                        : new JobHarvest(row.getDouble("unit_price"), row.getDouble("paid")),
+                new JobExtension(
+                        row.getInt("extended_hours"),
+                        row.getInt("extension_requests"),
+                        row.getObject("extension_hours") == null ? null : row.getInt("extension_hours"),
+                        row.getString("extension_reason"),
+                        readTime(row, "extension_asked")));
     }
 }

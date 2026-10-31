@@ -21,6 +21,9 @@ buildMatchPercent: 95
 maxChunks: 64
 maxOpenPerOwner: 5
 maxDueHours: 168
+extensionsEnabled: true
+maxTotalHours: 336
+maxExtensionRequests: 3
 openDays: 7
 approveHours: 72
 ```
@@ -37,6 +40,9 @@ approveHours: 72
 | `maxChunks` | number (chunks) | `64` | The most chunks the area of a job may touch, so a long thin area can not make the server load many chunks for each check. | reload |
 | `maxOpenPerOwner` | number | `5` | The most jobs a player may have waiting for a company at once. | reload |
 | `maxDueHours` | number (hours) | `168` | The most hours an owner may give a company to finish a job. | reload |
+| `extensionsEnabled` | true/false | `true` | Owners may give a taken job [more time](../../players/jobs.md#more-time), and companies may ask for it. | reload |
+| `maxTotalHours` | number (hours) | `336` | The most hours a job may have in all, extensions included, counted from when it was taken. Never less than `maxDueHours`. | reload |
+| `maxExtensionRequests` | number | `3` | How often a company may ask for more time per job; refused requests count. | reload |
 | `openDays` | number (days) | `7` | How long a job waits for a company. Nobody took it by then: it expires and price and fee go back to its owner. | reload |
 | `approveHours` | number (hours) | `72` | How long a job the company says is done waits for its owner to approve or reject it. Without an answer by then it is approved and paid. | reload |
 

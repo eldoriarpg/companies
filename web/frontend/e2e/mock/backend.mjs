@@ -602,8 +602,8 @@ function levels(state) {
 }
 
 /**
- * The jobs of the mock server: an open contract, a dig job the player's company works on and a contract of the player
- * that waits for their approval.
+ * The jobs of the mock server: an open contract, a dig job the player's company works on, a contract of the player
+ * that waits for their approval and one a company works on that asks for more time.
  *
  * @param state the session's state, which keeps the jobs as they change
  * @returns the jobs by id
@@ -613,6 +613,8 @@ function jobsOf(state) {
         11: {id: 11, kind: 'contract', state: 'open', title: 'Paint the barn', price: 120, fee: 6, expires: '2026-11-06T12:00:00Z', blocks: 0, mine: false, ours: false, description: 'Red, with white trim.'},
         12: {id: 12, kind: 'dig', state: 'taken', title: 'Cellar', price: 300, fee: 15, due: '2026-11-01T12:00:00Z', blocks: 250, world: 'world', center: '10 60 -4', mine: false, ours: true},
         13: {id: 13, kind: 'contract', state: 'done', title: 'Fence the field', price: 80, fee: 4, due: '2026-11-02T12:00:00Z', blocks: 0, mine: true, ours: false},
+        14: {id: 14, kind: 'contract', state: 'taken', title: 'Roof the hall', price: 500, fee: 25, due: '2026-11-03T12:00:00Z', blocks: 0, mine: true, ours: false,
+            request: {hours: 24, reason: 'The hall is bigger than drawn.'}},
     }
     return state.jobs
 }
@@ -623,7 +625,7 @@ function jobsOf(state) {
  */
 function jobRow(job) {
     const row = {...job}
-    for (const field of ['description', 'dispute', 'disputeByOwner', 'rejected']) delete row[field]
+    for (const field of ['description', 'dispute', 'disputeByOwner', 'rejected', 'request', 'extendedHours', 'requestsLeft']) delete row[field]
     return row
 }
 
@@ -643,7 +645,38 @@ function jobDetails(job) {
         stock: {},
         canManage: true,
         takeable: job.state === 'open' && !job.mine,
+        extendedHours: job.extendedHours ?? 0,
+        hoursLeft: job.state === 'taken' ? 312 - (job.extendedHours ?? 0) : 0,
+        requestsLeft: job.state === 'taken' ? (job.requestsLeft ?? 3) : 0,
+        request: job.state === 'taken' ? (job.request ?? null) : null,
     }
+}
+
+/**
+ * Gives a taken job more time, or notes and answers a company's request for it, as the plugin would.
+ *
+ * @param state the session's state
+ * @param name the action
+ * @param args its arguments
+ * @param done answers the job afterwards
+ * @param refused answers a refusal
+ * @returns the answer
+ */
+function extensionStep(state, name, args, done, refused) {
+    const job = jobsOf(state)[args.job]
+    if (!job || job.state !== 'taken') return refused(`No company is working on job #${args.job} right now.`)
+    const extend = hours => {
+        job.extendedHours = (job.extendedHours ?? 0) + hours
+        job.request = null
+    }
+    if (name === 'jobs.extend') extend(args.hours)
+    if (name === 'jobs.extension.grant') extend(job.request.hours)
+    if (name === 'jobs.extension.refuse') job.request = null
+    if (name === 'jobs.extension.ask') {
+        job.request = {hours: args.hours, reason: args.reason}
+        job.requestsLeft = (job.requestsLeft ?? 3) - 1
+    }
+    return done(jobDetails(job))
 }
 
 /**
@@ -839,6 +872,11 @@ function action(name, args, state, story = {}) {
         case 'jobs.end':
         case 'jobs.describe':
             return jobStep(state, name, args, done, refused)
+        case 'jobs.extend':
+        case 'jobs.extension.grant':
+        case 'jobs.extension.refuse':
+        case 'jobs.extension.ask':
+            return extensionStep(state, name, args, done, refused)
         case 'admin.jobs.disputes':
             return done({disputes: disputes(state)})
         case 'admin.jobs.settle':

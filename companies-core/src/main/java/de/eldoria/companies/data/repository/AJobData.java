@@ -323,4 +323,51 @@ public abstract class AJobData {
      * @return true when the stock held that many and they are taken
      */
     public abstract boolean takeStock(int job, String material, int amount);
+
+    /**
+     * Gives the company holding a job more time and closes its open request. Only changes the job while the company
+     * holds it, its time still ends at {@code from} and has not run out, so two extensions never add up wrongly and a
+     * job the primary is about to open again is never extended.
+     *
+     * @param job     id of the job
+     * @param company id of the company holding it
+     * @param from    when its time ends now
+     * @param until   when its time ends after the extension
+     * @param hours   the hours added
+     * @param asked   when the request it answers was made, null when the owner extends unasked
+     * @param now     the time now
+     * @return true when it was stored
+     */
+    public abstract boolean extend(
+            int job,
+            int company,
+            LocalDateTime from,
+            LocalDateTime until,
+            int hours,
+            @Nullable LocalDateTime asked,
+            LocalDateTime now);
+
+    /**
+     * Notes that the company holding a job asks for more time, when it has no open request, asked less often than
+     * allowed and its time has not run out.
+     *
+     * @param job         id of the job
+     * @param company     id of the company holding it
+     * @param hours       the hours it asks for
+     * @param reason      why
+     * @param at          when it asks
+     * @param maxRequests how often a company may ask per job
+     * @return true when it was stored
+     */
+    public abstract boolean askExtension(
+            int job, int company, int hours, String reason, LocalDateTime at, int maxRequests);
+
+    /**
+     * Closes the open request of the company holding a job without more time.
+     *
+     * @param job     id of the job
+     * @param company id of the company holding it
+     * @return true when there was a request
+     */
+    public abstract boolean refuseExtension(int job, int company);
 }

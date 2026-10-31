@@ -141,6 +141,7 @@ import org.mockbukkit.mockbukkit.ServerMock;
 import java.lang.reflect.Proxy;
 import java.nio.file.Path;
 import java.time.Clock;
+import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.HashMap;
 import java.util.List;
@@ -807,6 +808,12 @@ public final class DashboardWorld implements AutoCloseable {
 
                     @Override
                     public void withdrawn(int company, Job job) {}
+
+                    @Override
+                    public void extended(int company, Job job, int hours, LocalDateTime due) {}
+
+                    @Override
+                    public void extensionRefused(int company, Job job, @Nullable String reason) {}
                 },
                 (company, overdue) -> {},
                 this::profile,

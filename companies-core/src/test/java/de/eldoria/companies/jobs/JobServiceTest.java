@@ -16,6 +16,7 @@ import de.eldoria.companies.data.wrapper.company.CompanyMember;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.job.Job;
 import de.eldoria.companies.data.wrapper.job.JobArea;
+import de.eldoria.companies.data.wrapper.job.JobExtension;
 import de.eldoria.companies.data.wrapper.job.JobKind;
 import de.eldoria.companies.data.wrapper.job.JobLand;
 import de.eldoria.companies.data.wrapper.job.JobState;
@@ -147,6 +148,77 @@ class JobServiceTest {
         var taken = jobs.job(job.id()).orElseThrow();
         assertEquals(company.id(), taken.company());
         assertEquals(taken.taken().plusHours(24), taken.due());
+    }
+
+    @Test
+    void theOwnerGivesATakenJobMoreTimeWithinTheTotal() {
+        var job = posted(200);
+        assertEquals(JobService.Change.CLOSED, service.extend(owner, job.id(), 10));
+        service.take(company, manager, job.id());
+        var taken = jobs.job(job.id()).orElseThrow();
+
+        assertEquals(JobService.Change.UNKNOWN, service.extend(manager, job.id(), 10));
+        assertEquals(JobService.Change.HOURS, service.extend(owner, job.id(), 313));
+        assertEquals(JobService.Change.DONE, service.extend(owner, job.id(), 12));
+
+        var extended = jobs.job(job.id()).orElseThrow();
+        assertEquals(taken.due().plusHours(12), extended.due());
+        assertEquals(12, extended.extension().extendedHours());
+        assertEquals(300, service.hoursLeft(extended));
+        assertTrue(notices.contains("company EXTENDED " + job.id() + " 12"));
+    }
+
+    @Test
+    void aCompanyAsksForMoreTimeAndTheOwnerGrantsOrRefuses() {
+        var job = posted(200);
+        service.take(company, manager, job.id());
+        var due = jobs.job(job.id()).orElseThrow().due();
+
+        assertEquals(JobService.Change.NO_PERMISSION, service.askExtension(company, worker, job.id(), 6, "Big"));
+        assertEquals(JobService.Change.REASON, service.askExtension(company, manager, job.id(), 6, " "));
+        assertEquals(JobService.Change.NO_REQUEST, service.grantExtension(owner, job.id()));
+        assertEquals(JobService.Change.DONE, service.askExtension(company, manager, job.id(), 6, "Big area"));
+        assertEquals(JobService.Change.ASKED, service.askExtension(company, manager, job.id(), 6, "Again"));
+        assertTrue(notices.contains("owner EXTENSION_ASKED " + job.id()));
+        assertEquals(JobService.Change.DONE, service.grantExtension(owner, job.id()));
+        var granted = jobs.job(job.id()).orElseThrow();
+        assertEquals(due.plusHours(6), granted.due());
+        assertFalse(granted.extension().asked());
+
+        assertEquals(JobService.Change.DONE, service.askExtension(company, manager, job.id(), 6, "More"));
+        assertEquals(JobService.Change.DONE, service.refuseExtension(owner, job.id(), "No"));
+        assertTrue(notices.contains("company REFUSED " + job.id() + " No"));
+        assertEquals(JobService.Change.DONE, service.askExtension(company, manager, job.id(), 6, "Please"));
+        assertEquals(JobService.Change.DONE, service.refuseExtension(owner, job.id(), ""));
+        assertEquals(JobService.Change.REQUESTS, service.askExtension(company, manager, job.id(), 6, "Last"));
+        assertEquals(due.plusHours(6), jobs.job(job.id()).orElseThrow().due());
+    }
+
+    @Test
+    void aJobWhoseTimeRanOutGetsNoMoreTime() {
+        var job = posted(200);
+        service.take(company, manager, job.id());
+        clock = Clock.offset(clock, Duration.ofHours(25));
+        service();
+
+        assertEquals(JobService.Change.CLOSED, service.extend(owner, job.id(), 5));
+        assertEquals(JobService.Change.CLOSED, service.askExtension(company, manager, job.id(), 5, "Late"));
+    }
+
+    @Test
+    void aRequestEndsWithTheTakenStateAndTheNextCompanyStartsAfresh() {
+        var job = posted(200);
+        service.take(company, manager, job.id());
+        service.extend(owner, job.id(), 5);
+        service.askExtension(company, manager, job.id(), 6, "Big area");
+
+        service.giveBack(company, manager, job.id());
+        service.take(company, manager, job.id());
+
+        assertEquals(JobExtension.NONE, jobs.job(job.id()).orElseThrow().extension());
+        settings.extensionsEnabled(false);
+        assertEquals(JobService.Change.DISABLED, service.extend(owner, job.id(), 5));
+        assertEquals(JobService.Change.DISABLED, service.askExtension(company, manager, job.id(), 6, "Big area"));
     }
 
     @Test
@@ -973,6 +1045,16 @@ class JobServiceTest {
             @Override
             public void withdrawn(int company, Job job) {
                 notices.add("company WITHDRAWN " + job.id());
+            }
+
+            @Override
+            public void extended(int company, Job job, int hours, LocalDateTime due) {
+                notices.add("company EXTENDED " + job.id() + " " + hours);
+            }
+
+            @Override
+            public void extensionRefused(int company, Job job, @Nullable String reason) {
+                notices.add("company REFUSED " + job.id() + " " + reason);
             }
         };
         service = new JobService(

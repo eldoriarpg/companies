@@ -625,6 +625,26 @@ public final class Actions {
     public static final String JOBS_DONE = "jobs.done";
 
     /**
+     * Gives the company working on the player's job more time.
+     */
+    public static final String JOBS_EXTEND = "jobs.extend";
+
+    /**
+     * Asks the owner of a job of the player's company for more time.
+     */
+    public static final String JOBS_EXTENSION_ASK = "jobs.extension.ask";
+
+    /**
+     * Grants the request of the company working on the player's job for more time.
+     */
+    public static final String JOBS_EXTENSION_GRANT = "jobs.extension.grant";
+
+    /**
+     * Refuses the request of the company working on the player's job for more time.
+     */
+    public static final String JOBS_EXTENSION_REFUSE = "jobs.extension.refuse";
+
+    /**
      * Lists the disputed jobs with both sides and the reason.
      */
     public static final String ADMIN_JOBS_DISPUTES = "admin.jobs.disputes";
@@ -759,6 +779,10 @@ public final class Actions {
             JOBS_TAKE,
             JOBS_GIVE_BACK,
             JOBS_DONE,
+            JOBS_EXTEND,
+            JOBS_EXTENSION_ASK,
+            JOBS_EXTENSION_GRANT,
+            JOBS_EXTENSION_REFUSE,
             ADMIN_JOBS_DISPUTES,
             ADMIN_JOBS_SETTLE);
 
