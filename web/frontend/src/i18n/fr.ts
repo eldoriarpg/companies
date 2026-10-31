@@ -550,6 +550,7 @@ export default {
                 delivery_hours_bonus: 'Heures de livraison en plus',
                 tax_percent: 'Taxe sur les paiements en %',
                 max_alerts: 'Nombre maximal d’alertes de commande',
+                max_areas: "Zones d'entreprise max.",
             },
             save: 'Enregistrer le niveau',
             saved: 'Le niveau {level} est enregistré.',

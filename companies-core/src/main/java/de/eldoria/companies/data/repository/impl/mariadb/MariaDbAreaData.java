@@ -16,8 +16,10 @@ import org.jetbrains.annotations.Nullable;
 
 import java.sql.SQLException;
 import java.time.LocalDateTime;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import static de.chojo.sadu.queries.api.call.Call.call;
@@ -126,10 +128,48 @@ public class MariaDbAreaData extends AAreaData {
 
     @Override
     public boolean remove(int id) {
+        query("DELETE FROM company_area_builders WHERE area_id = ?")
+                .single(call().bind(id))
+                .delete();
         return query("DELETE FROM company_areas WHERE id = ?")
                 .single(call().bind(id))
                 .delete()
                 .changed();
+    }
+
+    @Override
+    public boolean rename(int id, String ref) {
+        var area = area(id);
+        if (area.isEmpty()) return false;
+        var taken = byRef(area.get().provider(), ref);
+        if (taken.isPresent()) return taken.get().id() == id;
+        return query("UPDATE company_areas SET ref = ? WHERE id = ?")
+                .single(call().bind(ref).bind(id))
+                .update()
+                .changed();
+    }
+
+    @Override
+    public Set<UUID> builders(int area) {
+        return new HashSet<>(query("SELECT player_uuid FROM company_area_builders WHERE area_id = ?")
+                .single(call().bind(area))
+                .map(row -> row.get("player_uuid", UUID_BYTES))
+                .all());
+    }
+
+    @Override
+    public void addBuilder(int area, UUID player) {
+        if (builders(area).contains(player)) return;
+        query("INSERT INTO company_area_builders(area_id, player_uuid) VALUES (?, ?)")
+                .single(call().bind(area).bind(player, UUID_BYTES))
+                .insert();
+    }
+
+    @Override
+    public void removeBuilder(int area, UUID player) {
+        query("DELETE FROM company_area_builders WHERE area_id = ? AND player_uuid = ?")
+                .single(call().bind(area).bind(player, UUID_BYTES))
+                .delete();
     }
 
     private CompanyArea parse(Row row) throws SQLException {

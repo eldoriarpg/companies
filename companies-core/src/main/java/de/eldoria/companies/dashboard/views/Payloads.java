@@ -528,6 +528,7 @@ public final class Payloads {
      * @param deliveryHoursBonus extra hours to deliver
      * @param taxPercent         the tax on payouts, none for the global tax
      * @param maxAlerts          the most order alerts, none for the global limit
+     * @param maxAreas           the most areas
      */
     public record AdminLevel(
             int level,
@@ -541,7 +542,8 @@ public final class Payloads {
             int maxOrderSize,
             int deliveryHoursBonus,
             @Nullable Double taxPercent,
-            @Nullable Integer maxAlerts) {}
+            @Nullable Integer maxAlerts,
+            int maxAreas) {}
 
     /**
      * The company levels for an admin.

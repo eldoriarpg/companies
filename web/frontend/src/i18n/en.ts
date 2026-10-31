@@ -550,6 +550,7 @@ export default {
                 delivery_hours_bonus: 'Extra hours to deliver',
                 tax_percent: 'Tax on payouts in %',
                 max_alerts: 'Max order alerts',
+                max_areas: 'Max company areas',
             },
             save: 'Save the level',
             saved: 'Level {level} is saved.',

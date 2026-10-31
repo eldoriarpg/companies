@@ -526,6 +526,8 @@ export interface AdminLevel {
     taxPercent?: number | null
     /** The most order alerts, none for the global limit. */
     maxAlerts?: number | null
+    /** The most areas a company of the level may have. */
+    maxAreas: number
 }
 
 /** The company levels for an admin. */
@@ -539,7 +541,7 @@ export interface AdminLevels {
 
 /** The editable fields of a level, by the names `/companyadmin level edit` uses. */
 export type LevelFieldKey = 'name' | 'order_count' | 'member_count' | 'earned_money' | 'delivered_items' | 'max_members'
-    | 'max_orders' | 'max_order_size' | 'delivery_hours_bonus' | 'tax_percent' | 'max_alerts'
+    | 'max_orders' | 'max_order_size' | 'delivery_hours_bonus' | 'tax_percent' | 'max_alerts' | 'max_areas'
 
 /** A board preset with its open orders. */
 export interface AdminBoardPreset {

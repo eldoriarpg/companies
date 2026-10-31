@@ -550,6 +550,7 @@ export default {
                 delivery_hours_bonus: 'Zusätzliche Stunden zum Liefern',
                 tax_percent: 'Steuer auf Auszahlungen in %',
                 max_alerts: 'Höchstzahl Auftragsalarme',
+                max_areas: 'Max. Firmengebiete',
             },
             save: 'Stufe speichern',
             saved: 'Stufe {level} ist gespeichert.',

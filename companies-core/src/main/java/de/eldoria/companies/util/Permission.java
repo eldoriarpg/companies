@@ -118,6 +118,10 @@ public final class Permission {
          */
         public static final String JOBS = ADMIN + ".jobs";
         /**
+         * The permission to open containers in company areas without the company permission {@code CONTAINERS}.
+         */
+        public static final String AREAS_BYPASS = ADMIN + ".areas.bypass";
+        /**
          * The permission to create debug reports.
          */
         public static final String DEBUG = ADMIN + ".debug";

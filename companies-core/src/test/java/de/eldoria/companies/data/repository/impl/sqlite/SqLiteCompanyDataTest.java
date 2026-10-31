@@ -288,7 +288,7 @@ class SqLiteCompanyDataTest {
     }
 
     @Test
-    void purgeRemovesTheAreasOfTheCompanyOnly() {
+    void purgeLeavesTheAreasForTheirServerToGiveBack() {
         var id = createCompany("Miners");
         var other = createCompany("Farmers");
         var node = UUID.randomUUID();
@@ -301,7 +301,7 @@ class SqLiteCompanyDataTest {
 
         Assertions.assertTrue(companyData.submitCompanyPurge(company(id)).join());
 
-        Assertions.assertEquals(0, SqLiteTestDatabase.count("company_areas", "company_id = " + id));
+        Assertions.assertEquals(1, SqLiteTestDatabase.count("company_areas", "company_id = " + id));
         Assertions.assertEquals(1, SqLiteTestDatabase.count("company_areas", "company_id = " + other));
     }
 

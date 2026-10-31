@@ -16,6 +16,7 @@ import org.junit.jupiter.api.TestInstance;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 import javax.sql.DataSource;
@@ -142,6 +143,25 @@ public abstract class AreaDataContract {
         assertTrue(areas.remove(id));
         assertFalse(areas.remove(id));
         assertTrue(areas.byRef("plotsquared", "plots|1;2").isEmpty());
+    }
+
+    @Test
+    void buildersAreNotedOnceAndAnAreaIsRenamedUnlessTheNameIsTaken() {
+        var company = company("Builders");
+        var plot = areas.add(linked(company, "plots|1;2", NODE)).orElseThrow();
+        var other = areas.add(linked(company, "plots|5;5", NODE)).orElseThrow();
+
+        areas.addBuilder(plot, LINKER);
+        areas.addBuilder(plot, LINKER);
+        assertEquals(Set.of(LINKER), areas.builders(plot));
+        assertTrue(areas.rename(plot, "plots|1;1"));
+        assertEquals("plots|1;1", areas.area(plot).orElseThrow().ref());
+        assertFalse(areas.rename(other, "plots|1;1"));
+        areas.removeBuilder(plot, LINKER);
+        assertTrue(areas.builders(plot).isEmpty());
+        areas.addBuilder(plot, LINKER);
+        areas.remove(plot);
+        assertTrue(areas.builders(plot).isEmpty());
     }
 
     private static CompanyArea linked(int company, String ref, UUID node) {

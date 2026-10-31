@@ -174,6 +174,9 @@ Commands for company members and owners. Read [Founding and joining](../companie
 | `/company disband` | none | owner | Dissolves the company. Asks you to confirm. The treasury is paid out to the owner. |
 | `/company disband confirm` | none | owner | Confirms the disband. |
 | `/company home` | `companies.company.home` | none | Teleports you to your company's home, after the warm-up. |
+| `/company area` | none | none | Lists your company's [areas](../companies/areas.md). |
+| `/company area link` | none | `manage_areas` | Links the plot or region you stand on and own. |
+| `/company area unlink [id]` | none | `manage_areas` or the member who linked it | Unlinks an area of your company. |
 | `/company sethome` | none | `manage_areas` | Sets your company's home where you stand. |
 | `/company rename <name>` | none | owner | Renames the company for a price. Asks you to confirm. |
 | `/company rename confirm` | none | owner | Confirms and pays the price from your own money. |

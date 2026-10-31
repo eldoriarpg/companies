@@ -18,6 +18,7 @@ import java.util.function.Supplier;
  * @param areas       the areas of companies
  * @param homes       the homes of companies
  * @param teleports   teleports members home
+ * @param sync        keeps this server's areas in step with their companies
  * @param node        this server
  * @param proxyServer the name of this server in the proxy, empty for none
  */
@@ -26,5 +27,6 @@ public record AreaServices(
         AAreaData areas,
         AHomeData homes,
         HomeTeleports teleports,
+        AreaSync sync,
         UUID node,
         Supplier<String> proxyServer) {}

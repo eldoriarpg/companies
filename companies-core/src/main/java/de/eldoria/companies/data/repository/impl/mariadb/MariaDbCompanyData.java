@@ -281,9 +281,6 @@ public class MariaDbCompanyData extends ACompanyData {
         var deleteAlerts = """
                 DELETE FROM order_alerts WHERE company_id = ?""";
         @Language("mariadb")
-        var deleteAreas = """
-                DELETE FROM company_areas WHERE company_id = ?""";
-        @Language("mariadb")
         var deleteHome = """
                 DELETE FROM company_homes WHERE company_id = ?""";
         @Language("mariadb")
@@ -302,7 +299,6 @@ public class MariaDbCompanyData extends ACompanyData {
             conf.query(deleteTreasury).single(call().bind(company.id())).delete();
             conf.query(deleteTreasuryLog).single(call().bind(company.id())).delete();
             conf.query(deleteAlerts).single(call().bind(company.id())).delete();
-            conf.query(deleteAreas).single(call().bind(company.id())).delete();
             conf.query(deleteHome).single(call().bind(company.id())).delete();
             conf.query(deleteTravels).single(call().bind(company.id())).delete();
             conf.query(deleteCompany).single(call().bind(company.id())).delete();

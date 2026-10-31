@@ -15,8 +15,10 @@ import de.chojo.sadu.updater.BaseSqlUpdaterBuilder;
 import de.chojo.sadu.updater.QueryReplacement;
 import de.chojo.sadu.updater.SqlUpdater;
 import de.eldoria.companies.api.CompaniesApiImpl;
+import de.eldoria.companies.areas.AreaContainers;
 import de.eldoria.companies.areas.AreaHooks;
 import de.eldoria.companies.areas.AreaServices;
+import de.eldoria.companies.areas.AreaSync;
 import de.eldoria.companies.areas.HomeTeleports;
 import de.eldoria.companies.boards.SignBoards;
 import de.eldoria.companies.boards.npc.NpcHooks;
@@ -54,6 +56,7 @@ import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.repository.AServerEventData;
 import de.eldoria.companies.data.repository.EconomyData;
 import de.eldoria.companies.data.repository.InformationData;
+import de.eldoria.companies.data.repository.QueryErrors;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbAlertData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbAreaData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbCompanyData;
@@ -217,6 +220,7 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.time.Clock;
+import java.time.InstantSource;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
@@ -250,6 +254,7 @@ public class Companies extends EldoPlugin {
             Executors.newScheduledThreadPool(5, createThreadFactory(workerGroup));
     private final Configuration configuration;
     private HikariDataSource dataSource;
+    private final QueryErrors queryErrors = new QueryErrors();
     private ACompanyData companyData;
     private AOrderData orderData;
     private AOfferData offerData;
@@ -258,6 +263,7 @@ public class Companies extends EldoPlugin {
     private AAreaData areaData;
     private AHomeData homeData;
     private volatile @Nullable HomeTeleports homes;
+    private volatile @Nullable AreaSync areaSyncing;
     private volatile @Nullable JobServices jobs;
     private InformationData information;
     private EconomyData economy;
@@ -603,11 +609,33 @@ public class Companies extends EldoPlugin {
         jobs = jobServices;
         var homeTeleports = homeTeleports(economy, treasuryService);
         homes = homeTeleports;
+        var areaSync = new AreaSync(
+                api.areaProviders(),
+                areaData,
+                this::companyOrThrow,
+                queryErrors::count,
+                InstantSource.system(),
+                configuration.nodeSettings().nodeUid(),
+                Threading.mainThread(this),
+                getLogger());
+        getServer().getPluginManager().registerEvents(areaSync, this);
+        var areaMessages = MessageSender.getPluginMessageSender(this);
+        getServer()
+                .getPluginManager()
+                .registerEvents(
+                        new AreaContainers(
+                                api.areaProviders(),
+                                areaSync,
+                                player -> areaMessages.sendErrorActionBar(player, "company.area.error.containers")),
+                        this);
+        areaSyncing = areaSync;
+        areaSync.schedule(workerPool);
         var areaServices = new AreaServices(
                 api.areaProviders(),
                 areaData,
                 homeData,
                 homeTeleports,
+                areaSync,
                 configuration.nodeSettings().nodeUid(),
                 () -> configuration.nodeSettings().proxyServer());
 
@@ -860,6 +888,24 @@ public class Companies extends EldoPlugin {
         configuration.generalSettings().invalidTimezone().ifPresent(name -> getLogger()
                 .warning("The timezone \"" + name + "\" in config.yml is no time zone; using " + Times.machineZone()
                         + " instead."));
+    }
+
+    /**
+     * Reads a company with its members for the area sync, which must tell a company that is gone from one that could
+     * not be read.
+     *
+     * @param id id of the company
+     * @return the company, empty when it is gone
+     * @throws IllegalStateException when it could not be read
+     */
+    private Optional<CompanyProfile> companyOrThrow(int id) {
+        var simple = companyData.retrieveCompanyById(id).asFuture().join();
+        if (simple == null) throw new IllegalStateException("Could not read company " + id);
+        if (simple.isEmpty()) return Optional.empty();
+        var profile =
+                companyData.retrieveCompanyProfile(simple.get()).asFuture().join();
+        if (profile == null) throw new IllegalStateException("Could not read the members of company " + id);
+        return profile;
     }
 
     /**
@@ -1144,6 +1190,8 @@ public class Companies extends EldoPlugin {
         if (runningHomes != null) {
             runningHomes.stop();
         }
+        var runningAreaSync = areaSyncing;
+        if (runningAreaSync != null) runningAreaSync.stop();
         if (dashboard != null) dashboard.stop();
         if (api != null) api.unregister(this);
         if (commands != null) {
@@ -1197,7 +1245,10 @@ public class Companies extends EldoPlugin {
     private void initDb() throws SQLException, IOException {
         dataSource = DataSourceFactory.createDataSource(configuration.databaseSettings(), this);
         QueryConfiguration.setDefault(QueryConfiguration.builder(dataSource)
-                .setExceptionHandler(err -> getLogger().log(Level.SEVERE, "Error during query execution", err))
+                .setExceptionHandler(err -> {
+                    queryErrors.record();
+                    getLogger().log(Level.SEVERE, "Error during query execution", err);
+                })
                 .build());
 
         BaseSqlUpdaterBuilder<?, ?> builder;

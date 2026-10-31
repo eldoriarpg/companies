@@ -5,7 +5,7 @@ sidebar_position: 8
 
 # areas.yml
 
-Company areas: plots and regions a company uses, and the company home. This file says whether companies
+[Company areas](../../companies/areas.md): plots and regions a company uses, and the company home. This file says whether companies
 may get new areas and which plot and claim plugins they come from. It is shared by every server of a network. The
 areas themselves are stored in the database.
 

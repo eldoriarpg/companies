@@ -23,6 +23,8 @@ public class LevelSettings implements ILevelSettings {
     @JsonInclude(JsonInclude.Include.NON_NULL)
     private Integer maxAlerts = null;
 
+    private int maxAreas = 1;
+
     public LevelSettings() {}
 
     @Override
@@ -113,5 +115,19 @@ public class LevelSettings implements ILevelSettings {
      */
     public void maxAlerts(Integer maxAlerts) {
         this.maxAlerts = maxAlerts;
+    }
+
+    /**
+     * @return the most areas a company of this level may have, at least 0
+     */
+    public int maxAreas() {
+        return Math.max(0, maxAreas);
+    }
+
+    /**
+     * @param maxAreas the most areas a company of this level may have
+     */
+    public void maxAreas(int maxAreas) {
+        this.maxAreas = maxAreas;
     }
 }
