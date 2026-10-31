@@ -182,7 +182,7 @@ it.
 | Server events | Create an event in a form with the fields of `/companyadmin event create`: name, kind, value, materials, company levels, start, end, and for a reward multiplier its money and budget. The plugin reads it as the command's form does and shows its refusal. | `companies.admin.events` | `/companyadmin event create` |
 | Server events | End a running event, cancel a waiting or running one (cancelling asks once more), extend it by a duration, and set or remove the budget of a reward multiplier. | `companies.admin.events` | `/companyadmin event end`, `cancel`, `extend`, `budget` |
 | Disputes | List the disputed [jobs](../players/jobs.md#disputes) with both sides, who opened the dispute and why, the company's time and whether it had run out, and the work counted in an area; settle one with a percent of the price for the company. Settling is written to the admin log. | `companies.admin.jobs` | `/companyadmin job disputes`, `settle` |
-| Servers | Sync the configuration from the primary, after asking once more. Only the primary does it; while it is not connected, the button answers that the server is offline. The dashboard reconnects for a moment. | `companies.admin` | `/companyadmin syncconfiguration` |
+| Servers | Sync the configuration from the primary, after asking once more. Only the primary does it; while it is not connected, the button answers that the server is offline. The dashboard reconnects for a moment. | `companies.admin.reload` | `/companyadmin syncconfiguration` |
 
 While `markSystemOrders` in [system-orders.yml](./configuration/system-orders-yml.md) is on, the order book shows a
 *Server* badge on the server's own orders and filter chips to show only them or hide them; switching it on or off

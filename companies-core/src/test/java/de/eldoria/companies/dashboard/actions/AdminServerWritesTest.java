@@ -93,6 +93,9 @@ class AdminServerWritesTest {
         assertEquals(
                 "companyadmin.error.permission",
                 perform(Actions.ADMIN_CONFIG_SYNC, "{}", Permission.Admin.NODES).reason());
+        assertEquals(
+                "companyadmin.error.permission",
+                perform(Actions.ADMIN_CONFIG_SYNC, "{}", Permission.Admin.ADMIN).reason());
         assertEquals(0, world.configSyncs.get());
         assertTrue(world.adminActions.isEmpty());
     }
@@ -194,21 +197,23 @@ class AdminServerWritesTest {
         world.nodeType = NodeType.SECONDARY;
         assertEquals(
                 "error.secondarynode",
-                perform(Actions.ADMIN_CONFIG_SYNC, "{}", Permission.Admin.ADMIN).reason());
+                perform(Actions.ADMIN_CONFIG_SYNC, "{}", Permission.Admin.RELOAD)
+                        .reason());
 
         world.nodeType = NodeType.PRIMARY;
         world.failSync = true;
         assertEquals(
                 "companyadmin.syncconfiguration.failed",
-                perform(Actions.ADMIN_CONFIG_SYNC, "{}", Permission.Admin.ADMIN).reason());
+                perform(Actions.ADMIN_CONFIG_SYNC, "{}", Permission.Admin.RELOAD)
+                        .reason());
         assertEquals(0, world.configSyncs.get());
         assertTrue(world.adminActions.stream().noneMatch(line -> line.contains("syncconfiguration")));
     }
 
     @Test
     void theConfigurationIsSynced() {
-        assertTrue(
-                perform(Actions.ADMIN_CONFIG_SYNC, "{}", Permission.Admin.ADMIN).ok());
+        assertTrue(perform(Actions.ADMIN_CONFIG_SYNC, "{}", Permission.Admin.RELOAD)
+                .ok());
         assertEquals(1, world.configSyncs.get());
         assertTrue(world.adminActions.stream().anyMatch(line -> line.contains("syncconfiguration")));
     }

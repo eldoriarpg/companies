@@ -30,6 +30,21 @@ seed that stopped halfway is completed on the next start; an order of the seed t
 The server orders come from `system-orders.yml`. The demo players of the seed never join; each name gets the id an
 offline-mode server would give it, and `usercache.json` of both nodes names them.
 
+## Visitors and the admin sandbox
+
+Visitors use only the commands of `commands.allowed` in the `CompaniesDemo` config of each node: Companies' own,
+`/demo`, the plot and economy commands they need, and chat. Every other command is refused and left out of tab
+completion; `companiesdemo.commands.all` (ops by default) lifts the list.
+
+`/demo admin` makes a visitor a member of the LuckPerms group `demo-admin` for 30 minutes, at most once per 30
+minutes; `/demo admin off` ends it early. The group gets the admin tools of Companies to look at orders, players,
+events, offers and job disputes, without deleting, reloading or syncing, settings writes, owner transfers, nodes, the
+dashboard key, debug, grants, the level editor, renames, treasury changes, area offers, the two bypasses and boards,
+so a demo admin can neither create money nor take other visitors' land. Starting or ending the sandbox ends the
+player's dashboard sessions, so the next login shows what they may do now. `hub` sets up the groups `default` (the
+chat commands of the allow list) and `demo-admin` from its config on every start, since the reset empties the
+LuckPerms database. The nightly reset undoes what demo admins changed.
+
 ## Secrets
 
 The compose file takes its secrets from environment variables and hands them to the containers as files:

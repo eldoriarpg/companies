@@ -63,3 +63,50 @@ seed:
       LANTERN: 4.0
       WHITE_WOOL: 0.9
       DIAMOND: 25.0
+sandbox:
+  minutes: 30
+  pauseMinutes: 0
+commands:
+  enabled: true
+  allowed: [demo, company, comp, order, companyadmin, plot, plots, p, balance, bal, money, pay, baltop, balancetop,
+            help, list, msg, tell, r]
+messages:
+  usage: '<gray>/demo admin</gray> takes the admin sandbox for a while, <gray>/demo admin off</gray> ends it.'
+  players: 'Only players use /demo.'
+  permission: '<red>You may not use the admin sandbox.'
+  failed: '<red>That did not work, try again in a moment.'
+  refused: '<red>That command is not part of the demo. Try <gray>/company</gray>, <gray>/order</gray> or <gray>/demo</gray>.'
+  admin:
+    enabled: '<green>You are a demo admin for <minutes> minutes. Try <gray>/companyadmin</gray> and the Admin tab of the dashboard (log in again); the nightly reset undoes everything.'
+    active: '<yellow>You are a demo admin already.'
+    wait: '<yellow>You were a demo admin lately. Try again later.'
+    disabled: '<green>You are no demo admin anymore.'
+    none: '<yellow>You are no demo admin.'
+groups:
+  default:
+    - essentials.msg
+    - essentials.reply
+    - essentials.list
+    - essentials.help
+  demo-admin:
+    - companies.admin
+    - companies.admin.calcLevel
+    - companies.admin.events
+    - companies.admin.offers
+    - companies.admin.orders
+    - companies.admin.player
+    - companies.admin.jobs
+    - -companies.admin.delete
+    - -companies.admin.reload
+    - -companies.admin.transferOwner
+    - -companies.admin.nodes
+    - -companies.admin.dashboard
+    - -companies.admin.debug
+    - -companies.admin.grant
+    - -companies.admin.level
+    - -companies.admin.rename
+    - -companies.admin.treasury
+    - -companies.admin.areas
+    - -companies.admin.areas.bypass
+    - -companies.admin.jobs.bypass
+    - -companies.admin.boards

@@ -48,7 +48,7 @@ Only operators have these by default.
 
 | Permission | Default | What it covers |
 |---|---|---|
-| `companies.admin` | op | See `/companyadmin`. Use `/companyadmin syncconfiguration` and `/companyadmin settings`. |
+| `companies.admin` | op | See `/companyadmin`. Use `/companyadmin settings` to look at the shared configuration. |
 | `companies.admin.boards` | op | Create and break board signs, list presets, rewrite board signs and bind NPCs to boards (`/companyadmin board`). |
 | `companies.admin.calcLevel` | op | Recalculate company levels with `/companyadmin calclevel`. |
 | `companies.admin.dashboard` | op | Show the dashboard connection, enter the dashboard key and log players out of the dashboard with `/companyadmin dashboard`. New in 2.1. |
@@ -65,7 +65,7 @@ Only operators have these by default.
 | `companies.admin.offers` | op | Create, look at, pause, resume and cancel event offers, goals and contests, with `/companyadmin offers`. Joining and delivering into contests needs no server permission: joining needs the company permission `manage_orders`, delivering membership in a company that takes part. |
 | `companies.admin.orders` | op | Look at, release, cancel, complete and extend any order with `/companyadmin order`, and use the buttons of its menus. |
 | `companies.admin.player` | op | Look up the company, orders, items and notifications of a player with `/companyadmin player`. |
-| `companies.admin.reload` | op | Reload and share the configuration with `/companyadmin reload`, and roll back a shared file with `/companyadmin settings rollback`, together with `companies.admin`. |
+| `companies.admin.reload` | op | Reload and share the configuration with `/companyadmin reload`, sync it with `/companyadmin syncconfiguration`, and roll back a shared file with `/companyadmin settings rollback`, together with `companies.admin`. |
 | `companies.admin.rename` | op | Rename companies with `/companyadmin rename`. |
 | `companies.admin.transferOwner` | op | Make another member the owner of a company with `/companyadmin transferowner`. |
 | `companies.admin.treasury` | op | Look at company treasuries and add or remove money with `/companyadmin treasury`. |
@@ -73,7 +73,7 @@ Only operators have these by default.
 
 Every admin permission also makes `/companyadmin` visible. Each subcommand then checks its own permission. The same
 permissions unlock the matching tools of the dashboard's [Admin section](../admin/dashboard.md#admin-tools);
-`companies.admin` also syncs the configuration from there.
+`companies.admin.reload` also syncs the configuration from there.
 
 ## Wildcard permissions
 

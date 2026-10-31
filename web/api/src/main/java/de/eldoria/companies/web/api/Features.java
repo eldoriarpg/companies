@@ -144,7 +144,7 @@ public final class Features {
     public static final String ADMIN_NODES = "admin.nodes";
 
     /**
-     * Load the configuration stored in the database on every node. Needs {@code companies.admin}.
+     * Load the configuration stored in the database on every node. Needs {@code companies.admin.reload}.
      */
     public static final String ADMIN_CONFIG = "admin.config";
 

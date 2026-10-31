@@ -13,24 +13,32 @@ import de.eldoria.companies.api.write.FoundResult;
 import de.eldoria.companies.api.write.OrderRequest;
 import de.eldoria.companies.components.join.JoinResult;
 import de.eldoria.companies.components.order.OrderState;
+import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents;
+import net.luckperms.api.LuckPermsProvider;
 import org.bukkit.configuration.MemoryConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.sql.SQLException;
 import java.time.Clock;
+import java.time.Duration;
 import java.util.Optional;
 import java.util.OptionalInt;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletionException;
 import java.util.logging.Level;
 
 /**
- * The helper of the Companies demo network. On the server whose config has {@code seed.enabled}, it creates the
- * starting state of the demo after every nightly reset, which empties the Companies database. On each start it first
- * writes the market history, which has no API, over a connection to the Companies database of its own
- * ({@code database}), so it lands before the plugin's own recording sweeps; then it completes companies, members and
- * orders through the API. Companies accepts writes only once its economy is set up, so that part waits and tries again
- * every few seconds; any other failure is logged and the next start completes what is missing.
+ * The helper of the Companies demo network. On every server it offers {@code /demo} with the admin sandbox and, where
+ * {@code commands.enabled}, keeps visitors to the commands of its allow list. The server with {@code groups} sets up
+ * the LuckPerms groups of the demo on each start, since the nightly reset empties their database.
+ * <p>
+ * The server whose config has {@code seed.enabled} creates the starting state of the demo after every reset, which
+ * empties the Companies database. On each start it first writes the market history, which has no API, over a
+ * connection to the Companies database of its own ({@code database}), so it lands before the plugin's own recording
+ * sweeps; then it completes companies, members and orders through the API. Companies accepts writes only once its
+ * economy is set up, so that part waits and tries again every few seconds; any other failure is logged and the next
+ * start completes what is missing.
  */
 public final class CompaniesDemo extends JavaPlugin {
     private static final long RETRY_TICKS = 20L * 10;
@@ -39,6 +47,29 @@ public final class CompaniesDemo extends JavaPlugin {
     @Override
     public void onEnable() {
         saveDefaultConfig();
+        var luckPerms = LuckPermsProvider.get();
+        var messages = getConfig().getConfigurationSection("messages");
+        var sandbox = new AdminSandbox(
+                luckPerms,
+                Duration.ofMinutes(getConfig().getInt("sandbox.minutes", 30)),
+                Duration.ofMinutes(getConfig().getInt("sandbox.pauseMinutes", 0)));
+        var sessions = new SandboxSessions(this);
+        sessions.listen(luckPerms);
+        getServer().getPluginManager().registerEvents(sessions, this);
+        var command = new DemoCommand(
+                sandbox, sessions, messages == null ? new MemoryConfiguration() : messages, getLogger());
+        getLifecycleManager().registerEventHandler(LifecycleEvents.COMMANDS, event -> event.registrar()
+                .register("demo", "The Companies demo", command));
+        if (getConfig().getBoolean("commands.enabled")) {
+            getServer()
+                    .getPluginManager()
+                    .registerEvents(
+                            new CommandAllowList(
+                                    Set.copyOf(getConfig().getStringList("commands.allowed")),
+                                    getConfig().getString("messages.refused", "")),
+                            this);
+        }
+        setUpGroups(new DemoGroups(luckPerms));
         if (!getConfig().getBoolean("seed.enabled")) return;
         var section = getConfig().getConfigurationSection("seed");
         var plan = SeedPlan.read(section == null ? new MemoryConfiguration() : section, getLogger()::warning);
@@ -57,6 +88,17 @@ public final class CompaniesDemo extends JavaPlugin {
         var market = new MarketSeeder(store, Clock.systemUTC());
         getServer().getScheduler().runTaskAsynchronously(this, () -> seedMarket(market, plan));
         attempt(new Seeder(new ApiWrites(), getLogger()), plan, 1);
+    }
+
+    private void setUpGroups(DemoGroups groups) {
+        var section = getConfig().getConfigurationSection("groups");
+        if (section == null) return;
+        for (var group : section.getKeys(false)) {
+            groups.setUp(group, section.getStringList(group)).exceptionally(err -> {
+                getLogger().log(Level.SEVERE, "Could not set up the group " + group, err);
+                return null;
+            });
+        }
     }
 
     private void seedMarket(MarketSeeder market, SeedPlan plan) {
