@@ -32,6 +32,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -65,7 +66,11 @@ public final class JobWrites {
             Actions.JOBS_END,
             Actions.JOBS_TAKE,
             Actions.JOBS_GIVE_BACK,
-            Actions.JOBS_DONE);
+            Actions.JOBS_DONE,
+            Actions.JOBS_EXTEND,
+            Actions.JOBS_EXTENSION_ASK,
+            Actions.JOBS_EXTENSION_GRANT,
+            Actions.JOBS_EXTENSION_REFUSE);
 
     /**
      * The most jobs of each list.
@@ -123,6 +128,37 @@ public final class JobWrites {
                         company,
                         id,
                         service.reject(player, id, args.path("reason").asString("")));
+            case Actions.JOBS_EXTEND ->
+                extension(
+                        request,
+                        jobs,
+                        player,
+                        company,
+                        id,
+                        service.extend(player, id, args.path("hours").asInt(0)));
+            case Actions.JOBS_EXTENSION_GRANT ->
+                extension(request, jobs, player, company, id, service.grantExtension(player, id));
+            case Actions.JOBS_EXTENSION_REFUSE ->
+                extension(
+                        request,
+                        jobs,
+                        player,
+                        company,
+                        id,
+                        service.refuseExtension(player, id, args.path("reason").asString("")));
+            case Actions.JOBS_EXTENSION_ASK ->
+                forCompany(
+                        request,
+                        jobs,
+                        player,
+                        company,
+                        id,
+                        c -> service.askExtension(
+                                c,
+                                player,
+                                id,
+                                args.path("hours").asInt(0),
+                                args.path("reason").asString("")));
             case Actions.JOBS_CANCEL ->
                 owner(request, jobs, player, company, id, service.cancel(player, session.playerName(), id));
             case Actions.JOBS_DISPUTE -> {
@@ -264,6 +300,36 @@ public final class JobWrites {
         return answers.refused(request, CommandFailure.of(OWNER + key, number(id), Values.number("max", max)));
     }
 
+    /**
+     * Answers an owner's extension of a job: the job on success, otherwise the refusal worded for extensions, as the
+     * in-game command words it.
+     */
+    private ActionResult extension(
+            ActionRequest request,
+            JobServices jobs,
+            UUID player,
+            Optional<CompanyProfile> company,
+            int id,
+            JobService.Change change) {
+        if (change == JobService.Change.DONE) return owner(request, jobs, player, company, id, change);
+        var key =
+                switch (change) {
+                    case UNKNOWN, NOT_YOURS -> "error.unknown";
+                    case DISABLED -> "error.extensionsOff";
+                    case HOURS -> "error.extensionHours";
+                    case NO_REQUEST -> "error.noExtensionRequest";
+                    case REASON -> "error.extensionReason";
+                    default -> "error.extensionClosed";
+                };
+        return answers.refused(
+                request,
+                CommandFailure.of(
+                        OWNER + key,
+                        number(id),
+                        Values.number("max", JobReview.MAX_REASON),
+                        Values.number("left", change == JobService.Change.HOURS ? left(jobs, id) : 0)));
+    }
+
     private ActionResult forCompany(
             ActionRequest request,
             JobServices jobs,
@@ -293,10 +359,28 @@ public final class JobWrites {
                     case REASON -> "error.reason";
                     case HARVEST -> "error.harvest";
                     case AREA -> "error.inGame";
+                    case DISABLED -> "error.extensionsOff";
+                    case HOURS -> "error.extensionHours";
+                    case ASKED -> "error.extensionAsked";
+                    case REQUESTS -> "error.extensionRequests";
                     default -> "error.closed";
                 };
         return answers.refused(
-                request, CommandFailure.of(COMPANY + key, number(id), Values.number("length", JobReview.MAX_REASON)));
+                request,
+                CommandFailure.of(
+                        COMPANY + key,
+                        number(id),
+                        Values.number("length", JobReview.MAX_REASON),
+                        Values.number("left", result == JobService.Change.HOURS ? left(jobs, id) : 0),
+                        Values.number("max", result == JobService.Change.REQUESTS ? requests(jobs, id) : 0)));
+    }
+
+    private static int left(JobServices jobs, int id) {
+        return jobs.data().job(id).map(job -> jobs.service().hoursLeft(job)).orElse(0);
+    }
+
+    private static int requests(JobServices jobs, int id) {
+        return jobs.data().job(id).map(job -> job.extension().requests()).orElse(0);
     }
 
     private static boolean owns(JobServices jobs, UUID player, int id) {
@@ -346,6 +430,10 @@ public final class JobWrites {
         var disputeBy = review.disputeBy();
         Map<String, Integer> stock =
                 mine && job.kind() == JobKind.HARVEST ? jobs.data().stock(job.id()) : Map.of();
+        var settings = sources.settings().get();
+        var extension = job.extension();
+        var asked = job.state() == JobState.TAKEN ? extension.askedHours() : null;
+        var extendable = settings.extensionsEnabled() && job.state() == JobState.TAKEN;
         return new JobDetails(
                 row(job, player, company),
                 job.description(),
@@ -363,7 +451,16 @@ public final class JobWrites {
                 job.state() == JobState.OPEN
                         && !mine
                         && company.map(found -> found.member(job.owner()).isEmpty())
-                                .orElse(false));
+                                .orElse(false),
+                extension.extendedHours(),
+                extendable ? jobs.service().hoursLeft(job) : 0,
+                extendable ? Math.max(0, settings.maxExtensionRequests() - extension.requests()) : 0,
+                asked == null
+                        ? null
+                        : new ExtensionRequest(
+                                asked,
+                                Objects.requireNonNullElse(extension.reason(), ""),
+                                instant(extension.askedAt())));
     }
 
     private @Nullable Instant instant(@Nullable LocalDateTime time) {
@@ -499,5 +596,19 @@ public final class JobWrites {
             @Nullable String surface,
             Map<String, Integer> stock,
             boolean canManage,
-            boolean takeable) {}
+            boolean takeable,
+            int extendedHours,
+            int hoursLeft,
+            int requestsLeft,
+            @Nullable ExtensionRequest request) {}
+
+    /**
+     * The open request of the company working on a job for more time.
+     *
+     * @param hours  the hours it asks for
+     * @param reason why
+     * @param asked  when it asked
+     */
+    public record ExtensionRequest(
+            int hours, String reason, @Nullable Instant asked) {}
 }

@@ -115,6 +115,30 @@ class JobWritesTest {
     }
 
     @Test
+    void theCompanyAsksForMoreTimeAndTheOwnerGrantsOrExtends() {
+        var id = posted();
+        perform(manager, Actions.JOBS_TAKE, job(id), Set.of());
+
+        var asked = perform(
+                manager, Actions.JOBS_EXTENSION_ASK, "{\"job\":" + id + ",\"hours\":6,\"reason\":\"Big\"}", Set.of());
+        assertTrue(asked.ok(), asked.message());
+        assertEquals(6, asked.data().path("request").path("hours").asInt());
+        var seen = perform(owner, Actions.JOBS_INFO, job(id), Set.of());
+        assertEquals("Big", seen.data().path("request").path("reason").asString());
+        var granted = perform(owner, Actions.JOBS_EXTENSION_GRANT, job(id), Set.of());
+        assertTrue(granted.ok(), granted.message());
+        assertEquals(6, granted.data().path("extendedHours").asInt());
+        assertFalse(granted.data().path("request").has("hours"));
+        var extended = perform(owner, Actions.JOBS_EXTEND, "{\"job\":" + id + ",\"hours\":4}", Set.of());
+        assertEquals(10, extended.data().path("extendedHours").asInt());
+        var tooMuch = perform(owner, Actions.JOBS_EXTEND, "{\"job\":" + id + ",\"hours\":10000}", Set.of());
+        assertFalse(tooMuch.ok());
+        assertEquals("order.job.error.extensionHours", tooMuch.reason());
+        assertFalse(perform(manager, Actions.JOBS_EXTEND, "{\"job\":" + id + ",\"hours\":4}", Set.of())
+                .ok());
+    }
+
+    @Test
     void aJobOfACompanyMemberCanNotBeTakenByItsCompanyAndPostingFollowsTheSettings() {
         world.wallets.put(worker, 500.0);
         var own = perform(worker, Actions.JOBS_CONTRACT, contract(), Set.of(Permission.Orders.JOBS))

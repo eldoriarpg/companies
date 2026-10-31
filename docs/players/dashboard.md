@@ -123,6 +123,8 @@ game. When the server refuses, the dashboard shows its reason.
 | Jobs | Post a contract; its price and the fee are taken at once | `/order job contract`, `describe` |
 | Jobs | Describe or cancel your waiting job, approve, reject or dispute work, withdraw your dispute, end your harvest | `/order job describe`, `cancel`, `approve`, `reject`, `dispute`, `withdraw`, `end` |
 | Jobs | Take a job for your company, give it back, say a contract is done, end a harvest, dispute or withdraw (needs *manage orders*) | `/company job take`, `giveback`, `done`, `dispute`, `withdraw` |
+| Jobs | Give a job a company works on [more time](./jobs.md#more-time), grant or refuse the company's request | `/order job extend`, `extension grant`, `extension refuse` |
+| Jobs | Ask the owner of your company's job for more time (needs *manage orders*) | `/company job extend` |
 
 A server owner can switch single parts of the dashboard off; their buttons then do not appear.
 

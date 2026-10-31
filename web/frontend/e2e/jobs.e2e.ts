@@ -96,6 +96,47 @@ test.describe('jobs', () => {
         await expect(detail.getByTestId('job-withdraw')).toBeVisible()
     })
 
+    test('grant the company more time it asks for', async ({page}, info) => {
+        await openDashboard(page, 'JOBS01')
+        await openFromMenu(page, info, 'Jobs')
+        await page.getByTestId('jobs-mine').getByText('Roof the hall').click()
+
+        const detail = jobPage(page, info)
+        await expect(detail.getByTestId('job-extension-request')).toHaveText('The company asks for 24 more hours: The hall is bigger than drawn.')
+        await detail.getByTestId('job-grant').click()
+
+        await expect(detail.getByTestId('job-extended')).toHaveText('Extended by 24 hours')
+        await expect(detail.getByTestId('job-grant')).toBeHidden()
+    })
+
+    test('give a job more hours as its owner', async ({page}, info) => {
+        await openDashboard(page, 'JOBS01')
+        await openFromMenu(page, info, 'Jobs')
+        await page.getByTestId('jobs-mine').getByText('Roof the hall').click()
+
+        const detail = jobPage(page, info)
+        await detail.getByTestId('job-extend').click()
+        await detail.getByTestId('job-hours').getByRole('textbox').fill('12')
+        await detail.getByTestId('job-extend').click()
+
+        await expect(detail.getByTestId('job-extended')).toHaveText('Extended by 12 hours')
+    })
+
+    test('ask the owner for more time for the company', async ({page}, info) => {
+        await openDashboard(page, 'JOBS01')
+        await openFromMenu(page, info, 'Jobs')
+        await page.getByTestId('jobs-company').getByText('Cellar').click()
+
+        const detail = jobPage(page, info)
+        await detail.getByTestId('job-ask').click()
+        await detail.getByTestId('job-hours').getByRole('textbox').fill('8')
+        await detail.getByLabel('Why you need more time').fill('Bedrock is uneven')
+        await detail.getByTestId('job-ask').click()
+
+        await expect(detail.getByTestId('job-extension-request')).toHaveText('You asked for 8 more hours; the owner has not answered yet')
+        await expect(detail.getByTestId('job-ask')).toBeHidden()
+    })
+
     test('let an admin settle a dispute', async ({page}, info) => {
         await openDashboard(page, 'ADMN01')
         await openFromMenu(page, info, 'Admin')

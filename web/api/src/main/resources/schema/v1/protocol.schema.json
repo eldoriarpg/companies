@@ -1643,6 +1643,18 @@
     "jobs.done" : {
       "feature" : "jobs"
     },
+    "jobs.extend" : {
+      "feature" : "jobs"
+    },
+    "jobs.extension.ask" : {
+      "feature" : "jobs"
+    },
+    "jobs.extension.grant" : {
+      "feature" : "jobs"
+    },
+    "jobs.extension.refuse" : {
+      "feature" : "jobs"
+    },
     "admin.jobs.disputes" : {
       "feature" : "admin.jobs"
     },
