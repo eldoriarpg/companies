@@ -1,0 +1,35 @@
+services:
+  hub:
+    image: companies-demo-node:local
+    build:
+      context: ..
+      dockerfile: .docker/demo-node.Dockerfile
+    environment:
+      MEMORY: 2G
+
+  lands:
+    image: companies-demo-node:local
+    environment:
+      MEMORY: 2G
+
+  gateway:
+    image: companies-backend:local
+    build:
+      context: ..
+      dockerfile: .docker/backend.Dockerfile
+    environment:
+      GATEWAY_MODE: self-hosted
+      PUBLIC_URL: http://localhost:4000
+      COOKIE_SECURE: "false"
+
+  frontend:
+    image: companies-frontend:local
+    build:
+      context: ..
+      dockerfile: .docker/frontend.Dockerfile
+    ports: ["127.0.0.1:4000:4000"]
+
+networks:
+  traefik:
+    external: false
+    name: companies-demo-traefik

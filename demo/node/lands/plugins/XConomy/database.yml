@@ -1,0 +1,68 @@
+Settings:
+  #SQLite MySQL MariaDB PostgreSQL
+  #MariaDB requires DatabaseDrivers when the driver is not provided by the platform
+  storage-type: MySQL
+  #Use connection pool or not
+  #Require 'slf4j' dependencies
+  #At least java version 11 is required
+  usepool: true
+
+
+#SQLite settings
+SQLite:
+  #Address is the folder path
+  path: Default
+
+
+#MySQL settings
+MySQL:
+  host: mariadb
+  port: 3306
+  user: demo
+  pass: ${CFG_DB_PASSWORD}
+  database: economy
+  #auto add "_", can use %sign% to indicate Server ID (BungeeCord settings)
+  table-suffix: ''
+  property:
+    usessl: false
+    encoding: utf8
+    timezone: ''
+    allowPublicKeyRetrieval: false
+
+
+#PostgreSQL settings
+PostgreSQL:
+  host: localhost
+  port: 5432
+  user: postgres
+  pass: postgres
+  database: data
+  #auto add "_", can use %sign% to indicate Server ID (BungeeCord settings)
+  table-suffix: ''
+  property:
+    usessl: false
+    encoding: UTF-8
+    timezone: ''
+
+
+#Connection pool settings
+Pool-Settings:
+  maximum-pool-size: 10
+  minimum-idle: 10
+  maximum-lifetime: 180000
+  idle-timeout: 60000
+
+
+#Redis settings
+Redis:
+  host: redis
+  port: 6379
+  db-index: 1
+  duration: 1000
+  pool-settings:
+    max-total: 20
+    max-idle: 20
+    min-idle: 0
+  auth:
+    user: ''
+    pass: ''

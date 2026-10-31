@@ -1,0 +1,8 @@
+server: hub
+storage-method: MariaDB
+data:
+  address: mariadb:3306
+  database: luckperms
+  username: demo
+  password: '${CFG_DB_PASSWORD}'
+messaging-service: sql

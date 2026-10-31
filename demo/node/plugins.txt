@@ -1,0 +1,10 @@
+all a6b5ed97f43a5cf5bbaf00a7c8cd23c5afc9bd003f849875af8b36e6cf77d01d https://github.com/MilkBowl/Vault/releases/download/1.7.3/Vault.jar
+all a0dbb398768c6d6f78effe705e5cb5184c698536b63c46dcc3533c15f7b48706 https://cdn.modrinth.com/data/UdMN9hv5/versions/C3upq9LK/XConomy-Paper-2.26.9.jar
+all bda4685105977fca2e209820a9f0ad24275bd103390a03236f38e59bfdac58e6 https://github.com/EssentialsX/Essentials/releases/download/2.22.0/EssentialsX-2.22.0.jar
+all 49cecb66fa1fd22a133039a490e9c1e5095a238e7cd66eb9d2a16fe6c897550d https://cdn.modrinth.com/data/Vebnzrzj/versions/b0mk8uS6/LuckPerms-Bukkit-5.5.71.jar
+all fde03259f5af6938f3c33eeb4d814000a1adabf1d2304ce14970be81f609a437 https://cdn.modrinth.com/data/lKEzGugV/versions/pIvQcXW8/PlaceholderAPI-2.12.3.jar
+all e0ce67d870ad1fef8a40dd9d7926360caf3bb44722438545d6b20b55f82a0c91 https://cdn.modrinth.com/data/1u6JkXh5/versions/YFnqiUlL/worldedit-bukkit-7.4.6.jar
+hub 8768a49bcbecbb7a413ad134ee72d9871cdf967b7d938e6b96bb0ca72bb1467b https://cdn.modrinth.com/data/DKY9btbd/versions/9YdeGXiK/worldguard-bukkit-7.0.20.jar
+hub 99bc2b7b0af7846cc45d5800ea0acfae6846d479e048b8e5995c5afa53df27be https://cdn.modrinth.com/data/w02MKsTg/versions/fbE7wARc/DecentHolograms-2.10.2.jar
+lands 45e9907c61222e559ed2e099ffee0ede706a21243a31d7db549baf678708fdf0 https://cdn.modrinth.com/data/O4o4mKaq/versions/dGfCZHqk/GriefPrevention.jar
+lands 792252b6bbcf17c94ab8385e595281c830d7a40c946aea1832d8a010702bb630 https://cdn.modrinth.com/data/3wmN97b8/versions/de7TbcZG/multiverse-core-5.8.2.jar

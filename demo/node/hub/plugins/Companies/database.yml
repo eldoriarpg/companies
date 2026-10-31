@@ -1,0 +1,10 @@
+storageType: MARIADB
+host: mariadb
+port: '3306'
+user: demo
+password: ${CFG_DB_PASSWORD}
+database: companies
+redis:
+  enabled: true
+  host: redis
+  port: 6379

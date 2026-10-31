@@ -7,7 +7,10 @@ package de.eldoria.companies.web.gateway;
 
 import org.jspecify.annotations.Nullable;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.net.URI;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Arrays;
@@ -121,8 +124,12 @@ public record ServiceConfig(
     }
 
     /**
+     * Reads the settings. Every variable can instead name a file holding its value with the suffix {@code _FILE},
+     * such as {@code DB_PASSWORD_FILE} for a Docker secret; a variable that is set wins over its file.
+     *
      * @param environment the environment, e.g. {@link System#getenv()}
      * @return the settings, defaults where a variable is missing
+     * @throws UncheckedIOException if a {@code _FILE} variable names a file that can not be read
      */
     public static ServiceConfig of(Map<String, String> environment) {
         Function<String, @Nullable String> env = environment::get;
@@ -166,7 +173,18 @@ public record ServiceConfig(
 
     private static String text(Function<String, @Nullable String> env, String name, String fallback) {
         String value = env.apply(name);
+        if (value == null || value.isBlank()) value = fromFile(env, name);
         return value == null || value.isBlank() ? fallback : value.strip();
+    }
+
+    private static @Nullable String fromFile(Function<String, @Nullable String> env, String name) {
+        String file = env.apply(name + "_FILE");
+        if (file == null || file.isBlank()) return null;
+        try {
+            return Files.readString(Path.of(file.strip()));
+        } catch (IOException e) {
+            throw new UncheckedIOException("Could not read " + name + "_FILE " + file.strip(), e);
+        }
     }
 
     private static List<String> list(Function<String, @Nullable String> env, String name) {
