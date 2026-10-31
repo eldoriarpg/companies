@@ -54,7 +54,23 @@ public enum TreasuryKind implements Translatable {
     /**
      * A prize of a contest of an event offer, for the company's place.
      */
-    CONTEST_PRIZE(9);
+    CONTEST_PRIZE(9),
+    /**
+     * A teleport of a member to the company's home, paid from the treasury.
+     */
+    HOME_TELEPORT(10),
+    /**
+     * A plot or region the company bought from the server.
+     */
+    AREA_BUY(11),
+    /**
+     * The rent of a plot or region for one period.
+     */
+    AREA_RENT(12),
+    /**
+     * A bought plot or region the company sold back to the server.
+     */
+    AREA_SALE(13);
 
     private final int id;
 

@@ -98,6 +98,7 @@ You can edit levels in game with `/companyadmin level`. See [Levels](../levels.m
 | `settings.deliveryHoursBonus` | number (hours) | `0` | Hours added to `deliveryHours`. |
 | `settings.taxPercent` | number | not set | Tax for this level. Replaces `tax.percent`. Leave it out to use `tax.percent`. |
 | `settings.maxAlerts` | number | not set | Order alerts for this level. Replaces `alerts.maxPerCompany`. `0` means none. Leave it out to use `alerts.maxPerCompany`. |
+| `settings.maxAreas` | number | `1` | Most [areas](./areas-yml.md) the company may have. `0` means none. |
 
 The defaults in this table are those of a level added with `/companyadmin level create`.
 

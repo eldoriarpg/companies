@@ -34,7 +34,16 @@ class PermissionEditTest {
     @Test
     void ownerIsNeverShown() {
         assertEquals(
-                List.of(INVITE, KICK, MANAGE_ORDERS, MANAGE_PERMISSIONS, EDIT_PROFILE, TREASURY),
+                List.of(
+                        INVITE,
+                        KICK,
+                        MANAGE_ORDERS,
+                        MANAGE_PERMISSIONS,
+                        EDIT_PROFILE,
+                        TREASURY,
+                        CompanyPermission.BUILD,
+                        CompanyPermission.CONTAINERS,
+                        CompanyPermission.MANAGE_AREAS),
                 PermissionEdit.shown());
     }
 

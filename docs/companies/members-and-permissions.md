@@ -37,6 +37,9 @@ server.
 | `manage_permissions` | Give and remove permissions of other members |
 | `edit_profile` | Change the description, tag, colour and join mode |
 | `treasury` | Take money from the [treasury](./treasury.md) and set the payout share |
+| `build` | Build in the company's areas |
+| `containers` | Open chests, barrels, furnaces and other containers in the company's areas |
+| `manage_areas` | Set the company's home and link, buy, rent and give up areas, paid from the treasury |
 
 The **owner** holds every permission. There is exactly one owner, and nobody can give or take that role with these
 commands. Use `/company transfer` for that.

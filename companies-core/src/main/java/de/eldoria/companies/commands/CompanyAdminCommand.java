@@ -5,6 +5,7 @@
  */
 package de.eldoria.companies.commands;
 
+import de.eldoria.companies.commands.companyadmin.AreaAdminCommand;
 import de.eldoria.companies.commands.companyadmin.CalcLevel;
 import de.eldoria.companies.commands.companyadmin.DashboardAdminCommand;
 import de.eldoria.companies.commands.companyadmin.Delete;
@@ -106,6 +107,9 @@ final class CompanyAdminCommand {
     @Subcommand
     final JobAdminCommand job;
 
+    @Subcommand
+    final AreaAdminCommand area;
+
     CompanyAdminCommand(CommandDependencies deps) {
         this.deps = deps;
         level = new LevelCommand(deps);
@@ -128,6 +132,7 @@ final class CompanyAdminCommand {
         offers = new OffersCommand(deps);
         event = new EventCommand(deps);
         job = new JobAdminCommand(deps);
+        area = new AreaAdminCommand(deps);
     }
 
     /**

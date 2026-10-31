@@ -51,6 +51,8 @@ These show values of the company of the player who looks at the placeholder. Wit
 | `%companies_company_earned_raw%` | The same as a plain number with two decimals. | `25400.00` | empty |
 | `%companies_company_treasury%` | Balance of the treasury, formatted by your economy plugin. | `$1,250.00` | empty |
 | `%companies_company_payout_share%` | Percentage of each payout kept in the treasury. Capped at `treasury.maxPayoutShare`. | `10` | `0` |
+| `%companies_company_areas%` | Number of [areas](../companies/areas.md) the company uses: linked, bought and rented. | `2` | `0` |
+| `%companies_company_home_server%` | Name of the server of the company's [home](../companies/home.md) in the proxy (`proxyServer` in `node.yml`). Empty without a home or without a name. | `survival` | empty |
 | `%companies_company_rank_<order>[_<range>]%` | Place of the company in a ranking. Empty when the company is not ranked. | `3` | empty |
 
 Coloured tags use `§` colour codes. A hex colour is written as `§x§r§r§g§g§b§b`.

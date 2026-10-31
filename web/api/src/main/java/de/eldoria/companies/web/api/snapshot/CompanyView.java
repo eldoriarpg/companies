@@ -27,6 +27,8 @@ import java.util.List;
  * @param alerts its alerts
  * @param colorName its colour as the palette entry the profile stores
  * @param palette the colours of the server's palette a company may choose from
+ * @param areas its areas, none from a peer that sends no areas
+ * @param home its home, none when it has set none
  */
 public record CompanyView(
         int id,
@@ -42,4 +44,6 @@ public record CompanyView(
         List<ClaimedOrderView> orders,
         List<AlertView> alerts,
         @Nullable String colorName,
-        @Nullable List<PaletteColor> palette) {}
+        @Nullable List<PaletteColor> palette,
+        @Nullable List<AreaView> areas,
+        @Nullable HomeView home) {}

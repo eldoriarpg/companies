@@ -165,7 +165,8 @@ class ItemReturnServiceTest {
                 Runnable::run,
                 Clock.systemDefaultZone(),
                 Logger.getLogger("ItemReturnServiceTest"));
-        var disband = new DisbandService(plugin, companyData, orders.orderData(), service, notifications, treasury);
+        var disband = new DisbandService(
+                plugin, companyData, orders.orderData(), service, notifications, treasury, ignored -> 0L);
         var profile = companyData
                 .retrieveCompanyProfile(
                         companyData.retrieveCompanyById(company).join().orElseThrow())

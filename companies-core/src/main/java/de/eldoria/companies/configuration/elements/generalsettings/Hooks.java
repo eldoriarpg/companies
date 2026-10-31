@@ -72,14 +72,14 @@ public class Hooks {
     }
 
     /**
-     * @return whether jobs may lie in WorldGuard regions, which give companies access while they work
+     * @return whether jobs and company areas may lie in WorldGuard regions
      */
     public boolean worldguard() {
         return worldguard;
     }
 
     /**
-     * @return whether jobs may lie on PlotSquared plots, whose owners trust the working companies
+     * @return whether jobs and company areas may lie on PlotSquared plots
      */
     public boolean plotsquared() {
         return plotsquared;
@@ -93,12 +93,12 @@ public class Hooks {
     }
 
     /**
-     * The switch of a job hook.
+     * The switch of a hook of a land or selection plugin, used by jobs and company areas.
      *
      * @param pluginName name of the plugin, like {@code WorldGuard}
      * @return whether the hook may load; false for a plugin without a switch
      */
-    public boolean job(String pluginName) {
+    public boolean land(String pluginName) {
         return switch (pluginName.toLowerCase(Locale.ROOT)) {
             case "worldguard" -> worldguard;
             case "plotsquared" -> plotsquared;

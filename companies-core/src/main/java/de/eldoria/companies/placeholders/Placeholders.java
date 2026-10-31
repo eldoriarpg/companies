@@ -7,7 +7,9 @@ package de.eldoria.companies.placeholders;
 
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.configuration.elements.PlaceholderSettings;
+import de.eldoria.companies.data.repository.AAreaData;
 import de.eldoria.companies.data.repository.ACompanyData;
+import de.eldoria.companies.data.repository.AHomeData;
 import de.eldoria.companies.data.repository.AOfferData;
 import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.repository.AServerEventData;
@@ -87,6 +89,8 @@ public final class Placeholders {
      * @param orderData     order repository
      * @param stats         statistics repository
      * @param treasuries    treasury repository
+     * @param areas         the areas of companies
+     * @param homes         the homes of companies
      * @param offerData     event offer repository
      * @param eventData     server event repository
      * @param economy       economy formatting money
@@ -100,12 +104,22 @@ public final class Placeholders {
             AOrderData orderData,
             AStatsData stats,
             ATreasuryData treasuries,
+            AAreaData areas,
+            AHomeData homes,
             AOfferData offerData,
             AServerEventData eventData,
             Economy economy,
             ILocalizer localizer) {
-        var loader =
-                new PlaceholderLoader(plugin.getServer(), configuration, companyData, orderData, stats, treasuries);
+        var loader = new PlaceholderLoader(
+                plugin.getServer(),
+                configuration,
+                companyData,
+                orderData,
+                stats,
+                treasuries,
+                areas,
+                homes,
+                Threading.VIRTUAL);
         return new Placeholders(
                 plugin, configuration::placeholderSettings, loader, offerData, eventData, economy, localizer);
     }

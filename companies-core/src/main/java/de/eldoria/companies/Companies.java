@@ -15,6 +15,13 @@ import de.chojo.sadu.updater.BaseSqlUpdaterBuilder;
 import de.chojo.sadu.updater.QueryReplacement;
 import de.chojo.sadu.updater.SqlUpdater;
 import de.eldoria.companies.api.CompaniesApiImpl;
+import de.eldoria.companies.areas.AreaContainers;
+import de.eldoria.companies.areas.AreaHooks;
+import de.eldoria.companies.areas.AreaPrices;
+import de.eldoria.companies.areas.AreaRents;
+import de.eldoria.companies.areas.AreaServices;
+import de.eldoria.companies.areas.AreaSync;
+import de.eldoria.companies.areas.HomeTeleports;
 import de.eldoria.companies.boards.SignBoards;
 import de.eldoria.companies.boards.npc.NpcHooks;
 import de.eldoria.companies.commands.CommandDependencies;
@@ -29,6 +36,8 @@ import de.eldoria.companies.commands.suggest.SeriesSources;
 import de.eldoria.companies.commands.suggest.SuggestionSources;
 import de.eldoria.companies.commands.suggest.TreasurySources;
 import de.eldoria.companies.commands.support.CommandFailures;
+import de.eldoria.companies.components.company.CompanyPermission;
+import de.eldoria.companies.components.company.TreasuryKind;
 import de.eldoria.companies.configuration.ChangeTracker;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.configuration.elements.NodeType;
@@ -37,8 +46,10 @@ import de.eldoria.companies.dashboard.DashboardModule;
 import de.eldoria.companies.dashboard.KeyCommandFilter;
 import de.eldoria.companies.data.DataSourceFactory;
 import de.eldoria.companies.data.migration.UtcMigration;
+import de.eldoria.companies.data.repository.AAreaData;
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.repository.ADashboardData;
+import de.eldoria.companies.data.repository.AHomeData;
 import de.eldoria.companies.data.repository.AJobData;
 import de.eldoria.companies.data.repository.AMembershipData;
 import de.eldoria.companies.data.repository.ANodeData;
@@ -48,10 +59,13 @@ import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.repository.AServerEventData;
 import de.eldoria.companies.data.repository.EconomyData;
 import de.eldoria.companies.data.repository.InformationData;
+import de.eldoria.companies.data.repository.QueryErrors;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbAlertData;
+import de.eldoria.companies.data.repository.impl.mariadb.MariaDbAreaData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbCompanyData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbDashboardData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbHistoryData;
+import de.eldoria.companies.data.repository.impl.mariadb.MariaDbHomeData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbInboxData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbJobData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbMembershipData;
@@ -65,9 +79,11 @@ import de.eldoria.companies.data.repository.impl.mariadb.MariaDbServerEventData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbStatsData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbTreasuryData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresAlertData;
+import de.eldoria.companies.data.repository.impl.postgres.PostgresAreaData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresCompanyData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresDashboardData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresHistoryData;
+import de.eldoria.companies.data.repository.impl.postgres.PostgresHomeData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresInboxData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresJobData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresMembershipData;
@@ -81,9 +97,11 @@ import de.eldoria.companies.data.repository.impl.postgres.PostgresServerEventDat
 import de.eldoria.companies.data.repository.impl.postgres.PostgresStatsData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresTreasuryData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteAlertData;
+import de.eldoria.companies.data.repository.impl.sqlite.SqLiteAreaData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteCompanyData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteDashboardData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteHistoryData;
+import de.eldoria.companies.data.repository.impl.sqlite.SqLiteHomeData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteInboxData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteJobData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteMembershipData;
@@ -96,10 +114,14 @@ import de.eldoria.companies.data.repository.impl.sqlite.SqLiteSeriesData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteServerEventData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteStatsData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteTreasuryData;
+import de.eldoria.companies.data.wrapper.area.CompanyArea;
+import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.event.ServerEvent;
+import de.eldoria.companies.data.wrapper.job.JobLand;
 import de.eldoria.companies.data.wrapper.nodes.Node;
 import de.eldoria.companies.data.wrapper.offer.EventOffer;
 import de.eldoria.companies.debug.CompaniesDebug;
+import de.eldoria.companies.events.company.CompanyAreasChangeEvent;
 import de.eldoria.companies.integrations.discord.DiscordWebhook;
 import de.eldoria.companies.jobs.JobServices;
 import de.eldoria.companies.jobs.Jobs;
@@ -181,8 +203,10 @@ import de.eldoria.companies.services.notifications.NotificationArgs;
 import de.eldoria.companies.services.notifications.NotificationService;
 import de.eldoria.companies.services.notifications.NotificationType;
 import de.eldoria.companies.updates.Updates;
+import de.eldoria.companies.util.AsyncEvents;
 import de.eldoria.companies.util.Money;
 import de.eldoria.companies.util.StyledMessageSender;
+import de.eldoria.companies.util.Texts;
 import de.eldoria.companies.util.Threading;
 import de.eldoria.companies.util.Times;
 import de.eldoria.eldoutilities.config.template.PluginBaseConfiguration;
@@ -201,14 +225,20 @@ import org.jetbrains.annotations.NotNull;
 import org.jspecify.annotations.Nullable;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.time.Clock;
+import java.time.Duration;
+import java.time.InstantSource;
 import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -217,6 +247,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
 import java.util.logging.Level;
 
@@ -235,11 +266,16 @@ public class Companies extends EldoPlugin {
             Executors.newScheduledThreadPool(5, createThreadFactory(workerGroup));
     private final Configuration configuration;
     private HikariDataSource dataSource;
+    private final QueryErrors queryErrors = new QueryErrors();
     private ACompanyData companyData;
     private AOrderData orderData;
     private AOfferData offerData;
     private AServerEventData serverEventData;
     private AJobData jobData;
+    private AAreaData areaData;
+    private AHomeData homeData;
+    private volatile @Nullable HomeTeleports homes;
+    private volatile @Nullable AreaSync areaSyncing;
     private volatile @Nullable JobServices jobs;
     private InformationData information;
     private EconomyData economy;
@@ -312,9 +348,18 @@ public class Companies extends EldoPlugin {
         api = CompaniesApiImpl.create(
                 this,
                 new CompaniesApiImpl.Repositories(
-                        companyData, orderData, information.stats(), economy.treasury(), serverEventData),
+                        companyData,
+                        orderData,
+                        information.stats(),
+                        economy.treasury(),
+                        serverEventData,
+                        areaData,
+                        homeData),
                 Threading.VIRTUAL);
         api.register(this);
+        api.areaProviders().settings(configuration::areaSettings);
+        AreaHooks.load(this, api.areaProviders(), name -> configuration.hooks().land(name));
+        getServer().getPluginManager().registerEvents(api.areaProviders(), this);
     }
 
     /**
@@ -384,7 +429,7 @@ public class Companies extends EldoPlugin {
         var treasuryService =
                 TreasuryService.create(this, this.economy.treasury(), economy, configuration, notificationService);
         var disbandService = new DisbandService(
-                this, companyData, orderData, itemReturnService, notificationService, treasuryService);
+                this, companyData, orderData, itemReturnService, notificationService, treasuryService, this::sellBack);
         var membershipService = MembershipService.create(
                 this,
                 companyData,
@@ -578,8 +623,45 @@ public class Companies extends EldoPlugin {
                 notificationService,
                 levelService,
                 activeEvents,
-                feeReductions);
+                feeReductions,
+                api.areaProviders());
         jobs = jobServices;
+        var homeTeleports = homeTeleports(economy, treasuryService);
+        homes = homeTeleports;
+        var areaSync = new AreaSync(
+                api.areaProviders(),
+                areaData,
+                this::companyOrThrow,
+                queryErrors::count,
+                InstantSource.system(),
+                configuration.nodeSettings().nodeUid(),
+                Threading.mainThread(this),
+                getLogger(),
+                this::areasChanged,
+                this::jobBuilders);
+        getServer().getPluginManager().registerEvents(areaSync, this);
+        var areaMessages = MessageSender.getPluginMessageSender(this);
+        getServer()
+                .getPluginManager()
+                .registerEvents(
+                        new AreaContainers(
+                                api.areaProviders(),
+                                areaSync,
+                                player -> areaMessages.sendErrorActionBar(player, "company.area.error.containers")),
+                        this);
+        areaSyncing = areaSync;
+        areaSync.schedule(workerPool);
+        if (configuration.nodeSettings().nodeType() == NodeType.PRIMARY) {
+            areaRents(notificationService, treasuryService).schedule(workerPool);
+        }
+        var areaServices = new AreaServices(
+                api.areaProviders(),
+                areaData,
+                homeData,
+                homeTeleports,
+                areaSync,
+                configuration.nodeSettings().nodeUid(),
+                () -> configuration.nodeSettings().proxyServer());
 
         if (commands != null) {
             commands.provide(new CommandDependencies.Services(
@@ -624,7 +706,8 @@ public class Companies extends EldoPlugin {
                     serverEventData,
                     activeEvents,
                     feeReductions,
-                    jobServices));
+                    jobServices,
+                    areaServices));
         }
         if (api != null)
             api.open(new CompaniesApiImpl.Writes(
@@ -737,6 +820,8 @@ public class Companies extends EldoPlugin {
                     orderData,
                     information.stats(),
                     this.economy.treasury(),
+                    areaData,
+                    homeData,
                     offerData,
                     serverEventData,
                     economy,
@@ -829,6 +914,248 @@ public class Companies extends EldoPlugin {
         configuration.generalSettings().invalidTimezone().ifPresent(name -> getLogger()
                 .warning("The timezone \"" + name + "\" in config.yml is no time zone; using " + Times.machineZone()
                         + " instead."));
+    }
+
+    /**
+     * Reads a company with its members for the area sync, which must tell a company that is gone from one that could
+     * not be read.
+     *
+     * @param id id of the company
+     * @return the company, empty when it is gone
+     * @throws IllegalStateException when it could not be read
+     */
+    /**
+     * Builds the rents of company areas: paid from the treasury in the name of the company's owner, and told to the
+     * members who manage the areas.
+     *
+     * @param notifications   sends the notices
+     * @param treasuryService the treasuries
+     * @return the rents
+     */
+    private AreaRents areaRents(NotificationService notifications, TreasuryService treasuryService) {
+        return new AreaRents(
+                areaData,
+                this::companyOrThrow,
+                (company, area, renewal) -> payRent(treasuryService, company, area, renewal),
+                new AreaRents.Notices() {
+                    @Override
+                    public void due(CompanyProfile company, CompanyArea area, Duration left) {
+                        notifyManagers(
+                                notifications,
+                                company,
+                                NotificationType.AREA_RENT_DUE,
+                                rentArgs(treasuryService, area).text("duration", Texts.prettyDuration(left)));
+                    }
+
+                    @Override
+                    public void renewed(CompanyProfile company, CompanyArea area, Duration period) {
+                        areasChanged(company);
+                        notifyManagers(
+                                notifications,
+                                company,
+                                NotificationType.AREA_RENT_RENEWED,
+                                rentArgs(treasuryService, area).text("duration", Texts.prettyDuration(period)));
+                    }
+
+                    @Override
+                    public void unpaid(CompanyProfile company, CompanyArea area) {
+                        areasChanged(company);
+                        notifyManagers(
+                                notifications,
+                                company,
+                                NotificationType.AREA_RENT_UNPAID,
+                                rentArgs(treasuryService, area));
+                    }
+
+                    @Override
+                    public void ended(CompanyProfile company, CompanyArea area) {
+                        areasChanged(company);
+                        notifyManagers(
+                                notifications,
+                                company,
+                                NotificationType.AREA_RENT_ENDED,
+                                rentArgs(treasuryService, area));
+                    }
+                },
+                () -> configuration.areaSettings().rentWarnHours(),
+                Times::now,
+                getLogger());
+    }
+
+    /**
+     * The players running jobs on the land of area providers made builders, so the sync of bought and rented areas
+     * leaves them alone.
+     *
+     * @return the players by the area of the job, as {@code provider:ref}
+     */
+    private Map<String, Set<UUID>> jobBuilders() {
+        var running = jobs;
+        if (running == null) return Map.of();
+        Map<String, Set<UUID>> found = new HashMap<>();
+        for (var job : running.data().access(configuration.nodeSettings().nodeUid())) {
+            if (job.land() != JobLand.AREA || job.landRef() == null) continue;
+            found.computeIfAbsent(job.landRef(), ref -> new HashSet<>())
+                    .addAll(running.data().grants(job.id()));
+        }
+        return found;
+    }
+
+    private void areasChanged(CompanyProfile company) {
+        AsyncEvents.fire(this, new CompanyAreasChangeEvent(company, CompanyAreasChangeEvent.Change.AREAS));
+    }
+
+    /**
+     * Pays a rent from the treasury in the name of the company's owner. A query that failed during the payment counts
+     * as a failure to try again, not as a treasury that can not pay, since a failed debit reads like a low balance.
+     */
+    private AreaRents.Payment payRent(
+            TreasuryService treasuryService, CompanyProfile company, CompanyArea area, Supplier<Boolean> renewal) {
+        if (area.price() <= 0) return renewal.get() ? AreaRents.Payment.PAID : AreaRents.Payment.FAILED;
+        var owner = company.members().stream()
+                .filter(member -> member.hasPermission(CompanyPermission.OWNER))
+                .findFirst();
+        if (owner.isEmpty()) return AreaRents.Payment.FAILED;
+        var errors = queryErrors.count();
+        var result = treasuryService
+                .spend(
+                        company,
+                        owner.get().uuid(),
+                        BigDecimal.valueOf(area.price()),
+                        TreasuryKind.AREA_RENT,
+                        "#" + area.id(),
+                        () -> CompletableFuture.supplyAsync(renewal, Threading.VIRTUAL))
+                .join();
+        if (!result.done() && queryErrors.count() != errors) return AreaRents.Payment.FAILED;
+        return switch (result.outcome()) {
+            case DONE -> AreaRents.Payment.PAID;
+            case TREASURY_FUNDS, DISABLED, INVALID_AMOUNT -> AreaRents.Payment.UNPAID;
+            default -> AreaRents.Payment.FAILED;
+        };
+    }
+
+    private static NotificationArgs rentArgs(TreasuryService treasuryService, CompanyArea area) {
+        return NotificationArgs.create()
+                .number("area_id", area.id())
+                .text("world", area.world())
+                .money("amount", treasuryService.format(BigDecimal.valueOf(area.price())));
+    }
+
+    private static void notifyManagers(
+            NotificationService notifications, CompanyProfile company, NotificationType type, NotificationArgs args) {
+        notifications.sendCompany(company, type, args, member -> !member.hasPermission(CompanyPermission.MANAGE_AREAS));
+    }
+
+    /**
+     * What the server pays back for the areas a disbanded company bought. A failed read pays nothing and is logged.
+     *
+     * @param company the company
+     * @return the amount in cents
+     */
+    private long sellBack(CompanyProfile company) {
+        var errors = queryErrors.count();
+        var areas = areaData.ofCompany(company.id());
+        if (queryErrors.count() != errors) {
+            getLogger()
+                    .warning("Could not read the areas of company " + company.id() + "; nothing is paid back for them");
+            return 0;
+        }
+        return AreaPrices.sellBack(areas, configuration.areaSettings().sellBackPercent());
+    }
+
+    private Optional<CompanyProfile> companyOrThrow(int id) {
+        var simple = companyData.retrieveCompanyById(id).asFuture().join();
+        if (simple == null) throw new IllegalStateException("Could not read company " + id);
+        if (simple.isEmpty()) return Optional.empty();
+        var profile =
+                companyData.retrieveCompanyProfile(simple.get()).asFuture().join();
+        if (profile == null) throw new IllegalStateException("Could not read the members of company " + id);
+        return profile;
+    }
+
+    /**
+     * Builds the teleports to company homes: the cost from the player through Vault on the main thread or from the
+     * treasury, the notices through the message sender, and the proxy channel registered.
+     *
+     * @param vault           the economy of the server
+     * @param treasuryService the treasuries
+     * @return the teleports, listening to moves, damage and joins
+     */
+    private HomeTeleports homeTeleports(Economy vault, TreasuryService treasuryService) {
+        var messages = MessageSender.getPluginMessageSender(this);
+        var teleports = new HomeTeleports(
+                this,
+                homeData,
+                configuration::areaSettings,
+                configuration.nodeSettings().nodeUid(),
+                (player, company) -> {
+                    var profile = companyData
+                            .retrievePlayerCompanyProfile(getServer().getOfflinePlayer(player))
+                            .asFuture()
+                            .join();
+                    var member = profile != null
+                            && profile.filter(found -> found.id() == company).isPresent();
+                    return member ? homeData.home(company) : Optional.empty();
+                },
+                new HomeTeleports.Payments() {
+                    @Override
+                    public boolean charge(Player player, double amount) {
+                        return vault.has(player, amount)
+                                && vault.withdrawPlayer(player, amount).transactionSuccess();
+                    }
+
+                    @Override
+                    public void refundPlayer(Player player, double amount) {
+                        var response = vault.depositPlayer(player, amount);
+                        if (!response.transactionSuccess()) {
+                            getLogger()
+                                    .severe("Could not give " + player.getName() + " back " + amount
+                                            + " of a home teleport: " + response.errorMessage);
+                        }
+                    }
+
+                    @Override
+                    public CompletableFuture<Boolean> chargeTreasury(
+                            CompanyProfile company, Player player, double amount) {
+                        return treasuryService
+                                .spend(
+                                        company,
+                                        player.getUniqueId(),
+                                        BigDecimal.valueOf(amount),
+                                        TreasuryKind.HOME_TELEPORT,
+                                        "home",
+                                        () -> CompletableFuture.completedFuture(true))
+                                .thenApply(TreasuryService.Result::done);
+                    }
+
+                    @Override
+                    public void refundTreasury(CompanyProfile company, Player player, double amount) {
+                        treasuryService.refund(company, player.getUniqueId(), BigDecimal.valueOf(amount), "home");
+                    }
+                },
+                (player, notice, detail) -> messages.sendMessage(
+                        player, "company.home.notice." + noticeKey(notice), Values.text("detail", detail)),
+                Threading.VIRTUAL,
+                Times.UTC,
+                getLogger());
+        getServer().getPluginManager().registerEvents(teleports, this);
+        var node = configuration.nodeSettings().nodeUid();
+        var proxyServer = configuration.nodeSettings().proxyServer();
+        CompletableFuture.runAsync(() -> homeData.server(node, proxyServer), Threading.VIRTUAL)
+                .exceptionally(err -> {
+                    getLogger().log(Level.WARNING, "Could not store the proxy name of this server's homes", err);
+                    return null;
+                });
+        getServer().getMessenger().registerOutgoingPluginChannel(this, HomeTeleports.CHANNEL);
+        return teleports;
+    }
+
+    private static String noticeKey(HomeTeleports.Notice notice) {
+        var parts = notice.name().toLowerCase(Locale.ROOT).split("_");
+        var key = new StringBuilder(parts[0]);
+        for (var i = 1; i < parts.length; i++) {
+            key.append(Character.toUpperCase(parts[i].charAt(0))).append(parts[i].substring(1));
+        }
+        return key.toString();
     }
 
     /**
@@ -1023,6 +1350,12 @@ public class Companies extends EldoPlugin {
             runningJobs.access().stop();
             runningJobs.ghosts().stop();
         }
+        var runningHomes = homes;
+        if (runningHomes != null) {
+            runningHomes.stop();
+        }
+        var runningAreaSync = areaSyncing;
+        if (runningAreaSync != null) runningAreaSync.stop();
         if (dashboard != null) dashboard.stop();
         if (api != null) api.unregister(this);
         if (commands != null) {
@@ -1076,7 +1409,10 @@ public class Companies extends EldoPlugin {
     private void initDb() throws SQLException, IOException {
         dataSource = DataSourceFactory.createDataSource(configuration.databaseSettings(), this);
         QueryConfiguration.setDefault(QueryConfiguration.builder(dataSource)
-                .setExceptionHandler(err -> getLogger().log(Level.SEVERE, "Error during query execution", err))
+                .setExceptionHandler(err -> {
+                    queryErrors.record();
+                    getLogger().log(Level.SEVERE, "Error during query execution", err);
+                })
                 .build());
 
         BaseSqlUpdaterBuilder<?, ?> builder;
@@ -1122,6 +1458,8 @@ public class Companies extends EldoPlugin {
                 offerData = new SqLiteOfferData(mapper);
                 serverEventData = new SqLiteServerEventData();
                 jobData = new SqLiteJobData();
+                areaData = new SqLiteAreaData();
+                homeData = new SqLiteHomeData();
                 information = new InformationData(
                         new SqLiteInboxData(Threading.VIRTUAL),
                         new SqLiteStatsData(Threading.VIRTUAL),
@@ -1142,6 +1480,8 @@ public class Companies extends EldoPlugin {
                 offerData = new MariaDbOfferData(mapper);
                 serverEventData = new MariaDbServerEventData();
                 jobData = new MariaDbJobData();
+                areaData = new MariaDbAreaData();
+                homeData = new MariaDbHomeData();
                 information = new InformationData(
                         new MariaDbInboxData(Threading.VIRTUAL),
                         new MariaDbStatsData(Threading.VIRTUAL),
@@ -1162,6 +1502,8 @@ public class Companies extends EldoPlugin {
                 offerData = new PostgresOfferData(mapper);
                 serverEventData = new PostgresServerEventData();
                 jobData = new PostgresJobData();
+                areaData = new PostgresAreaData();
+                homeData = new PostgresHomeData();
                 information = new InformationData(
                         new PostgresInboxData(Threading.VIRTUAL),
                         new PostgresStatsData(Threading.VIRTUAL),

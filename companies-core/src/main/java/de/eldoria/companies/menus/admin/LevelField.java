@@ -19,7 +19,8 @@ import java.util.function.Consumer;
  * <p>
  * The {@link #key() key} is the field name of {@code /companyadmin level edit}, the key of the dialog input and the
  * placeholder key of the value. Input is parsed the same way wherever it is entered: counts are whole numbers, the
- * earned money a finite number, the order size limit, the delivery bonus and the alert limit are at least 0, and the
+ * earned money a finite number, the order size limit, the delivery bonus, the alert and the area limit are at least
+ * 0, and the
  * tax is a percentage from 0 to 100. The tax and the alert limit are cleared by {@code none} or an empty input, so the
  * global value applies again.
  */
@@ -34,7 +35,8 @@ public enum LevelField {
     MAX_ORDER_SIZE(Group.LIMIT, "level.maxOrderSize"),
     DELIVERY_HOURS_BONUS(Group.LIMIT, "level.deliveryHoursBonus"),
     TAX_PERCENT(Group.LIMIT, "level.tax"),
-    MAX_ALERTS(Group.LIMIT, "level.maxAlerts");
+    MAX_ALERTS(Group.LIMIT, "level.maxAlerts"),
+    MAX_AREAS(Group.LIMIT, "level.maxAreas");
 
     private static final String NONE = "none";
 
@@ -99,6 +101,7 @@ public enum LevelField {
             case DELIVERY_HOURS_BONUS -> String.valueOf(settings.deliveryHoursBonus());
             case TAX_PERCENT -> settings.taxPercent().map(Texts::percent).orElse("");
             case MAX_ALERTS -> settings.maxAlerts().map(String::valueOf).orElse("");
+            case MAX_AREAS -> String.valueOf(settings.maxAreas());
         };
     }
 
@@ -169,6 +172,10 @@ public enum LevelField {
             case MAX_ALERTS -> {
                 var value = maxAlerts(input);
                 yield level -> level.settings().maxAlerts(value);
+            }
+            case MAX_AREAS -> {
+                var value = Math.max(0, Checks.integer(input));
+                yield level -> level.settings().maxAreas(value);
             }
         };
     }

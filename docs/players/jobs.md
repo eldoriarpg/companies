@@ -12,8 +12,10 @@ the work is done.
 
 ## Posting a job
 
-A job lies on your land: wholly on one plot you own (PlotSquared), wholly in one region you own (WorldGuard), or on land
-of nobody in worlds where the server allows it. Any other land, a road, or the area of another job that waits or is
+A job lies on your land: wholly on one plot or claim you own (PlotSquared, GriefPrevention, HuskClaims, Lands or
+Towny, whichever the server uses), wholly in one region you own (WorldGuard), or on land of nobody in worlds where the
+server allows it. The area must stay inside one plot or claim: on Towny a single plot unless the whole plot group is
+yours, on Lands a sub area counts on its own. Any other land, a road, or the area of another job that waits or is
 worked on refuses it, and so does an area that reaches above or below the world or touches too many chunks. You may
 have a few jobs waiting at once.
 

@@ -182,7 +182,8 @@ public final class AdminLevelWrites {
                 settings.maxOrderSize(),
                 settings.deliveryHoursBonus(),
                 settings.taxPercent().orElse(null),
-                settings.maxAlerts().orElse(null));
+                settings.maxAlerts().orElse(null),
+                settings.maxAreas());
     }
 
     private ActionResult onMainThread(Supplier<ActionResult> action) {

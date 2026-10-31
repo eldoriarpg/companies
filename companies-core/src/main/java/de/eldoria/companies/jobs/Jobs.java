@@ -5,6 +5,7 @@
  */
 package de.eldoria.companies.jobs;
 
+import de.eldoria.companies.areas.AreaProviders;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.repository.AJobData;
@@ -15,6 +16,7 @@ import de.eldoria.companies.data.wrapper.job.JobKind;
 import de.eldoria.companies.data.wrapper.job.JobState;
 import de.eldoria.companies.events.company.CompanyDisbandEvent;
 import de.eldoria.companies.jobs.hooks.JobHooks;
+import de.eldoria.companies.jobs.hooks.ProviderJobLand;
 import de.eldoria.companies.orders.Collector;
 import de.eldoria.companies.orders.FeeReductions;
 import de.eldoria.companies.services.LevelService;
@@ -69,6 +71,7 @@ public final class Jobs {
      * @param levels        recalculates the level of a company after a penalty
      * @param events        the server events this node sees, for their tax reductions
      * @param fees          the fee reductions of the server events running now
+     * @param areaProviders the area providers, whose land jobs may lie on
      * @return the jobs, hooks loaded, nothing scheduled yet
      */
     public static JobServices create(
@@ -82,9 +85,11 @@ public final class Jobs {
             NotificationService notifications,
             LevelService levels,
             ActiveEvents events,
-            FeeReductions fees) {
-        var hooks = JobHooks.create(plugin, name -> configuration.hooks().job(name));
+            FeeReductions fees,
+            AreaProviders areaProviders) {
+        var hooks = JobHooks.create(plugin, name -> configuration.hooks().land(name));
         hooks.load();
+        hooks.add(new ProviderJobLand(areaProviders));
         var mainThread = Threading.mainThread(plugin);
         var collector = new Collector(plugin, economy, configuration);
         var money = new JobService.Money() {

@@ -66,7 +66,7 @@ public final class WorldGuardJobs implements JobLandHook {
 
     @Override
     public Set<UUID> grant(Job job, Collection<UUID> members, Set<UUID> granted) {
-        if (job.land() == JobLand.PLOT) return Set.of();
+        if (job.land() == JobLand.AREA) return Set.of();
         var manager = manager(job.area().world());
         if (manager == null) return Set.of();
         var region = manager.getRegion(job.regionName());
@@ -99,7 +99,7 @@ public final class WorldGuardJobs implements JobLandHook {
         var manager = manager(job.area().world());
         if (manager == null) return true;
         return switch (job.land()) {
-            case PLOT, NONE -> true;
+            case AREA, NONE -> true;
             case REGION -> {
                 var ref = job.landRef();
                 var region = ref == null ? null : manager.getRegion(ref);

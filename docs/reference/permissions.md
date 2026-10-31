@@ -23,8 +23,9 @@ Every player has these by default. Take one away to block a feature.
 | `companies.orders.create` | everyone | Create orders: `/order create` and every `/order draft` command. |
 | `companies.orders.repeat` | everyone | Make orders repeat daily or weekly: `/order draft repeat`, the repeat button of the order builder and `/order series resume`. |
 | `companies.orders.solo` | everyone | Take orders alone, without a company: `/order work accept` and the `[Work alone]` button of the order search. Only works while `solo.enabled` is on in [order.yml](../admin/configuration/order-yml.md#solo). |
-| `companies.orders.jobs` | everyone | Post jobs with `/order job dig`: work in an area of your plot, your region or unowned land where the server allows it, which a company takes like an order. See [Jobs](../players/jobs.md). |
+| `companies.orders.jobs` | everyone | Post jobs with `/order job dig`: work in an area of your plot, region or claim, or unowned land where the server allows it, which a company takes like an order. See [Jobs](../players/jobs.md). |
 | `companies.company.create` | everyone | Found a company with `/company create`. |
+| `companies.company.home` | everyone | Teleport to the home of your company: `/company home`. |
 | `companies.company.join` | everyone | Join a company: `/company join`, `/company apply`, `/company apply withdraw` and `/company invites accept`. An online player without it cannot be invited. |
 | `companies.boards.use` | everyone | Open order boards through signs, NPCs and `/company board`. |
 | `companies.dashboard.use` | everyone | Open the [web dashboard](../players/dashboard.md) with `/company dashboard` while the server enabled it. Taking it away ends the player's logins. New in 2.1. |
@@ -54,6 +55,8 @@ Only operators have these by default.
 | `companies.admin.debug` | op | Create debug reports with `/companyadmin debug`. |
 | `companies.admin.delete` | op | Delete companies with `/companyadmin delete`. |
 | `companies.admin.grant` | op | Give items and money to players with `/companyadmin grant`. |
+| `companies.admin.areas` | op | Offer plots and regions to companies and withdraw the offers (`/companyadmin area`). |
+| `companies.admin.areas.bypass` | op | Open containers in [company areas](../companies/areas.md) without the company permission `containers`. |
 | `companies.admin.jobs` | op | List and settle disputes about jobs (`/companyadmin job`). |
 | `companies.admin.jobs.bypass` | op | Place blocks, pour buckets (lava included), place TNT and set fire in the area of a job another company works on, and act outside a job's area on land reached only through a job. |
 | `companies.admin.level` | op | Edit the company levels with `/companyadmin level`. |
@@ -80,8 +83,8 @@ These give every permission listed below them. On their own, they do nothing.
 |---|---|---|
 | `companies.*` | op | `companies.orders.*`, `companies.company.*`, `companies.boards.use`, `companies.dashboard.use`, `companies.admin.*`, `companies.updates` |
 | `companies.orders.*` | op | `companies.orders.create`, `companies.orders.repeat`, `companies.orders.solo`, `companies.orders.jobs` |
-| `companies.company.*` | op | `companies.company.create`, `companies.company.join` |
-| `companies.admin.*` | op | `companies.admin`, `companies.admin.boards`, `companies.admin.calcLevel`, `companies.admin.dashboard`, `companies.admin.debug`, `companies.admin.delete`, `companies.admin.events`, `companies.admin.grant`, `companies.admin.jobs`, `companies.admin.jobs.bypass`, `companies.admin.level`, `companies.admin.nodes`, `companies.admin.offers`, `companies.admin.orders`, `companies.admin.player`, `companies.admin.reload`, `companies.admin.rename`, `companies.admin.transferOwner`, `companies.admin.treasury` |
+| `companies.company.*` | op | `companies.company.create`, `companies.company.join`, `companies.company.home` |
+| `companies.admin.*` | op | `companies.admin`, `companies.admin.boards`, `companies.admin.calcLevel`, `companies.admin.dashboard`, `companies.admin.debug`, `companies.admin.delete`, `companies.admin.events`, `companies.admin.grant`, `companies.admin.areas`, `companies.admin.areas.bypass`, `companies.admin.jobs`, `companies.admin.jobs.bypass`, `companies.admin.level`, `companies.admin.nodes`, `companies.admin.offers`, `companies.admin.orders`, `companies.admin.player`, `companies.admin.reload`, `companies.admin.rename`, `companies.admin.transferOwner`, `companies.admin.treasury` |
 
 :::note
 The player permissions have the default "everyone". So players have them even without `companies.*`. To block a feature, set the permission to `false` for that player or group.

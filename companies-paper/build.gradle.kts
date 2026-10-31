@@ -69,6 +69,18 @@ pluginManifest {
     optional("PlotSquared") {
         link("https://www.spigotmc.org/resources/77506/")
     }
+    optional("GriefPrevention") {
+        modrinth("griefprevention")
+    }
+    optional("HuskClaims") {
+        modrinth("huskclaims")
+    }
+    optional("Lands") {
+        link("https://www.spigotmc.org/resources/53313/")
+    }
+    optional("Towny") {
+        link("https://github.com/TownyAdvanced/Towny")
+    }
 }
 
 tasks {
@@ -118,7 +130,11 @@ bukkit {
         "WorldEdit",
         "FastAsyncWorldEdit",
         "WorldGuard",
-        "PlotSquared"
+        "PlotSquared",
+        "GriefPrevention",
+        "HuskClaims",
+        "Lands",
+        "Towny"
     )
 
     permissions {
@@ -164,7 +180,7 @@ bukkit {
 
         register("companies.company.*") {
             description = "Gives access to company commands"
-            children = listOf("companies.company.create", "companies.company.join")
+            children = listOf("companies.company.create", "companies.company.join", "companies.company.home")
         }
         register("companies.company.create") {
             description = "Allows creation of a company"
@@ -172,6 +188,10 @@ bukkit {
         }
         register("companies.company.join") {
             description = "Allows joining a company"
+            default = Default.TRUE
+        }
+        register("companies.company.home") {
+            description = "Allows teleporting to the home of the player's company"
             default = Default.TRUE
         }
 
@@ -196,6 +216,8 @@ bukkit {
                 "companies.admin.delete",
                 "companies.admin.events",
                 "companies.admin.grant",
+                "companies.admin.areas",
+                "companies.admin.areas.bypass",
                 "companies.admin.jobs",
                 "companies.admin.jobs.bypass",
                 "companies.admin.level",
@@ -233,6 +255,12 @@ bukkit {
         }
         register("companies.admin.grant") {
             description = "Allows granting items and money to players"
+        }
+        register("companies.admin.areas") {
+            description = "Allows offering plots and regions to companies and withdrawing the offers"
+        }
+        register("companies.admin.areas.bypass") {
+            description = "Lets a player open containers in company areas without the company permission"
         }
         register("companies.admin.jobs") {
             description = "Allows listing and settling disputes about jobs"

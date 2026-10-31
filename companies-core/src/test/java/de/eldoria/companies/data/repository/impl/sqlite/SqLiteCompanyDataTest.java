@@ -288,6 +288,24 @@ class SqLiteCompanyDataTest {
     }
 
     @Test
+    void purgeLeavesTheAreasForTheirServerToGiveBack() {
+        var id = createCompany("Miners");
+        var other = createCompany("Farmers");
+        var node = UUID.randomUUID();
+        for (var company : new int[] {id, other}) {
+            query("INSERT INTO company_areas(company_id, provider, ref, world, node, source, created)"
+                            + " VALUES (?, 'plotsquared', ?, 'plots', ?, 'LINKED', '2026-01-01 10:00:00')")
+                    .single(call().bind(company).bind("plots|" + company + ";0").bind(node, UUID_BYTES))
+                    .insert();
+        }
+
+        Assertions.assertTrue(companyData.submitCompanyPurge(company(id)).join());
+
+        Assertions.assertEquals(1, SqLiteTestDatabase.count("company_areas", "company_id = " + id));
+        Assertions.assertEquals(1, SqLiteTestDatabase.count("company_areas", "company_id = " + other));
+    }
+
+    @Test
     void purgeRemovesTheTreasuryItsLogAndTheAlerts() {
         var id = createCompany("Miners");
         var other = createCompany("Farmers");

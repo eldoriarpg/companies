@@ -6,6 +6,7 @@
 package de.eldoria.companies.dashboard.feed;
 
 import de.eldoria.companies.components.order.ISimpleOrder;
+import de.eldoria.companies.events.company.CompanyAreasChangeEvent;
 import de.eldoria.companies.events.company.CompanyCreateEvent;
 import de.eldoria.companies.events.company.CompanyDisbandEvent;
 import de.eldoria.companies.events.company.CompanyInviteAnswerEvent;
@@ -192,6 +193,16 @@ public final class FeedListener implements Listener {
     public void onMemberPermission(CompanyMemberPermissionEvent event) {
         feed.memberChanged(event.company().id(), event.member().uuid());
         feed.playerChanged(event.member().uuid());
+    }
+
+    /**
+     * Shows the company its areas and home after they changed.
+     *
+     * @param event the change
+     */
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onAreas(CompanyAreasChangeEvent event) {
+        feed.companyChanged(event.company().id());
     }
 
     @EventHandler(priority = EventPriority.MONITOR)

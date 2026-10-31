@@ -6,6 +6,8 @@
 package de.eldoria.companies.dashboard.views;
 
 import de.eldoria.companies.api.CompaniesApi;
+import de.eldoria.companies.components.area.AreaSource;
+import de.eldoria.companies.components.area.ICompanyArea;
 import de.eldoria.companies.components.company.CompanyPermission;
 import de.eldoria.companies.components.company.ICompanyMember;
 import de.eldoria.companies.components.company.ICompanyProfile;
@@ -28,9 +30,12 @@ import de.eldoria.companies.orders.criteria.CriteriaText;
 import de.eldoria.companies.orders.offers.OfferMarks;
 import de.eldoria.companies.web.api.Protocol;
 import de.eldoria.companies.web.api.snapshot.AlertView;
+import de.eldoria.companies.web.api.snapshot.AreaSourceView;
+import de.eldoria.companies.web.api.snapshot.AreaView;
 import de.eldoria.companies.web.api.snapshot.ClaimedOrderView;
 import de.eldoria.companies.web.api.snapshot.CompanyView;
 import de.eldoria.companies.web.api.snapshot.CriteriaView;
+import de.eldoria.companies.web.api.snapshot.HomeView;
 import de.eldoria.companies.web.api.snapshot.InviteView;
 import de.eldoria.companies.web.api.snapshot.ItemView;
 import de.eldoria.companies.web.api.snapshot.JoinMode;
@@ -251,7 +256,50 @@ public final class Views {
                 claimed.stream().map(this::claimed).toList(),
                 alerts(company.id()),
                 company.color().orElse(null),
-                palette());
+                palette(),
+                areas(company.id()),
+                home(company.id()));
+    }
+
+    private List<AreaView> areas(int company) {
+        return sources.api().companies().areas(company).join().stream()
+                .map(this::area)
+                .toList();
+    }
+
+    private AreaView area(ICompanyArea area) {
+        var until = area.rentUntil();
+        return new AreaView(
+                area.id(),
+                area.provider(),
+                area.ref(),
+                area.world(),
+                areaSource(area.source()),
+                area.price(),
+                until == null ? null : instant(until),
+                area.renews());
+    }
+
+    private static AreaSourceView areaSource(AreaSource source) {
+        return switch (source) {
+            case LINKED -> AreaSourceView.LINKED;
+            case BOUGHT -> AreaSourceView.BOUGHT;
+            case RENTED -> AreaSourceView.RENTED;
+        };
+    }
+
+    private @Nullable HomeView home(int company) {
+        return sources.api()
+                .companies()
+                .home(company)
+                .join()
+                .map(home -> new HomeView(
+                        home.world(),
+                        (int) Math.floor(home.x()),
+                        (int) Math.floor(home.y()),
+                        (int) Math.floor(home.z()),
+                        home.server().isEmpty() ? null : home.server()))
+                .orElse(null);
     }
 
     private List<PaletteColor> palette() {

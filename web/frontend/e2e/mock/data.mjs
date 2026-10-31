@@ -181,6 +181,11 @@ export function snapshot(session, delivered = false) {
                 {name: 'gold', hex: '#FFAA00'}, {name: 'dark_aqua', hex: '#00AAAA'}, {name: 'green', hex: '#55FF55'},
                 {name: 'red', hex: '#FF5555'},
             ],
+            areas: [
+                {id: 3, provider: 'plotsquared', ref: 'plots;2;-1', world: 'plots', source: 'LINKED', price: 0, renews: false},
+                {id: 4, provider: 'worldguard', ref: 'harbour-shop', world: 'world', source: 'RENTED', price: 120, rentUntil: '2026-11-07T12:00:00Z', renews: true},
+            ],
+            home: {world: 'world', x: 120, y: 64, z: -48},
         },
         orders: [
             {

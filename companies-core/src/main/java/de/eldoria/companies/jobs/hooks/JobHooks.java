@@ -31,8 +31,9 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- * Loads the hooks of the plugins jobs need: WorldGuard and PlotSquared for land and access, WorldEdit (or
- * FastAsyncWorldEdit) for selections.
+ * Loads the hooks of the plugins jobs need: WorldGuard for land and access, WorldEdit (or FastAsyncWorldEdit) for
+ * selections. The land of every other plugin, such as PlotSquared, comes through its area provider and the hook
+ * {@link ProviderJobLand} added with {@link #add}.
  * <p>
  * A hook class is compiled against its plugin, so it is only loaded by name, and only when that plugin is enabled and
  * its hook is switched on. Without the plugin the class is never touched, so a missing plugin cannot cause a
@@ -78,7 +79,6 @@ public final class JobHooks {
 
     private static Map<String, String> lands() {
         var known = new LinkedHashMap<String, String>();
-        known.put("PlotSquared", "de.eldoria.companies.hooks.plotsquared.PlotSquaredJobs");
         known.put("WorldGuard", "de.eldoria.companies.hooks.worldguard.WorldGuardJobs");
         return Collections.unmodifiableMap(known);
     }
@@ -88,6 +88,16 @@ public final class JobHooks {
         known.put("FastAsyncWorldEdit", "de.eldoria.companies.hooks.worldedit.WorldEditSelections");
         known.put("WorldEdit", "de.eldoria.companies.hooks.worldedit.WorldEditSelections");
         return Collections.unmodifiableMap(known);
+    }
+
+    /**
+     * Adds a land hook that is not loaded by a plugin's name, such as the one for the land of the area providers.
+     *
+     * @param hook the hook
+     */
+    public void add(JobLandHook hook) {
+        lands.add(hook);
+        logger.info("Using " + hook.plugin() + " for jobs.");
     }
 
     /**

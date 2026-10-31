@@ -97,7 +97,7 @@ See [Jobs](../players/jobs.md).
 | `/order job` | `companies.orders.jobs` | Lists your jobs. |
 | `/order job info <id>` | `companies.orders.jobs` | Shows a job of yours and, on the server of its area, how far the work is. |
 | `/order job dig <price> <hours> <title>` | `companies.orders.jobs` | Posts a dig job on the area you selected with WorldEdit. You pay the price and the order fee at once. |
-| `/order job dig plot <price> <hours> <depth> <title>` | `companies.orders.jobs` | Posts a dig job on the whole plot you stand on, from the block below your feet down `depth` blocks. |
+| `/order job dig plot <price> <hours> <depth> <title>` | `companies.orders.jobs` | Posts a dig job on the whole plot or claim you stand on, from the block below your feet down `depth` blocks. Land that is not a rectangle, such as a Lands area of scattered chunks, is refused; select the area instead. |
 | `/order job terraform <price> <hours> <y> <title>` | `companies.orders.jobs` | Posts a terraform job on the area you selected with WorldEdit: solid up to height `y`, empty above. You pay the price and the order fee at once. |
 | `/order job terraform surface <block> <price> <hours> <y> <title>` | `companies.orders.jobs` | Posts a terraform job whose top layer must be made of `block`. |
 | `/order job schematics` | `companies.orders.jobs` | Lists the schematics of the plugin's `schematics` folder. |
@@ -173,6 +173,14 @@ Commands for company members and owners. Read [Founding and joining](../companie
 | `/company transfer confirm` | none | owner | Confirms the transfer. |
 | `/company disband` | none | owner | Dissolves the company. Asks you to confirm. The treasury is paid out to the owner. |
 | `/company disband confirm` | none | owner | Confirms the disband. |
+| `/company home` | `companies.company.home` | none | Teleports you to your company's home, after the warm-up. |
+| `/company area` | none | none | Lists your company's [areas](../companies/areas.md). |
+| `/company area link` | none | `manage_areas` | Links the plot, region or claim you stand on and own. |
+| `/company area unlink [id]` | none | `manage_areas` or the member who linked it | Unlinks an area of your company. |
+| `/company area market` | none | none | Lists the areas the server offers to buy or rent. |
+| `/company area buy <offer>` | none | `manage_areas` | Buys or rents an offered area from the treasury, on the area's server. |
+| `/company area cancel <id>` | none | `manage_areas` | Stops renewing a rented area, or sells a bought one back on its server. |
+| `/company sethome` | none | `manage_areas` | Sets your company's home where you stand. |
 | `/company rename <name>` | none | owner | Renames the company for a price. Asks you to confirm. |
 | `/company rename confirm` | none | owner | Confirms and pays the price from your own money. |
 | `/company rename confirm treasury` | none | owner | Confirms and pays the price from the treasury. Needs `treasury.payRename` and an enabled treasury ([company.yml](../admin/configuration/company-yml.md)). |
@@ -424,6 +432,15 @@ See [Server events](../admin/admin-commands.md#server-events).
 |---|---|---|---|
 | `/companyadmin job disputes` | `companies.admin.jobs` | no | Lists the disputed jobs with both sides, the reason, the due time, the work counted and, on the server of an area, how far it is cleared. |
 | `/companyadmin job settle <id> <percent>` | `companies.admin.jobs` | no | Settles a dispute: the company gets `percent` of the price, the owner the rest. |
+
+### Area offers
+
+| Command | Permission | Console | What it does |
+|---|---|---|---|
+| `/companyadmin area offer buy <price>` | `companies.admin.areas` | no | Offers the plot, region or claim you stand on to buy (PlotSquared, WorldGuard, GriefPrevention, HuskClaims; not Lands or Towny). Whoever owns it now keeps it for the server and gets it back; a HuskClaims claim needs such an owner. |
+| `/companyadmin area offer rent <price> <days>` | `companies.admin.areas` | no | Offers it to rent, `price` per `days`. |
+| `/companyadmin area offers` | `companies.admin.areas` | no | Lists every offer and whether a company has it. |
+| `/companyadmin area withdraw <id>` | `companies.admin.areas` | no | Withdraws an offer no company has. |
 
 See [Job disputes](../admin/admin-commands.md#job-disputes).
 

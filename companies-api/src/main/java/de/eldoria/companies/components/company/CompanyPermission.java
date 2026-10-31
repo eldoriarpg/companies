@@ -44,7 +44,19 @@ public enum CompanyPermission implements Translatable {
     /**
      * Withdraws money from the company treasury and sets the share of payouts that goes to it.
      */
-    TREASURY(6);
+    TREASURY(6),
+    /**
+     * Builds in the company's areas.
+     */
+    BUILD(7),
+    /**
+     * Opens containers such as chests, barrels and furnaces in the company's areas.
+     */
+    CONTAINERS(8),
+    /**
+     * Sets the company's home and links, buys, rents and gives up areas, paid from the treasury.
+     */
+    MANAGE_AREAS(9);
 
     private final long mask;
     private final int rawMask;

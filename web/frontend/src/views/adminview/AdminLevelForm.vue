@@ -53,6 +53,7 @@ function numbers(level: AdminLevel): Record<NumericField, number | undefined> {
     delivery_hours_bonus: level.deliveryHoursBonus,
     tax_percent: level.taxPercent ?? undefined,
     max_alerts: level.maxAlerts ?? undefined,
+    max_areas: level.maxAreas,
   }
 }
 
@@ -93,6 +94,7 @@ const FIELDS: Field[] = [
   {key: 'delivery_hours_bonus', group: 'limits'},
   {key: 'tax_percent', group: 'limits', decimal: true, optional: true, max: 100},
   {key: 'max_alerts', group: 'limits', optional: true},
+  {key: 'max_areas', group: 'limits'},
 ]
 </script>
 

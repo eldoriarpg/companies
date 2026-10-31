@@ -28,9 +28,10 @@ class JobHooksTest {
 
     @Test
     void theOwnersLandIsUsedBeforeUnownedLand() {
-        var decision = JobHooks.decide(List.of(new Claim.None(), new Claim.Owned(JobLand.PLOT, "1;2")), false);
+        var decision = JobHooks.decide(
+                List.of(new Claim.None(), new Claim.Owned(JobLand.AREA, "plotsquared:plots|1;2")), false);
 
-        assertEquals(new JobHooks.Decision.Land(JobLand.PLOT, "1;2"), decision);
+        assertEquals(new JobHooks.Decision.Land(JobLand.AREA, "plotsquared:plots|1;2"), decision);
     }
 
     @Test
