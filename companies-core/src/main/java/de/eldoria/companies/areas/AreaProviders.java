@@ -5,7 +5,6 @@
  */
 package de.eldoria.companies.areas;
 
-import de.eldoria.companies.api.AreaApi;
 import de.eldoria.companies.components.area.AreaProvider;
 import de.eldoria.companies.configuration.elements.areas.AreaSettings;
 import org.bukkit.Location;
@@ -33,7 +32,7 @@ import java.util.logging.Logger;
  * as not knowing the area. A provider is dropped when the plugin that registered it is disabled. Safe to use from any
  * thread; the providers themselves are only called where the caller is, the main thread.
  */
-public final class AreaProviders implements AreaApi, Listener {
+public final class AreaProviders implements Listener {
     private final Map<String, Registered> registered = new LinkedHashMap<>();
     private final Logger logger;
     private volatile Supplier<AreaSettings> settings = AreaSettings::new;
@@ -52,18 +51,27 @@ public final class AreaProviders implements AreaApi, Listener {
         this.settings = settings;
     }
 
-    @Override
+    /**
+     * Registers a provider, replacing one with the same id.
+     *
+     * @param plugin   the plugin the provider belongs to; it is dropped when the plugin is disabled
+     * @param provider the provider
+     */
     public synchronized void register(Plugin plugin, AreaProvider provider) {
         registered.put(key(provider.id()), new Registered(plugin, provider));
         logger.info("Areas can come from " + provider.id() + ".");
     }
 
-    @Override
+    /**
+     * @param id id of the provider to remove
+     */
     public synchronized void unregister(String id) {
         registered.remove(key(id));
     }
 
-    @Override
+    /**
+     * @return the ids of the registered providers that are not switched off, lower case, in the order they are asked
+     */
     public List<String> providers() {
         return ordered().stream().map(provider -> key(provider.id())).toList();
     }

@@ -7,6 +7,7 @@ package de.eldoria.companies.data.repository;
 
 import de.chojo.sadu.queries.configuration.QueryConfiguration;
 import de.eldoria.companies.components.area.AreaSource;
+import de.eldoria.companies.components.area.OfferKind;
 import de.eldoria.companies.data.wrapper.area.AreaOffer;
 import de.eldoria.companies.data.wrapper.area.CompanyArea;
 import org.junit.jupiter.api.AfterAll;
@@ -171,13 +172,13 @@ public abstract class AreaDataContract {
     @Test
     void anOfferIsOpenUntilACompanyHasItAndCanBeWithdrawnOnlyThen() {
         var company = company("Builders");
-        var id = areas.addOffer(offer("plots|3;3", AreaOffer.Kind.BUY, 0)).orElseThrow();
+        var id = areas.addOffer(offer("plots|3;3", OfferKind.BUY, 0)).orElseThrow();
         var offer = areas.offer(id).orElseThrow();
 
-        assertEquals(AreaOffer.Kind.BUY, offer.kind());
+        assertEquals(OfferKind.BUY, offer.kind());
         assertEquals(KEEPER, offer.keeper());
         assertEquals(NOW, offer.created());
-        assertTrue(areas.addOffer(offer("plots|3;3", AreaOffer.Kind.RENT, 7)).isEmpty());
+        assertTrue(areas.addOffer(offer("plots|3;3", OfferKind.RENT, 7)).isEmpty());
         assertEquals(List.of(offer), areas.openOffers());
         var area = areas.add(fromOffer(company, offer, null)).orElseThrow();
         assertEquals(id, areas.area(area).orElseThrow().offer());
@@ -192,8 +193,8 @@ public abstract class AreaDataContract {
     @Test
     void aRentIsRenewedOnceWarnedAndEnded() {
         var company = company("Builders");
-        var offer = areas.offer(areas.addOffer(offer("plots|4;4", AreaOffer.Kind.RENT, 7))
-                        .orElseThrow())
+        var offer = areas.offer(
+                        areas.addOffer(offer("plots|4;4", OfferKind.RENT, 7)).orElseThrow())
                 .orElseThrow();
         var until = NOW.plusDays(7);
         var id = areas.add(fromOffer(company, offer, until)).orElseThrow();
@@ -216,7 +217,7 @@ public abstract class AreaDataContract {
         assertTrue(areas.rents().isEmpty());
     }
 
-    private static AreaOffer offer(String ref, AreaOffer.Kind kind, int days) {
+    private static AreaOffer offer(String ref, OfferKind kind, int days) {
         return new AreaOffer(0, "plotsquared", ref, "plots", NODE, kind, 250.5, days, KEEPER, NOW);
     }
 

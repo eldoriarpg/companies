@@ -17,6 +17,7 @@ import de.chojo.sadu.updater.SqlUpdater;
 import de.eldoria.companies.api.CompaniesApiImpl;
 import de.eldoria.companies.areas.AreaContainers;
 import de.eldoria.companies.areas.AreaHooks;
+import de.eldoria.companies.areas.AreaOffers;
 import de.eldoria.companies.areas.AreaPrices;
 import de.eldoria.companies.areas.AreaRents;
 import de.eldoria.companies.areas.AreaServices;
@@ -720,6 +721,7 @@ public class Companies extends EldoPlugin {
                     serverEventService,
                     companyService,
                     new CompanyHomes(areaServices, configuration::areaSettings, this),
+                    new AreaOffers(areaServices),
                     jobServices,
                     configuration::jobSettings,
                     Threading.mainThread(this)));

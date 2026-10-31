@@ -151,12 +151,18 @@ also happens while Companies runs without an economy, and after Companies was di
 
 These are the write operations:
 
-- `companies().addMember(...)`
+- `companies().addMember(...)`, `companies().found(...)`, `companies().setHome(...)`
 - `orders().create(...)`
 - `players().grantItems(...)`
+- `events().create(...)`, `events().end(...)`, `events().cancel(...)`
+- `jobs().post(...)`
+- `areas().offer(...)`, `areas().withdraw(...)`
 
-`ApiNotReadyException` extends `IllegalStateException`. For `addMember` and `create` the exception arrives wrapped in
-a `CompletionException`. For `grantItems` it arrives as is. Unwrap it when you handle failures:
+`ApiNotReadyException` extends `IllegalStateException`. Depending on the write it arrives wrapped in a
+`CompletionException` or as is, so unwrap it as below. A request Companies refuses completes normally with a result
+that says why. The future fails for errors, such as a world that was unloaded meanwhile or a database that does not
+answer. Invalid arguments throw an `IllegalArgumentException` when you build the request; `orders().create` fails its
+future with one for an owner id reserved for the server:
 
 ```java
 api.orders().create(request).whenComplete((result, error) -> {
@@ -197,6 +203,8 @@ handled on the primary server. See [Several servers](../admin/multiserver.md) fo
 | `areas(int company)`                      | `CompletableFuture<List<? extends ICompanyArea>>` | The plots and regions the company linked, bought or rents, oldest first                             |
 | `home(int company)`                       | `CompletableFuture<Optional<? extends ICompanyHome>>` | The company's home, empty when it has set none                                                  |
 | `addMember(int company, UUID player)`     | `CompletableFuture<JoinResult>`                  | **Write.** Adds the player to the company                                                             |
+| `found(FoundRequest request)`             | `CompletableFuture<FoundResult>`                 | **Write.** Founds a company. New in 2.1                                                               |
+| `setHome(HomeRequest request)`            | `CompletableFuture<HomeResult>`                  | **Write.** Sets the home of a company. New in 2.1                                                     |
 
 Some details:
 
@@ -229,6 +237,43 @@ The future completes with a `JoinResult`:
 api.companies().addMember(companyId, player.getUniqueId()).thenAccept(result -> {
     if (result != JoinResult.JOINED) getLogger().info("Could not add the player: " + result);
 });
+```
+
+### Found a company
+
+`found` founds a company with the same checks as `/company create`. The owner need not be online.
+
+- The name must be valid and free, and the owner must not be a member of a company.
+- With `charge` true the owner pays the founding price; with false nothing is charged and Companies logs the
+  founding.
+- While the owner is online on this server, a `PreCompanyCreateEvent` fires and other plugins may cancel it. For an
+  uncharged founding the event names a price of 0. A founded company fires `CompanyCreateEvent`.
+
+The future completes with `FoundResult.Founded` and the new `ICompanyProfile`, or with `FoundResult.Rejected` and a
+`FoundProblem`: `INVALID_NAME`, `NAME_TAKEN`, `ALREADY_MEMBER`, `NO_MONEY`, `CANCELLED` or `FAILED`. `Rejected`
+also holds the message a player would have seen.
+
+```java
+api.companies().found(new FoundRequest(player.getUniqueId(), "Stonebridge", false)).thenAccept(result -> {
+    if (result instanceof FoundResult.Founded founded) {
+        getLogger().info("Founded company " + founded.company().id());
+    }
+});
+```
+
+### Set the home
+
+`setHome` sets the home of a company on this server, replacing its former one. `HomeRequest` takes the company id,
+a location (copied, so changing it later moves nothing) and who set it. A company with areas sets its home inside one
+of them while `homeInsideArea` is on in `areas.yml`; the setter needs no company permission. The area plugins are
+asked on the main thread. The future completes with `HomeResult.Stored` and the `ICompanyHome`, or `HomeResult.Rejected`
+with `NO_COMPANY`, `NOT_IN_AREA` or `FAILED`. Companies fires `CompanyAreasChangeEvent`.
+
+```java
+api.companies().setHome(new HomeRequest(companyId, player.getLocation(), player.getUniqueId()))
+        .thenAccept(result -> {
+            if (result instanceof HomeResult.Rejected rejected) player.sendMessage(rejected.message());
+        });
 ```
 
 ## Orders: `orders()`
@@ -445,6 +490,43 @@ only on the server that moved it, usually the primary (see [Events](events.md));
 `live()`, to follow events on the others. Writes fail with `ApiNotReadyException` until
 the economy is set up, like the other writes.
 
+## Jobs: `jobs()`
+
+:::info New in 2.1
+:::
+
+[Jobs](../players/jobs.md) are work a company takes like an order: in an area of the owner's land (`DIG`,
+`TERRAFORM`, `HARVEST`, `BUILD`) or described in words (`CONTRACT`).
+
+| Method | Returns | What it gives you |
+|---|---|---|
+| `byId(int id)` | `CompletableFuture<Optional<? extends IJob>>` | The job with this id |
+| `open(int limit)` | `CompletableFuture<List<? extends IJob>>` | Jobs waiting for a company, newest first |
+| `ofOwner(UUID owner, int limit)` | `CompletableFuture<List<? extends IJob>>` | The player's jobs in any state, newest first |
+| `ofCompany(int company)` | `CompletableFuture<List<? extends IJob>>` | The jobs a company holds: worked on, waiting for approval or disputed |
+| `post(JobRequest request)` | `CompletableFuture<PostJobResult>` | **Write.** Posts a job |
+
+`post` checks like `/order job`: the area lies on this server and within the world's height, on land the owner owns
+(or on unowned land where `jobs.yml` allows jobs in that world), and within the size and count limits. Start a
+request from the factory of its kind: `JobRequest.dig`, `terraform`, `harvest`, `build` or `contract`. A build job
+takes its blueprint as `BuildBlock`s relative to the point it is placed at, so your plugin needs no WorldEdit.
+
+With `charge(false)` the owner pays nothing: the job takes no fee, its company is still paid when the work checks out,
+and nothing goes back to the owner when it ends unfinished. `IJob.charged()` tells the two apart.
+
+The future completes with `PostJobResult.Posted` and the `IJob`, or `PostJobResult.Rejected` with a `JobProblem`, such
+as `FOREIGN_LAND`, `VOLUME` or `FUNDS`. Nothing was charged for a rejected job, except `STRANDED`: a build job taken
+before its blueprint was saved, whose money stays held until an admin settles it.
+
+```java
+var request = JobRequest.dig(player.getUniqueId(), "Cellar", 250, 24, new JobBox("world", 10, 50, 10, 19, 59, 19));
+api.jobs().post(request).thenAccept(result -> {
+    if (result instanceof PostJobResult.Rejected rejected) getLogger().info("Job refused: " + rejected.problem());
+});
+```
+
+Taking, finishing and ending jobs happen in game and on the dashboard; the API has no events for jobs yet.
+
 ## Areas: `areas()`
 
 Companies use plots and regions as [areas](../companies/areas.md). They come from area providers: Companies brings
@@ -455,6 +537,9 @@ providers for PlotSquared, WorldGuard, GriefPrevention, HuskClaims, Lands and To
 | `register(Plugin plugin, AreaProvider provider)` | `void`       | Registers a provider; it is dropped when your plugin is disabled |
 | `unregister(String id)`                        | `void`         | Removes the provider with that id                         |
 | `providers()`                                  | `List<String>` | The ids of the providers in use, in the order they are asked |
+| `offer(AreaOfferRequest request)`              | `CompletableFuture<OfferResult>` | **Write.** Offers an area to companies. New in 2.1 |
+| `offers()`                                     | `CompletableFuture<List<? extends IAreaOffer>>` | The offers no company has yet. New in 2.1 |
+| `withdraw(int id, String by)`                  | `CompletableFuture<WithdrawResult>` | **Write.** Withdraws an offer no company has. New in 2.1 |
 
 An `AreaProvider` names its areas with references of its own, such as a plot id or a region id. It says what it can
 do with `capabilities()`: `LINK_OWNED` (an owner links their own area), `TRUST_LIST` (Companies adds and removes the
@@ -491,6 +576,24 @@ public final class MyClaims extends ClaimAreaProvider<MyClaim> {
 api.areas().register(this, new MyClaims());
 ```
 
+### Offer areas
+
+`offer` does what `/companyadmin area offer` does. Name the area with `AreaOfferRequest.at(location, ...)` or by its
+plugin and reference with `AreaOfferRequest.of(provider, ref, ...)`, and choose `OfferKind.BUY` or `RENT` with a
+price and, for a rent, the days of a period. The price lies between 0 and `AreaOfferRequest.MAX_PRICE` and is
+rounded down to cents; a rent period lasts 1 to `MAX_PERIOD_DAYS` (3650) days, a sale has 0. The area's plugin must
+have `TRANSFER`, and someone must keep the area for the server: its owner, or nobody where the plugin
+`releasesToNobody()`. The future completes with `OfferResult.Offered` and the `IAreaOffer`, or `OfferResult.Rejected`
+with `NO_AREA`, `NOT_MOVABLE`, `NO_KEEPER`, `IN_USE` or `ALREADY_OFFERED`. `withdraw` answers `WITHDRAWN`, `TAKEN` (a
+company has the area) or `UNKNOWN`.
+
+```java
+var request = AreaOfferRequest.of("plotsquared", "plots|3;-2", OfferKind.RENT, 250, 7, getName());
+api.areas().offer(request).thenAccept(result -> {
+    if (result instanceof OfferResult.Offered offered) getLogger().info("Offered as #" + offered.offer().id());
+});
+```
+
 ## Data types
 
 The methods and events hand you these types. They are in `de.eldoria.companies.components` and its subpackages.
@@ -512,9 +615,12 @@ The methods and events hand you these types. They are in `de.eldoria.companies.c
 | `IContentPart` | How many items one worker delivered to a line, from `IOrderContent.parts()` |
 | `IOrderDraft`, `IDraftLine` | An order before it is created, as `PreOrderCreateEvent.draft()` hands it to you |
 | `IMaterialPrice` | Average, lowest and highest price paid for a material |
+| `IJob`, `IJobArea` | A job: owner, kind, state, title, price and fee, the company working on it, its block box and times, and whether it was charged |
+| `JobBox`, `BuildBlock` | A block box for a job request, corners in any order, and one block of a build job's blueprint |
+| `IAreaOffer` | An area the server offers: provider, reference, world, server, `OfferKind`, price, rent period and keeper |
 
-The enums are `CompanyPermission`, `JoinMode`, `OrderState`, `OrderSource`, `TimeRange`, `TopOrder` and
-`TreasuryKind`. `HistoryOutcome` describes how an order ended in the history. No method or event of the API uses it
+The enums are `CompanyPermission`, `JoinMode`, `OrderState`, `OrderSource`, `TimeRange`, `TopOrder`,
+`TreasuryKind`, `JobKind`, `JobState` and `OfferKind`. `HistoryOutcome` describes how an order ended in the history. No method or event of the API uses it
 yet.
 
 :::note

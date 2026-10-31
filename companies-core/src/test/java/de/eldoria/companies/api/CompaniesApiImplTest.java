@@ -474,6 +474,7 @@ class CompaniesApiImplTest {
                         AreaSettings::new,
                         plugin),
                 null,
+                null,
                 JobSettings::new,
                 Runnable::run));
     }

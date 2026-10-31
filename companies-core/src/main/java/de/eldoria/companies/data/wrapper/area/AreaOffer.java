@@ -5,7 +5,7 @@
  */
 package de.eldoria.companies.data.wrapper.area;
 
-import de.eldoria.companies.components.area.AreaSource;
+import de.eldoria.companies.components.area.OfferKind;
 import org.jetbrains.annotations.Nullable;
 
 import java.time.LocalDateTime;
@@ -32,29 +32,8 @@ public record AreaOffer(
         String ref,
         String world,
         UUID node,
-        Kind kind,
+        OfferKind kind,
         double price,
         int periodDays,
         @Nullable UUID keeper,
-        LocalDateTime created) {
-    /**
-     * How a company gets an offered area.
-     */
-    public enum Kind {
-        /**
-         * Bought once; the company keeps it until it sells it back or disbands.
-         */
-        BUY,
-        /**
-         * Rented per period, paid from the treasury ahead.
-         */
-        RENT;
-
-        /**
-         * @return how the company holds an area it got through an offer of this kind
-         */
-        public AreaSource source() {
-            return this == BUY ? AreaSource.BOUGHT : AreaSource.RENTED;
-        }
-    }
-}
+        LocalDateTime created) {}

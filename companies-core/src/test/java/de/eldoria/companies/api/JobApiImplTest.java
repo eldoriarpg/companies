@@ -99,6 +99,7 @@ class JobApiImplTest {
                 null,
                 null,
                 null,
+                null,
                 new JobServices(jobs, service, hooks, null, null, NODE, null, null),
                 () -> settings,
                 Runnable::run));

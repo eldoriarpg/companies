@@ -5,6 +5,7 @@
  */
 package de.eldoria.companies.areas;
 
+import de.eldoria.companies.components.area.OfferKind;
 import de.eldoria.companies.components.company.CompanyPermission;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteAreaData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteTestDatabase;
@@ -168,8 +169,8 @@ class AreaRentsTest {
     }
 
     private int rented() {
-        var offer = areas.addOffer(new AreaOffer(
-                        0, "plotsquared", "plots|1;1", "plots", NODE, AreaOffer.Kind.RENT, 10, 7, null, START))
+        var offer = areas.addOffer(
+                        new AreaOffer(0, "plotsquared", "plots|1;1", "plots", NODE, OfferKind.RENT, 10, 7, null, START))
                 .orElseThrow();
         return areas.add(new CompanyArea(
                         0,
@@ -178,7 +179,7 @@ class AreaRentsTest {
                         "plots|1;1",
                         "plots",
                         NODE,
-                        AreaOffer.Kind.RENT.source(),
+                        OfferKind.RENT.source(),
                         null,
                         10,
                         START.plusDays(7),

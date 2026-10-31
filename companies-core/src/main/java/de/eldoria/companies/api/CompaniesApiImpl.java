@@ -5,6 +5,7 @@
  */
 package de.eldoria.companies.api;
 
+import de.eldoria.companies.areas.AreaOffers;
 import de.eldoria.companies.areas.AreaProviders;
 import de.eldoria.companies.areas.CompanyHomes;
 import de.eldoria.companies.commands.support.CommandFailure;
@@ -53,6 +54,7 @@ public final class CompaniesApiImpl implements CompaniesApi {
     private final ServerEventApi events;
     private final JobApi jobs;
     private final AreaProviders areas = new AreaProviders(Logger.getLogger("Companies"));
+    private final AreaApi areaApi;
 
     /**
      * @param repositories the repositories the API reads from
@@ -76,6 +78,7 @@ public final class CompaniesApiImpl implements CompaniesApi {
         ranking = new RankingApiImpl(repositories.stats(), server.clock(), executor);
         events = new ServerEventApiImpl(repositories.serverEvents(), writes, server.clock(), executor);
         jobs = new JobApiImpl(repositories.jobs(), writes, server.players(), executor);
+        areaApi = new AreaApiImpl(areas, repositories.areas(), writes, Logger.getLogger("Companies"), executor);
     }
 
     /**
@@ -150,7 +153,7 @@ public final class CompaniesApiImpl implements CompaniesApi {
 
     @Override
     public AreaApi areas() {
-        return areas;
+        return areaApi;
     }
 
     @Override
@@ -208,6 +211,7 @@ public final class CompaniesApiImpl implements CompaniesApi {
      * @param serverEvents creates and ends server events
      * @param companies    founds companies
      * @param homes        sets the homes of companies
+     * @param areaOffers   offers areas of the server
      * @param jobs         posts jobs
      * @param jobSettings  the current settings of jobs
      * @param mainThread   runs what has to run on the main thread, such as asking the area plugins
@@ -219,6 +223,7 @@ public final class CompaniesApiImpl implements CompaniesApi {
             ServerEventService serverEvents,
             CompanyService companies,
             CompanyHomes homes,
+            AreaOffers areaOffers,
             JobServices jobs,
             Supplier<JobSettings> jobSettings,
             Executor mainThread) {}
