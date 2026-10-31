@@ -15,8 +15,8 @@ import java.util.function.Predicate;
 import java.util.logging.Level;
 
 /**
- * Registers Companies' own area providers for the plot and claim plugins it ships hooks for: PlotSquared, WorldGuard
- * and GriefPrevention. PlotSquared and WorldGuard also serve jobs and have a switch in {@code config.yml}; the claim
+ * Registers Companies' own area providers for the plot and claim plugins it ships hooks for: PlotSquared, WorldGuard,
+ * GriefPrevention and HuskClaims. PlotSquared and WorldGuard also serve jobs and have a switch in {@code config.yml}; the claim
  * plugins load whenever they are enabled and are switched off with {@code providers} in {@code areas.yml}. A provider
  * class is compiled against its plugin, so it is only loaded by name, and only when that plugin
  * is enabled and its hook is switched on; a missing plugin can not cause a {@link NoClassDefFoundError}. A provider
@@ -34,6 +34,7 @@ public final class AreaHooks {
         known.put("PlotSquared", "de.eldoria.companies.hooks.plotsquared.PlotSquaredAreas");
         known.put("WorldGuard", "de.eldoria.companies.hooks.worldguard.WorldGuardAreas");
         known.put("GriefPrevention", "de.eldoria.companies.hooks.griefprevention.GriefPreventionAreas");
+        known.put("HuskClaims", "de.eldoria.companies.hooks.huskclaims.HuskClaimsAreas");
         return known;
     }
 

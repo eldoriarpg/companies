@@ -155,7 +155,8 @@ public abstract class ClaimAreaProvider<C> implements AreaProvider {
      * {@link AreaCapability#TRANSFER}. The claim must never be deleted.
      *
      * @param claim  a top-level claim
-     * @param keeper who holds it for the server, null for the server itself where the plugin has such claims
+     * @param keeper who holds it for the server, null for the server itself where {@link #releasesToNobody()} says the
+     *               plugin has such claims
      * @return true when the claim is back with the server
      */
     protected boolean giveBack(C claim, @Nullable UUID keeper) {

@@ -72,6 +72,9 @@ pluginManifest {
     optional("GriefPrevention") {
         modrinth("griefprevention")
     }
+    optional("HuskClaims") {
+        modrinth("huskclaims")
+    }
 }
 
 tasks {
@@ -122,7 +125,8 @@ bukkit {
         "FastAsyncWorldEdit",
         "WorldGuard",
         "PlotSquared",
-        "GriefPrevention"
+        "GriefPrevention",
+        "HuskClaims"
     )
 
     permissions {

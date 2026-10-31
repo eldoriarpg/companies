@@ -51,10 +51,19 @@ Companies brings these providers:
 | PlotSquared | `plotsquared` | a plot, merged plots counting as one | yes | trusted players | yes | yes |
 | WorldGuard | `worldguard` | the region with the highest priority at a spot, without the global region and the regions of jobs | yes | region members | yes | through its own job regions |
 | GriefPrevention | `griefprevention` | a top-level claim; a subdivision means the claim it lies in | yes | build trust | yes; given back without a keeper it becomes an admin claim | yes |
+| HuskClaims | `huskclaims` | a top-level claim; a child claim means the claim it lies in | yes | the lowest trust level that may place blocks (`build` by default) | yes; only claims with an owner, who gets them back | yes |
 
 PlotSquared and WorldGuard load when the plugin is enabled and `hooks.plotsquared` or `hooks.worldguard` in
 [config.yml](./config-yml.md#generalsettings) is on. The other providers load whenever their plugin is enabled; switch
 one off with `providers`. A provider switched off carries neither company areas nor jobs.
+
+HuskClaims gives its claims no id, so Companies names a claim by its world, the time it was created and its corners; a
+claim resized while it is a company area is found again by its creation time. A claim without a creation time, or
+sharing it with another claim of the world, as after an import, counts as gone once it is resized. Builders get the lowest trust level that
+may place blocks; a member the owner trusted higher keeps that level, one trusted lower gets the build level while they
+may build for the company and no trust after. Players banned from a claim are not made builders. A claim that changes
+hands is moved like HuskClaims' own `/transferclaim`: it loses all its trust, also in child claims, and the claim
+blocks stay with whoever spent them.
 
 GriefPrevention notes:
 

@@ -119,6 +119,11 @@ public final class WorldGuardAreas implements AreaProvider {
     }
 
     @Override
+    public boolean releasesToNobody() {
+        return true;
+    }
+
+    @Override
     public boolean release(String ref, @Nullable UUID keeper) {
         var region = region(ref);
         if (region == null) return false;

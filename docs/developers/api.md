@@ -461,7 +461,8 @@ do with `capabilities()`: `LINK_OWNED` (an owner links their own area), `TRUST_L
 members with the build permission) and `TRANSFER` (the area can be bought or rented: Companies moves it to the
 company's owner and gives it back with `release`) and `JOB_LAND` (players post [jobs](../players/jobs.md) on areas
 they own; the working company's members are made builders while they work). `protects(Location)` marks land the plugin
-guards without an area there, such as roads between plots, where jobs are refused. Every method of a provider is
+guards without an area there, such as roads between plots, where jobs are refused. `releasesToNobody()` says whether
+`release` works without a keeper; the server only offers an area nobody owns when it does. Every method of a provider is
 called on the main thread. Read the areas of a company with `companies().areas(id)`.
 
 For a plugin made of claims, extend `ClaimAreaProvider<C>` instead of implementing every method: it reaches your

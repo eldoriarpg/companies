@@ -170,6 +170,16 @@ public interface AreaProvider {
     }
 
     /**
+     * Whether an area can be given back to nobody, as {@link #release(String, UUID)} with no keeper. The server only
+     * offers an area nobody owns when its provider can take it back that way.
+     *
+     * @return true when the plugin keeps areas without an owner, such as admin claims
+     */
+    default boolean releasesToNobody() {
+        return false;
+    }
+
+    /**
      * Gives an area back to the server: its builders are removed and it goes to the keeper, such as the server account
      * an offer names. An area is never deleted or opened for anyone to claim. Needs {@link AreaCapability#TRANSFER}.
      *

@@ -51,6 +51,11 @@ public final class GriefPreventionAreas extends ClaimAreaProvider<Claim> {
     }
 
     @Override
+    public boolean releasesToNobody() {
+        return true;
+    }
+
+    @Override
     protected Optional<Claim> claimAt(Location location) {
         return Optional.ofNullable(store().getClaimAt(location, true, null));
     }

@@ -6,6 +6,9 @@ repositories {
     maven("https://maven.citizensnpcs.co/repo")
     maven("https://repo.fancyinnovations.com/releases")
     maven("https://maven.enginehub.org/repo/")
+    maven("https://repo.william278.net/releases") {
+        content { includeGroup("net.william278.huskclaims") }
+    }
     maven("https://jitpack.io") {
         content { includeGroup("com.github.GriefPrevention") }
     }
@@ -23,6 +26,9 @@ dependencies {
     compileOnly(libs.worldedit)
     compileOnly(libs.plotsquared)
     compileOnly(libs.griefprevention) {
+        isTransitive = false
+    }
+    compileOnly(libs.huskclaims) {
         isTransitive = false
     }
 

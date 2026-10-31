@@ -12,6 +12,7 @@ import de.eldoria.companies.commands.support.CommandFailure;
 import de.eldoria.companies.commands.support.PlayerOnly;
 import de.eldoria.companies.commands.support.Senders;
 import de.eldoria.companies.components.area.AreaCapability;
+import de.eldoria.companies.components.area.AreaProvider;
 import de.eldoria.companies.data.wrapper.area.AreaOffer;
 import de.eldoria.companies.menus.MenuComponents;
 import de.eldoria.companies.menus.Values;
@@ -106,6 +107,10 @@ public final class AreaAdminCommand {
         }
         var ref = movable.get();
         var keeper = providers.call(ref.provider(), provider -> keeper(provider.owners(ref.ref())), null);
+        if (keeper == null && !providers.call(ref.provider(), AreaProvider::releasesToNobody, false)) {
+            deps.messages().sendError(admin, PREFIX + "error.noKeeper");
+            return;
+        }
         var name = providers.call(ref.provider(), provider -> provider.name(ref.ref()), ref.ref());
         var world = admin.getWorld().getName();
         var amount = Money.floorDecimal(price).doubleValue();
