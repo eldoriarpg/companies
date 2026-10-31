@@ -1001,6 +1001,8 @@ export default {
                     homeCost: 'Price of a teleport home',
                     homePaidByTreasury: 'The treasury pays the teleport home',
                     homeInsideArea: 'A company with areas sets its home inside one',
+                    sellBackPercent: 'Percent of the price paid back for a bought area sold back or disbanded',
+                    rentWarnHours: 'Hours before a rent is due that the company is told',
                 },
             },
         },
@@ -1434,6 +1436,9 @@ export default {
             SHARE_CHANGED: 'Share changed',
             CONTEST_PRIZE: 'Contest prize',
             HOME_TELEPORT: 'Home teleport',
+            AREA_BUY: 'Area bought',
+            AREA_RENT: 'Area rent',
+            AREA_SALE: 'Area sold back',
         },
     },
     jobs: {

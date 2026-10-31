@@ -6,6 +6,7 @@
 package de.eldoria.companies.data.repository;
 
 import de.chojo.sadu.queries.configuration.QueryConfiguration;
+import de.eldoria.companies.data.wrapper.area.AreaOffer;
 import de.eldoria.companies.data.wrapper.area.AreaSource;
 import de.eldoria.companies.data.wrapper.area.CompanyArea;
 import org.junit.jupiter.api.AfterAll;
@@ -36,6 +37,7 @@ public abstract class AreaDataContract {
     private static final LocalDateTime NOW = LocalDateTime.of(2026, 10, 31, 12, 0);
     private static final UUID LINKER = UUID.fromString("00000000-0000-0000-0000-000000000001");
     private static final UUID NODE = UUID.fromString("00000000-0000-0000-0000-0000000000aa");
+    private static final UUID KEEPER = UUID.fromString("00000000-0000-0000-0000-000000000002");
     private static final UUID OTHER_NODE = UUID.fromString("00000000-0000-0000-0000-0000000000bb");
 
     private DataSource dataSource;
@@ -71,7 +73,9 @@ public abstract class AreaDataContract {
     @BeforeEach
     void setUp() {
         QueryConfiguration.setDefault(QueryConfiguration.builder(dataSource).build());
+        query("DELETE FROM company_area_builders").single().delete();
         query("DELETE FROM company_areas").single().delete();
+        query("DELETE FROM area_offers").single().delete();
         query("DELETE FROM companies").single().delete();
         areas = areas();
     }
@@ -162,6 +166,77 @@ public abstract class AreaDataContract {
         areas.addBuilder(plot, LINKER);
         areas.remove(plot);
         assertTrue(areas.builders(plot).isEmpty());
+    }
+
+    @Test
+    void anOfferIsOpenUntilACompanyHasItAndCanBeWithdrawnOnlyThen() {
+        var company = company("Builders");
+        var id = areas.addOffer(offer("plots|3;3", AreaOffer.Kind.BUY, 0)).orElseThrow();
+        var offer = areas.offer(id).orElseThrow();
+
+        assertEquals(AreaOffer.Kind.BUY, offer.kind());
+        assertEquals(KEEPER, offer.keeper());
+        assertEquals(NOW, offer.created());
+        assertTrue(areas.addOffer(offer("plots|3;3", AreaOffer.Kind.RENT, 7)).isEmpty());
+        assertEquals(List.of(offer), areas.openOffers());
+        var area = areas.add(fromOffer(company, offer, null)).orElseThrow();
+        assertEquals(id, areas.area(area).orElseThrow().offer());
+        assertTrue(areas.openOffers().isEmpty());
+        assertEquals(List.of(offer), areas.offers());
+        assertFalse(areas.removeOffer(id));
+        areas.remove(area);
+        assertTrue(areas.removeOffer(id));
+        assertTrue(areas.offer(id).isEmpty());
+    }
+
+    @Test
+    void aRentIsRenewedOnceWarnedAndEnded() {
+        var company = company("Builders");
+        var offer = areas.offer(areas.addOffer(offer("plots|4;4", AreaOffer.Kind.RENT, 7))
+                        .orElseThrow())
+                .orElseThrow();
+        var until = NOW.plusDays(7);
+        var id = areas.add(fromOffer(company, offer, until)).orElseThrow();
+
+        assertEquals(List.of(id), areas.rents().stream().map(CompanyArea::id).toList());
+        areas.rentWarned(id);
+        assertTrue(areas.area(id).orElseThrow().rentWarned());
+        assertTrue(areas.renewed(id, until, until.plusDays(7)));
+        assertFalse(areas.renewed(id, until, until.plusDays(14)));
+        var renewed = areas.area(id).orElseThrow();
+        assertEquals(until.plusDays(7), renewed.rentUntil());
+        assertFalse(renewed.rentWarned());
+        assertTrue(areas.stopRenewing(id));
+        assertFalse(areas.stopRenewing(id));
+        assertFalse(areas.renewed(id, until.plusDays(7), until.plusDays(14)));
+        assertFalse(areas.area(id).orElseThrow().renew());
+        assertTrue(areas.endRent(id));
+        assertFalse(areas.endRent(id));
+        assertTrue(areas.area(id).orElseThrow().rentEnded());
+        assertTrue(areas.rents().isEmpty());
+    }
+
+    private static AreaOffer offer(String ref, AreaOffer.Kind kind, int days) {
+        return new AreaOffer(0, "plotsquared", ref, "plots", NODE, kind, 250.5, days, KEEPER, NOW);
+    }
+
+    private static CompanyArea fromOffer(int company, AreaOffer offer, LocalDateTime until) {
+        return new CompanyArea(
+                0,
+                company,
+                offer.provider(),
+                offer.ref(),
+                offer.world(),
+                offer.node(),
+                offer.kind().source(),
+                null,
+                offer.price(),
+                until,
+                NOW,
+                offer.id(),
+                true,
+                false,
+                false);
     }
 
     private static CompanyArea linked(int company, String ref, UUID node) {

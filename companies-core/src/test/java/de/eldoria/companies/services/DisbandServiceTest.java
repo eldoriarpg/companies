@@ -63,6 +63,7 @@ class DisbandServiceTest {
     private DisbandService disband;
     private UUID owner;
     private UUID admin;
+    private long sellBack;
 
     @BeforeEach
     void setUp() throws Exception {
@@ -97,7 +98,8 @@ class DisbandServiceTest {
                 orders.orderData(),
                 new ItemReturnService(plugin, orders.orderData()),
                 notifications,
-                treasury);
+                treasury,
+                ignored -> sellBack);
         owner = UUID.randomUUID();
         admin = UUID.randomUUID();
     }
@@ -146,6 +148,15 @@ class DisbandServiceTest {
         assertTrue(disband.disband(company, admin));
 
         assertEquals(Map.of(owner, 1.0), paid);
+    }
+
+    @Test
+    void whatTheServerPaysBackForBoughtAreasIsPaidWithTheTreasury() {
+        sellBack = 1250;
+
+        assertTrue(disband.disband(company(4250)));
+
+        assertEquals(Map.of(owner, 55.0), paid);
     }
 
     @Test

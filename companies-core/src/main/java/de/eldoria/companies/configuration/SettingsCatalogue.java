@@ -391,6 +391,8 @@ public final class SettingsCatalogue {
         areas.decimal("homeCost");
         areas.flag("homePaidByTreasury");
         areas.flag("homeInsideArea");
+        areas.whole("sellBackPercent");
+        areas.whole("rentWarnHours");
         return List.copyOf(fields);
     }
 

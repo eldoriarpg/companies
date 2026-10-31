@@ -22,6 +22,8 @@ homeCooldownSeconds: 60
 homeCost: 0.0
 homePaidByTreasury: false
 homeInsideArea: true
+sellBackPercent: 50
+rentWarnHours: 24
 ```
 
 | Key | Values | Default | Description | Takes effect |
@@ -34,6 +36,11 @@ homeInsideArea: true
 | `homeCost` | money | `0` | What a teleport home costs. Paid when the warm-up ends. | reload |
 | `homePaidByTreasury` | true/false | `false` | The company's [treasury](../../companies/treasury.md) pays the teleport instead of the player. Every member's teleport is paid then, without the `treasury` permission. | reload |
 | `homeInsideArea` | true/false | `true` | A company that has areas sets its home inside one of them. A company without areas sets it anywhere. | reload |
+| `sellBackPercent` | 0–100 | `50` | The part of its price a company gets back for a [bought area](../../companies/areas.md#buying-and-renting) it sells back. The owner of a disbanded company gets it for every bought area. | reload |
+| `rentWarnHours` | number (hours) | `24` | How long before a rent is due the members who manage areas are told. `0` tells nobody. | reload |
+
+Rents are paid on the primary server; with the [treasury](../../companies/treasury.md) switched off, rents can not be
+paid and end when they are due.
 
 ## Area plugins
 

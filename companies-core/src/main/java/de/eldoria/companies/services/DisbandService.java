@@ -18,13 +18,15 @@ import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.UUID;
+import java.util.function.ToLongFunction;
 
 /**
  * Dissolves companies.
  * <p>
  * Orders the company worked on are open again: workers get their delivered items back and owners are told, without
  * naming the company. The treasury is emptied before the company is deleted and its balance is paid to the owner once
- * the company is gone; when the company cannot be deleted, the balance goes back into the treasury.
+ * the company is gone; when the company cannot be deleted, the balance goes back into the treasury. What the server
+ * pays back for the areas the company bought is paid to the owner together with the treasury.
  */
 public class DisbandService {
     private final Plugin plugin;
@@ -33,6 +35,7 @@ public class DisbandService {
     private final ItemReturnService itemReturnService;
     private final NotificationService notificationService;
     private final TreasuryService treasuryService;
+    private final ToLongFunction<CompanyProfile> sellBack;
 
     /**
      * @param plugin              the plugin
@@ -41,6 +44,7 @@ public class DisbandService {
      * @param itemReturnService   gives workers their delivered items back
      * @param notificationService tells owners their orders are open again
      * @param treasuryService     empties the treasury and pays it to the owner
+     * @param sellBack            what the server pays back for the areas a company bought, in cents
      */
     public DisbandService(
             Plugin plugin,
@@ -48,13 +52,15 @@ public class DisbandService {
             AOrderData orderData,
             ItemReturnService itemReturnService,
             NotificationService notificationService,
-            TreasuryService treasuryService) {
+            TreasuryService treasuryService,
+            ToLongFunction<CompanyProfile> sellBack) {
         this.plugin = plugin;
         this.companyData = companyData;
         this.orderData = orderData;
         this.itemReturnService = itemReturnService;
         this.notificationService = notificationService;
         this.treasuryService = treasuryService;
+        this.sellBack = sellBack;
     }
 
     /**
@@ -111,12 +117,13 @@ public class DisbandService {
                 notificationService.notifyOrderOpen(release.order());
             }
         }
+        var refund = sellBack.applyAsLong(company);
         var drained = treasuryService.drain(company, actor).join();
         if (!Boolean.TRUE.equals(companyData.submitCompanyPurge(company).join())) {
             treasuryService.undoDrain(company, drained, actor).join();
             return false;
         }
-        treasuryService.payOwner(company, drained);
+        treasuryService.payOwner(company, drained + refund);
         AsyncEvents.fire(plugin, new CompanyDisbandEvent(company));
         return true;
     }

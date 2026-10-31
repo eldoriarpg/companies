@@ -13,7 +13,8 @@ import java.util.Map;
 
 /**
  * The areas companies own, the file {@code areas.yml}: which plot and claim plugins they may come from and in which
- * order they are asked, and the company home with its warm-up, cooldown and cost. The areas and homes themselves are
+ * order they are asked, the company home with its warm-up, cooldown and cost, and what selling back and renting
+ * offered areas pay and warn. The areas and homes themselves are
  * stored in the database.
  */
 @SuppressWarnings({"FieldMayBeFinal", "FieldCanBeLocal", "RedundantNoArgConstructor"})
@@ -26,6 +27,8 @@ public class AreaSettings {
     private double homeCost = 0;
     private boolean homePaidByTreasury = false;
     private boolean homeInsideArea = true;
+    private int sellBackPercent = 50;
+    private int rentWarnHours = 24;
 
     public AreaSettings() {}
 
@@ -139,5 +142,28 @@ public class AreaSettings {
 
     public void homeInsideArea(boolean homeInsideArea) {
         this.homeInsideArea = homeInsideArea;
+    }
+
+    /**
+     * @return the part of its price, in percent, a company gets back for a bought area it sells back, and its owner
+     *         when the company is disbanded
+     */
+    public int sellBackPercent() {
+        return Math.clamp(sellBackPercent, 0, 100);
+    }
+
+    public void sellBackPercent(int sellBackPercent) {
+        this.sellBackPercent = sellBackPercent;
+    }
+
+    /**
+     * @return how many hours before a rent is due the company is told, 0 for never
+     */
+    public int rentWarnHours() {
+        return Math.max(0, rentWarnHours);
+    }
+
+    public void rentWarnHours(int rentWarnHours) {
+        this.rentWarnHours = rentWarnHours;
     }
 }

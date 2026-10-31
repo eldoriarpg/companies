@@ -11,6 +11,7 @@ import de.eldoria.companies.components.area.AreaProvider;
 import de.eldoria.companies.components.company.CompanyPermission;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteAreaData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteTestDatabase;
+import de.eldoria.companies.data.wrapper.area.AreaOffer;
 import de.eldoria.companies.data.wrapper.area.AreaSource;
 import de.eldoria.companies.data.wrapper.area.CompanyArea;
 import de.eldoria.companies.data.wrapper.company.CompanyDetails;
@@ -59,6 +60,7 @@ class AreaSyncTest {
     private final UUID builder = UUID.randomUUID();
     private final UUID worker = UUID.randomUUID();
     private final UUID friend = UUID.randomUUID();
+    private final UUID keeper = UUID.randomUUID();
     private final Plot plot = new Plot();
     private final List<CompanyMember> members = new ArrayList<>();
     private ServerMock server;
@@ -247,6 +249,93 @@ class AreaSyncTest {
         assertTrue(rule.allowed(trusted, spot));
     }
 
+    @Test
+    void aBoughtAreaBelongsToTheCompanyOwnerAndOnlyItsBuildersBuild() {
+        plot.owners.clear();
+        plot.owners.add(keeper);
+        fromServer(AreaOffer.Kind.BUY);
+
+        sync.check();
+
+        assertEquals(Set.of(owner), plot.owners);
+        assertEquals(Set.of(builder), plot.builders);
+    }
+
+    @Test
+    void anEndedRentGoesBackToTheKeeperAtOnce() {
+        var id = fromServer(AreaOffer.Kind.RENT);
+        sync.check();
+        areas.endRent(id);
+
+        sync.check();
+
+        assertTrue(areas.area(id).isEmpty());
+        assertEquals(Set.of(keeper), plot.owners);
+        assertTrue(plot.builders.isEmpty());
+    }
+
+    @Test
+    void anEndedRentOfAnAreaThatIsGoneIsDropped() {
+        var id = fromServer(AreaOffer.Kind.RENT);
+        sync.check();
+        areas.endRent(id);
+        plot.exists = false;
+
+        sync.check();
+        assertTrue(areas.area(id).isPresent());
+        later();
+        sync.check();
+
+        assertTrue(areas.area(id).isEmpty());
+    }
+
+    @Test
+    void aBoughtAreaOfACompanyThatIsGoneGoesBackToTheKeeper() {
+        var id = fromServer(AreaOffer.Kind.BUY);
+        sync.check();
+        gone = true;
+
+        sync.check();
+        assertTrue(areas.area(id).isPresent());
+        later();
+        sync.check();
+
+        assertTrue(areas.area(id).isEmpty());
+        assertEquals(Set.of(keeper), plot.owners);
+    }
+
+    private int fromServer(AreaOffer.Kind kind) {
+        var offer = areas.addOffer(new AreaOffer(
+                        0,
+                        "plotsquared",
+                        REF,
+                        "plots",
+                        NODE,
+                        kind,
+                        100,
+                        kind == AreaOffer.Kind.RENT ? 7 : 0,
+                        keeper,
+                        LocalDateTime.of(2026, 10, 31, 12, 0)))
+                .orElseThrow();
+        return areas.add(new CompanyArea(
+                        0,
+                        company,
+                        "plotsquared",
+                        REF,
+                        "plots",
+                        NODE,
+                        kind.source(),
+                        null,
+                        100,
+                        kind == AreaOffer.Kind.RENT ? LocalDateTime.of(2026, 11, 7, 12, 0) : null,
+                        LocalDateTime.of(2026, 10, 31, 12, 0),
+                        offer,
+                        true,
+                        false,
+                        false))
+                .orElseThrow();
+    }
+
     private void later() {
         now = now.plusSeconds(AreaSync.CHECK_SECONDS);
     }
@@ -278,6 +367,7 @@ class AreaSyncTest {
         private final Set<UUID> owners = new HashSet<>();
         private final Set<UUID> builders = new HashSet<>();
         private String canonical = REF;
+        private boolean exists = true;
 
         @Override
         public String id() {
@@ -286,7 +376,7 @@ class AreaSyncTest {
 
         @Override
         public Set<AreaCapability> capabilities() {
-            return EnumSet.of(AreaCapability.LINK_OWNED, AreaCapability.TRUST_LIST);
+            return EnumSet.of(AreaCapability.LINK_OWNED, AreaCapability.TRUST_LIST, AreaCapability.TRANSFER);
         }
 
         @Override
@@ -301,7 +391,7 @@ class AreaSyncTest {
 
         @Override
         public boolean exists(String ref) {
-            return true;
+            return exists;
         }
 
         @Override
@@ -333,6 +423,21 @@ class AreaSyncTest {
         @Override
         public boolean removeBuilder(String ref, UUID player) {
             builders.remove(player);
+            return true;
+        }
+
+        @Override
+        public boolean transferTo(String ref, UUID player) {
+            owners.clear();
+            owners.add(player);
+            return true;
+        }
+
+        @Override
+        public boolean release(String ref, UUID keeper) {
+            builders.clear();
+            owners.clear();
+            if (keeper != null) owners.add(keeper);
             return true;
         }
     }

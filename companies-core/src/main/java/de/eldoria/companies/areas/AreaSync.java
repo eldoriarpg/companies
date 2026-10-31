@@ -9,6 +9,7 @@ import de.eldoria.companies.components.area.AreaCapability;
 import de.eldoria.companies.components.company.CompanyPermission;
 import de.eldoria.companies.components.company.ICompanyMember;
 import de.eldoria.companies.data.repository.AAreaData;
+import de.eldoria.companies.data.wrapper.area.AreaOffer;
 import de.eldoria.companies.data.wrapper.area.AreaSource;
 import de.eldoria.companies.data.wrapper.area.CompanyArea;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
@@ -22,6 +23,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.jetbrains.annotations.Nullable;
 
 import java.time.Instant;
 import java.time.InstantSource;
@@ -61,12 +63,16 @@ import java.util.logging.Logger;
  *     <li>Members with {@code BUILD} who can not build there yet are made builders, and builders Companies made who
  *     lost {@code BUILD} or left are taken off again. A builder the area's owner added themselves is never taken off,
  *     which is why Companies notes the builders it adds.</li>
+ *     <li>A bought or rented area belongs to the owner of its company alone and follows a new owner. Every builder
+ *     who is not a member with {@code BUILD} is taken off. When its rent ended, or its company is gone for at least
+ *     {@value #CHECK_SECONDS} seconds, it goes back to the keeper of its offer; a provider that can not take it back
+ *     is asked again on the next check.</li>
  * </ul>
  * The answers are written back off the main thread, whenever the main thread gets to the round. A check that sees a
  * query fail while reading changes nothing, because a failed read looks like a company or member that is gone. Areas
  * of a provider that is not there or of a world that is not loaded are left alone until they are back. Checks run
  * every {@value #CHECK_SECONDS} seconds and soon after a member joins, leaves, is kicked or gets other permissions on
- * this server; checks and unlinking run one at a time. Each check also renews what the container rule reads on the
+ * this server; checks, unlinking and giving back run one at a time. Each check also renews what the container rule reads on the
  * main thread: which company an area belongs to and the permissions of its members.
  */
 public final class AreaSync implements Listener {
@@ -207,7 +213,37 @@ public final class AreaSync implements Listener {
     }
 
     /**
-     * Checks the areas of this server: unlinks lost ones, renames merged ones and brings their builders in step.
+     * Gives a bought or rented area of this server back to the server: it goes to the keeper of its offer on the main
+     * thread, then the area is dropped. Waits for a running check and blocks; call it off the main thread.
+     *
+     * @param area the area
+     * @return true when the area is back with the server and dropped
+     */
+    public synchronized boolean giveBack(CompanyArea area) {
+        var keeper = keeper(area);
+        var released = onMain(() -> release(area, keeper));
+        if (!released) return false;
+        var removed = areas.remove(area.id());
+        checkSoon();
+        return removed;
+    }
+
+    private @Nullable UUID keeper(CompanyArea area) {
+        return areas.offer(area.offer()).map(AreaOffer::keeper).orElse(null);
+    }
+
+    private boolean release(CompanyArea area, @Nullable UUID keeper) {
+        var released = providers.call(area.provider(), provider -> provider.release(area.ref(), keeper), false);
+        if (!released) {
+            logger.warning("Could not give company area " + area.id() + " (" + area.provider() + " " + area.ref()
+                    + ") back to the server; trying again on the next check");
+        }
+        return released;
+    }
+
+    /**
+     * Checks the areas of this server: unlinks lost ones, gives back what returns to the server, renames merged ones
+     * and brings their owners and builders in step.
      */
     public synchronized void check() {
         queued.set(false);
@@ -218,11 +254,17 @@ public final class AreaSync implements Listener {
             for (var area : found) profiles.computeIfAbsent(area.company(), companies::apply);
             Map<Integer, Set<UUID>> ours = new HashMap<>();
             for (var area : found) ours.put(area.id(), areas.builders(area.id()));
+            Map<Integer, UUID> keepers = new HashMap<>();
+            for (var area : found) {
+                if (!area.fromServer()) continue;
+                var keeper = keeper(area);
+                if (keeper != null) keepers.put(area.id(), keeper);
+            }
             if (queryErrors.getAsLong() != errors) {
                 logger.warning("Skipped a check of the company areas, the database did not answer every read");
                 return;
             }
-            var outcome = onMain(() -> new Round(profiles, ours).run(found));
+            var outcome = onMain(() -> new Round(profiles, ours, keepers).run(found));
             for (var change : outcome.changes()) change.write(areas);
             suspected = Map.copyOf(outcome.suspected());
             Map<Integer, Map<UUID, ICompanyMember>> byCompany = new HashMap<>();
@@ -277,15 +319,20 @@ public final class AreaSync implements Listener {
     private final class Round {
         private final Map<Integer, Optional<CompanyProfile>> profiles;
         private final Map<Integer, Set<UUID>> ours;
+        private final Map<Integer, UUID> keepers;
         private final List<Change> changes = new ArrayList<>();
         private final Map<String, Integer> kept = new HashMap<>();
         private final Map<String, CompanyArea> stayed = new HashMap<>();
         private final Map<Integer, Instant> lost = new HashMap<>();
         private final Instant now = clock.instant();
 
-        private Round(Map<Integer, Optional<CompanyProfile>> profiles, Map<Integer, Set<UUID>> ours) {
+        private Round(
+                Map<Integer, Optional<CompanyProfile>> profiles,
+                Map<Integer, Set<UUID>> ours,
+                Map<Integer, UUID> keepers) {
             this.profiles = profiles;
             this.ours = ours;
+            this.keepers = keepers;
         }
 
         private Outcome run(List<CompanyArea> found) {
@@ -308,14 +355,20 @@ public final class AreaSync implements Listener {
             var profile = profiles.getOrDefault(area.company(), Optional.empty());
             var mine = ours.getOrDefault(area.id(), Set.of());
             var exists = providers.call(id, provider -> provider.exists(area.ref()), true);
-            if (profile.isEmpty() || !exists || lostLink(area, profile.get())) {
-                var since = suspected.getOrDefault(area.id(), now);
-                if (!since.plusSeconds(CHECK_SECONDS).isAfter(now)) {
-                    drop(area, mine);
+            if (area.rentEnded() && exists) {
+                handBack(area);
+                return;
+            }
+            if (area.rentEnded() || profile.isEmpty() || !exists || lostLink(area, profile.get())) {
+                if (!lostLongEnough(area)) {
+                    kept.put(new AreaRef(id, ref).toString(), area.company());
                     return;
                 }
-                lost.put(area.id(), since);
-                kept.put(new AreaRef(id, ref).toString(), area.company());
+                if (exists && area.fromServer()) {
+                    handBack(area);
+                } else {
+                    drop(area, mine);
+                }
                 return;
             }
             var key = new AreaRef(id, ref).toString();
@@ -327,14 +380,18 @@ public final class AreaSync implements Listener {
             stayed.put(key, area);
             if (!ref.equals(area.ref())) changes.add(store -> rename(store, area, ref));
             kept.put(key, area.company());
+            if (area.fromServer()) followOwner(area, ref, profile.get());
             if (!providers.call(id, provider -> provider.capabilities().contains(AreaCapability.TRUST_LIST), false)) {
                 return;
             }
+            var builders = providers.call(id, provider -> provider.builders(ref), Set.<UUID>of());
+            Set<UUID> removable = new HashSet<>(mine);
+            if (area.fromServer()) removable.addAll(builders);
             var plan = plan(
                     wanted(profile.get()),
                     providers.call(id, provider -> provider.owners(ref), Set.of()),
-                    providers.call(id, provider -> provider.builders(ref), Set.of()),
-                    mine);
+                    builders,
+                    removable);
             for (var player : plan.add()) {
                 if (providers.call(id, provider -> provider.addBuilder(ref, player), false)) {
                     changes.add(store -> store.addBuilder(area.id(), player));
@@ -361,6 +418,43 @@ public final class AreaSync implements Listener {
                 for (var player : mine) store.addBuilder(other.id(), player);
                 store.remove(area.id());
             });
+        }
+
+        /**
+         * Notes that an area looks lost and tells whether it has looked so for at least {@value #CHECK_SECONDS}
+         * seconds.
+         */
+        private boolean lostLongEnough(CompanyArea area) {
+            var since = suspected.getOrDefault(area.id(), now);
+            if (!since.plusSeconds(CHECK_SECONDS).isAfter(now)) return true;
+            lost.put(area.id(), since);
+            return false;
+        }
+
+        /**
+         * Makes the owner of the company the only owner of a bought or rented area, as after the company got a new
+         * owner.
+         */
+        private void followOwner(CompanyArea area, String ref, CompanyProfile company) {
+            var owner = company.members().stream()
+                    .filter(member -> member.hasPermission(CompanyPermission.OWNER))
+                    .map(ICompanyMember::uuid)
+                    .findFirst();
+            if (owner.isEmpty()) return;
+            var id = area.provider();
+            if (providers
+                    .call(id, provider -> provider.owners(ref), Set.<UUID>of())
+                    .equals(Set.of(owner.get()))) return;
+            if (!providers.call(id, provider -> provider.capabilities().contains(AreaCapability.TRANSFER), false)) {
+                return;
+            }
+            if (!providers.call(id, provider -> provider.transferTo(ref, owner.get()), false)) {
+                logger.warning("Could not give company area " + area.id() + " to the owner of its company");
+            }
+        }
+
+        private void handBack(CompanyArea area) {
+            if (release(area, keepers.get(area.id()))) changes.add(store -> store.remove(area.id()));
         }
 
         private void drop(CompanyArea area, Set<UUID> mine) {

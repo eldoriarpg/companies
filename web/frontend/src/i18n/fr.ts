@@ -1001,6 +1001,8 @@ export default {
                     homeCost: "Prix d'une téléportation au siège",
                     homePaidByTreasury: 'La trésorerie paie la téléportation au siège',
                     homeInsideArea: "Une entreprise avec des zones place son siège dans l'une d'elles",
+                    sellBackPercent: 'Pourcentage du prix rendu pour une zone achetée revendue ou dissoute',
+                    rentWarnHours: 'Heures avant l’échéance du loyer où l’entreprise est prévenue',
                 },
             },
         },
@@ -1434,6 +1436,9 @@ export default {
             SHARE_CHANGED: 'Part modifiée',
             CONTEST_PRIZE: 'Prix de concours',
             HOME_TELEPORT: 'Téléportation au siège',
+            AREA_BUY: 'Zone achetée',
+            AREA_RENT: 'Loyer de zone',
+            AREA_SALE: 'Zone revendue',
         },
     },
     jobs: {

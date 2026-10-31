@@ -1001,6 +1001,8 @@ export default {
                     homeCost: 'Preis eines Teleports nach Hause',
                     homePaidByTreasury: 'Die Kasse zahlt den Teleport nach Hause',
                     homeInsideArea: 'Eine Firma mit Gebieten setzt ihr Zuhause in einem davon',
+                    sellBackPercent: 'Prozent des Preises, die für ein gekauftes Gebiet beim Rückverkauf oder Auflösen erstattet werden',
+                    rentWarnHours: 'Stunden vor fälliger Miete, in denen die Firma erinnert wird',
                 },
             },
         },
@@ -1434,6 +1436,9 @@ export default {
             SHARE_CHANGED: 'Anteil geändert',
             CONTEST_PRIZE: 'Wettbewerbspreis',
             HOME_TELEPORT: 'Teleport nach Hause',
+            AREA_BUY: 'Gebiet gekauft',
+            AREA_RENT: 'Gebietsmiete',
+            AREA_SALE: 'Gebiet zurückverkauft',
         },
     },
     jobs: {

@@ -420,7 +420,24 @@ public enum NotificationType {
             "notification.myJobHarvestEnded",
             NotificationCategory.MY_ORDERS,
             true,
-            new Action("/order job collect <job_id>", "words.collect"));
+            new Action("/order job collect <job_id>", "words.collect")),
+    /**
+     * The rent of an area of the company is due soon. Arguments: {@code area}, {@code amount}, {@code duration}.
+     */
+    AREA_RENT_DUE(71, "notification.areaRentDue", NotificationCategory.COMPANY, false, null),
+    /**
+     * The treasury paid the rent of an area for another period. Arguments: {@code area}, {@code amount},
+     * {@code duration} (the time paid for).
+     */
+    AREA_RENT_RENEWED(72, "notification.areaRentRenewed", NotificationCategory.COMPANY, false, null),
+    /**
+     * The treasury could not pay the rent of an area, so the rent ended. Arguments: {@code area}, {@code amount}.
+     */
+    AREA_RENT_UNPAID(73, "notification.areaRentUnpaid", NotificationCategory.COMPANY, true, null),
+    /**
+     * The rent of an area ran out after it was cancelled. Arguments: {@code area}.
+     */
+    AREA_RENT_ENDED(74, "notification.areaRentEnded", NotificationCategory.COMPANY, false, null);
 
     private final int id;
     private final String key;

@@ -200,6 +200,7 @@ bukkit {
                 "companies.admin.delete",
                 "companies.admin.events",
                 "companies.admin.grant",
+                "companies.admin.areas",
                 "companies.admin.areas.bypass",
                 "companies.admin.jobs",
                 "companies.admin.jobs.bypass",
@@ -238,6 +239,9 @@ bukkit {
         }
         register("companies.admin.grant") {
             description = "Allows granting items and money to players"
+        }
+        register("companies.admin.areas") {
+            description = "Allows offering plots and regions to companies and withdrawing the offers"
         }
         register("companies.admin.areas.bypass") {
             description = "Lets a player open containers in company areas without the company permission"

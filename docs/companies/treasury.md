@@ -67,6 +67,9 @@ most the new highest share from then on.
 | Disband payout | The balance was paid to the owner when the company was disbanded |
 | Added by an admin / Removed by an admin | An admin changed the balance |
 | Share changed | The payout share was changed. No money moved. |
+| Contest prize | The company's prize of a contest |
+| Home teleport | A teleport home paid from the treasury |
+| Area bought / Area rent / Area sold back | A [company area](./areas.md) bought or rented from the server, or sold back to it |
 
 Log entries are kept for 365 days by default.
 

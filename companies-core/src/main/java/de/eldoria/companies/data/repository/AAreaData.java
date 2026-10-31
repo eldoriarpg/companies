@@ -5,8 +5,10 @@
  */
 package de.eldoria.companies.data.repository;
 
+import de.eldoria.companies.data.wrapper.area.AreaOffer;
 import de.eldoria.companies.data.wrapper.area.CompanyArea;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -95,4 +97,82 @@ public abstract class AAreaData {
      * @param player the player
      */
     public abstract void removeBuilder(int area, UUID player);
+
+    /**
+     * Stores an offer of the server.
+     *
+     * @param offer the offer
+     * @return id of the offer, empty when the area is offered already
+     */
+    public abstract Optional<Integer> addOffer(AreaOffer offer);
+
+    /**
+     * @param id id of an offer
+     * @return the offer, empty when there is none
+     */
+    public abstract Optional<AreaOffer> offer(int id);
+
+    /**
+     * @param provider id of the area provider
+     * @param ref      the provider's reference of the area
+     * @return the offer of the area, empty when it is not offered
+     */
+    public abstract Optional<AreaOffer> offerOf(String provider, String ref);
+
+    /**
+     * @return every offer, oldest first
+     */
+    public abstract List<AreaOffer> offers();
+
+    /**
+     * @return the offers no company has, oldest first
+     */
+    public abstract List<AreaOffer> openOffers();
+
+    /**
+     * Withdraws an offer no company has.
+     *
+     * @param id id of the offer
+     * @return true when it was withdrawn; false when it is not there or a company has the area
+     */
+    public abstract boolean removeOffer(int id);
+
+    /**
+     * @return the rented areas whose rent has not ended, the one due first first
+     */
+    public abstract List<CompanyArea> rents();
+
+    /**
+     * Notes that a rent was paid for another period. Only changes the area while it is still paid until {@code from}
+     * and renews, so a period is never stored twice and a rent cancelled meanwhile is not renewed.
+     *
+     * @param id    id of the area
+     * @param from  until when it was paid
+     * @param until until when it is paid now
+     * @return true when it was stored
+     */
+    public abstract boolean renewed(int id, LocalDateTime from, LocalDateTime until);
+
+    /**
+     * Notes that the company was told that the rent of an area is due soon.
+     *
+     * @param id id of the area
+     */
+    public abstract void rentWarned(int id);
+
+    /**
+     * Ends the rent of an area, which then goes back to the server.
+     *
+     * @param id id of the area
+     * @return true when it was rented and its rent had not ended
+     */
+    public abstract boolean endRent(int id);
+
+    /**
+     * Lets the rent of an area run out at the end of the period paid.
+     *
+     * @param id id of the area
+     * @return true when it was renewing
+     */
+    public abstract boolean stopRenewing(int id);
 }

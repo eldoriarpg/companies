@@ -369,7 +369,8 @@ public final class DashboardWorld implements AutoCloseable {
                         NotificationSettings::new,
                         (player, type, args) -> {},
                         Runnable::run),
-                treasuryService);
+                treasuryService,
+                ignored -> 0L);
         var company = new CompanyWrites(new CompanyWrites.Sources(
                 player -> companies
                         .retrievePlayerCompanyProfile(SqLiteTestDatabase.player(player))

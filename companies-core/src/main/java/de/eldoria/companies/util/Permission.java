@@ -122,6 +122,10 @@ public final class Permission {
          */
         public static final String AREAS_BYPASS = ADMIN + ".areas.bypass";
         /**
+         * The permission to offer plots and regions to companies and withdraw the offers.
+         */
+        public static final String AREAS = ADMIN + ".areas";
+        /**
          * The permission to create debug reports.
          */
         public static final String DEBUG = ADMIN + ".debug";
