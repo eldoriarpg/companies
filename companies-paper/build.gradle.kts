@@ -164,7 +164,7 @@ bukkit {
 
         register("companies.company.*") {
             description = "Gives access to company commands"
-            children = listOf("companies.company.create", "companies.company.join")
+            children = listOf("companies.company.create", "companies.company.join", "companies.company.home")
         }
         register("companies.company.create") {
             description = "Allows creation of a company"
@@ -172,6 +172,10 @@ bukkit {
         }
         register("companies.company.join") {
             description = "Allows joining a company"
+            default = Default.TRUE
+        }
+        register("companies.company.home") {
+            description = "Allows teleporting to the home of the player's company"
             default = Default.TRUE
         }
 

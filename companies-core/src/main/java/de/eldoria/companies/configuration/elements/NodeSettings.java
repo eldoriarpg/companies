@@ -20,6 +20,7 @@ public class NodeSettings {
     private NodeType nodeType = NodeType.PRIMARY;
     private UUID nodeUid = UUID.randomUUID();
     private String name = "";
+    private String proxyServer = "";
     private NodeDashboardSettings dashboard = new NodeDashboardSettings();
 
     @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -45,6 +46,23 @@ public class NodeSettings {
         if (name == null) return "";
         var stripped = name.strip();
         return stripped.length() > MAX_NAME ? stripped.substring(0, MAX_NAME) : stripped;
+    }
+
+    /**
+     * The name of this server in the proxy's configuration, such as {@code survival} in Velocity's {@code [servers]}.
+     * Players are sent here through the proxy to reach a company home set on this server.
+     *
+     * @return the name, empty when this server is not behind a proxy or has no name there
+     */
+    public String proxyServer() {
+        return proxyServer == null ? "" : proxyServer.strip();
+    }
+
+    /**
+     * @param proxyServer the name of this server in the proxy's configuration, empty for none
+     */
+    public void proxyServer(String proxyServer) {
+        this.proxyServer = proxyServer == null ? "" : proxyServer.strip();
     }
 
     /**

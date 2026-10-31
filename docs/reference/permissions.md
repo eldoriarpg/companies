@@ -25,6 +25,7 @@ Every player has these by default. Take one away to block a feature.
 | `companies.orders.solo` | everyone | Take orders alone, without a company: `/order work accept` and the `[Work alone]` button of the order search. Only works while `solo.enabled` is on in [order.yml](../admin/configuration/order-yml.md#solo). |
 | `companies.orders.jobs` | everyone | Post jobs with `/order job dig`: work in an area of your plot, your region or unowned land where the server allows it, which a company takes like an order. See [Jobs](../players/jobs.md). |
 | `companies.company.create` | everyone | Found a company with `/company create`. |
+| `companies.company.home` | everyone | Teleport to the home of your company: `/company home`. |
 | `companies.company.join` | everyone | Join a company: `/company join`, `/company apply`, `/company apply withdraw` and `/company invites accept`. An online player without it cannot be invited. |
 | `companies.boards.use` | everyone | Open order boards through signs, NPCs and `/company board`. |
 | `companies.dashboard.use` | everyone | Open the [web dashboard](../players/dashboard.md) with `/company dashboard` while the server enabled it. Taking it away ends the player's logins. New in 2.1. |
@@ -80,7 +81,7 @@ These give every permission listed below them. On their own, they do nothing.
 |---|---|---|
 | `companies.*` | op | `companies.orders.*`, `companies.company.*`, `companies.boards.use`, `companies.dashboard.use`, `companies.admin.*`, `companies.updates` |
 | `companies.orders.*` | op | `companies.orders.create`, `companies.orders.repeat`, `companies.orders.solo`, `companies.orders.jobs` |
-| `companies.company.*` | op | `companies.company.create`, `companies.company.join` |
+| `companies.company.*` | op | `companies.company.create`, `companies.company.join`, `companies.company.home` |
 | `companies.admin.*` | op | `companies.admin`, `companies.admin.boards`, `companies.admin.calcLevel`, `companies.admin.dashboard`, `companies.admin.debug`, `companies.admin.delete`, `companies.admin.events`, `companies.admin.grant`, `companies.admin.jobs`, `companies.admin.jobs.bypass`, `companies.admin.level`, `companies.admin.nodes`, `companies.admin.offers`, `companies.admin.orders`, `companies.admin.player`, `companies.admin.reload`, `companies.admin.rename`, `companies.admin.transferOwner`, `companies.admin.treasury` |
 
 :::note

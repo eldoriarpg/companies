@@ -17,6 +17,7 @@ import de.eldoria.companies.commands.company.DashboardCommand;
 import de.eldoria.companies.commands.company.Disband;
 import de.eldoria.companies.commands.company.EventsCommand;
 import de.eldoria.companies.commands.company.HistoryCommand;
+import de.eldoria.companies.commands.company.HomeCommand;
 import de.eldoria.companies.commands.company.InboxCommand;
 import de.eldoria.companies.commands.company.InviteCommand;
 import de.eldoria.companies.commands.company.InvitesCommand;
@@ -131,7 +132,10 @@ final class CompanyCommand {
     @Subcommand
     final EventsCommand events;
 
+    private final HomeCommand home;
+
     CompanyCommand(CommandDependencies deps) {
+        home = new HomeCommand(deps);
         order = new CompanyOrderCommand(deps);
         permission = new Permission(deps);
         member = new MemberCommand(deps, permission::show);
@@ -159,6 +163,28 @@ final class CompanyCommand {
         contest = new ContestCommand(deps);
         job = new CompanyJobCommand(deps);
         events = new EventsCommand(deps, new OrderSearch(deps, order.info::info, order.accept::accept), contest);
+    }
+
+    /**
+     * Teleports the sender to the home of their company.
+     *
+     * @param sender sender of the command
+     */
+    @Executes("home")
+    @PlayerOnly
+    void home(CommandSender sender) {
+        home.home(sender);
+    }
+
+    /**
+     * Sets the home of the sender's company where they stand.
+     *
+     * @param sender sender of the command
+     */
+    @Executes("sethome")
+    @PlayerOnly
+    void setHome(CommandSender sender) {
+        home.setHome(sender);
     }
 
     /**

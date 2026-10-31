@@ -173,6 +173,8 @@ Commands for company members and owners. Read [Founding and joining](../companie
 | `/company transfer confirm` | none | owner | Confirms the transfer. |
 | `/company disband` | none | owner | Dissolves the company. Asks you to confirm. The treasury is paid out to the owner. |
 | `/company disband confirm` | none | owner | Confirms the disband. |
+| `/company home` | `companies.company.home` | none | Teleports you to your company's home, after the warm-up. |
+| `/company sethome` | none | `manage_areas` | Sets your company's home where you stand. |
 | `/company rename <name>` | none | owner | Renames the company for a price. Asks you to confirm. |
 | `/company rename confirm` | none | owner | Confirms and pays the price from your own money. |
 | `/company rename confirm treasury` | none | owner | Confirms and pays the price from the treasury. Needs `treasury.payRename` and an enabled treasury ([company.yml](../admin/configuration/company-yml.md)). |

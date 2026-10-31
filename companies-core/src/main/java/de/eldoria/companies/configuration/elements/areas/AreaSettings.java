@@ -13,13 +13,19 @@ import java.util.Map;
 
 /**
  * The areas companies own, the file {@code areas.yml}: which plot and claim plugins they may come from and in which
- * order they are asked. The areas themselves are stored in the database.
+ * order they are asked, and the company home with its warm-up, cooldown and cost. The areas and homes themselves are
+ * stored in the database.
  */
 @SuppressWarnings({"FieldMayBeFinal", "FieldCanBeLocal", "RedundantNoArgConstructor"})
 public class AreaSettings {
     private boolean enabled = true;
     private List<String> providerOrder = new ArrayList<>(List.of("plotsquared", "worldguard"));
     private Map<String, Boolean> providers = defaultProviders();
+    private int homeWarmupSeconds = 3;
+    private int homeCooldownSeconds = 60;
+    private double homeCost = 0;
+    private boolean homePaidByTreasury = false;
+    private boolean homeInsideArea = true;
 
     public AreaSettings() {}
 
@@ -78,5 +84,60 @@ public class AreaSettings {
 
     public void providers(Map<String, Boolean> providers) {
         this.providers = new LinkedHashMap<>(providers);
+    }
+
+    /**
+     * @return how many seconds a player stands still before the teleport home, 0 for none
+     */
+    public int homeWarmupSeconds() {
+        return Math.max(0, homeWarmupSeconds);
+    }
+
+    public void homeWarmupSeconds(int homeWarmupSeconds) {
+        this.homeWarmupSeconds = homeWarmupSeconds;
+    }
+
+    /**
+     * @return how many seconds a player waits after a teleport home before the next, 0 for none
+     */
+    public int homeCooldownSeconds() {
+        return Math.max(0, homeCooldownSeconds);
+    }
+
+    public void homeCooldownSeconds(int homeCooldownSeconds) {
+        this.homeCooldownSeconds = homeCooldownSeconds;
+    }
+
+    /**
+     * @return what a teleport home costs, 0 for nothing
+     */
+    public double homeCost() {
+        return Math.max(0, homeCost);
+    }
+
+    public void homeCost(double homeCost) {
+        this.homeCost = homeCost;
+    }
+
+    /**
+     * @return whether the company's treasury pays a teleport home instead of the player
+     */
+    public boolean homePaidByTreasury() {
+        return homePaidByTreasury;
+    }
+
+    public void homePaidByTreasury(boolean homePaidByTreasury) {
+        this.homePaidByTreasury = homePaidByTreasury;
+    }
+
+    /**
+     * @return whether a company with areas must set its home inside one of them
+     */
+    public boolean homeInsideArea() {
+        return homeInsideArea;
+    }
+
+    public void homeInsideArea(boolean homeInsideArea) {
+        this.homeInsideArea = homeInsideArea;
     }
 }

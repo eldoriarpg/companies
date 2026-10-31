@@ -16,6 +16,8 @@ import de.chojo.sadu.updater.QueryReplacement;
 import de.chojo.sadu.updater.SqlUpdater;
 import de.eldoria.companies.api.CompaniesApiImpl;
 import de.eldoria.companies.areas.AreaHooks;
+import de.eldoria.companies.areas.AreaServices;
+import de.eldoria.companies.areas.HomeTeleports;
 import de.eldoria.companies.boards.SignBoards;
 import de.eldoria.companies.boards.npc.NpcHooks;
 import de.eldoria.companies.commands.CommandDependencies;
@@ -30,6 +32,7 @@ import de.eldoria.companies.commands.suggest.SeriesSources;
 import de.eldoria.companies.commands.suggest.SuggestionSources;
 import de.eldoria.companies.commands.suggest.TreasurySources;
 import de.eldoria.companies.commands.support.CommandFailures;
+import de.eldoria.companies.components.company.TreasuryKind;
 import de.eldoria.companies.configuration.ChangeTracker;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.configuration.elements.NodeType;
@@ -41,6 +44,7 @@ import de.eldoria.companies.data.migration.UtcMigration;
 import de.eldoria.companies.data.repository.AAreaData;
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.repository.ADashboardData;
+import de.eldoria.companies.data.repository.AHomeData;
 import de.eldoria.companies.data.repository.AJobData;
 import de.eldoria.companies.data.repository.AMembershipData;
 import de.eldoria.companies.data.repository.ANodeData;
@@ -55,6 +59,7 @@ import de.eldoria.companies.data.repository.impl.mariadb.MariaDbAreaData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbCompanyData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbDashboardData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbHistoryData;
+import de.eldoria.companies.data.repository.impl.mariadb.MariaDbHomeData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbInboxData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbJobData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbMembershipData;
@@ -72,6 +77,7 @@ import de.eldoria.companies.data.repository.impl.postgres.PostgresAreaData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresCompanyData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresDashboardData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresHistoryData;
+import de.eldoria.companies.data.repository.impl.postgres.PostgresHomeData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresInboxData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresJobData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresMembershipData;
@@ -89,6 +95,7 @@ import de.eldoria.companies.data.repository.impl.sqlite.SqLiteAreaData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteCompanyData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteDashboardData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteHistoryData;
+import de.eldoria.companies.data.repository.impl.sqlite.SqLiteHomeData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteInboxData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteJobData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteMembershipData;
@@ -101,6 +108,7 @@ import de.eldoria.companies.data.repository.impl.sqlite.SqLiteSeriesData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteServerEventData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteStatsData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteTreasuryData;
+import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.event.ServerEvent;
 import de.eldoria.companies.data.wrapper.nodes.Node;
 import de.eldoria.companies.data.wrapper.offer.EventOffer;
@@ -206,11 +214,13 @@ import org.jetbrains.annotations.NotNull;
 import org.jspecify.annotations.Nullable;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
@@ -246,6 +256,8 @@ public class Companies extends EldoPlugin {
     private AServerEventData serverEventData;
     private AJobData jobData;
     private AAreaData areaData;
+    private AHomeData homeData;
+    private volatile @Nullable HomeTeleports homes;
     private volatile @Nullable JobServices jobs;
     private InformationData information;
     private EconomyData economy;
@@ -589,6 +601,15 @@ public class Companies extends EldoPlugin {
                 activeEvents,
                 feeReductions);
         jobs = jobServices;
+        var homeTeleports = homeTeleports(economy, treasuryService);
+        homes = homeTeleports;
+        var areaServices = new AreaServices(
+                api.areaProviders(),
+                areaData,
+                homeData,
+                homeTeleports,
+                configuration.nodeSettings().nodeUid(),
+                () -> configuration.nodeSettings().proxyServer());
 
         if (commands != null) {
             commands.provide(new CommandDependencies.Services(
@@ -633,7 +654,8 @@ public class Companies extends EldoPlugin {
                     serverEventData,
                     activeEvents,
                     feeReductions,
-                    jobServices));
+                    jobServices,
+                    areaServices));
         }
         if (api != null)
             api.open(new CompaniesApiImpl.Writes(
@@ -841,6 +863,92 @@ public class Companies extends EldoPlugin {
     }
 
     /**
+     * Builds the teleports to company homes: the cost from the player through Vault on the main thread or from the
+     * treasury, the notices through the message sender, and the proxy channel registered.
+     *
+     * @param vault           the economy of the server
+     * @param treasuryService the treasuries
+     * @return the teleports, listening to moves, damage and joins
+     */
+    private HomeTeleports homeTeleports(Economy vault, TreasuryService treasuryService) {
+        var messages = MessageSender.getPluginMessageSender(this);
+        var teleports = new HomeTeleports(
+                this,
+                homeData,
+                configuration::areaSettings,
+                configuration.nodeSettings().nodeUid(),
+                (player, company) -> {
+                    var profile = companyData
+                            .retrievePlayerCompanyProfile(getServer().getOfflinePlayer(player))
+                            .asFuture()
+                            .join();
+                    var member = profile != null
+                            && profile.filter(found -> found.id() == company).isPresent();
+                    return member ? homeData.home(company) : Optional.empty();
+                },
+                new HomeTeleports.Payments() {
+                    @Override
+                    public boolean charge(Player player, double amount) {
+                        return vault.has(player, amount)
+                                && vault.withdrawPlayer(player, amount).transactionSuccess();
+                    }
+
+                    @Override
+                    public void refundPlayer(Player player, double amount) {
+                        var response = vault.depositPlayer(player, amount);
+                        if (!response.transactionSuccess()) {
+                            getLogger()
+                                    .severe("Could not give " + player.getName() + " back " + amount
+                                            + " of a home teleport: " + response.errorMessage);
+                        }
+                    }
+
+                    @Override
+                    public CompletableFuture<Boolean> chargeTreasury(
+                            CompanyProfile company, Player player, double amount) {
+                        return treasuryService
+                                .spend(
+                                        company,
+                                        player.getUniqueId(),
+                                        BigDecimal.valueOf(amount),
+                                        TreasuryKind.HOME_TELEPORT,
+                                        "home",
+                                        () -> CompletableFuture.completedFuture(true))
+                                .thenApply(TreasuryService.Result::done);
+                    }
+
+                    @Override
+                    public void refundTreasury(CompanyProfile company, Player player, double amount) {
+                        treasuryService.refund(company, player.getUniqueId(), BigDecimal.valueOf(amount), "home");
+                    }
+                },
+                (player, notice, detail) -> messages.sendMessage(
+                        player, "company.home.notice." + noticeKey(notice), Values.text("detail", detail)),
+                Threading.VIRTUAL,
+                Times.UTC,
+                getLogger());
+        getServer().getPluginManager().registerEvents(teleports, this);
+        var node = configuration.nodeSettings().nodeUid();
+        var proxyServer = configuration.nodeSettings().proxyServer();
+        CompletableFuture.runAsync(() -> homeData.server(node, proxyServer), Threading.VIRTUAL)
+                .exceptionally(err -> {
+                    getLogger().log(Level.WARNING, "Could not store the proxy name of this server's homes", err);
+                    return null;
+                });
+        getServer().getMessenger().registerOutgoingPluginChannel(this, HomeTeleports.CHANNEL);
+        return teleports;
+    }
+
+    private static String noticeKey(HomeTeleports.Notice notice) {
+        var parts = notice.name().toLowerCase(Locale.ROOT).split("_");
+        var key = new StringBuilder(parts[0]);
+        for (var i = 1; i < parts.length; i++) {
+            key.append(Character.toUpperCase(parts[i].charAt(0))).append(parts[i].substring(1));
+        }
+        return key.toString();
+    }
+
+    /**
      * Starts the web dashboard of this node, which connects only while it is enabled. A new key stored on another node
      * makes it connect again.
      *
@@ -1032,6 +1140,10 @@ public class Companies extends EldoPlugin {
             runningJobs.access().stop();
             runningJobs.ghosts().stop();
         }
+        var runningHomes = homes;
+        if (runningHomes != null) {
+            runningHomes.stop();
+        }
         if (dashboard != null) dashboard.stop();
         if (api != null) api.unregister(this);
         if (commands != null) {
@@ -1132,6 +1244,7 @@ public class Companies extends EldoPlugin {
                 serverEventData = new SqLiteServerEventData();
                 jobData = new SqLiteJobData();
                 areaData = new SqLiteAreaData();
+                homeData = new SqLiteHomeData();
                 information = new InformationData(
                         new SqLiteInboxData(Threading.VIRTUAL),
                         new SqLiteStatsData(Threading.VIRTUAL),
@@ -1153,6 +1266,7 @@ public class Companies extends EldoPlugin {
                 serverEventData = new MariaDbServerEventData();
                 jobData = new MariaDbJobData();
                 areaData = new MariaDbAreaData();
+                homeData = new MariaDbHomeData();
                 information = new InformationData(
                         new MariaDbInboxData(Threading.VIRTUAL),
                         new MariaDbStatsData(Threading.VIRTUAL),
@@ -1174,6 +1288,7 @@ public class Companies extends EldoPlugin {
                 serverEventData = new PostgresServerEventData();
                 jobData = new PostgresJobData();
                 areaData = new PostgresAreaData();
+                homeData = new PostgresHomeData();
                 information = new InformationData(
                         new PostgresInboxData(Threading.VIRTUAL),
                         new PostgresStatsData(Threading.VIRTUAL),

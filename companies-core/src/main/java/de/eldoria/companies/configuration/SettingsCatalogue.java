@@ -386,6 +386,11 @@ public final class SettingsCatalogue {
         areas.flag("enabled");
         areas.add(Type.TEXT_LIST, "providerOrder", List.of(), false);
         areas.add(Type.FLAG_MAP, "providers", List.of(), false);
+        areas.whole("homeWarmupSeconds");
+        areas.whole("homeCooldownSeconds");
+        areas.decimal("homeCost");
+        areas.flag("homePaidByTreasury");
+        areas.flag("homeInsideArea");
         return List.copyOf(fields);
     }
 

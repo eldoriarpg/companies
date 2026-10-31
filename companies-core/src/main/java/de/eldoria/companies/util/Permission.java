@@ -54,6 +54,10 @@ public final class Permission {
         private static final String COMPANY = BASE + ".company";
         public static final String CREATE = COMPANY + ".create";
         public static final String JOIN = COMPANY + ".join";
+        /**
+         * The permission to teleport to the company's home.
+         */
+        public static final String HOME = COMPANY + ".home";
 
         private Company() {
             throw new UnsupportedOperationException("This is a utility class.");
