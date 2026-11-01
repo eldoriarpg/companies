@@ -19,6 +19,7 @@ import de.eldoria.companies.orders.OrderCreationService;
 import de.eldoria.companies.orders.OrderDraftService;
 import de.eldoria.companies.orders.OrderMaterials;
 import de.eldoria.companies.orders.Repetition;
+import de.eldoria.companies.util.Money;
 import de.eldoria.companies.util.Permission;
 import de.eldoria.companies.util.Threading;
 import de.eldoria.eldoutilities.localization.MessageComposer;
@@ -286,9 +287,9 @@ public final class OrderBuilderController {
     }
 
     private static double average(MaterialPrice price) {
-        return OrderBuilder.offeredMarketPrice(false, price)
+        return Money.offered(OrderBuilder.offeredMarketPrice(false, price)
                 .orElseThrow(OrderBuilderController::noMarketPrice)
-                .price();
+                .price());
     }
 
     private static CommandFailure noMarketPrice() {

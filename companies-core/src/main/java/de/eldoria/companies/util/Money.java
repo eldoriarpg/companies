@@ -41,6 +41,18 @@ public final class Money {
     }
 
     /**
+     * A price as it is offered to a player: rounded half up to cents, and at least one cent.
+     *
+     * @param price price to round
+     * @return the rounded price
+     */
+    public static double offered(double price) {
+        return Math.max(
+                0.01,
+                BigDecimal.valueOf(price).setScale(2, RoundingMode.HALF_UP).doubleValue());
+    }
+
+    /**
      * The share of an amount described by a percentage.
      *
      * @param amount  amount to take the share of
