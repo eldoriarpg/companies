@@ -7,7 +7,7 @@ import {describe, expect, it} from 'vitest'
 import {catalogue, knownItems, material} from '~/test/catalogue'
 import {type DraftRepetition, conditionsOf, criteriaSource, definable, detailsOf, excluded, itemOf, orderArgs, trimmed, viewConditions} from './orderDraft'
 
-const COUNT = (count: number) => `at least ${count}`
+const COUNT = {count: (count: number) => `at least ${count}`, durability: (percent: number) => `${percent} % left`}
 
 const ONCE: DraftRepetition = {enabled: false, interval: 'weekly', end: 'times', times: undefined, until: ''}
 
@@ -101,8 +101,15 @@ describe('an order draft', () => {
     })
 
     it('writes the conditions the plugin sent for a line', () => {
-        const criteria = {items: [], minEnchantments: 3, enchantments: [{key: 'minecraft:looting', name: 'Looting', minLevel: 2}]}
+        const criteria = {items: [], minEnchantments: 3, enchantments: [{key: 'minecraft:looting', name: 'Looting', minLevel: 2}], minDurability: 0}
 
         expect(viewConditions(criteria, COUNT)).toEqual(['at least 3', 'Looting II+'])
+    })
+
+    it('writes the potion type and the durability after the enchantments', () => {
+        const criteria = {items: [], minEnchantments: 0, enchantments: [], potion: {key: 'minecraft:swiftness', name: 'Swiftness'}, minDurability: 80}
+
+        expect(viewConditions(criteria, COUNT)).toEqual(['Swiftness', '80 % left'])
+        expect(conditionsOf({items: [], potion: 'minecraft:unknown', minDurability: 50}, null, COUNT)).toEqual(['minecraft:unknown', '50 % left'])
     })
 })

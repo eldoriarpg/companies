@@ -6,6 +6,7 @@
 package de.eldoria.companies.dashboard.actions;
 
 import de.eldoria.companies.components.order.OrderState;
+import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.configuration.RulesEditor;
 import de.eldoria.companies.configuration.elements.systemorders.RuleEntry;
 import de.eldoria.companies.dashboard.DashboardWorld;
@@ -196,7 +197,9 @@ class AdminSystemOrderWritesTest {
         var averaged = "{\"id\":\"logs\",\"pick\":\"rotate\",\"items\":["
                 + "{\"material\":\"OAK_LOG\"},"
                 + "{\"criteria\":\"#logs\",\"resolve\":\"ONE\"},"
-                + "{\"criteria\":\"#logs\"}]}";
+                + "{\"criteria\":\"#logs\"},"
+                + "{\"criteria\":\"diamond_sword durability:50\",\"resolve\":\"ONE\"},"
+                + "{\"criteria\":\"potion potion:swiftness\",\"resolve\":\"ONE\"}]}";
 
         var saved = perform(
                 Actions.ADMIN_SYSTEM_ORDERS_RULES_SAVE,
@@ -218,6 +221,8 @@ class AdminSystemOrderWritesTest {
         assertTrue(errors.path("rules.1.pick").isMissingNode());
         assertTrue(errors.path("rules.1.items.1").isMissingNode());
         assertEquals("fixedPrice", errors.path("rules.1.items.2").asString());
+        assertEquals("fixedPrice", errors.path("rules.1.items.3").asString());
+        assertEquals("fixedPrice", errors.path("rules.1.items.4").asString());
     }
 
     @Test
@@ -272,6 +277,40 @@ class AdminSystemOrderWritesTest {
         var read = mapper.treeToValue(rule.path("items").get(1), RuleEntry.class);
         assertEquals("Royal blade", read.name());
         assertEquals(5, read.item().getEnchantmentLevel(Enchantment.SHARPNESS));
+    }
+
+    @Test
+    void aRuleIsPausedAndResumedAsTheNextRevision() {
+        perform(
+                Actions.ADMIN_SYSTEM_ORDERS_RULES_SAVE,
+                "{\"base\":0,\"rules\":[" + RULE + "]}",
+                Permission.Admin.ORDERS,
+                Permission.Admin.RELOAD);
+
+        var running =
+                RulesEditor.setEnabled(world.settings, world.nodeData, "iron", true, RulesEditor::knownMaterial, "Ada");
+        var paused = RulesEditor.setEnabled(
+                world.settings, world.nodeData, "iron", false, RulesEditor::knownMaterial, "Ada");
+        var again = RulesEditor.setEnabled(
+                world.settings, world.nodeData, "iron", false, RulesEditor::knownMaterial, "Ada");
+        var unknown = RulesEditor.setEnabled(
+                world.settings, world.nodeData, "copper", false, RulesEditor::knownMaterial, "Ada");
+
+        assertEquals(new Configuration.StoreOutcome.Unchanged(1), ((RulesEditor.Result.Done) running).outcome());
+        assertInstanceOf(Configuration.StoreOutcome.Stored.class, ((RulesEditor.Result.Done) paused).outcome());
+        assertEquals(new Configuration.StoreOutcome.Unchanged(2), ((RulesEditor.Result.Done) again).outcome());
+        assertEquals(Map.of("id", "unknown"), ((RulesEditor.Result.Invalid) unknown).fields());
+        var rules = RulesEditor.read(world.settings, world.nodeData);
+        assertEquals(2, rules.revision());
+        assertFalse(rules.rules().get(0).path("enabled").asBoolean(true));
+
+        var resumed =
+                RulesEditor.setEnabled(world.settings, world.nodeData, "iron", true, RulesEditor::knownMaterial, "Ada");
+
+        assertInstanceOf(Configuration.StoreOutcome.Stored.class, ((RulesEditor.Result.Done) resumed).outcome());
+        var rule = RulesEditor.read(world.settings, world.nodeData).rules().get(0);
+        assertTrue(rule.path("enabled").asBoolean());
+        assertEquals(256, rule.path("amount").asInt());
     }
 
     @Test

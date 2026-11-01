@@ -63,7 +63,7 @@ Only operators have these by default.
 | `companies.admin.nodes` | op | List and remove the servers registered in the database with `/companyadmin node`. |
 | `companies.admin.events` | op | Create, look at, end, cancel, extend and fund [server events](../admin/admin-commands.md#server-events) with `/companyadmin event`. |
 | `companies.admin.offers` | op | Create, look at, pause, resume and cancel event offers, goals and contests, with `/companyadmin offers`. Joining and delivering into contests needs no server permission: joining needs the company permission `manage_orders`, delivering membership in a company that takes part. |
-| `companies.admin.orders` | op | Look at, release, cancel, complete and extend any order with `/companyadmin order`, and use the buttons of its menus. |
+| `companies.admin.orders` | op | Look at, release, cancel, complete and extend any order with `/companyadmin order`, and use the buttons of its menus. Look at the orders the server placed with `/companyadmin systemorders`; changing its rules also needs `companies.admin.reload`. |
 | `companies.admin.player` | op | Look up the company, orders, items and notifications of a player with `/companyadmin player`. |
 | `companies.admin.reload` | op | Reload and share the configuration with `/companyadmin reload`, sync it with `/companyadmin syncconfiguration`, and roll back a shared file with `/companyadmin settings rollback`, together with `companies.admin`. |
 | `companies.admin.rename` | op | Rename companies with `/companyadmin rename`. |

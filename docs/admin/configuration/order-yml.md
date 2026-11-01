@@ -91,7 +91,7 @@ An order line is either a **material line**, which any item of that material fil
 | Key | Type | Default | Meaning |
 |---|---|---|---|
 | `matching.ignoredComponents` | list of component types | `minecraft:custom_name`, `minecraft:repair_cost`, `minecraft:lore` | Components that never decide a match. They are also removed from items put into an order. |
-| `matching.allowDamaged` | true/false | `false` | Accept damaged items. With `false`, only undamaged items can be delivered. |
+| `matching.allowDamaged` | true/false | `false` | Accept damaged items. With `false`, only undamaged items can be delivered, except on [criteria lines](../../players/orders.md#criteria-lines) with a durability condition, which take items with enough durability left. |
 
 - Any vanilla component type can be listed in `ignoredComponents`, including `minecraft:custom_data`, which holds the data of items from other plugins.
 - Unknown component types are logged and skipped.

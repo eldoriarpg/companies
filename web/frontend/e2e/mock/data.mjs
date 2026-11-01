@@ -340,8 +340,9 @@ export const CATALOGUE = {
     materials: [
         {item: item('Iron Ingot', 1), enchantments: [], potion: false, dye: false, trim: false},
         {item: item('Oak Log', 1), enchantments: [], potion: false, dye: false, trim: false},
-        {item: item('Diamond Sword', 1), enchantments: ['minecraft:sharpness', 'minecraft:smite'], potion: false, dye: false, trim: false},
+        {item: item('Diamond Sword', 1), enchantments: ['minecraft:sharpness', 'minecraft:smite'], potion: false, dye: false, trim: false, damageable: true},
         {item: item('Leather Tunic', 1), enchantments: [], potion: false, dye: true, trim: true},
+        {item: item('Splash Potion', 1), enchantments: [], potion: true, dye: false, trim: false},
     ],
     enchantments: [
         {key: 'minecraft:sharpness', name: 'Sharpness', max: 5, conflicts: ['minecraft:smite']},

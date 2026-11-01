@@ -51,17 +51,24 @@ public record OrderLineView(
     }
 
     /**
-     * The lines of an order with the damage of their delivered items, when damaged items are accepted at all.
+     * The lines of an order with the damage of their delivered items, on the lines that accept damaged items: every
+     * line when the server allows them, otherwise the criteria lines with a durability condition.
      *
      * @param order   order to show
      * @param matcher measures the damage
      * @return its lines
      */
     public static List<OrderLineView> withDamage(FullOrder order, ItemMatcher matcher) {
-        if (!matcher.allowDamaged()) return of(order);
         return order.contents().stream()
-                .map(content -> withDamage(content, matcher))
+                .map(content -> takesDamaged(content, matcher) ? withDamage(content, matcher) : withoutDamage(content))
                 .toList();
+    }
+
+    private static boolean takesDamaged(OrderContent content, ItemMatcher matcher) {
+        return matcher.allowDamaged()
+                || content.criteria()
+                        .map(criteria -> criteria.minDurability() > 0)
+                        .orElse(false);
     }
 
     private static OrderLineView withoutDamage(OrderContent content) {

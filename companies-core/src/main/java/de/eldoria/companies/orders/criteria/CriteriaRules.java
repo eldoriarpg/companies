@@ -13,6 +13,7 @@ import io.papermc.paper.registry.RegistryKey;
 import org.bukkit.Material;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.PotionMeta;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -26,6 +27,9 @@ import java.util.stream.Collectors;
  * required enchantment has to be known, its level within the enchantment's maximum, and some item of the set has to
  * be able to carry it; two required enchantments may not conflict. Some single item of the set has to be able to carry
  * all required enchantments together, and as many enchantments as the count asks for without any two conflicting.
+ * <p>
+ * A potion condition has to name a known potion type, and some item of the set has to hold potions. A durability
+ * condition needs some item of the set that has durability.
  */
 public final class CriteriaRules {
     private CriteriaRules() {
@@ -53,6 +57,16 @@ public final class CriteriaRules {
                 .filter(material -> !material.isAir() && material.isItem())
                 .toList();
         if (materials.isEmpty()) return refused("order.criteria.error.empty", String.join(", ", criteria.items()));
+        var potion = criteria.potion();
+        if (potion != null) {
+            if (criteria.potionType().isEmpty()) return refused("order.criteria.error.unknownPotion", potion);
+            if (materials.stream().noneMatch(CriteriaRules::holdsPotion)) {
+                return refused("order.criteria.error.potionNotApplicable", potion);
+            }
+        }
+        if (criteria.minDurability() > 0 && materials.stream().noneMatch(material -> material.getMaxDurability() > 0)) {
+            return refused("order.criteria.error.durabilityNotApplicable", criteria.minDurability() + " %");
+        }
         List<Enchantment> required = new ArrayList<>();
         for (var entry : criteria.enchantments()) {
             var enchantment = entry.lookup();
@@ -144,6 +158,16 @@ public final class CriteriaRules {
 
     private static boolean conflict(Enchantment first, Enchantment second) {
         return first.conflictsWith(second) || second.conflictsWith(first);
+    }
+
+    /**
+     * Whether a material holds a potion type: potions, splash and lingering potions and tipped arrows.
+     *
+     * @param material the material
+     * @return true when it holds one
+     */
+    public static boolean holdsPotion(Material material) {
+        return new ItemStack(material).getItemMeta() instanceof PotionMeta;
     }
 
     private static boolean holdsAny(Material material) {

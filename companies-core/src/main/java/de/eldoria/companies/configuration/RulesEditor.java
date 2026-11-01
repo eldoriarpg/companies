@@ -29,6 +29,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.BiFunction;
 import java.util.function.Predicate;
 
 /**
@@ -189,8 +190,7 @@ public final class RulesEditor {
         }
         if (CriteriaRules.problem(parsed).isPresent()) return Optional.of("unknown");
         var one = upper(resolve).equals(RuleEntry.Resolve.ONE.name());
-        var conditions = parsed.minEnchantments() > 0 || !parsed.enchantments().isEmpty();
-        if (average && (!one || conditions)) return Optional.of("fixedPrice");
+        if (average && (!one || parsed.hasConditions())) return Optional.of("fixedPrice");
         return Optional.empty();
     }
 
@@ -244,6 +244,73 @@ public final class RulesEditor {
             JsonNode entry,
             Predicate<String> knows,
             String actor) {
+        return edit(configuration, nodeData, rule, knows, actor, (target, revision) -> {
+            var items = target.path("items").isArray()
+                    ? (ArrayNode) target.path("items")
+                    : JsonNodeFactory.instance.arrayNode();
+            if (items.isEmpty()) {
+                var material = target.path("material").asString("").trim();
+                if (!material.isEmpty())
+                    items.add(JsonNodeFactory.instance.objectNode().put("material", material));
+            }
+            for (var existing : items) {
+                if (sparse(existing).equals(sparse(entry)))
+                    return Optional.of(new Result.Invalid(Map.of("item", "duplicate")));
+            }
+            items.add(entry);
+            target.set("items", items);
+            target.remove("material");
+            return Optional.empty();
+        });
+    }
+
+    /**
+     * Switches a rule on or off and saves the rules as the next revision. A rule already in that state stores nothing
+     * and is done as unchanged.
+     *
+     * @param configuration the configuration of this node
+     * @param nodeData      the node repository holding the revisions
+     * @param rule          the id of the rule
+     * @param enabled       whether the rule places orders
+     * @param knows         whether a material names an item that can be ordered
+     * @param actor         who saved
+     * @return what happened; an unknown rule is refused as invalid at {@code id}
+     */
+    public static Result setEnabled(
+            Configuration configuration,
+            ANodeData nodeData,
+            String rule,
+            boolean enabled,
+            Predicate<String> knows,
+            String actor) {
+        return edit(configuration, nodeData, rule, knows, actor, (target, revision) -> {
+            if (target.path("enabled").asBoolean(true) == enabled) {
+                return Optional.of(new Result.Done(new Configuration.StoreOutcome.Unchanged(revision)));
+            }
+            target.put("enabled", enabled);
+            return Optional.empty();
+        });
+    }
+
+    /**
+     * Changes one rule of the latest revision and saves the rules as the next revision.
+     *
+     * @param configuration the configuration of this node
+     * @param nodeData      the node repository holding the revisions
+     * @param rule          the id of the rule
+     * @param knows         whether a material names an item that can be ordered
+     * @param actor         who saved
+     * @param change        changes the rule in place, given the revision it was read from, or returns the result that
+     *                      ends the edit without saving
+     * @return what happened; an unknown rule is refused as invalid at {@code id}
+     */
+    private static Result edit(
+            Configuration configuration,
+            ANodeData nodeData,
+            String rule,
+            Predicate<String> knows,
+            String actor,
+            BiFunction<ObjectNode, Integer, Optional<Result>> change) {
         var current = read(configuration, nodeData);
         var rules = current.rules().deepCopy();
         ObjectNode target = null;
@@ -254,20 +321,8 @@ public final class RulesEditor {
             }
         }
         if (target == null) return new Result.Invalid(Map.of("id", "unknown"));
-        var items = target.path("items").isArray()
-                ? (ArrayNode) target.path("items")
-                : JsonNodeFactory.instance.arrayNode();
-        if (items.isEmpty()) {
-            var material = target.path("material").asString("").trim();
-            if (!material.isEmpty())
-                items.add(JsonNodeFactory.instance.objectNode().put("material", material));
-        }
-        for (var existing : items) {
-            if (sparse(existing).equals(sparse(entry))) return new Result.Invalid(Map.of("item", "duplicate"));
-        }
-        items.add(entry);
-        target.set("items", items);
-        target.remove("material");
+        var ended = change.apply(target, current.revision());
+        if (ended.isPresent()) return ended.get();
         return save(configuration, nodeData, current.revision(), rules, knows, actor);
     }
 

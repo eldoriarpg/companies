@@ -102,6 +102,8 @@ hold, are in the *System orders* tab of the [dashboard](./dashboard.md#admin-too
 | `/companyadmin systemorders list` | Lists the orders the server placed that are open or in work: rule, price, when placed and state |
 | `/companyadmin systemorders info <id>` | Shows why the server placed an order: the rule, how its price was found, the jitter drawn, the bounds and where the money came from |
 | `/companyadmin systemorders item add <rule>` | Adds the item you hold to a defined rule: an item with data as an exact entry, a plain one as a material entry. It is saved as the next revision of `system-orders.yml`, like a dashboard save, and needs `companies.admin.reload` |
+| `/companyadmin systemorders pause <rule>` | Stops a defined rule from placing orders. Its orders open or in work stay until they are delivered or run out. Saved as the next revision of `system-orders.yml`, like a dashboard save, and needs `companies.admin.reload` |
+| `/companyadmin systemorders resume <rule>` | Lets a paused rule place orders again. Needs `companies.admin.reload` |
 | `/companyadmin systemorders stats` | Shows per material what guessed orders learned over the last `learning.days`: placed, taken and expired orders, the average minutes until one was taken, and the factor a new order pays. Placed counts every order, so it can be more than taken and expired together |
 
 `info` also works for orders that ended: for completed ones always, for removed ones as long as the

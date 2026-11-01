@@ -284,6 +284,44 @@ class OrderCreateWritesTest {
     }
 
     @Test
+    void criteriaLinesKeepTheirPotionAndDurability() {
+        var created = create(
+                "[{\"criteria\":{\"items\":[\"minecraft:potion\",\"minecraft:diamond_sword\"],"
+                        + "\"potion\":\"minecraft:swiftness\",\"minDurability\":75},\"amount\":2,\"unitPrice\":1}]",
+                MAY_CREATE);
+
+        assertTrue(created.ok(), created.reason());
+        var order = world.orders
+                .retrieveOrderById(created.data().path("order").asInt())
+                .asFuture()
+                .join()
+                .orElseThrow();
+        var criteria = world.orders
+                .retrieveFullOrder(order)
+                .asFuture()
+                .join()
+                .contents()
+                .getFirst()
+                .criteria()
+                .orElseThrow();
+        assertEquals("minecraft:swiftness", criteria.potion());
+        assertEquals(75, criteria.minDurability());
+        var view = Views.criteria(criteria);
+        assertEquals("Swiftness", view.potion().name());
+        assertEquals(75, view.minDurability());
+        for (var condition : List.of("\"potion\":1", "\"minDurability\":101", "\"minDurability\":2.5")) {
+            assertEquals(
+                    "dashboard.invalid",
+                    create(
+                                    "[{\"criteria\":{\"items\":[\"minecraft:potion\"]," + condition
+                                            + "},\"amount\":1,\"unitPrice\":1}]",
+                                    MAY_CREATE)
+                            .reason(),
+                    condition);
+        }
+    }
+
+    @Test
     void criteriaNoItemCanMeetOrThatCanNotBeReadAreRefused() {
         assertEquals(
                 "order.criteria.error.enchantmentNotApplicable",

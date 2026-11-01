@@ -12,10 +12,13 @@ import io.papermc.paper.datacomponent.item.BundleContents;
 import io.papermc.paper.datacomponent.item.ItemContainerContents;
 import io.papermc.paper.datacomponent.item.ItemEnchantments;
 import io.papermc.paper.datacomponent.item.ItemLore;
+import io.papermc.paper.datacomponent.item.PotionContents;
 import net.kyori.adventure.text.Component;
+import org.bukkit.Color;
 import org.bukkit.Material;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.potion.PotionType;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
@@ -305,5 +308,51 @@ class ItemMatcherTest {
 
         Assertions.assertEquals(1, matcher.extras(swords.template(), swords, two));
         Assertions.assertEquals(0, matcher.extras(swords.template(), swords, enchanted(Material.DIAMOND_SWORD, 1)));
+    }
+
+    @Test
+    void aDurabilityConditionTakesDamagedItemsWithEnoughLeft() {
+        var kept = ItemCriteria.of("DIAMOND_SWORD").withMinDurability(80);
+
+        Assertions.assertTrue(matcher(false).matches(kept.template(), kept, damaged(20)));
+        Assertions.assertFalse(matcher(false).matches(kept.template(), kept, damaged(21)));
+        Assertions.assertFalse(matcher(true).matches(kept.template(), kept, damaged(21)));
+        Assertions.assertTrue(matcher(false).matches(kept.template(), kept, plain(Material.DIAMOND_SWORD)));
+        Assertions.assertFalse(matcher(false).matches(kept.template(), kept, damaged(150)));
+        var mixed = ItemCriteria.of("DIAMOND_SWORD", "STICK").withMinDurability(80);
+        Assertions.assertTrue(matcher(false).matches(mixed.template(), mixed, plain(Material.STICK)));
+    }
+
+    @Test
+    void aPotionConditionTakesOnlyThatPotionType() {
+        var matcher = matcher(false);
+        var swiftness = ItemCriteria.of("POTION", "TIPPED_ARROW").withPotion(PotionType.SWIFTNESS);
+
+        Assertions.assertTrue(
+                matcher.matches(swiftness.template(), swiftness, potion(Material.POTION, PotionType.SWIFTNESS)));
+        Assertions.assertTrue(
+                matcher.matches(swiftness.template(), swiftness, potion(Material.TIPPED_ARROW, PotionType.SWIFTNESS)));
+        Assertions.assertFalse(
+                matcher.matches(swiftness.template(), swiftness, potion(Material.POTION, PotionType.LONG_SWIFTNESS)));
+        Assertions.assertFalse(matcher.matches(swiftness.template(), swiftness, plain(Material.POTION)));
+        Assertions.assertEquals(
+                0, matcher.extras(swiftness.template(), swiftness, potion(Material.POTION, PotionType.SWIFTNESS)));
+        var coloured = plain(Material.POTION);
+        coloured.setData(
+                DataComponentTypes.POTION_CONTENTS,
+                PotionContents.potionContents()
+                        .potion(PotionType.SWIFTNESS)
+                        .customColor(Color.RED)
+                        .build());
+        Assertions.assertTrue(matcher.matches(swiftness.template(), swiftness, coloured));
+        Assertions.assertEquals(1, matcher.extras(swiftness.template(), swiftness, coloured));
+    }
+
+    private static ComponentStack potion(Material material, PotionType type) {
+        var stack = plain(material);
+        stack.setData(
+                DataComponentTypes.POTION_CONTENTS,
+                PotionContents.potionContents().potion(type).build());
+        return stack;
     }
 }

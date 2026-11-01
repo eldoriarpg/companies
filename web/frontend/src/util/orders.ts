@@ -4,7 +4,7 @@
  *     Copyright (C) EldoriaRPG Team and Contributor
  */
 import type {OrderLineView} from '~/api/generated/protocol'
-import {type CountText, viewConditions} from '~/util/orderDraft'
+import {type ConditionTexts, viewConditions} from '~/util/orderDraft'
 
 /** What an order adds up to over its lines. */
 export interface OrderTotals {
@@ -59,11 +59,11 @@ export function versusAverage(lines: readonly OrderLineView[], averages: Readonl
  * The name of a line's item, a criteria line's with its conditions, such as "#Swords (Sharpness III+)".
  *
  * @param line the line
- * @param countText writes the enchantment count of criteria
+ * @param texts writes the conditions of criteria that need words
  * @returns the name
  */
-export function lineName(line: OrderLineView, countText: CountText): string {
-    const conditions = line.criteria ? viewConditions(line.criteria, countText) : []
+export function lineName(line: OrderLineView, texts: ConditionTexts): string {
+    const conditions = line.criteria ? viewConditions(line.criteria, texts) : []
     return conditions.length > 0 ? `${line.item.name} (${conditions.join(', ')})` : line.item.name
 }
 
@@ -72,9 +72,9 @@ export function lineName(line: OrderLineView, countText: CountText): string {
  *
  * @param lines the order's lines
  * @param count writes a count in the reader's format
- * @param countText writes the enchantment count of criteria
+ * @param texts writes the conditions of criteria that need words
  * @returns the text
  */
-export function itemsText(lines: readonly OrderLineView[], count: (value: number) => string, countText: CountText): string {
-    return lines.map(line => `${lineName(line, countText)} ×${count(line.item.amount)}`).join(' · ')
+export function itemsText(lines: readonly OrderLineView[], count: (value: number) => string, texts: ConditionTexts): string {
+    return lines.map(line => `${lineName(line, texts)} ×${count(line.item.amount)}`).join(' · ')
 }

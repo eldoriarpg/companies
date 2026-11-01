@@ -61,6 +61,7 @@ import java.util.logging.Level;
  *     on, or the event offer a chunk belongs to. It works for ended orders as long as the order history keeps them;
  *     </li>
  *     <li>{@code item add <rule>} adds the held item to a defined rule;</li>
+ *     <li>{@code pause <rule>} and {@code resume <rule>} switch a defined rule off and on again;</li>
  *     <li>{@code stats} shows per material what guessed orders learned: how many were placed, taken and expired, the
  *     average minutes until one was taken, and the factor a new order pays: the one learning walked to, or the
  *     configured one while learning is off.</li>
@@ -205,25 +206,19 @@ public final class SystemOrdersCommand {
                 result -> {
                     switch (result) {
                         case RulesEditor.Result.Done done -> {
-                            var stored =
-                                    done.outcome() instanceof Configuration.StoreOutcome.Stored found ? found : null;
                             deps.adminLog()
                                     .entry(sender, "system order rule item add")
                                     .with("rule", rule)
                                     .with("item", template.getType().name())
                                     .write();
-                            if (stored == null || stored.replaced()) {
-                                deps.plugin().getServer().getScheduler().runTask(deps.plugin(), deps::applyChanges);
-                            }
+                            apply(done);
                             deps.messages()
                                     .sendMessage(
                                             sender,
                                             PREFIX + "itemAdded",
                                             Values.text("rule", rule),
                                             Values.component("item", template.effectiveName()));
-                            if (stored != null && !stored.applied()) {
-                                deps.messages().sendError(sender, PREFIX + "error.notApplied");
-                            }
+                            warnNotApplied(sender, done);
                         }
                         case RulesEditor.Result.Invalid invalid
                         when invalid.fields().containsKey("item") ->
@@ -232,16 +227,107 @@ public final class SystemOrdersCommand {
                         case RulesEditor.Result.Invalid invalid
                         when invalid.fields().size() == 1 && invalid.fields().containsValue("fixedPrice") ->
                             deps.messages().sendError(sender, PREFIX + "error.fixedPrice", Values.text("rule", rule));
-                        case RulesEditor.Result.Invalid invalid
-                        when invalid.fields().containsKey("id") ->
-                            deps.messages().sendError(sender, PREFIX + "error.unknownRule", Values.text("rule", rule));
-                        case RulesEditor.Result.Invalid invalid ->
-                            deps.messages().sendError(sender, PREFIX + "error.invalidRules");
-                        case RulesEditor.Result.Newer newer ->
-                            deps.messages().sendError(sender, PREFIX + "error.newer");
+                        default -> refused(sender, rule, result);
                     }
                 });
     }
+
+    /**
+     * Stops a defined rule from placing orders, stored as the next revision of {@code system-orders.yml}. Its open
+     * orders stay until they are taken or their lifetime runs out. Needs the reload permission, as saving the rules on
+     * the dashboard does.
+     *
+     * @param sender sender of the command
+     * @param rule   id of the rule
+     */
+    @Executes("pause")
+    public void pause(CommandSender sender, @StringArg(StringArgType.WORD) String rule) {
+        setEnabled(sender, rule, false);
+    }
+
+    /**
+     * Lets a paused defined rule place orders again, stored as the next revision of {@code system-orders.yml}. Needs
+     * the reload permission, as saving the rules on the dashboard does.
+     *
+     * @param sender sender of the command
+     * @param rule   id of the rule
+     */
+    @Executes("resume")
+    public void resume(CommandSender sender, @StringArg(StringArgType.WORD) String rule) {
+        setEnabled(sender, rule, true);
+    }
+
+    private void setEnabled(CommandSender sender, String rule, boolean enabled) {
+        deps.requireReady();
+        if (!sender.hasPermission(Admin.RELOAD)) {
+            deps.messages().sendError(sender, "companyadmin.error.permission");
+            return;
+        }
+        var actor = sender.getName();
+        var orderData = deps.orderData();
+        var verb = enabled ? "resume" : "pause";
+        run(
+                sender,
+                () -> {
+                    var result = RulesEditor.setEnabled(
+                            deps.configuration(), deps.nodeData(), rule, enabled, RulesEditor::knownMaterial, actor);
+                    var stored = result instanceof RulesEditor.Result.Done done
+                            && done.outcome() instanceof Configuration.StoreOutcome.Stored;
+                    return new Switched(result, stored && !enabled ? orderData.activeSystemOrders(rule) : 0);
+                },
+                switched -> {
+                    if (!(switched.result() instanceof RulesEditor.Result.Done done)) {
+                        refused(sender, rule, switched.result());
+                        return;
+                    }
+                    var state = enabled ? "resumed" : "paused";
+                    if (done.outcome() instanceof Configuration.StoreOutcome.Unchanged) {
+                        deps.messages().sendMessage(sender, PREFIX + state + ".already", Values.text("rule", rule));
+                        return;
+                    }
+                    deps.adminLog()
+                            .entry(sender, "system order rule " + verb)
+                            .with("rule", rule)
+                            .write();
+                    apply(done);
+                    deps.messages().sendMessage(sender, PREFIX + state, Values.text("rule", rule));
+                    if (switched.open() > 0) {
+                        deps.messages()
+                                .sendMessage(sender, PREFIX + "paused.open", Values.number("open", switched.open()));
+                    }
+                    warnNotApplied(sender, done);
+                });
+    }
+
+    private void apply(RulesEditor.Result.Done done) {
+        if (!(done.outcome() instanceof Configuration.StoreOutcome.Stored stored) || stored.replaced()) {
+            deps.plugin().getServer().getScheduler().runTask(deps.plugin(), deps::applyChanges);
+        }
+    }
+
+    private void warnNotApplied(CommandSender sender, RulesEditor.Result.Done done) {
+        if (done.outcome() instanceof Configuration.StoreOutcome.Stored stored && !stored.applied()) {
+            deps.messages().sendError(sender, PREFIX + "error.notApplied");
+        }
+    }
+
+    private void refused(CommandSender sender, String rule, RulesEditor.Result result) {
+        switch (result) {
+            case RulesEditor.Result.Invalid invalid
+            when invalid.fields().containsKey("id") ->
+                deps.messages().sendError(sender, PREFIX + "error.unknownRule", Values.text("rule", rule));
+            case RulesEditor.Result.Newer newer -> deps.messages().sendError(sender, PREFIX + "error.newer");
+            default -> deps.messages().sendError(sender, PREFIX + "error.invalidRules");
+        }
+    }
+
+    /**
+     * What switching a rule came to.
+     *
+     * @param result how saving the rules went
+     * @param open   the orders of the rule open or in work when it was paused, 0 otherwise
+     */
+    private record Switched(RulesEditor.Result result, int open) {}
 
     private MenuText entry(SystemDecision decision) {
         var state =

@@ -339,9 +339,10 @@ public final class Payloads {
      * @param potion       whether it takes a potion type
      * @param dye          whether it can be dyed
      * @param trim         whether it takes an armour trim
+     * @param damageable   whether it has durability
      */
     public record CatalogueMaterial(
-            ItemView item, List<String> enchantments, boolean potion, boolean dye, boolean trim) {}
+            ItemView item, List<String> enchantments, boolean potion, boolean dye, boolean trim, boolean damageable) {}
 
     /**
      * An enchantment.

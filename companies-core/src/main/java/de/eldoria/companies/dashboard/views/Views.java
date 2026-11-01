@@ -577,7 +577,13 @@ public final class Views {
                         CriteriaText.enchantmentName(required.enchantment()),
                         required.minLevel()))
                 .toList();
-        return new CriteriaView(items, criteria.minEnchantments(), enchantments);
+        var potion = criteria.potion();
+        return new CriteriaView(
+                items,
+                criteria.minEnchantments(),
+                enchantments,
+                potion == null ? null : new CriteriaView.Potion(potion, CriteriaText.potionName(potion)),
+                criteria.minDurability());
     }
 
     /**

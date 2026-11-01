@@ -102,7 +102,7 @@ rules:
 |---|---|---|---|
 | `id` | text | none | Names the rule. Each order remembers it. Use each id once, at most 64 characters. A rule without an id, with the id of an earlier rule, or with the id `guessed`, which guessed orders use, or `event-offer`, which the chunks of [event offers](../admin-commands.md#event-offers) use, places nothing. |
 | `name` | text | the id | The name of the orders. |
-| `enabled` | true/false | `true` | Whether the rule places orders. |
+| `enabled` | true/false | `true` | Whether the rule places orders. When off, its orders open or in work stay until they are delivered or run out. Switch it in game with `/companyadmin systemorders pause <rule>` and `resume <rule>`. |
 | `material` | material | none | The item ordered, for example `IRON_INGOT`. Leave it out when the rule has `items`. |
 | `items` | list | empty | Several things the rule may order, one per order, see [Several items](#several-items). |
 | `pick` | `RANDOM` or `ROTATE` | `RANDOM` | How an order picks one of the `items`: at random, or the one after the last order's. |
@@ -165,13 +165,13 @@ rules:
 |---|---|
 | `material` | Any item of the material, as `material` of a rule. |
 | `criteria` | Items meeting [criteria](../../players/orders.md#criteria-lines), written as players type them. |
-| `resolve` | For `criteria`: `ANY` (default) orders any item of the set, mixed. `ONE` picks one material of the set for the order, leaving out materials that rest or cannot meet the enchantments. |
+| `resolve` | For `criteria`: `ANY` (default) orders any item of the set, mixed. `ONE` picks one material of the set for the order, leaving out materials that rest or cannot meet the conditions. |
 | `item` | An exact item, as the server stores it. Add it in game with `/companyadmin systemorders item add <rule>` while you hold the item; `name` keeps its name for the dashboard. The same item is not added twice. |
 
-`AVERAGE` prices need a market average, which only plain materials have: a `material` entry, or a `criteria` entry
-with `resolve: ONE` and no enchantment conditions. The dashboard refuses to save any other entry in a rule priced by
-`AVERAGE`; give such rules a `FIXED` price. `maxOpen` and the budget count the whole rule, whatever entry an order
-took.
+`AVERAGE` prices need a market average, which only plain materials have: a `material` entry, or a `criteria` entry with
+`resolve: ONE` and no conditions (enchantments, potion or durability). The dashboard refuses to save any other entry in
+a rule priced by `AVERAGE`; give such rules a `FIXED` price. `maxOpen` and the budget count the whole rule, whatever
+entry an order took.
 
 An entry that cannot be ordered right now, such as a material that is no item or has no market average yet under
 `AVERAGE`, a `ONE` entry whose materials all rest, or a criteria entry under `AVERAGE` written by hand, is passed

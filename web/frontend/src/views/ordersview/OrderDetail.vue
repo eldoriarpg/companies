@@ -39,6 +39,7 @@ const emit = defineEmits<{
 }>()
 
 const {t, locale} = useI18n()
+const conditionTexts = useConditionTexts()
 
 /**
  * The conditions of a criteria line, in the reader's language.
@@ -47,7 +48,7 @@ const {t, locale} = useI18n()
  * @returns the conditions, empty without any
  */
 function conditions(criteria: CriteriaView): string[] {
-  return viewConditions(criteria, value => t('builder.atLeastEnchantments', {count: value}))
+  return viewConditions(criteria, conditionTexts)
 }
 const now = useNow({interval: 60_000})
 const totals = computed(() => totalsOf(props.order.lines))

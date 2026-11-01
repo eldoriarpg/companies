@@ -105,4 +105,36 @@ test.describe('order builder', () => {
 
         await expect(page.getByText('Your order Logs is placed.')).toBeVisible()
     })
+
+    test('asks for durability only once the set holds items that have it', async ({page}, info) => {
+        await openBuilder(page, info)
+        await page.getByRole('button', {name: 'Add by criteria'}).click()
+        const dialog = page.getByRole('dialog', {name: 'Add by criteria'})
+        await dialog.getByRole('button', {name: /Items and tags/}).click()
+        await page.getByPlaceholder('Search materials and tags').fill('Oak Log')
+        await page.keyboard.press('Enter')
+        await expect(dialog.getByLabel('At least this much durability left (%)')).toBeHidden()
+        await expect(dialog.getByLabel('Potion type')).toBeHidden()
+
+        await dialog.getByRole('button', {name: /Items and tags/}).click()
+        await page.getByPlaceholder('Search materials and tags').fill('Diamond Sword')
+        await page.keyboard.press('Enter')
+        await dialog.getByLabel('At least this much durability left (%)').fill('80')
+        await dialog.getByRole('button', {name: 'Add', exact: true}).click()
+
+        await expect(page.getByText('Durability: 80 % or more')).toBeVisible()
+    })
+
+    test('offers the potion types once the set holds potions', async ({page}, info) => {
+        await openBuilder(page, info)
+        await page.getByRole('button', {name: 'Add by criteria'}).click()
+        const dialog = page.getByRole('dialog', {name: 'Add by criteria'})
+        await dialog.getByRole('button', {name: /Items and tags/}).click()
+        await page.getByPlaceholder('Search materials and tags').fill('Splash Potion')
+        await page.keyboard.press('Enter')
+        await dialog.getByLabel('Potion type').selectOption('minecraft:swiftness')
+        await dialog.getByRole('button', {name: 'Add', exact: true}).click()
+
+        await expect(page.getByLabel('Lines').getByText('Swiftness', {exact: true})).toBeVisible()
+    })
 })

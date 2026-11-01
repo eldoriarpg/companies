@@ -342,7 +342,7 @@ api.orders().create(request).thenAccept(result -> {
 - `OrderLineRequest.criteria(criteria, amount, unitPrice)` accepts every item meeting the criteria, in any mix: 256
   of `#minecraft:logs` may be oak and birch logs together.
 
-`ItemCriteria` names materials and item tags, and may add enchantment conditions:
+`ItemCriteria` names materials and item tags, and may add enchantment, potion and durability conditions:
 
 ```java
 ItemCriteria swords = ItemCriteria.ofMaterials(Material.DIAMOND_SWORD, Material.NETHERITE_SWORD)
@@ -351,16 +351,21 @@ ItemCriteria swords = ItemCriteria.ofMaterials(Material.DIAMOND_SWORD, Material.
 ```
 
 This accepts diamond and netherite swords with at least two enchantments, one of them Sharpness III or higher.
+`withPotion(PotionType)` takes only items of one potion type, such as splash potions of `PotionType.STRONG_HEALING`;
+the type is matched exactly, so `SWIFTNESS` does not take `LONG_SWIFTNESS`. `withMinDurability(int)` takes items with
+at least that share of their durability left, in percent from 1 to 100, damaged or not, whatever the server's setting
+for damaged items says; items without durability always meet it. `hasConditions()` tells whether any condition is set.
 `ofTags(Tag...)` and `withTag(Tag)` add item tags such as `Tag.ITEMS_LOGS`, `withMaterial(Material)` another material.
 These refuse with an `IllegalArgumentException` what the server can not order: a material that is no item, a tag the
 server does not register for items (a block tag such as `Tag.MINEABLE_AXE`; a block tag whose item tag of the same key
-has other members), and an enchantment level above its maximum. Prefer the `Tag.ITEMS_*` constants.
-The criteria keep their entries as text, as orders store them: `items()` lists material names and tags with a leading
-`#`, `tags()` the tags among them the server knows, and `Required.lookup()` finds an enchantment in the server's
-registry. `of(String...)` and `withEnchantment(String, int)` take those texts directly, for entries read from a
-config; `create` rejects an order whose criteria name something the server does not know, an enchantment that does
-not fit the items, or two that conflict. Enchanted books count their stored enchantments. Other data of an item does
-not matter.
+has other members), and an enchantment level above its maximum. Prefer the `Tag.ITEMS_*` constants. The criteria keep
+their entries as text, as orders store them: `items()` lists material names and tags with a leading `#`, `tags()` the
+tags among them the server knows, and `Required.lookup()` finds an enchantment in the server's registry. `potion()`
+holds the potion type's key and `potionType()` looks it up. `of(String...)`, `withEnchantment(String, int)` and
+`withPotion(String)` take those texts directly, for entries read from a config; `create` rejects an order whose criteria
+name something the server does not know, an enchantment that does not fit the items, two that conflict, a potion type
+without potions in the set, or durability without items that have it. Enchanted books count their stored enchantments.
+Other data of an item does not matter.
 
 The amount must be at least 1. The unit price must be a finite number and not negative. The item must be an item,
 not air. A line that breaks one of these rules throws an `IllegalArgumentException` when you create it.

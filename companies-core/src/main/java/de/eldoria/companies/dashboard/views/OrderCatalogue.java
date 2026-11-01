@@ -97,7 +97,8 @@ public final class OrderCatalogue {
                             .toList(),
                     meta instanceof PotionMeta,
                     meta instanceof LeatherArmorMeta,
-                    meta instanceof ArmorMeta));
+                    meta instanceof ArmorMeta,
+                    material.getMaxDurability() > 0));
         }
         return new Payloads.Catalogue(
                 materials,

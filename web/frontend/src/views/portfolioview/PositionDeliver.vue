@@ -28,13 +28,14 @@ const emit = defineEmits<{
 }>()
 
 const {t, locale} = useI18n()
+const conditions = useConditionTexts()
 const {playerOnline} = useDashboard()
 const action = useAction()
 
 const open = computed(() => props.order.lines
   .map((line, index) => ({
     line: index + 1,
-    name: lineName(line, value => t('builder.atLeastEnchantments', {count: value})),
+    name: lineName(line, conditions),
     missing: line.item.amount - line.delivered,
   }))
   .filter(line => line.missing > 0))

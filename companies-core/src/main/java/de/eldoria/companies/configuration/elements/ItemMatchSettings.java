@@ -12,7 +12,8 @@ import java.util.List;
  * How delivered items are matched against the items an order requests.
  * <p>
  * Ignored components never decide a match and are stripped from items put into an order. Damaged items are only
- * accepted when {@code allowDamaged} is on; the owner then receives them as delivered.
+ * accepted when {@code allowDamaged} is on, or on criteria lines with a durability condition; the owner then receives
+ * them as delivered.
  */
 @SuppressWarnings({"FieldMayBeFinal", "FieldCanBeLocal", "RedundantNoArgConstructor"})
 public class ItemMatchSettings {

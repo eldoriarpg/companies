@@ -87,7 +87,7 @@ lowered to what fits.
 
 A criteria line asks for any item of a set instead of one material. The amount may be filled with a mix:
 `64 logs` may be 40 oak logs and 24 birch logs. On the dashboard, **Add by criteria** lets you pick materials, item
-tags and enchantments. In game, write the criteria as entries separated by spaces:
+tags, enchantments, a potion type and durability. In game, write the criteria as entries separated by spaces:
 
 | Entry | Meaning |
 |---|---|
@@ -95,6 +95,8 @@ tags and enchantments. In game, write the criteria as entries separated by space
 | `#logs` | Every item of an item tag, here all logs |
 | `enchants:2` | Every item needs at least two enchantments |
 | `sharpness:3` | Every item needs Sharpness III or higher |
+| `potion:swiftness` | Every item holds a Potion of Swiftness: potions, splash and lingering potions, tipped arrows |
+| `durability:80` | Every item has at least 80 % of its durability left |
 
 Some examples:
 
@@ -102,9 +104,15 @@ Some examples:
 - `/order draft add criteria 32 1 oak_planks birch_planks` takes oak and birch planks, mixed.
 - `/order draft add criteria 1 300 diamond_sword netherite_sword enchants:3 sharpness:4` takes one diamond or
   netherite sword with at least three enchantments, one of them Sharpness IV or higher.
+- `/order draft add criteria 16 20 splash_potion lingering_potion potion:strong_healing` takes splash and lingering
+  potions of Healing II, mixed.
+- `/order draft add criteria 4 50 #pickaxes durability:50` takes pickaxes with at least half their durability left.
 
-Enchanted books count the enchantments they store. Any other data, such as a name, does not matter. The order is
-refused when no single item of the set could meet the conditions, for example Sharpness on logs.
+Enchanted books count the enchantments they store. Any other data, such as a name, does not matter. A potion type
+is matched exactly: `potion:swiftness` does not take Long Swiftness, which is `potion:long_swiftness`. With a
+durability condition, damaged items are taken as long as enough durability is left, even where the server refuses
+damaged items otherwise; items without durability always meet it. The order is refused when no single item of the set
+could meet the conditions, for example Sharpness on logs or a potion type on swords.
 
 A criteria line counts as one line towards your limit, however many items it accepts. Orders with criteria lines are
 found in the order search under every material they accept. They have no market average, so set the price yourself.

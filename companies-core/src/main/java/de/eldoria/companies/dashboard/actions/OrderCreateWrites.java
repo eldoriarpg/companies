@@ -228,6 +228,10 @@ public final class OrderCreateWrites {
         if (!count.isMissingNode() && !count.isNull() && !whole(count)) throw CommandFailure.of(INVALID);
         var required = criteria.path("enchantments");
         if (!required.isMissingNode() && !required.isNull() && !required.isObject()) throw CommandFailure.of(INVALID);
+        var potion = criteria.path("potion");
+        if (!potion.isMissingNode() && !potion.isNull() && !potion.isString()) throw CommandFailure.of(INVALID);
+        var durability = criteria.path("minDurability");
+        if (!durability.isMissingNode() && !durability.isNull() && !whole(durability)) throw CommandFailure.of(INVALID);
         try {
             List<ItemCriteria.Required> enchantments = new ArrayList<>();
             for (var entry : required.properties()) {
@@ -235,7 +239,12 @@ public final class OrderCreateWrites {
                 enchantments.add(new ItemCriteria.Required(
                         entry.getKey(), entry.getValue().asInt()));
             }
-            return new ItemCriteria(items, whole(count) ? count.asInt() : 0, enchantments);
+            return new ItemCriteria(
+                    items,
+                    whole(count) ? count.asInt() : 0,
+                    enchantments,
+                    potion.isString() ? potion.asString() : null,
+                    whole(durability) ? durability.asInt() : 0);
         } catch (IllegalArgumentException e) {
             throw CommandFailure.of(INVALID);
         }

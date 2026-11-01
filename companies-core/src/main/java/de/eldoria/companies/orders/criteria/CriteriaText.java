@@ -21,10 +21,11 @@ import java.util.Optional;
 
 /**
  * The one text form of criteria, for players in game and as plain text for the dashboard and Discord:
- * {@code Logs / Bamboo Block (✦ ≥3, Sharpness III+)}.
+ * {@code Logs / Bamboo Block (✦ ≥3, Sharpness III+)}, {@code Potion (⚗ Swiftness)} or {@code #Pickaxes (⚒ ≥80 %)}.
  * <p>
  * It needs no translations of its own. Materials, tags and enchantments use the client's translations in game and
- * their English names as plain text; the conditions are symbols. At most {@value #SHOWN} items are named, the rest
+ * their English names as plain text; the conditions are symbols. Potion types are named in English everywhere, as the
+ * client has no name for a potion type on its own. At most {@value #SHOWN} items are named, the rest
  * are counted.
  */
 public final class CriteriaText {
@@ -57,6 +58,9 @@ public final class CriteriaText {
             conditions.add(Component.text("✦ ≥" + criteria.minEnchantments()));
         }
         for (var required : criteria.enchantments()) conditions.add(requiredComponent(required));
+        var potion = criteria.potion();
+        if (potion != null) conditions.add(Component.text(potionCondition(potion)));
+        if (criteria.minDurability() > 0) conditions.add(Component.text(durabilityCondition(criteria.minDurability())));
         if (conditions.isEmpty()) return text;
         return text.append(Component.text(" ("))
                 .append(Component.join(JoinConfiguration.separator(Component.text(", ")), conditions))
@@ -76,6 +80,9 @@ public final class CriteriaText {
             conditions.add("✦ ≥" + criteria.minEnchantments());
         }
         for (var required : criteria.enchantments()) conditions.add(requiredName(required));
+        var potion = criteria.potion();
+        if (potion != null) conditions.add(potionCondition(potion));
+        if (criteria.minDurability() > 0) conditions.add(durabilityCondition(criteria.minDurability()));
         if (!conditions.isEmpty())
             text.append(" (").append(String.join(", ", conditions)).append(')');
         return text.toString();
@@ -144,6 +151,25 @@ public final class CriteriaText {
         var name = enchantmentName(required.enchantment());
         if (required.minLevel() <= 1) return name;
         return name + " " + roman(required.minLevel()) + "+";
+    }
+
+    private static String potionCondition(String potion) {
+        return "⚗ " + potionName(potion);
+    }
+
+    private static String durabilityCondition(int percent) {
+        return "⚒ ≥" + percent + " %";
+    }
+
+    /**
+     * The English name of a potion type, made from its key.
+     *
+     * @param potion the key, such as {@code minecraft:long_swiftness}
+     * @return the name, such as {@code Long Swiftness}
+     */
+    public static String potionName(String potion) {
+        var key = NamespacedKey.fromString(potion);
+        return key == null ? potion : PlainText.keyName(key);
     }
 
     /**

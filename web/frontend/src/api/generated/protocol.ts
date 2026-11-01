@@ -288,6 +288,8 @@ export interface CriteriaView {
   items: Entry[];
   minEnchantments: number;
   enchantments: Required[];
+  potion?: Potion;
+  minDurability: number;
 }
 export interface Entry {
   key: string;
@@ -298,6 +300,10 @@ export interface Required {
   key: string;
   name: string;
   minLevel: number;
+}
+export interface Potion {
+  key: string;
+  name: string;
 }
 export interface AlertView {
   name: string;
