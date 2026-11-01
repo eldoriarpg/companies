@@ -26,7 +26,8 @@ alone count only for events without a level limit. What counts is when the order
   what they do, for which items and company levels, the time left and, for a multiplier with a budget, what it can
   still pay. Event offers of an event name it. The running events also lead the ticker at the top.
 - In game, `/company events` lists the same, with the budget as a bar and the event's offers under it.
-- The order search marks the orders an event boosts, such as `[×1.5 · tax −5]`.
+- The order search marks the orders an event boosts, such as `[×1.5 · tax −5]`. The dashboard's order book marks them
+  too, and an order's details show what it pays with the events.
 - The view of an order shows what it pays with the events that run now, "if completed before" the end of the soonest
   of them.
 - When you build an order, its fee already counts the fee reductions running now.

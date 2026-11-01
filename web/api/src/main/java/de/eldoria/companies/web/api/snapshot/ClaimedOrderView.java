@@ -19,6 +19,7 @@ import java.util.List;
  * @param lines its lines with progress
  * @param claimed when it was claimed
  * @param deadline when the claim runs out
+ * @param offer the event offer the order is a chunk of, null for any other order
  */
 public record ClaimedOrderView(
         int id,
@@ -26,4 +27,5 @@ public record ClaimedOrderView(
         OrderState state,
         List<OrderLineView> lines,
         Instant claimed,
-        @Nullable Instant deadline) {}
+        @Nullable Instant deadline,
+        @Nullable OfferBadgeView offer) {}

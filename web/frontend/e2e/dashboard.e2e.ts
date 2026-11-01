@@ -13,6 +13,7 @@ test.describe('dashboard', () => {
     test('shows the portfolio and updates it live from two nodes and a resync', async ({page}) => {
         const positions = page.getByTestId('positions')
         await expect(positions.getByText('Market stalls')).toBeVisible()
+        await expect(positions.getByRole('listitem').filter({hasText: 'Harbour lighthouse'}).getByTestId('position-event-badge')).toBeVisible()
         await expect(page.getByText('Live', {exact: true}).filter({visible: true})).toBeVisible()
 
         const activity = page.getByTestId('activity')

@@ -277,6 +277,14 @@ public abstract class AOfferData {
     public abstract List<EventOffer> contests();
 
     /**
+     * The contests that ran and closed since a time, other than cancelled ones, the newest first.
+     *
+     * @param since the earliest close
+     * @return the contests
+     */
+    public abstract List<EventOffer> closedContests(LocalDateTime since);
+
+    /**
      * Lets a company take part in a contest that has not closed, or take part again after it left. Its delivered items
      * stay.
      *

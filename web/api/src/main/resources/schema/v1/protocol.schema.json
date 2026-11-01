@@ -162,6 +162,9 @@
         "deadline" : {
           "type" : "string",
           "format" : "date-time"
+        },
+        "offer" : {
+          "$ref" : "#/$defs/OfferBadgeView"
         }
       },
       "required" : [ "id", "name", "state", "lines", "claimed" ]
@@ -617,6 +620,25 @@
     "NodeRole" : {
       "type" : "string",
       "enum" : [ "PRIMARY", "SECONDARY" ]
+    },
+    "OfferBadgeView" : {
+      "type" : "object",
+      "properties" : {
+        "id" : {
+          "type" : "integer"
+        },
+        "name" : {
+          "type" : "string"
+        },
+        "ends" : {
+          "type" : "string",
+          "format" : "date-time"
+        },
+        "state" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "id", "name", "ends", "state" ]
     },
     "OrderLineView" : {
       "type" : "object",

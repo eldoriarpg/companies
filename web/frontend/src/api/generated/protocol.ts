@@ -271,6 +271,7 @@ export interface ClaimedOrderView {
   lines: OrderLineView[];
   claimed: string;
   deadline?: string;
+  offer?: OfferBadgeView;
 }
 export interface OrderLineView {
   item: ItemView;
@@ -304,6 +305,12 @@ export interface Required {
 export interface Potion {
   key: string;
   name: string;
+}
+export interface OfferBadgeView {
+  id: number;
+  name: string;
+  ends: string;
+  state: string;
 }
 export interface AlertView {
   name: string;

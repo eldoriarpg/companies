@@ -3,6 +3,7 @@
  *
  *     Copyright (C) EldoriaRPG Team and Contributor
  */
+import type {EventBadge} from '~/api/gateway'
 import type {OrderLineView} from '~/api/generated/protocol'
 import {type ConditionTexts, viewConditions} from '~/util/orderDraft'
 
@@ -77,4 +78,28 @@ export function lineName(line: OrderLineView, texts: ConditionTexts): string {
  */
 export function itemsText(lines: readonly OrderLineView[], count: (value: number) => string, texts: ConditionTexts): string {
     return lines.map(line => `${lineName(line, texts)} ×${count(line.item.amount)}`).join(' · ')
+}
+
+/** Writes one effect of server events on an order in the reader's language. */
+export interface BoostTexts {
+    multiplier: (factor: string) => string
+    tax: (points: string) => string
+    fee: (percent: string) => string
+}
+
+/**
+ * What server events do to an order, as short parts: the factor on its payout, the tax points and the fee percent
+ * taken off. Effects that change nothing are left out.
+ *
+ * @param event what the events do
+ * @param texts writes each effect
+ * @param number writes a number in the reader's format
+ * @returns the parts, empty when nothing changes
+ */
+export function boostParts(event: EventBadge, texts: BoostTexts, number: (value: number) => string): string[] {
+    const parts: string[] = []
+    if (event.multiplier > 1) parts.push(texts.multiplier(number(event.multiplier)))
+    if (event.taxPoints > 0) parts.push(texts.tax(number(event.taxPoints)))
+    if (event.feePercent > 0) parts.push(texts.fee(number(event.feePercent)))
+    return parts
 }

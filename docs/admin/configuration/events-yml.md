@@ -21,6 +21,7 @@ maxMultiplier: 3.0
 broadcast: true
 joinMessage: true
 createAheadHours: 24
+closedDays: 7
 goalRewardFunding: MINTED
 goalRewardAccount: ''
 goalRewardBudget: 1000.0
@@ -34,6 +35,7 @@ templates: []
 | `broadcast` | true/false | `true` | Whether every server tells its players in chat when an event starts, ends, runs out of money or is cancelled after it started. | reload |
 | `joinMessage` | true/false | `true` | Whether a player who joins while events run is told about them in chat, see [Announcements](#announcements). | reload |
 | `createAheadHours` | number (hours) | `24` | How long before its start the primary creates the next event of a template, so it can be seen coming. | reload |
+| `closedDays` | number (days) | `7` | How long a closed contest stays under **Results** on the dashboard's Events page. `0` shows no results. | reload |
 | `goalRewardFunding` | `ACCOUNT` or `MINTED` | `MINTED` | Where the money of a [goal reward](../admin-commands.md#event-offers) comes from when `/companyadmin offers reward` names none. | reload |
 | `goalRewardAccount` | text | empty | The account paying goal rewards funded from an account that name none. Empty for `economy.collectorAccount`. | reload |
 | `goalRewardBudget` | number | `1000.0` | What a goal reward may pay when it names no budget. `0` means none, which `MINTED` does not allow. | reload |

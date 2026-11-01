@@ -135,7 +135,7 @@ export function claimed(id, name, lines, hours) {
 /** The positions of the mock company; Market stalls is the one the stream delivers to. */
 export function positions() {
     return [
-        claimed(201, 'Harbour lighthouse', [['Sea Lantern', 48, 30, 980], ['Prismarine', 512, 318, 3000]], 14),
+        {...claimed(201, 'Harbour lighthouse', [['Sea Lantern', 48, 30, 980], ['Prismarine', 512, 318, 3000]], 14), offer: {id: 41, name: 'Bridge logs', ends: new Date(Date.now() + 48 * 3_600_000).toISOString(), state: 'active'}},
         claimed(202, 'Castle roof', [['Deepslate Tiles', 2304, 806, 7140]], 31),
         claimed(203, 'Market stalls', [['Spruce Planks', 960, 800, 1150]], 3),
         claimed(204, 'Guard towers', [['Stone Bricks', 864, 104, 2100]], 44),

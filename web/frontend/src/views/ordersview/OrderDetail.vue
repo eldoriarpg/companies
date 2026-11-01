@@ -104,6 +104,9 @@ async function accept(): Promise<void> {
       <span v-else class="font-semibold">{{ order.offer.name }}</span>
       <MutedText>{{ t('orders.offerEnds', {hours: hoursLeft(order.offer.ends, now)}) }}</MutedText>
     </p>
+    <p v-if="order.payout" class="text-sm" data-testid="order-payout-events">
+      {{ order.payout.until ? t('orders.payoutWithEventsUntil', {net: money(order.payout.net, locale), hours: hoursLeft(order.payout.until, now)}) : t('orders.payoutWithEvents', {net: money(order.payout.net, locale)}) }}
+    </p>
     <MutedText tag="p">{{ t('orders.created', {time: when(order.created, now, locale)}) }}</MutedText>
     <MutedText v-if="order.expires" tag="p">{{ t('orders.expires', {hours: hoursLeft(order.expires, now)}) }}</MutedText>
     <MutedText v-else-if="order.deadline" tag="p">{{ t('orders.due', {hours: hoursLeft(order.deadline, now)}) }}</MutedText>

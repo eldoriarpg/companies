@@ -50,6 +50,7 @@ import de.eldoria.companies.dashboard.actions.OrderCreateWrites;
 import de.eldoria.companies.dashboard.market.MarketHistory;
 import de.eldoria.companies.dashboard.views.DashboardReads;
 import de.eldoria.companies.dashboard.views.OrderCatalogue;
+import de.eldoria.companies.dashboard.views.OrderEventPreviews;
 import de.eldoria.companies.dashboard.views.Views;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteAdapter;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteAlertData;
@@ -120,6 +121,7 @@ import de.eldoria.companies.services.MembershipService;
 import de.eldoria.companies.services.ProfileService;
 import de.eldoria.companies.services.SeriesService;
 import de.eldoria.companies.services.TreasuryService;
+import de.eldoria.companies.services.events.ActiveEvents;
 import de.eldoria.companies.services.events.ServerEventService;
 import de.eldoria.companies.services.notifications.Inbox;
 import de.eldoria.companies.services.notifications.NotificationService;
@@ -235,6 +237,7 @@ public final class DashboardWorld implements AutoCloseable {
     public final ContestService contests;
     public final AtomicInteger offerChecks = new AtomicInteger();
     public final List<Integer> endedOffers = new CopyOnWriteArrayList<>();
+    public volatile int closedDays = 7;
     public final Map<String, Double> accounts = new ConcurrentHashMap<>();
     public volatile int contestSlots = 5;
 
@@ -352,6 +355,12 @@ public final class DashboardWorld implements AutoCloseable {
                         entry -> entry.type().name(),
                         key -> "text of " + key,
                         this::name,
+                        OrderEventPreviews.of(
+                                new ActiveEvents(serverEvents, Clock.systemUTC()),
+                                () -> companySettings,
+                                () -> orderSettings.solo().taxPercent(),
+                                () -> 3.0,
+                                Clock.systemUTC()),
                         Clock.systemUTC()));
         var plugin = MockBukkit.createMockPlugin();
         this.plugin = plugin;
@@ -703,6 +712,7 @@ public final class DashboardWorld implements AutoCloseable {
                                 .asFuture(),
                         views::instant,
                         Times::now,
+                        () -> closedDays,
                         failure -> "text of " + failure.localeKey())),
                 new AdminOfferWrites(new AdminOfferWrites.Sources(
                         offers,

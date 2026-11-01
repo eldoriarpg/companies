@@ -6,7 +6,7 @@
 /** @vitest-environment happy-dom */
 import {describe, expect, it} from 'vitest'
 import type {OrderLineView} from '~/api/generated/protocol'
-import {itemsText, lineName, totalsOf, versusAverage} from './orders'
+import {boostParts, itemsText, lineName, totalsOf, versusAverage} from './orders'
 
 const TEXTS = {count: (value: number) => `at least ${value}`, durability: (value: number) => `${value} % left`}
 
@@ -53,5 +53,13 @@ describe('orders', () => {
 
         expect(lineName(swords, TEXTS)).toBe('diamond_sword (at least 3, Sharpness III+)')
         expect(lineName(line('minecraft:stone', 1, 0, 1), TEXTS)).toBe('stone')
+    })
+
+    it('writes what server events do to an order, leaving out what changes nothing', () => {
+        const texts = {multiplier: (factor: string) => `×${factor}`, tax: (points: string) => `-${points} tax`, fee: (percent: string) => `-${percent}% fee`}
+
+        expect(boostParts({multiplier: 1.5, taxPoints: 0, feePercent: 20}, texts, String)).toEqual(['×1.5', '-20% fee'])
+        expect(boostParts({multiplier: 1, taxPoints: 5, feePercent: 0}, texts, String)).toEqual(['-5 tax'])
+        expect(boostParts({multiplier: 1, taxPoints: 0, feePercent: 0}, texts, String)).toEqual([])
     })
 })

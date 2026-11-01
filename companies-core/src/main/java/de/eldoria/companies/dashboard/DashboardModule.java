@@ -41,6 +41,7 @@ import de.eldoria.companies.dashboard.market.MarketHistory;
 import de.eldoria.companies.dashboard.sessions.DashboardSessions;
 import de.eldoria.companies.dashboard.views.DashboardReads;
 import de.eldoria.companies.dashboard.views.OrderCatalogue;
+import de.eldoria.companies.dashboard.views.OrderEventPreviews;
 import de.eldoria.companies.dashboard.views.PlainText;
 import de.eldoria.companies.dashboard.views.Views;
 import de.eldoria.companies.data.repository.AAlertData;
@@ -89,6 +90,7 @@ import de.eldoria.companies.services.MembershipService;
 import de.eldoria.companies.services.ProfileService;
 import de.eldoria.companies.services.SeriesService;
 import de.eldoria.companies.services.TreasuryService;
+import de.eldoria.companies.services.events.ActiveEvents;
 import de.eldoria.companies.services.events.ServerEventService;
 import de.eldoria.companies.services.notifications.Inbox;
 import de.eldoria.companies.services.notifications.NotificationRenderer;
@@ -232,6 +234,12 @@ public final class DashboardModule {
                         entry -> inboxText(renderer, messages, entry),
                         refusal,
                         names,
+                        OrderEventPreviews.of(
+                                data.offers().active(),
+                                configuration::companySettings,
+                                () -> configuration.orderSetting().solo().taxPercent(),
+                                () -> configuration.eventSettings().maxMultiplier(),
+                                Times.UTC),
                         clock));
         Supplier<DashboardSettings> settings = configuration::dashboardSettings;
         var handshake = new Handshake(
@@ -405,6 +413,7 @@ public final class DashboardModule {
                         data.companyOf(),
                         views::instant,
                         Times::now,
+                        () -> configuration.eventSettings().closedDays(),
                         failure -> PlainText.of(failure.render(null, messages)))),
                 new AdminOfferWrites(new AdminOfferWrites.Sources(
                         data.offers().data(),
@@ -597,6 +606,7 @@ public final class DashboardModule {
      * @param events       the server event repository
      * @param eventService creates and changes server events as {@code /companyadmin event} does
      * @param collector    the collector account an event paid from an account uses when none is named
+     * @param active       the server events of this node
      */
     public record OfferServices(
             AOfferData data,
@@ -606,7 +616,8 @@ public final class DashboardModule {
             EventOfferService.Announcer announcer,
             AServerEventData events,
             ServerEventService eventService,
-            Supplier<String> collector) {}
+            Supplier<String> collector,
+            ActiveEvents active) {}
 
     /**
      * The services behind the dashboard's admin tools.

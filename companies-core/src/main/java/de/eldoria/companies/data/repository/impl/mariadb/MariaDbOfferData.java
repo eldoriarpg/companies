@@ -685,6 +685,23 @@ public class MariaDbOfferData extends AOfferData {
     }
 
     @Override
+    public List<EventOffer> closedContests(LocalDateTime since) {
+        return query(OFFER + """
+                        WHERE kind = ?
+                          AND state IN (?, ?, ?)
+                          AND started IS NOT NULL
+                          AND closed >= ?
+                        ORDER BY closed DESC, id DESC""")
+                .single(call().bind(OfferKind.CONTEST.name())
+                        .bind(OfferState.REACHED.name())
+                        .bind(OfferState.ENDED.name())
+                        .bind(OfferState.DEPLETED.name())
+                        .bind(since, time()))
+                .map(this::parseOffer)
+                .all();
+    }
+
+    @Override
     public boolean join(int offer, int company, LocalDateTime at) {
         var found = offer(offer);
         if (found.isEmpty()

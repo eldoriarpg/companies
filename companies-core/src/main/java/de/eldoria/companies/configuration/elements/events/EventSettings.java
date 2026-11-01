@@ -21,6 +21,7 @@ public class EventSettings {
     private boolean broadcast = true;
     private boolean joinMessage = true;
     private int createAheadHours = 24;
+    private int closedDays = 7;
     private List<EventTemplate> templates = new ArrayList<>();
     private MoneySource.SourceType goalRewardFunding = MoneySource.SourceType.MINTED;
     private String goalRewardAccount = "";
@@ -76,6 +77,15 @@ public class EventSettings {
      */
     public int createAheadHours() {
         return Math.max(0, createAheadHours);
+    }
+
+    /**
+     * How long a closed contest stays among the results of the dashboard's Events page.
+     *
+     * @return the days, at least 0; 0 shows no results
+     */
+    public int closedDays() {
+        return Math.max(0, closedDays);
     }
 
     /**

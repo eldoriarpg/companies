@@ -371,6 +371,7 @@ public final class SettingsCatalogue {
         events.flag("broadcast");
         events.flag("joinMessage");
         events.whole("createAheadHours");
+        events.whole("closedDays");
         events.choice("goalRewardFunding", names(MoneySource.SourceType.values()));
         events.text("goalRewardAccount");
         events.decimal("goalRewardBudget");

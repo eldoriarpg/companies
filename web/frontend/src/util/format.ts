@@ -33,6 +33,17 @@ export function count(value: number, locale: string): string {
 }
 
 /**
+ * A number with at most two decimals, such as a factor of 1.5.
+ *
+ * @param value the number
+ * @param locale the reader's language
+ * @returns the number as text
+ */
+export function decimal(value: number, locale: string): string {
+    return new Intl.NumberFormat(locale, {maximumFractionDigits: 2}).format(value)
+}
+
+/**
  * A large count shortened, such as 9.4k for 9,400.
  *
  * @param value the count
