@@ -11,16 +11,25 @@ Companies turns gathering and crafting into a player-run economy. A builder who 
 order and pays for it up front. A company takes the order, its members deliver the items, and every worker is paid
 for what they brought. Companies grow, level up and compete in rankings.
 
-New here? Start with [Installation](./getting-started/installation.md) and the short tour in
-[First steps](./getting-started/first-steps.md). Or [try it](./getting-started/try-it.md) on the demo server first.
+New here? Start with [Installation](./getting-started/installation.md) and the short tour in [First
+steps](./getting-started/first-steps.md), then open the [dashboard](./players/dashboard.md). Or [try
+it](./getting-started/try-it.md) on the demo server first.
 
 ## Features
 
+### Web dashboard
+
+Most of Companies happens on the web dashboard: players browse and place orders, deliver for their company, run the
+company, read their inbox and follow market prices in a browser, on a phone or a PC. Every server with Companies has
+it; players open it with `/company dashboard`. Server owners get admin tools and a guided setup there too.
+
+[Dashboard](./players/dashboard.md) · [Setting up the dashboard](./admin/dashboard.md)
+
 ### Orders
 
-Any player can order items. Build the order in a menu, set a price for each item, and pay. Orders can ask for any
-item of a material, or for an exact item with its enchantments and other details. The money is held until the order
-is delivered, and the player gets it back if nobody takes the order.
+Any player can order items. Build the order on the dashboard or in a menu, set a price for each item, and pay. Orders
+can ask for any item of a material, or for an exact item with its enchantments and other details. The money is held
+until the order is delivered, and the player gets it back if nobody takes the order.
 
 Orders are anonymous. Companies see what is ordered, not who ordered it.
 
