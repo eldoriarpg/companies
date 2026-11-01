@@ -22,14 +22,14 @@ alone count only for events without a level limit. What counts is when the order
 
 ## Seeing events
 
-- `/company events` lists the events that run or start within a day: what they do, for which orders, the time left
-  and, for a multiplier with a budget, what is left of it as a bar. Event offers of an event are listed under it.
+- The **Events** page of the [dashboard](./dashboard.md#events) lists the events that run or start within a day:
+  what they do, for which items and company levels, the time left and, for a multiplier with a budget, what it can
+  still pay. Event offers of an event name it. The running events also lead the ticker at the top.
+- In game, `/company events` lists the same, with the budget as a bar and the event's offers under it.
 - The order search marks the orders an event boosts, such as `[×1.5 · tax −5]`.
 - The view of an order shows what it pays with the events that run now, "if completed before" the end of the soonest
   of them.
 - When you build an order, its fee already counts the fee reductions running now.
-- On the [dashboard](./dashboard.md#events), the Events page lists the same events above the event offers, and the
-  running ones lead the ticker at the top.
 - When an event starts or ends, the server tells everyone in chat. The first time you join while an event runs, it is
   put into your [inbox](./inbox.md); on later joins you are reminded in chat. Both name the event's offers.
 

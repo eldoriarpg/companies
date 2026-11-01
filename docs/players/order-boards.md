@@ -12,15 +12,15 @@ A board is a ready-made order search. It shows open orders, often only those for
 
 ## Open a board
 
-- **Sign.** Right-click a board sign. Its first line is `[Companies]` on most servers. The sign shows what the board is about and how many
-  orders are open.
+- **Sign.** Right-click a board sign. Its first line is `[Companies]` on most servers. The sign shows what the board is
+  about and how many orders are open.
 - **NPC.** Right-click the NPC.
 - **Command.** `/company board` shows every open order. `/company board <board>` shows the orders of a board, for
   example `/company board iron`.
 
 Instead of a board name, you can also type materials separated by spaces, for example
-`/company board oak_log birch_log`. Each one matches every material whose name contains it, so `iron` finds iron ingots, iron blocks, raw iron
-and more.
+`/company board oak_log birch_log`. Each one matches every material whose name contains it, so `iron` finds iron ingots,
+iron blocks, raw iron and more.
 
 Your server decides which boards exist. Tab completion suggests their names.
 

@@ -10,6 +10,11 @@ you can describe in words. Post it as a **job** and a company does it for you. F
 access to just that area while it works, and is paid when the work checks out. For a **contract**, you decide whether
 the work is done.
 
+The **Jobs** page of the [dashboard](./dashboard.md#jobs) lists your jobs, the jobs your company works on and the open
+ones. Post a contract there, and open a job to take every step you may take: describe, approve, reject, dispute, give
+more time, cancel. Jobs in an area need a selection in the world, so they are posted in game, and dig, terraform and
+build jobs are finished in game too, where their area is checked.
+
 ## Posting a job
 
 A job lies on your land: wholly on one plot or claim you own (PlotSquared, GriefPrevention, HuskClaims, Lands or
@@ -58,10 +63,11 @@ The job is done when enough of the schematic's blocks are in place: `buildMatchP
 [jobs.yml](../admin/configuration/jobs-yml.md). Only block types count, not which way a stair faces or how a fence
 connects. Where the schematic has air, anything goes, so terrain and furniture never hold the job up.
 
-Members of the company see what is missing with `/company job ghosts <id>`: small glowing copies of the missing and wrong
-blocks of one layer, only for them, starting with the lowest layer that is not done. `/company job ghosts next <id>` and
-`/company job ghosts previous <id>` move a layer up or down, `/company job ghosts off` hides them. Placing a block the
-schematic asks for counts as work, once for each spot, and so does taking out a wrong block.
+Members of the company see what is missing with `/company job ghosts <id>`: small glowing copies of the missing and
+wrong blocks of one layer, only for them, starting with the lowest layer that is not done.
+`/company job ghosts next <id>` and `/company job ghosts previous <id>` move a layer up or down,
+`/company job ghosts off` hides them. Placing a block the schematic asks for counts as work, once for each spot, and so
+does taking out a wrong block.
 
 ## Harvest jobs
 
@@ -89,16 +95,17 @@ costs a harvest company nothing. A harvest job has no approval and no disputes.
 
 ## Contracts
 
-A **contract** is work described in words, such as "build me a stable" or "bring 64 lanterns to my shop". Stand where
-the work is and post it:
-`/order job contract <price> <hours> <title>`, then describe it with `/order job describe <id> <text>` while nobody
-has taken it yet. A contract gives the company no access to your land; agree on that with them in game.
+A **contract** is work described in words, such as "build me a stable" or "bring 64 lanterns to my shop". On the
+dashboard, **Post a contract** on the Jobs page takes a title, a description, the price and the hours. In game, stand
+where the work is and post `/order job contract <price> <hours> <title>`, then describe it with
+`/order job describe <id> <text>` while nobody has taken it yet. A contract gives the company no access to your land;
+agree on that with them in game.
 
 There is no check. When the company says the work is done, your inbox asks you to approve or reject it:
 
-- **Approve** (`/order job approve <id>`): the company is paid.
-- **Reject** (`/order job reject <id> <reason>`): the company is back at work. The time it waited for your answer is
-  added to its time, so your delay costs it nothing.
+- **Approve and pay** on the job's page (`/order job approve <id>` in game): the company is paid.
+- **Reject** with a reason (`/order job reject <id> <reason>`): the company is back at work. The time it waited for your
+  answer is added to its time, so your delay costs it nothing.
 - **No answer:** after `approveHours` (72 by default, in [jobs.yml](../admin/configuration/jobs-yml.md)) the contract is
   approved and paid.
 
@@ -107,26 +114,28 @@ it stands.
 
 ## Disputes
 
-When you and the company can not agree, either side opens a **dispute** about a job a company works on or that waits
-for your answer: `/order job dispute <id> <reason>`, or `/company job dispute <id> <reason>` for the company. The job
-is frozen: the company's access ends, its time stops, and nobody, you included, may place blocks or pour into its area.
-A dispute the owner opens frees the company's order slot meanwhile; one the company opens keeps it. An admin looks at it and decides how the price is split: anything
-from all of it to the company to all of it back to you. The fee is kept.
+When you and the company can not agree, either side opens a **dispute** about a job a company works on or that waits for
+your answer: **Dispute** on the job's page, or `/order job dispute <id> <reason>` (`/company job dispute <id> <reason>`
+for the company). The job is frozen: the company's access ends, its time stops, and nobody, you included, may place
+blocks or pour into its area. A dispute the owner opens frees the company's order slot meanwhile; one the company opens
+keeps it. An admin looks at it and decides how the price is split: anything from all of it to the company to all of it
+back to you. The fee is kept.
 
-Until then, the side that opened the dispute may withdraw it (`/order job withdraw <id>` or `/company job withdraw
-<id>`): the job goes back to where it was, and the company gets the time the dispute lasted added. Work the company had
-already said is done waits for your answer again, with the time to approve it running on as before. You may also still approve the
-job, which pays the company in full and ends the dispute.
+Until then, the side that opened the dispute may withdraw it (**Withdraw dispute**, `/order job withdraw <id>` or
+`/company job withdraw <id>`): the job goes back to where it was, and the company gets the time the dispute lasted
+added. Work the company had already said is done waits for your answer again, with the time to approve it running on as
+before. You may also still approve the job, which pays the company in full and ends the dispute.
 
 ## More time
 
 A job can turn out to need more time than you gave it, such as levelling a large area. While a company works on your
-job, you may give it more hours: `/order job extend <id> <hours>`. It costs nothing; the price stays as posted.
+job, you may give it more hours: **Give more time** on the job's page, or `/order job extend <id> <hours>`. It costs
+nothing; the price stays as posted.
 
-The company may also ask: `/company job extend <id> <hours> <reason>`. You get a notice with **Grant** and **Refuse**
-(`/order job extension grant <id>`, `/order job extension refuse <id> [reason]`); the request also shows in
-`/order job info`. The company's time keeps running while you decide, and a company may ask only a few times per job
-(3 by default).
+The company may also ask (**Ask for more time**, or `/company job extend <id> <hours> <reason>`). You get a notice, and
+the job's page shows **Grant more time** and **Refuse more time** (`/order job extension grant <id>`,
+`/order job extension refuse <id> [reason]` in game); the request also shows in `/order job info`. The company's time
+keeps running while you decide, and a company may ask only a few times per job (3 by default).
 
 More time is given only while the company works on the job and its time has not run out: not while the job waits for
 your approval or is disputed. Giving more time yourself also answers an open request. A request is dropped without
@@ -139,54 +148,47 @@ starts with the job's original hours. For a harvest job, more time means harvest
 
 ## Your jobs
 
+Your jobs are under *Your jobs* on the dashboard's Jobs page, with everything you can do with each. These commands are
+for what happens only in game:
+
 | Command | What it does |
 |---|---|
-| `/order job` | Lists your jobs. |
-| `/order job info <id>` | Shows a job: its area or place, money, state, and how far the work is (on the server of its area). |
-| `/order job contract <price> <hours> <title>` | Posts a contract at the place you stand. |
-| `/order job describe <id> <text>` | Describes a job nobody has taken yet. |
-| `/order job approve <id>` | Approves a contract the company says is done, or a job a company works on as it stands, and pays the company. |
-| `/order job reject <id> <reason>` | Sends a contract the company says is done back to work. |
-| `/order job dispute <id> <reason>` | Opens a dispute an admin settles. |
-| `/order job withdraw <id>` | Withdraws a dispute you opened. |
 | `/order job schematics` | Lists the schematics build jobs may use. |
 | `/order job blueprint <schematic> <rotation>` | Outlines a schematic placed where you stand for ten seconds. |
 | `/order job build <schematic> <rotation> <price> <hours> <title>` | Posts a build job of a schematic placed where you stand. |
 | `/order job harvest <price per item> <budget> <hours> <title>` | Posts a harvest job on the field you selected with WorldEdit. |
 | `/order job stock <id>` | Lists the stock of a harvest job. |
 | `/order job collect <id>` | Takes the stock of a harvest job into your inventory. |
-| `/order job end <id>` | Ends a harvest job a company works on; the rest of the budget comes back. |
-| `/order job cancel <id>` | Cancels a job nobody works on. The price comes back, the fee is kept. |
+
+`/order job` and `/order job info <id>` show your jobs in game; the [Commands](../reference/commands.md) page lists
+every job command.
 
 A job waits for a company for some days (`openDays` in [jobs.yml](../admin/configuration/jobs-yml.md)). When nobody
 takes it, it expires and price and fee come back. The plugin never tells you which company works on your job; your inbox
-tells you when it is taken, given back, done, waiting for your answer, disputed, settled or expired. The land plugins may still show who has access, for example
-in the members of the job's WorldGuard region.
+tells you when it is taken, given back, done, waiting for your answer, disputed, settled or expired. The land plugins
+may still show who has access, for example in the members of the job's WorldGuard region.
 
 ## Working on jobs
 
-Members with the *manage orders* permission run the company's jobs:
+Members with the *manage orders* permission run the company's jobs. On the dashboard's Jobs page they **Take** an
+open job (it uses one of your company's order slots), **Give back** one, say a contract is done, end a harvest,
+**Dispute**, **Withdraw dispute** and **Ask for more time**. Some steps happen in game, on the server of the job's
+area:
 
 | Command | What it does |
 |---|---|
-| `/company job` | Lists the open jobs. |
-| `/company job mine` | Lists the jobs your company works on. |
-| `/company job info <id>` | Shows a job's area, pay and time, and how far your work is. |
-| `/company job take <id>` | Takes a job. It uses one of your company's order slots. |
-| `/company job giveback <id>` | Gives a job back; it is open again. |
-| `/company job done <id>` | Checks the area and, when the work is done, pays the job. Run it on the server of the job's area. For a contract it tells the owner the work is done; they approve or reject it. For a harvest job it ends the harvest. |
-| `/company job dispute <id> <reason>` | Opens a dispute an admin settles. |
+| `/company job done <id>` | Checks the area of a dig, terraform or build job and, when the work is done, pays the job. |
 | `/company job ghosts <id>` | Shows the missing and wrong blocks of a build job, one layer at a time. Add `next` or `previous` before the id to move a layer; `/company job ghosts off` hides them. |
-| `/company job withdraw <id>` | Withdraws a dispute your company opened. |
+
+`/company job` lists the open jobs in game, and the [Commands](../reference/commands.md) page has the rest.
 
 While your company has the job, its members may change the area: on a plot they are trusted, in a region a job region
 lists them as members. Members who only have access through the job can not break or place blocks, use buckets, open
 chests, press buttons or levers, or hit entities on the plot outside the areas of their jobs; they can still open doors,
-gates and trapdoors and fight monsters. Nobody but staff may pour lava, place TNT or set fire in the area while a company
-works on it.
-The access ends within half a minute when the job is done, given back, or its time runs out; then the job is open
-again for every company. Giving a job back or running out of time costs your company level progress, like an order.
-When your company is disbanded, its jobs are open again.
+gates and trapdoors and fight monsters. Nobody but staff may pour lava, place TNT or set fire in the area while a
+company works on it. The access ends within half a minute when the job is done, given back, or its time runs out; then
+the job is open again for every company. Giving a job back or running out of time costs your company level progress,
+like an order. When your company is disbanded, its jobs are open again.
 
 When the job is done, the price is split among the members by the blocks each of them broke in the area. Blocks placed
 during the job do not count when they are broken again; a block left in the area keeps the job from being done. In a
