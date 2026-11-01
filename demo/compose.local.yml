@@ -1,0 +1,54 @@
+services:
+  hub:
+    image: companies-demo-node:local
+    build:
+      context: ..
+      dockerfile: .docker/demo-node.Dockerfile
+    environment:
+      MEMORY: 2G
+
+  lands:
+    image: companies-demo-node:local
+    environment:
+      MEMORY: 2G
+
+  reset:
+    image: companies-demo-reset:local
+    build:
+      context: ..
+      dockerfile: .docker/demo-reset.Dockerfile
+    volumes:
+      - ./seed:/seed:ro
+
+  velocity:
+    image: companies-demo-proxy:local
+    build:
+      context: ..
+      dockerfile: .docker/demo-proxy.Dockerfile
+
+  mariadb:
+    image: companies-demo-mariadb:local
+    build:
+      context: ..
+      dockerfile: .docker/demo-mariadb.Dockerfile
+
+  gateway:
+    image: companies-backend:local
+    build:
+      context: ..
+      dockerfile: .docker/backend.Dockerfile
+    environment:
+      PUBLIC_URL: http://localhost:4000
+      COOKIE_SECURE: "false"
+
+  frontend:
+    image: companies-frontend:local
+    build:
+      context: ..
+      dockerfile: .docker/frontend.Dockerfile
+    ports: ["127.0.0.1:4000:4000"]
+
+networks:
+  traefik:
+    external: false
+    name: companies-demo-traefik

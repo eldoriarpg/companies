@@ -33,7 +33,8 @@ import java.util.concurrent.TimeUnit;
 /**
  * Entry point of the dashboard gateway: reads the settings from the environment ({@link ServiceConfig}), migrates the
  * database and starts the gateway. A hosted gateway needs {@code LYNA_GATEWAY_SECRET}. A self-hosted gateway
- * creates a server token named {@code default} on its first start and prints it once.
+ * stores {@code SERVER_TOKEN} as the token named {@code default} on every start when it is set; otherwise it creates
+ * {@code default} on its first start and prints it once.
  * <p>
  * With arguments it manages the server tokens of a self-hosted gateway instead and exits:
  * <pre>
@@ -46,6 +47,7 @@ import java.util.concurrent.TimeUnit;
 public final class GatewayService {
     private static final Logger log = LoggerFactory.getLogger(GatewayService.class);
     private static final long SWEEP_SECONDS = 5;
+    private static final int MIN_TOKEN_LENGTH = 32;
 
     private GatewayService() {}
 
@@ -59,11 +61,26 @@ public final class GatewayService {
         PrintStream out = new PrintStream(System.out, true, StandardCharsets.UTF_8);
         if (args.length > 0) {
             Database.open(config.database());
-            System.exit(tokens(Arrays.asList(args), new TokenRepository(), out));
+            System.exit(tokens(
+                    Arrays.asList(args),
+                    new TokenRepository(),
+                    config.selfHosted().fixed(),
+                    out));
             return;
         }
         if (config.mode() == GatewayMode.HOSTED && config.lyna().secret().isBlank()) {
             log.error("A hosted gateway needs LYNA_GATEWAY_SECRET; set GATEWAY_MODE=self-hosted to run your own");
+            System.exit(1);
+            return;
+        }
+        if (config.mode() == GatewayMode.HOSTED && config.selfHosted().fixed()) {
+            log.warn("SERVER_TOKEN is ignored by a hosted gateway");
+        } else if (config.selfHosted().fixed()
+                && !validToken(config.selfHosted().serverToken())) {
+            log.error(
+                    "SERVER_TOKEN must start with {} and have at least {} characters after it",
+                    TokenRepository.PREFIX,
+                    MIN_TOKEN_LENGTH);
             System.exit(1);
             return;
         }
@@ -91,7 +108,17 @@ public final class GatewayService {
     }
 
     /**
-     * Picks how servers authenticate. A self-hosted gateway without any token creates one named {@code default} and
+     * @param token a token given from outside
+     * @return whether it has the prefix and enough characters to be hard to guess
+     */
+    static boolean validToken(String token) {
+        return token.startsWith(TokenRepository.PREFIX)
+                && token.length() - TokenRepository.PREFIX.length() >= MIN_TOKEN_LENGTH;
+    }
+
+    /**
+     * Picks how servers authenticate. A self-hosted gateway stores {@code SERVER_TOKEN} as the token of the
+     * {@code default} network when it is set; without it and without any token, it creates {@code default} and
      * prints it.
      *
      * @param config the settings
@@ -105,7 +132,11 @@ public final class GatewayService {
             case HOSTED -> new LynaAuthenticator(config.lyna(), http, clock);
             case SELF_HOSTED -> {
                 TokenRepository tokens = new TokenRepository();
-                if (tokens.count() == 0) tokens.create("default").ifPresent(token -> announce(out, token));
+                if (config.selfHosted().fixed()) {
+                    tokens.store("default", config.selfHosted().serverToken());
+                } else if (tokens.count() == 0) {
+                    tokens.create("default").ifPresent(token -> announce(out, token));
+                }
                 yield new TokenAuthenticator(tokens);
             }
         };
@@ -116,10 +147,12 @@ public final class GatewayService {
      *
      * @param args the command and its arguments
      * @param tokens the stored tokens
+     * @param fixedDefault whether {@code SERVER_TOKEN} sets the token of {@code default}, which then may not be
+     * regenerated or deleted by command
      * @param out where the result is printed
      * @return the exit code
      */
-    static int tokens(List<String> args, TokenRepository tokens, PrintStream out) {
+    static int tokens(List<String> args, TokenRepository tokens, boolean fixedDefault, PrintStream out) {
         String usage = "Usage: token list | token create <name> | token regenerate <name> | token delete <name>";
         if (args.size() < 2 || !args.getFirst().equals("token")) {
             out.println(usage);
@@ -137,6 +170,10 @@ public final class GatewayService {
             return 2;
         }
         String name = args.get(2);
+        if (fixedDefault && name.equals("default") && !command.equals("create")) {
+            out.println("The token of default is set by SERVER_TOKEN; change SERVER_TOKEN and restart the gateway");
+            return 1;
+        }
         Optional<String> token;
         switch (command) {
             case "create" -> token = tokens.create(name);

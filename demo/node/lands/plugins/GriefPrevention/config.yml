@@ -1,0 +1,5 @@
+GriefPrevention:
+  Claims:
+    Mode:
+      claims: Survival
+      plots: Disabled

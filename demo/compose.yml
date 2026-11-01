@@ -1,0 +1,189 @@
+name: companies-demo
+
+x-node: &node
+  image: ghcr.io/eldoriarpg/companies-demo-node:${DEMO_TAG:-latest}
+  restart: unless-stopped
+  depends_on:
+    mariadb: {condition: service_healthy}
+    redis: {condition: service_healthy}
+  secrets: [rcon, forwarding, db_password]
+  networks: [game, data]
+
+x-node-env: &node-env
+  MEMORY: ${NODE_MEMORY:-3G}
+  DIFFICULTY: peaceful
+  MODE: survival
+  VIEW_DISTANCE: "8"
+  ENABLE_AUTOPAUSE: "FALSE"
+  ALLOW_NETHER: "FALSE"
+  SYNC_SKIP_NEWER_IN_DESTINATION: "FALSE"
+  RCON_PASSWORD_FILE: /run/secrets/rcon
+  CFG_FORWARDING_SECRET_FILE: /run/secrets/forwarding
+  CFG_DB_PASSWORD_FILE: /run/secrets/db_password
+  TZ: Europe/Berlin
+
+services:
+  velocity:
+    image: ghcr.io/eldoriarpg/companies-demo-proxy:${DEMO_TAG:-latest}
+    restart: unless-stopped
+    environment:
+      MEMORY: 512M
+    volumes:
+      - velocity:/server
+    secrets: [forwarding]
+    ports: ["${GAME_PORT:-25565}:25577"]
+    depends_on:
+      hub: {condition: service_healthy}
+      lands: {condition: service_healthy}
+    networks: [game]
+
+  hub:
+    <<: *node
+    hostname: hub
+    environment:
+      <<: *node-env
+      COPY_CONFIG_SRC: /demo/hub
+      LEVEL: hub
+      LEVEL_TYPE: FLAT
+      GENERATOR_SETTINGS: >-
+        {"layers": [{"block": "minecraft:bedrock", "height": 1}, {"block": "minecraft:stone", "height": 59},
+        {"block": "minecraft:dirt", "height": 3}, {"block": "minecraft:grass_block", "height": 1}],
+        "biome": "minecraft:plains"}
+      GENERATE_STRUCTURES: "FALSE"
+      RCON_CMDS_STARTUP: |-
+        setworldspawn 0 0 0 180 0
+        gamerule respawn_radius 0
+      MOTD: Companies demo - hub
+      CFG_DASHBOARD_KEY_FILE: /run/secrets/dashboard_key
+    secrets: [rcon, forwarding, db_password, dashboard_key]
+    volumes:
+      - hub:/data
+
+  lands:
+    <<: *node
+    hostname: lands
+    depends_on:
+      mariadb: {condition: service_healthy}
+      redis: {condition: service_healthy}
+      hub: {condition: service_healthy}
+    environment:
+      <<: *node-env
+      COPY_CONFIG_SRC: /demo/lands
+      LEVEL: claims
+      SEED: "4318502261"
+      RCON_CMDS_STARTUP: mv create plots normal --generator PlotSquared --seed 4318502261
+      MOTD: Companies demo - lands
+    volumes:
+      - lands:/data
+
+  mariadb:
+    image: ghcr.io/eldoriarpg/companies-demo-mariadb:${DEMO_TAG:-latest}
+    restart: unless-stopped
+    environment:
+      MARIADB_ROOT_PASSWORD_FILE: /run/secrets/db_root
+      MARIADB_USER: demo
+      MARIADB_PASSWORD_FILE: /run/secrets/db_password
+    volumes:
+      - mariadb:/var/lib/mysql
+    secrets: [db_root, db_password]
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      retries: 10
+    networks: [data]
+
+  redis:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+    networks: [data]
+
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD_FILE: /run/secrets/gateway_db
+    volumes:
+      - postgres:/var/lib/postgresql/data
+    secrets: [gateway_db]
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres"]
+      interval: 5s
+      retries: 10
+    networks: [gateway]
+
+  gateway:
+    image: ghcr.io/eldoriarpg/companies-backend:${DEMO_TAG:-latest}
+    restart: unless-stopped
+    environment:
+      DB_HOST: postgres
+      DB_PASSWORD_FILE: /run/secrets/gateway_db
+      GATEWAY_MODE: self-hosted
+      SERVER_TOKEN_FILE: /run/secrets/dashboard_key
+      PUBLIC_URL: https://${DEMO_HOST:-demo.companies.eldoria.de}
+      TRUSTED_PROXIES: 172.16.0.0/12,10.0.0.0/8,192.168.0.0/16
+      COOKIE_SECURE: ${COOKIE_SECURE:-true}
+    secrets: [gateway_db, dashboard_key]
+    depends_on:
+      postgres: {condition: service_healthy}
+    networks: [game, gateway, web]
+
+  frontend:
+    image: ghcr.io/eldoriarpg/companies-frontend:${DEMO_TAG:-latest}
+    restart: unless-stopped
+    environment:
+      NUXT_BACKEND_URL: http://gateway:8080
+    depends_on:
+      gateway: {condition: service_healthy}
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: ${TRAEFIK_NETWORK:-traefik}
+      traefik.http.routers.companies-demo.rule: Host(`${DEMO_HOST:-demo.companies.eldoria.de}`)
+      traefik.http.routers.companies-demo.entrypoints: ${TRAEFIK_ENTRYPOINT:-websecure}
+      traefik.http.routers.companies-demo.tls.certresolver: ${TRAEFIK_CERTRESOLVER:-letsencrypt}
+      traefik.http.services.companies-demo.loadbalancer.server.port: "4000"
+    networks: [web, traefik]
+
+  reset:
+    image: ghcr.io/eldoriarpg/companies-demo-reset:${DEMO_TAG:-latest}
+    restart: unless-stopped
+    init: true
+    environment:
+      RESET_AT: ${RESET_AT:-04:00}
+      TZ: Europe/Berlin
+    volumes:
+      - ${DOCKER_SOCKET:-/var/run/docker.sock}:/var/run/docker.sock
+      - hub:/nodes/hub
+      - lands:/nodes/lands
+    secrets: [db_password]
+    depends_on:
+      mariadb: {condition: service_healthy}
+      redis: {condition: service_healthy}
+    networks: [data]
+
+volumes:
+  velocity: {}
+  hub: {}
+  lands: {}
+  mariadb: {}
+  postgres: {}
+
+networks:
+  game: {}
+  data: {}
+  gateway: {}
+  web: {}
+  traefik:
+    external: true
+    name: ${TRAEFIK_NETWORK:-traefik}
+
+secrets:
+  rcon: {environment: DEMO_RCON}
+  forwarding: {environment: DEMO_FORWARDING}
+  db_root: {environment: DEMO_DB_ROOT}
+  db_password: {environment: DEMO_DB_PASSWORD}
+  gateway_db: {environment: DEMO_GATEWAY_DB}
+  dashboard_key: {environment: DEMO_DASHBOARD_KEY}

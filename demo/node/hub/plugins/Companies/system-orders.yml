@@ -1,0 +1,30 @@
+enabled: true
+checkMinutes: 5
+mintedDailyCap: 20000.0
+rules:
+  - id: town-hall
+    name: Town hall cobblestone
+    material: COBBLESTONE
+    amount: 256
+    price:
+      mode: FIXED
+      value: 0.3
+    everyHours: 6
+    lifetimeHours: 6
+    maxOpen: 1
+    source:
+      type: MINTED
+      dailyBudget: 5000
+  - id: harbour
+    name: Harbour planks
+    material: SPRUCE_PLANKS
+    amount: 192
+    price:
+      mode: FIXED
+      value: 0.4
+    everyHours: 4
+    lifetimeHours: 4
+    maxOpen: 1
+    source:
+      type: MINTED
+      dailyBudget: 5000

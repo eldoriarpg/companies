@@ -9,14 +9,14 @@ import de.eldoria.companies.commands.CommandDependencies;
 import de.eldoria.companies.commands.support.CommandFailure;
 import de.eldoria.companies.commands.support.PlayerOnly;
 import de.eldoria.companies.commands.support.Senders;
+import de.eldoria.companies.components.job.JobKind;
+import de.eldoria.companies.components.job.JobState;
 import de.eldoria.companies.configuration.elements.jobs.JobSettings;
 import de.eldoria.companies.data.wrapper.job.Job;
 import de.eldoria.companies.data.wrapper.job.JobArea;
 import de.eldoria.companies.data.wrapper.job.JobExtension;
-import de.eldoria.companies.data.wrapper.job.JobKind;
 import de.eldoria.companies.data.wrapper.job.JobLand;
 import de.eldoria.companies.data.wrapper.job.JobReview;
-import de.eldoria.companies.data.wrapper.job.JobState;
 import de.eldoria.companies.data.wrapper.job.JobTarget;
 import de.eldoria.companies.jobs.Blueprint;
 import de.eldoria.companies.jobs.DigCheck;
@@ -572,11 +572,14 @@ public final class JobCommand {
                 player,
                 () -> {
                     jobs().access().flush(id);
-                    return jobs().service().endAsOwner(player.getUniqueId(), player.getName(), id);
+                    return new Ended(
+                            charged(id), jobs().service().endAsOwner(player.getUniqueId(), player.getName(), id));
                 },
-                change -> {
-                    if (change == JobService.Change.DONE) jobs().access().checkSoon();
-                    answer(player, id, change, "ended");
+                ended -> {
+                    if (ended.change() == JobService.Change.DONE) {
+                        jobs().access().checkSoon();
+                    }
+                    answer(player, id, ended.change(), ended.charged() ? "ended" : "endedUncharged");
                 });
     }
 
@@ -874,18 +877,26 @@ public final class JobCommand {
     @Executes("cancel")
     public void cancel(CommandSender sender, @IntArg(min = 0) int id) {
         var player = Senders.player(sender);
-        run(player, () -> jobs().service().cancel(player.getUniqueId(), player.getName(), id), change -> {
-            var values = Values.number("id", id);
-            switch (change) {
-                case DONE -> {
-                    deps.messages().sendMessage(player, PREFIX + "cancelled", values);
-                    jobs().access().checkSoon();
-                }
-                case UNKNOWN, NOT_YOURS -> deps.messages().sendError(player, PREFIX + "error.unknown", values);
-                case TAKEN -> deps.messages().sendError(player, PREFIX + "error.taken", values);
-                default -> deps.messages().sendError(player, PREFIX + "error.closed", values);
-            }
-        });
+        run(
+                player,
+                () -> new Ended(charged(id), jobs().service().cancel(player.getUniqueId(), player.getName(), id)),
+                ended -> {
+                    var change = ended.change();
+                    var values = Values.number("id", id);
+                    switch (change) {
+                        case DONE -> {
+                            deps.messages()
+                                    .sendMessage(
+                                            player,
+                                            PREFIX + (ended.charged() ? "cancelled" : "cancelledUncharged"),
+                                            values);
+                            jobs().access().checkSoon();
+                        }
+                        case UNKNOWN, NOT_YOURS -> deps.messages().sendError(player, PREFIX + "error.unknown", values);
+                        case TAKEN -> deps.messages().sendError(player, PREFIX + "error.taken", values);
+                        default -> deps.messages().sendError(player, PREFIX + "error.closed", values);
+                    }
+                });
     }
 
     private void post(
@@ -978,6 +989,18 @@ public final class JobCommand {
             default -> 0;
         };
     }
+
+    private boolean charged(int id) {
+        return jobs().data().job(id).map(Job::charged).orElse(true);
+    }
+
+    /**
+     * What an owner's end of a job came to.
+     *
+     * @param charged whether the job was charged, so money went back
+     * @param change  what came of it
+     */
+    private record Ended(boolean charged, JobService.Change change) {}
 
     private Job own(Player player, int id) {
         return jobs().data()

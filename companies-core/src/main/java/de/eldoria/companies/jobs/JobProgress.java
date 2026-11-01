@@ -5,8 +5,8 @@
  */
 package de.eldoria.companies.jobs;
 
+import de.eldoria.companies.components.job.JobKind;
 import de.eldoria.companies.data.wrapper.job.Job;
-import de.eldoria.companies.data.wrapper.job.JobKind;
 import de.eldoria.companies.util.Threading;
 import org.bukkit.World;
 import org.bukkit.plugin.Plugin;

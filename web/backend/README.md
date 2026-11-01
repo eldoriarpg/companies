@@ -12,9 +12,9 @@ Main class: `de.eldoria.companies.web.gateway.GatewayService`. Not published; sh
   the key type `LYNA_KEY_TYPE` (`dashboard`) on Companies' Server keys tab at Lyna. The server id is
   `lyna:<keyId>`, stable across rotations. A positive answer is reused for `LYNA_CACHE_MINUTES` only while Lyna
   cannot be reached.
-- `GATEWAY_MODE=self-hosted`: nodes present a server token (`cst_…`). The first start creates the token `default`
-  and prints it once; `web-backend token list|create|regenerate|delete <name>` manages more. The server id is
-  `token:<id>`.
+- `GATEWAY_MODE=self-hosted`: nodes present a server token (`cst_…`). The first start creates the token `default` and
+  prints it once, or, with `SERVER_TOKEN` (`_FILE`), every start stores that as `default`; `web-backend token
+  list|create|regenerate|delete <name>` manages more. The server id is `token:<id>`.
 
 Settings are read from the environment, see `ServiceConfig`. The admin page `docs/admin/dashboard-gateway.md`
 lists the ones a self-hoster needs.

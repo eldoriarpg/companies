@@ -5,28 +5,23 @@
  */
 package de.eldoria.companies.commands.company;
 
-import de.eldoria.companies.areas.AreaHome;
 import de.eldoria.companies.areas.AreaServices;
+import de.eldoria.companies.areas.CompanyHomes;
 import de.eldoria.companies.areas.HomeTeleports;
 import de.eldoria.companies.commands.CommandDependencies;
 import de.eldoria.companies.commands.support.CommandFailure;
 import de.eldoria.companies.commands.support.Senders;
-import de.eldoria.companies.components.company.CompanyPermission;
 import de.eldoria.companies.data.wrapper.area.CompanyHome;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
-import de.eldoria.companies.events.company.CompanyAreasChangeEvent;
 import de.eldoria.companies.menus.Values;
-import de.eldoria.companies.util.AsyncEvents;
+import de.eldoria.companies.services.ActionResult;
 import de.eldoria.companies.util.Permission;
 import de.eldoria.companies.util.Threading;
-import de.eldoria.companies.util.Times;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
-import java.util.HashSet;
 import java.util.Locale;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -80,52 +75,13 @@ public final class HomeCommand {
      */
     public void setHome(CommandSender sender) {
         var player = Senders.player(sender);
-        var at = player.getLocation();
-        Set<String> here = new HashSet<>();
-        for (var area : areas().providers().areasAt(at)) here.add(area.toString());
-        var home = new CompanyHome(
-                0,
-                areas().node(),
-                areas().proxyServer().get(),
-                at.getWorld().getName(),
-                at.getX(),
-                at.getY(),
-                at.getZ(),
-                at.getYaw(),
-                at.getPitch(),
-                player.getUniqueId(),
-                Times.now());
+        var homes = new CompanyHomes(areas(), deps.configuration()::areaSettings, deps.plugin());
+        var spot = homes.spot(player.getLocation(), player.getUniqueId());
         run(
                 player,
-                () -> {
-                    var company = company(player);
-                    var member = company.member(player.getUniqueId());
-                    if (member.isEmpty() || !member.get().hasPermission(CompanyPermission.MANAGE_AREAS)) {
-                        throw CommandFailure.of(PREFIX + "error.manage");
-                    }
-                    var owned = areas().areas().ofCompany(company.id()).stream()
-                            .filter(area -> areas().providers().available(area.provider()))
-                            .toList();
-                    var inside = owned.stream().anyMatch(area -> here.contains(area.provider() + ":" + area.ref()));
-                    if (!AreaHome.allowed(deps.configuration().areaSettings(), !owned.isEmpty(), inside)) {
-                        throw CommandFailure.of(PREFIX + "error.outside");
-                    }
-                    var stored = new CompanyHome(
-                            company.id(),
-                            home.node(),
-                            home.server(),
-                            home.world(),
-                            home.x(),
-                            home.y(),
-                            home.z(),
-                            home.yaw(),
-                            home.pitch(),
-                            home.setBy(),
-                            home.setAt());
-                    if (!areas().homes().set(stored)) throw CommandFailure.of(PREFIX + "error.failed");
-                    AsyncEvents.fire(
-                            deps.plugin(), new CompanyAreasChangeEvent(company, CompanyAreasChangeEvent.Change.HOME));
-                    return stored;
+                () -> switch (homes.set(company(player), spot, true)) {
+                    case ActionResult.Done<CompanyHome>(var stored) -> stored;
+                    case ActionResult.Refused<CompanyHome>(var failure) -> throw failure;
                 },
                 stored -> deps.messages()
                         .sendMessage(

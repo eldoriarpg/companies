@@ -16,10 +16,11 @@ import org.bukkit.command.CommandSender;
  * {@code /companyadmin syncconfiguration}: stores the shared files of this node as their next revisions, each only
  * when it changed, or takes the latest revisions, depending on the node type. Afterwards everything registered with
  * {@link CommandDependencies#onReload(Runnable)} applies the configuration, as after a reload. The secondaries hear of
- * a new revision over the node bus, or find it within half a minute without a realtime bus.
+ * a new revision over the node bus, or find it within half a minute without a realtime bus. Since it reloads, it needs
+ * the permission of {@code /companyadmin reload}.
  */
 @Subcommand("syncconfiguration")
-@Permission(Admin.ADMIN)
+@Permission(Admin.RELOAD)
 public final class SyncConfiguration {
     private final CommandDependencies deps;
 

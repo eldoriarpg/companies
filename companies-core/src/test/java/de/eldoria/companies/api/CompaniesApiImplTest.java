@@ -10,9 +10,21 @@ import de.eldoria.companies.api.write.CreateOrderResult;
 import de.eldoria.companies.api.write.EventChange;
 import de.eldoria.companies.api.write.EventProblem;
 import de.eldoria.companies.api.write.EventRequest;
+import de.eldoria.companies.api.write.FoundProblem;
+import de.eldoria.companies.api.write.FoundRequest;
+import de.eldoria.companies.api.write.FoundResult;
+import de.eldoria.companies.api.write.HomeProblem;
+import de.eldoria.companies.api.write.HomeRequest;
+import de.eldoria.companies.api.write.HomeResult;
 import de.eldoria.companies.api.write.OrderLineRequest;
 import de.eldoria.companies.api.write.OrderRequest;
 import de.eldoria.companies.api.write.RejectReason;
+import de.eldoria.companies.areas.AreaServices;
+import de.eldoria.companies.areas.CompanyHomes;
+import de.eldoria.companies.components.area.AreaBounds;
+import de.eldoria.companies.components.area.AreaCapability;
+import de.eldoria.companies.components.area.AreaProvider;
+import de.eldoria.companies.components.area.AreaSource;
 import de.eldoria.companies.components.company.CompanyPermission;
 import de.eldoria.companies.components.company.JoinMode;
 import de.eldoria.companies.components.company.TreasuryKind;
@@ -28,30 +40,38 @@ import de.eldoria.companies.components.ranking.TopOrder;
 import de.eldoria.companies.configuration.elements.CompanySettings;
 import de.eldoria.companies.configuration.elements.OrderSettings;
 import de.eldoria.companies.configuration.elements.UserSettings;
+import de.eldoria.companies.configuration.elements.areas.AreaSettings;
+import de.eldoria.companies.configuration.elements.jobs.JobSettings;
 import de.eldoria.companies.configuration.elements.ordersettings.OrderFee;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteAreaData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteCompanyData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteHomeData;
+import de.eldoria.companies.data.repository.impl.sqlite.SqLiteJobData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteMembershipData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteOrderData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteServerEventData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteStatsData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteTestDatabase;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteTreasuryData;
+import de.eldoria.companies.data.wrapper.area.CompanyArea;
 import de.eldoria.companies.data.wrapper.company.CompanyMember;
 import de.eldoria.companies.data.wrapper.event.ServerEvent;
 import de.eldoria.companies.data.wrapper.treasury.TreasuryEntry;
+import de.eldoria.companies.events.company.PreCompanyCreateEvent;
 import de.eldoria.companies.events.order.OrderCreatedEvent;
 import de.eldoria.companies.events.order.PreOrderCreateEvent;
 import de.eldoria.companies.events.player.ItemsReturnedEvent;
 import de.eldoria.companies.orders.OrderCreationService;
 import de.eldoria.companies.orders.OrderLimits;
+import de.eldoria.companies.services.CompanyChanges;
+import de.eldoria.companies.services.CompanyService;
 import de.eldoria.companies.services.ItemReturnService;
 import de.eldoria.companies.services.MembershipService;
 import de.eldoria.companies.services.events.ServerEventService;
 import de.eldoria.companies.util.TestExecutors;
 import de.eldoria.companies.util.Times;
 import net.kyori.adventure.text.Component;
+import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.event.Event;
@@ -73,6 +93,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -85,6 +106,7 @@ import java.util.function.Consumer;
 import java.util.logging.Logger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -110,6 +132,9 @@ class CompaniesApiImplTest {
     private SqLiteOrderData orderData;
     private SqLiteTreasuryData treasuryData;
     private SqLiteServerEventData serverEventData;
+    private SqLiteAreaData areaData;
+    private SqLiteHomeData homeData;
+    private volatile boolean cancelFoundings;
     private CompaniesApiImpl api;
     private OfflinePlayer owner;
     private int miners;
@@ -125,6 +150,8 @@ class CompaniesApiImplTest {
         var stats = new SqLiteStatsData(executor);
         treasuryData = new SqLiteTreasuryData(executor);
         serverEventData = new SqLiteServerEventData();
+        areaData = new SqLiteAreaData();
+        homeData = new SqLiteHomeData();
         orderSettings.maxMaterials(2);
         userSettings.maxOrders(5);
         owner = server.getOfflinePlayer(UUID.randomUUID());
@@ -141,8 +168,9 @@ class CompaniesApiImplTest {
                         stats,
                         treasuryData,
                         serverEventData,
-                        new SqLiteAreaData(),
-                        new SqLiteHomeData()),
+                        areaData,
+                        homeData,
+                        new SqLiteJobData()),
                 new CompaniesApiImpl.Server(
                         server::getOfflinePlayer,
                         failure -> failure.message().orElse(Component.text(failure.localeKey())),
@@ -170,6 +198,10 @@ class CompaniesApiImplTest {
     @Test
     void writesFailBeforeTheApiIsOpened() {
         assertNotReady(api.companies().addMember(miners, UUID.randomUUID()));
+        assertNotReady(api.companies().found(new FoundRequest(UUID.randomUUID(), "Late", false)));
+        assertNotReady(api.companies()
+                .setHome(new HomeRequest(
+                        miners, new Location(server.addSimpleWorld("late"), 0, 64, 0), owner.getUniqueId())));
         assertNotReady(api.orders().create(stoneRequest(true)));
         assertNotReady(api.players().grantItems(owner.getUniqueId(), new ItemStack(Material.STONE), 3));
         assertEquals(100.0, balance());
@@ -417,7 +449,179 @@ class CompaniesApiImplTest {
                         material -> material.toUpperCase(Locale.ROOT),
                         message -> {},
                         Times.UTC,
-                        Logger.getLogger("test"))));
+                        Logger.getLogger("test")),
+                new CompanyService(
+                        companyData,
+                        new CompanyChanges(
+                                companyData,
+                                server::getOfflinePlayer,
+                                event -> {
+                                    if (event instanceof PreCompanyCreateEvent pre) pre.setCancelled(cancelFoundings);
+                                },
+                                Logger.getLogger("test"),
+                                executor),
+                        null,
+                        new Wallet(),
+                        () -> companySettings,
+                        server::getOfflinePlayer,
+                        uuid -> Optional.ofNullable(server.getPlayer(uuid)),
+                        Runnable::run,
+                        executor,
+                        Logger.getLogger("test")),
+                new CompanyHomes(
+                        new AreaServices(
+                                api.areaProviders(), areaData, homeData, null, null, UUID.randomUUID(), () -> "hub"),
+                        AreaSettings::new,
+                        plugin),
+                null,
+                null,
+                JobSettings::new,
+                Runnable::run));
+    }
+
+    @Test
+    void foundsCompaniesWithAndWithoutCharge() throws Exception {
+        open();
+        companySettings.foundingPrice(40);
+        var free = server.getOfflinePlayer(UUID.randomUUID());
+
+        var paid = api.companies()
+                .found(new FoundRequest(owner.getUniqueId(), "Builders", true))
+                .get(5, TimeUnit.SECONDS);
+        var unpaid = api.companies()
+                .found(new FoundRequest(free.getUniqueId(), "Farmers", false))
+                .get(5, TimeUnit.SECONDS);
+
+        var builders = assertInstanceOf(FoundResult.Founded.class, paid).company();
+        assertEquals("Builders", builders.name());
+        assertTrue(builders.member(owner).isPresent());
+        assertEquals(60.0, balance());
+        assertTrue(unpaid.founded());
+        assertFalse(balances.containsKey(free.getUniqueId()));
+    }
+
+    @Test
+    void foundingNamesWhyItWasRefused() throws Exception {
+        open();
+        var other = server.getOfflinePlayer(UUID.randomUUID());
+        balances.put(other.getUniqueId(), 0.0);
+        companySettings.foundingPrice(40);
+
+        assertEquals(FoundProblem.NAME_TAKEN, problem(new FoundRequest(owner.getUniqueId(), "Miners", false)));
+        assertEquals(FoundProblem.INVALID_NAME, problem(new FoundRequest(owner.getUniqueId(), " ", false)));
+        assertEquals(FoundProblem.NO_MONEY, problem(new FoundRequest(other.getUniqueId(), "Poor", true)));
+        api.companies()
+                .found(new FoundRequest(owner.getUniqueId(), "First", false))
+                .get(5, TimeUnit.SECONDS);
+        assertEquals(FoundProblem.ALREADY_MEMBER, problem(new FoundRequest(owner.getUniqueId(), "Second", false)));
+    }
+
+    @Test
+    void aCancelledFoundingIsReportedAsCancelled() throws Exception {
+        open();
+        cancelFoundings = true;
+        var founder = server.addPlayer();
+
+        assertEquals(FoundProblem.CANCELLED, problem(new FoundRequest(founder.getUniqueId(), "Rebels", false)));
+    }
+
+    private FoundProblem problem(FoundRequest request) throws Exception {
+        var result = api.companies().found(request).get(5, TimeUnit.SECONDS);
+        return assertInstanceOf(FoundResult.Rejected.class, result).problem();
+    }
+
+    @Test
+    void setsTheHomeOfACompany() throws Exception {
+        open();
+        var world = server.addSimpleWorld("world");
+        var setter = UUID.randomUUID();
+
+        var result = api.companies()
+                .setHome(new HomeRequest(miners, new Location(world, 10.5, 64, -3.5), setter))
+                .get(5, TimeUnit.SECONDS);
+        var missing = api.companies()
+                .setHome(new HomeRequest(999, new Location(world, 0, 64, 0), setter))
+                .get(5, TimeUnit.SECONDS);
+
+        var home = assertInstanceOf(HomeResult.Stored.class, result).home();
+        assertEquals("world", home.world());
+        assertEquals(10.5, home.x());
+        assertEquals(setter, homeData.home(miners).orElseThrow().setBy());
+        assertEquals(
+                HomeProblem.NO_COMPANY,
+                assertInstanceOf(HomeResult.Rejected.class, missing).problem());
+    }
+
+    @Test
+    void aHomeOutsideTheCompanysAreasIsRefused() throws Exception {
+        open();
+        var world = server.addSimpleWorld("world");
+        api.areaProviders().register(plugin, new Elsewhere());
+        areaData.add(new CompanyArea(
+                0,
+                miners,
+                "elsewhere",
+                "plot",
+                "world",
+                UUID.randomUUID(),
+                AreaSource.LINKED,
+                null,
+                0,
+                null,
+                LocalDateTime.now(),
+                0,
+                false,
+                false,
+                false));
+
+        var result = api.companies()
+                .setHome(new HomeRequest(miners, new Location(world, 0, 64, 0), UUID.randomUUID()))
+                .get(5, TimeUnit.SECONDS);
+
+        assertEquals(
+                HomeProblem.NOT_IN_AREA,
+                assertInstanceOf(HomeResult.Rejected.class, result).problem());
+        assertTrue(homeData.home(miners).isEmpty());
+    }
+
+    /**
+     * A plot plugin whose only plot is never where the test stands.
+     */
+    private record Elsewhere() implements AreaProvider {
+        @Override
+        public String id() {
+            return "elsewhere";
+        }
+
+        @Override
+        public Set<AreaCapability> capabilities() {
+            return Set.of();
+        }
+
+        @Override
+        public List<String> areasAt(Location location) {
+            return List.of();
+        }
+
+        @Override
+        public boolean exists(String ref) {
+            return ref.equals("plot");
+        }
+
+        @Override
+        public Set<UUID> owners(String ref) {
+            return Set.of();
+        }
+
+        @Override
+        public Optional<AreaBounds> bounds(String ref) {
+            return Optional.empty();
+        }
+
+        @Override
+        public String name(String ref) {
+            return ref;
+        }
     }
 
     @Test

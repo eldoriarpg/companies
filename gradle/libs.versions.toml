@@ -26,6 +26,7 @@ threading = { module = "de.eldoria.util:threading", version.ref = "eldoutil" }
 updater = { module = "de.eldoria.util:updater", version.ref = "eldoutil" }
 
 papi = "me.clip:placeholderapi:2.12.3"
+luckperms = "net.luckperms:api:5.5"
 vault = "com.github.MilkBowl:VaultAPI:1.7.1"
 citizens = "net.citizensnpcs:citizens-main:2.0.44-SNAPSHOT"
 fancynpcs = "de.oliver:FancyNpcs:2.11.0"

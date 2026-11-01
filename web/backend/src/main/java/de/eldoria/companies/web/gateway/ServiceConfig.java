@@ -7,7 +7,10 @@ package de.eldoria.companies.web.gateway;
 
 import org.jspecify.annotations.Nullable;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.net.URI;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Arrays;
@@ -25,6 +28,7 @@ import java.util.function.Function;
  * @param publicUrl the address players open, without a trailing slash; links are this plus the short id
  * ({@code PUBLIC_URL}, {@code http://localhost:4000})
  * @param lyna how dashboard keys are verified; used in hosted mode only
+ * @param selfHosted the token of the {@code default} network; used in self-hosted mode only
  * @param trustedProxies proxies whose forwarded client address is believed, as addresses or ranges, comma separated
  * ({@code TRUSTED_PROXIES}); empty trusts none, see {@link ClientAddress}
  * @param cloudflare whether {@code CF-Connecting-IP} names the client when the request comes from a trusted proxy
@@ -50,6 +54,7 @@ public record ServiceConfig(
         GatewayMode mode,
         String publicUrl,
         LynaConfig lyna,
+        SelfHostedConfig selfHosted,
         List<String> trustedProxies,
         boolean cloudflare,
         TurnstileConfig turnstile,
@@ -80,6 +85,26 @@ public record ServiceConfig(
         @Override
         public String toString() {
             return "LynaConfig[url=%s, product=%d, keyType=%s, cache=%s]".formatted(url, product, keyType, cache);
+        }
+    }
+
+    /**
+     * A server token set from outside, such as for a network whose servers are configured with a fixed key.
+     *
+     * @param serverToken the token of the {@code default} network ({@code SERVER_TOKEN}), starting with
+     * {@code cst_}; empty lets the gateway create one on its first start
+     */
+    public record SelfHostedConfig(String serverToken) {
+        /**
+         * @return whether the token of the {@code default} network is set from outside
+         */
+        public boolean fixed() {
+            return !serverToken.isBlank();
+        }
+
+        @Override
+        public String toString() {
+            return "SelfHostedConfig[fixed=%s]".formatted(fixed());
         }
     }
 
@@ -121,8 +146,12 @@ public record ServiceConfig(
     }
 
     /**
+     * Reads the settings. Every variable can instead name a file holding its value with the suffix {@code _FILE},
+     * such as {@code DB_PASSWORD_FILE} for a Docker secret; a variable that is set wins over its file.
+     *
      * @param environment the environment, e.g. {@link System#getenv()}
      * @return the settings, defaults where a variable is missing
+     * @throws UncheckedIOException if a {@code _FILE} variable names a file that can not be read
      */
     public static ServiceConfig of(Map<String, String> environment) {
         Function<String, @Nullable String> env = environment::get;
@@ -137,6 +166,7 @@ public record ServiceConfig(
                         integer(env, "LYNA_PRODUCT", 2),
                         text(env, "LYNA_KEY_TYPE", "dashboard"),
                         Duration.ofMinutes(integer(env, "LYNA_CACHE_MINUTES", 5))),
+                new SelfHostedConfig(text(env, "SERVER_TOKEN", "")),
                 list(env, "TRUSTED_PROXIES"),
                 bool(env, "CLOUDFLARE", false),
                 new TurnstileConfig(
@@ -166,7 +196,18 @@ public record ServiceConfig(
 
     private static String text(Function<String, @Nullable String> env, String name, String fallback) {
         String value = env.apply(name);
+        if (value == null || value.isBlank()) value = fromFile(env, name);
         return value == null || value.isBlank() ? fallback : value.strip();
+    }
+
+    private static @Nullable String fromFile(Function<String, @Nullable String> env, String name) {
+        String file = env.apply(name + "_FILE");
+        if (file == null || file.isBlank()) return null;
+        try {
+            return Files.readString(Path.of(file.strip()));
+        } catch (IOException e) {
+            throw new UncheckedIOException("Could not read " + name + "_FILE " + file.strip(), e);
+        }
     }
 
     private static List<String> list(Function<String, @Nullable String> env, String name) {

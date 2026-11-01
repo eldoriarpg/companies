@@ -8,8 +8,8 @@ sidebar_position: 9
 The web dashboard runs through a gateway. Your servers open one outbound connection to it, and players open the
 dashboard in their browser there. Eldoria hosts a gateway, so most servers never need this page.
 
-You can run your own gateway instead. It needs no Lyna key: it creates its own server token. One gateway can serve
-several networks, one token each.
+You can run your own gateway instead. It needs no Lyna key: it creates its own server token, or takes a fixed one you
+set. One gateway can serve several networks, one token each.
 
 ## What you need
 
@@ -43,7 +43,8 @@ several networks, one token each.
 
 5. Make `PUBLIC_URL` lead to this machine's `PORT`, see [Behind a web server](#behind-a-web-server).
 
-On its first start the gateway prints a server token. It is shown only this once:
+On its first start the gateway prints a server token, unless you set a [fixed token](#a-fixed-token). It is shown
+only this once:
 
 ```bash
 docker compose logs backend | grep -A1 "Server token"
@@ -95,6 +96,15 @@ docker compose restart backend
 
 Players stay logged in through the restart.
 
+### A fixed token
+
+To configure the servers with a key you choose, for example in a container setup, set `SERVER_TOKEN` (or
+`SERVER_TOKEN_FILE`) on the gateway. It must start with `cst_` followed by at least 32 characters, such as
+`cst_` and the output of `openssl rand -hex 24`. On every start the gateway stores it as the token of the `default`
+network, so changing it and restarting the gateway replaces the old one; no token is printed. Rotate it this way:
+while it is set, `token regenerate default` and `token delete default` are refused. Give the same value to the
+primary server as `COMPANIES_DASHBOARD_KEY`. New in 2.1.
+
 ## Settings
 
 All settings go into `.env`.
@@ -103,9 +113,10 @@ All settings go into `.env`.
 |---|---|---|
 | `PUBLIC_URL` | | The address players open. Login links are this plus a short id. No `/` at the end. |
 | `DB_PASSWORD` | | A password for the database. Only the gateway uses it. |
+| `SERVER_TOKEN` | empty | A [fixed token](#a-fixed-token) for the `default` network instead of a printed one. |
 | `GATEWAY_PORT` | `8080` | The gateway's own port on `127.0.0.1`, for routing `/api/v1/servers/connect` straight to it. |
 | `PORT` | `4000` | The port the dashboard listens on, on this machine. It only listens on `127.0.0.1`, for a web server on the same machine. |
-| `COMPANIES_VERSION` | `latest` | Which gateway version to run: `latest` is the newest release, a version such as `2.2.0` or `2.2` pins it, `edge` follows the newest development build. |
+| `COMPANIES_VERSION` | `latest` | Which gateway version to run: `latest` is the newest release, a version such as `2.2.0` or `2.2` pins it, `dev` follows the newest development build. |
 | `TRUSTED_PROXIES` | private addresses | Proxies whose `X-Forwarded-For` is believed, comma separated. See [Behind a web server](#behind-a-web-server). |
 | `NUXT_TRUSTED_PROXIES` | empty | The proxies in front of the web app, comma separated. Only from these does it pass `CF-Connecting-IP` on to the gateway. See [Cloudflare Tunnel](#cloudflare-tunnel). |
 | `CLOUDFLARE` | `false` | `true` behind Cloudflare: the client address is taken from `CF-Connecting-IP`. See [Cloudflare Tunnel](#cloudflare-tunnel). |
@@ -124,6 +135,10 @@ change them:
 | `LOGINS_PER_ADDRESS` | `10` | Login attempts per address in ten minutes. Each code also allows only 5 attempts. |
 | `READS_PER_SESSION` | `10` | Searches and pages per login in ten seconds. |
 | `WRITES_PER_SESSION` | `5` | Actions that change something (accepting, cancelling, inbox) per login in ten seconds. |
+
+Every setting can also come from a file: add `_FILE` to its name and give the path, such as
+`DB_PASSWORD_FILE: /run/secrets/db_password` for a [Docker secret](https://docs.docker.com/compose/how-tos/use-secrets/).
+A setting given directly wins over its file. New in 2.1.
 
 ## Behind a web server
 

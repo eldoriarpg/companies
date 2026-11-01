@@ -6,14 +6,14 @@
 package de.eldoria.companies.jobs;
 
 import de.eldoria.companies.areas.AreaProviders;
+import de.eldoria.companies.components.job.JobKind;
+import de.eldoria.companies.components.job.JobState;
 import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.repository.AJobData;
 import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.job.Job;
-import de.eldoria.companies.data.wrapper.job.JobKind;
-import de.eldoria.companies.data.wrapper.job.JobState;
 import de.eldoria.companies.events.company.CompanyDisbandEvent;
 import de.eldoria.companies.jobs.hooks.JobHooks;
 import de.eldoria.companies.jobs.hooks.ProviderJobLand;
@@ -195,7 +195,7 @@ public final class Jobs {
                                 yield NotificationType.MY_JOB_EXTENSION_ASKED;
                             }
                         };
-                if (type != null) notifications.send(owner, type, args);
+                if (type != null) notifications.send(owner, job.charged() ? type : uncharged(type), args);
             }
 
             @Override
@@ -406,5 +406,19 @@ public final class Jobs {
                         return null;
                     });
         }
+    }
+
+    /**
+     * @param type a notice to the owner of a job
+     * @return the notice for an uncharged job, which says nothing went back where the other says money did
+     */
+    static NotificationType uncharged(NotificationType type) {
+        return switch (type) {
+            case MY_JOB_EXPIRED -> NotificationType.MY_JOB_EXPIRED_UNCHARGED;
+            case MY_JOB_LAND_LOST -> NotificationType.MY_JOB_LAND_LOST_UNCHARGED;
+            case MY_JOB_HARVEST_ENDED -> NotificationType.MY_JOB_HARVEST_ENDED_UNCHARGED;
+            case MY_JOB_SETTLED -> NotificationType.MY_JOB_SETTLED_UNCHARGED;
+            default -> type;
+        };
     }
 }

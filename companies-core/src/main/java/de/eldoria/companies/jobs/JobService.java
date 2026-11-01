@@ -6,6 +6,8 @@
 package de.eldoria.companies.jobs;
 
 import de.eldoria.companies.components.company.CompanyPermission;
+import de.eldoria.companies.components.job.JobKind;
+import de.eldoria.companies.components.job.JobState;
 import de.eldoria.companies.configuration.elements.jobs.JobSettings;
 import de.eldoria.companies.data.repository.AJobData;
 import de.eldoria.companies.data.repository.AOrderData;
@@ -14,10 +16,8 @@ import de.eldoria.companies.data.wrapper.job.Job;
 import de.eldoria.companies.data.wrapper.job.JobArea;
 import de.eldoria.companies.data.wrapper.job.JobExtension;
 import de.eldoria.companies.data.wrapper.job.JobHarvest;
-import de.eldoria.companies.data.wrapper.job.JobKind;
 import de.eldoria.companies.data.wrapper.job.JobLand;
 import de.eldoria.companies.data.wrapper.job.JobReview;
-import de.eldoria.companies.data.wrapper.job.JobState;
 import de.eldoria.companies.data.wrapper.job.JobTarget;
 import de.eldoria.companies.orders.Payout;
 import org.jetbrains.annotations.Nullable;
@@ -197,6 +197,39 @@ public final class JobService {
             JobLand land,
             @Nullable String landRef,
             Details details) {
+        return post(owner, kind, title, price, dueHours, node, area, land, landRef, details, true);
+    }
+
+    /**
+     * Posts a job like {@link #post(UUID, JobKind, String, double, int, UUID, JobArea, JobLand, String, Details)},
+     * optionally without charging the owner. An uncharged job takes no fee, is paid out from nothing and refunds
+     * nothing to its owner when it ends unfinished; posting one is logged.
+     *
+     * @param owner    the player posting it
+     * @param kind     what work it asks for
+     * @param title    title shown to companies
+     * @param price    what the company is paid
+     * @param dueHours how long a company has to finish it
+     * @param node     the server whose world holds the area
+     * @param area     the area of the work
+     * @param land     whose land the area lies on
+     * @param landRef  the plot or region of the land, null for unowned land
+     * @param details  what the kind of job asks for besides its area
+     * @param charge   whether the owner pays price and fee
+     * @return the stored job, or why it was not posted
+     */
+    public Posted post(
+            UUID owner,
+            JobKind kind,
+            String title,
+            double price,
+            int dueHours,
+            UUID node,
+            JobArea area,
+            JobLand land,
+            @Nullable String landRef,
+            Details details,
+            boolean charge) {
         var target = details.target();
         var unitPrice = details.unitPrice();
         var blueprint = details.blueprint();
@@ -224,16 +257,16 @@ public final class JobService {
         if (kind.area() && area.chunks() > current.maxChunks()) return new Posted.Refused(Refusal.CHUNKS);
         if (jobs.openOf(owner) >= current.maxOpenPerOwner()) return new Posted.Refused(Refusal.TOO_MANY);
         if (kind.area() && !jobs.overlapping(area).isEmpty()) return new Posted.Refused(Refusal.OVERLAP);
-        var charged = cents(fee.applyAsDouble(rounded));
-        var total = cents(rounded + charged);
-        if (!money.withdraw(owner, total)) return new Posted.Refused(Refusal.FUNDS);
+        var feeCharged = charge ? cents(fee.applyAsDouble(rounded)) : 0;
+        var total = cents(rounded + feeCharged);
+        if (charge && !money.withdraw(owner, total)) return new Posted.Refused(Refusal.FUNDS);
         var now = now();
         var draft = Job.draft(
                         owner,
                         kind,
                         name,
                         rounded,
-                        charged,
+                        feeCharged,
                         node,
                         area,
                         land,
@@ -243,7 +276,8 @@ public final class JobService {
                         now.plusDays(current.openDays()))
                 .withTarget(target)
                 .withHarvest(unitPrice == null ? null : new JobHarvest(cents(unitPrice), 0))
-                .withDescription(description);
+                .withDescription(description)
+                .withCharged(charge);
         Optional<Integer> id;
         try {
             id = jobs.create(draft);
@@ -259,11 +293,16 @@ public final class JobService {
             id = Optional.empty();
         }
         if (id.isEmpty()) {
-            money.deposit(owner, total);
+            if (charge) money.deposit(owner, total);
             return new Posted.Refused(Refusal.STORAGE);
         }
         var stored = id.get();
+        if (!charge) logger.info("Posted job " + stored + " for " + owner + " without charging it");
         return new Posted.Done(jobs.job(stored).orElseGet(() -> draft.withId(stored)));
+    }
+
+    private void refund(Job job, double amount) {
+        if (job.charged()) money.deposit(job.owner(), amount);
     }
 
     private boolean storedBlueprint(int id, Blueprint blueprint) {
@@ -402,7 +441,7 @@ public final class JobService {
         var company = job.company();
         if (job.state() == JobState.OPEN) {
             if (!jobs.close(job.id(), JobState.OPEN, JobState.CANCELLED, LAND_LOST_BY, now)) return false;
-            money.deposit(job.owner(), cents(job.unpaid()));
+            refund(job, cents(job.unpaid()));
             money.collect(job.fee());
             notices.owner(job.owner(), Notice.LAND_LOST, job, null);
             return true;
@@ -420,7 +459,7 @@ public final class JobService {
         var share = profile == null ? 0 : money.share(profile);
         if (!jobs.closeTaken(job.id(), company, JobState.CANCELLED, LAND_LOST_BY, now)) return false;
         var rest = cents(job.price() - earned);
-        if (rest > 0) money.deposit(job.owner(), rest);
+        if (rest > 0) refund(job, rest);
         if (profile != null && earned > 0) {
             pay(job, profile, parts, tax, share);
         } else {
@@ -479,7 +518,7 @@ public final class JobService {
         if (!job.owner().equals(owner)) return Change.NOT_YOURS;
         if (job.state() != JobState.OPEN) return job.state().closed() ? Change.CLOSED : Change.TAKEN;
         if (!jobs.close(id, JobState.OPEN, JobState.CANCELLED, by, now())) return Change.CLOSED;
-        money.deposit(owner, cents(job.unpaid()));
+        refund(job, cents(job.unpaid()));
         money.collect(job.fee());
         return Change.DONE;
     }
@@ -629,7 +668,7 @@ public final class JobService {
         var harvest = closed.harvest();
         var paid = harvest == null ? 0 : harvest.paid();
         var rest = cents(job.price() - paid);
-        if (rest > 0) money.deposit(job.owner(), rest);
+        if (rest > 0) refund(job, rest);
         money.collect(job.fee());
         var stocked = jobs.stock(job.id()).values().stream()
                 .mapToInt(Integer::intValue)
@@ -986,7 +1025,7 @@ public final class JobService {
         var cut = profile == null ? 0 : money.share(profile);
         if (!jobs.settle(id, percent, by, now())) return Change.CLOSED;
         var rest = cents(job.price() - earned);
-        if (rest > 0) money.deposit(job.owner(), rest);
+        if (rest > 0) refund(job, rest);
         double paid = 0;
         if (profile != null && earned > 0) {
             paid = pay(job, profile, parts, tax, cut);
@@ -1066,7 +1105,7 @@ public final class JobService {
             try {
                 if (!jobs.close(job.id(), JobState.OPEN, JobState.EXPIRED, null, now)) continue;
                 var back = cents(job.unpaid() + job.fee());
-                money.deposit(job.owner(), back);
+                refund(job, back);
                 notices.owner(job.owner(), Notice.EXPIRED, job, back);
                 expired.add(job.id());
             } catch (RuntimeException e) {
@@ -1478,7 +1517,7 @@ public final class JobService {
         record Done(Job job) implements Posted {}
 
         /**
-         * The job was not posted; nothing was charged.
+         * The job was not posted; nothing was charged, except for {@link Refusal#STRANDED}, whose money stays held.
          *
          * @param refusal why
          */

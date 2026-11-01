@@ -180,6 +180,24 @@ public abstract class DashboardDataContract {
     }
 
     @Test
+    void theMarketListsRecordedMaterialsWithoutOrdersFromTheirHistory() {
+        var day = LocalDate.of(2026, 10, 20);
+        data.saveMarketDay(day, List.of(new MarketDay(day, "STONE", 3, 30, 10.0, 8.0, 12.0)));
+        data.saveMarketDay(day.plusDays(1), List.of(new MarketDay(day.plusDays(1), "STONE", 2, 20, 11.0, 9.0, 13.0)));
+
+        var market = data.marketWithHistory(3);
+
+        assertEquals(1, market.size());
+        var stone = market.getFirst();
+        assertEquals("STONE", stone.material());
+        assertEquals(5, stone.orders());
+        assertEquals(50, stone.volume());
+        assertEquals(10.4, stone.avg(), 0.0001);
+        assertEquals(8.0, stone.min(), 0.0001);
+        assertEquals(13.0, stone.max(), 0.0001);
+    }
+
+    @Test
     void theMarketHistoryIsPurgedBeforeADay() {
         var day = LocalDate.of(2026, 10, 20);
         data.saveMarketDay(day, List.of(new MarketDay(day, "STONE", 3, 30, 10.0, 8.0, 12.0)));

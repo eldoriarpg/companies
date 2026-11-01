@@ -1,0 +1,6 @@
+CREATE DATABASE IF NOT EXISTS companies;
+CREATE DATABASE IF NOT EXISTS luckperms;
+CREATE DATABASE IF NOT EXISTS economy;
+GRANT ALL PRIVILEGES ON companies.* TO 'demo'@'%';
+GRANT ALL PRIVILEGES ON luckperms.* TO 'demo'@'%';
+GRANT ALL PRIVILEGES ON economy.* TO 'demo'@'%';

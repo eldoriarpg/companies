@@ -252,7 +252,8 @@ public final class DashboardWorld implements AutoCloseable {
         homes = new SqLiteHomeData();
         var alerts = new SqLiteAlertData(SqLiteTestDatabase.mapper(), executor);
         api = new CompaniesApiImpl(
-                new CompaniesApiImpl.Repositories(companies, orders, stats, treasury, serverEvents, areas, homes),
+                new CompaniesApiImpl.Repositories(
+                        companies, orders, stats, treasury, serverEvents, areas, homes, new SqLiteJobData()),
                 new CompaniesApiImpl.Server(
                         server::getOfflinePlayer, failure -> Component.text(failure.localeKey()), Times::now),
                 executor);

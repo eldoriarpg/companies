@@ -243,6 +243,29 @@ class CompanyServiceTest {
     }
 
     @Test
+    void anUnchargedFoundingTakesNoMoney() {
+        var founder = player(0);
+
+        done(service.found(founder.getUniqueId(), "Smiths", false).join());
+
+        assertTrue(companyOf(founder).isPresent());
+        assertEquals(0.0, wallet(founder));
+    }
+
+    @Test
+    void anUnchargedFoundingAsksTheIntegrationsAtNoPrice() {
+        var founder = onlinePlayer(0);
+        listener = event -> event.cancel(Component.text("No"));
+
+        assertRefused(
+                "error.cancelledByIntegration",
+                service.found(founder.getUniqueId(), "Smiths", false).join());
+
+        assertEquals(0.0, events.single(PreCompanyCreateEvent.class).price());
+        assertEquals(0.0, wallet(founder));
+    }
+
+    @Test
     void anOfflineFounderSkipsThePlayerTypedPreEvent() {
         var founder = player(FOUNDING);
         listener = event -> event.setCancelled(true);

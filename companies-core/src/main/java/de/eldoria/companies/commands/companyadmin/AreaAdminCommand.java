@@ -5,21 +5,19 @@
  */
 package de.eldoria.companies.commands.companyadmin;
 
-import de.eldoria.companies.areas.AreaRef;
+import de.eldoria.companies.api.write.AreaOfferRequest;
+import de.eldoria.companies.areas.AreaOffers;
 import de.eldoria.companies.areas.AreaServices;
 import de.eldoria.companies.commands.CommandDependencies;
 import de.eldoria.companies.commands.support.CommandFailure;
 import de.eldoria.companies.commands.support.PlayerOnly;
 import de.eldoria.companies.commands.support.Senders;
-import de.eldoria.companies.components.area.AreaCapability;
-import de.eldoria.companies.components.area.AreaProvider;
+import de.eldoria.companies.components.area.OfferKind;
 import de.eldoria.companies.data.wrapper.area.AreaOffer;
 import de.eldoria.companies.menus.MenuComponents;
 import de.eldoria.companies.menus.Values;
-import de.eldoria.companies.util.Money;
 import de.eldoria.companies.util.Permission.Admin;
 import de.eldoria.companies.util.Threading;
-import de.eldoria.companies.util.Times;
 import net.strokkur.commands.Executes;
 import net.strokkur.commands.Subcommand;
 import net.strokkur.commands.arguments.DoubleArg;
@@ -27,13 +25,9 @@ import net.strokkur.commands.arguments.IntArg;
 import net.strokkur.commands.permission.Permission;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
-import org.jetbrains.annotations.Nullable;
 
 import java.math.BigDecimal;
-import java.util.Comparator;
 import java.util.Locale;
-import java.util.Set;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -71,8 +65,8 @@ public final class AreaAdminCommand {
      * @param price  the price
      */
     @Executes("offer buy")
-    public void offerBuy(CommandSender sender, @DoubleArg(min = 0, max = 1.0E12) double price) {
-        offer(Senders.player(sender), AreaOffer.Kind.BUY, price, 0);
+    public void offerBuy(CommandSender sender, @DoubleArg(min = 0, max = AreaOfferRequest.MAX_PRICE) double price) {
+        offer(Senders.player(sender), OfferKind.BUY, price, 0);
     }
 
     /**
@@ -85,58 +79,48 @@ public final class AreaAdminCommand {
     @Executes("offer rent")
     public void offerRent(
             CommandSender sender,
-            @DoubleArg(min = 0, max = 1.0E12) double price,
-            @IntArg(min = 1, max = 3650) int days) {
-        offer(Senders.player(sender), AreaOffer.Kind.RENT, price, days);
+            @DoubleArg(min = 0, max = AreaOfferRequest.MAX_PRICE) double price,
+            @IntArg(min = 1, max = AreaOfferRequest.MAX_PERIOD_DAYS) int days) {
+        offer(Senders.player(sender), OfferKind.RENT, price, days);
     }
 
-    private void offer(Player admin, AreaOffer.Kind kind, double price, int days) {
-        var providers = areas().providers();
-        var here = providers.areasAt(admin.getLocation());
-        if (here.isEmpty()) {
-            deps.messages().sendError(admin, PREFIX + "error.noArea");
-            return;
+    private void offer(Player admin, OfferKind kind, double price, int days) {
+        var offers = new AreaOffers(areas());
+        switch (offers.at(admin.getLocation())) {
+            case AreaOffers.Picked.Refused refused -> deps.messages().sendError(admin, PREFIX + key(refused.problem()));
+            case AreaOffers.Picked.Area area ->
+                run(
+                        admin,
+                        () -> switch (offers.offer(area, kind, price, days)) {
+                            case AreaOffers.Stored.Done done -> done.offer();
+                            case AreaOffers.Stored.Refused refused ->
+                                throw CommandFailure.of(PREFIX + key(refused.problem()));
+                        },
+                        offer -> {
+                            deps.plugin()
+                                    .getLogger()
+                                    .info("%s offered %s %s for %s"
+                                            .formatted(admin.getName(), area.ref(), kind, offer.price()));
+                            deps.messages()
+                                    .sendMessage(
+                                            admin,
+                                            PREFIX + "offered." + kind.name().toLowerCase(Locale.ROOT),
+                                            Values.number("id", offer.id()),
+                                            Values.text("area", area.name()),
+                                            Values.text("amount", money(offer.price())),
+                                            Values.number("days", days));
+                        });
         }
-        var movable = here.stream()
-                .filter(area -> providers.call(
-                        area.provider(), provider -> provider.capabilities().contains(AreaCapability.TRANSFER), false))
-                .findFirst();
-        if (movable.isEmpty()) {
-            deps.messages().sendError(admin, PREFIX + "error.notMovable");
-            return;
-        }
-        var ref = movable.get();
-        var keeper = providers.call(ref.provider(), provider -> keeper(provider.owners(ref.ref())), null);
-        if (keeper == null && !providers.call(ref.provider(), AreaProvider::releasesToNobody, false)) {
-            deps.messages().sendError(admin, PREFIX + "error.noKeeper");
-            return;
-        }
-        var name = providers.call(ref.provider(), provider -> provider.name(ref.ref()), ref.ref());
-        var world = admin.getWorld().getName();
-        var amount = Money.floorDecimal(price).doubleValue();
-        run(admin, () -> stored(ref, world, kind, amount, days, keeper), id -> {
-            deps.plugin().getLogger().info("%s offered %s %s for %s".formatted(admin.getName(), ref, kind, amount));
-            deps.messages()
-                    .sendMessage(
-                            admin,
-                            PREFIX + "offered." + kind.name().toLowerCase(Locale.ROOT),
-                            Values.number("id", id),
-                            Values.text("area", name),
-                            Values.text("amount", money(amount)),
-                            Values.number("days", days));
-        });
     }
 
-    private static @Nullable UUID keeper(Set<UUID> owners) {
-        return owners.stream().min(Comparator.naturalOrder()).orElse(null);
-    }
-
-    private int stored(AreaRef ref, String world, AreaOffer.Kind kind, double price, int days, @Nullable UUID keeper) {
-        var store = areas().areas();
-        if (store.byRef(ref.provider(), ref.ref()).isPresent()) throw CommandFailure.of(PREFIX + "error.inUse");
-        var offer = new AreaOffer(
-                0, ref.provider(), ref.ref(), world, areas().node(), kind, price, days, keeper, Times.now());
-        return store.addOffer(offer).orElseThrow(() -> CommandFailure.of(PREFIX + "error.offered"));
+    private static String key(AreaOffers.Problem problem) {
+        return switch (problem) {
+            case NO_AREA -> "error.noArea";
+            case NOT_MOVABLE -> "error.notMovable";
+            case NO_KEEPER -> "error.noKeeper";
+            case IN_USE -> "error.inUse";
+            case OFFERED -> "error.offered";
+        };
     }
 
     /**
@@ -200,11 +184,10 @@ public final class AreaAdminCommand {
         var admin = Senders.player(sender);
         run(
                 admin,
-                () -> {
-                    var store = areas().areas();
-                    if (store.removeOffer(id)) return id;
-                    if (store.offer(id).isPresent()) throw CommandFailure.of(PREFIX + "error.taken");
-                    throw CommandFailure.of(PREFIX + "error.unknown");
+                () -> switch (new AreaOffers(areas()).withdraw(id)) {
+                    case WITHDRAWN -> id;
+                    case TAKEN -> throw CommandFailure.of(PREFIX + "error.taken");
+                    case UNKNOWN -> throw CommandFailure.of(PREFIX + "error.unknown");
                 },
                 removed -> {
                     deps.plugin().getLogger().info("%s withdrew area offer %d".formatted(admin.getName(), removed));

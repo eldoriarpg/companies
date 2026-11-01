@@ -9,6 +9,7 @@ import de.eldoria.companies.data.wrapper.job.Job;
 import de.eldoria.companies.data.wrapper.job.JobArea;
 import de.eldoria.companies.data.wrapper.job.JobLand;
 import de.eldoria.companies.jobs.Blueprint;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.Nullable;
@@ -133,7 +134,7 @@ public final class JobHooks {
      * @param unownedAllowed whether jobs may lie on unowned land in the area's world
      * @return the land and its plot or region, or why the area is refused
      */
-    public Decision decide(Player owner, JobArea area, boolean unownedAllowed) {
+    public Decision decide(OfflinePlayer owner, JobArea area, boolean unownedAllowed) {
         List<Claim> claims = new ArrayList<>();
         for (var hook : lands) {
             try {

@@ -259,6 +259,7 @@ class DashboardIntegrationTest {
         assertEquals("open-2", confirmed.id());
         assertEquals(session, confirmed.session());
         assertEquals(Boolean.FALSE, confirmed.admin());
+        assertEquals(List.of(), confirmed.adminFeatures());
         assertEquals(List.of(wren + " Firefox on Android"), opened);
 
         var stamp = LocalDateTime.of(2026, 10, 31, 12, 0);

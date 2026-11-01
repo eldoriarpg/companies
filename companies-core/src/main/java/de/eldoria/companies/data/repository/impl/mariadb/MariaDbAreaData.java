@@ -8,6 +8,7 @@ package de.eldoria.companies.data.repository.impl.mariadb;
 import de.chojo.sadu.mapper.wrapper.Row;
 import de.chojo.sadu.queries.api.call.adapter.Adapter;
 import de.eldoria.companies.components.area.AreaSource;
+import de.eldoria.companies.components.area.OfferKind;
 import de.eldoria.companies.data.repository.AAreaData;
 import de.eldoria.companies.data.repository.impl.TimeColumns;
 import de.eldoria.companies.data.wrapper.area.AreaOffer;
@@ -314,7 +315,7 @@ public class MariaDbAreaData extends AAreaData {
                 row.getString("ref"),
                 row.getString("world"),
                 row.get("node", UUID_BYTES),
-                AreaOffer.Kind.valueOf(row.getString("kind")),
+                OfferKind.valueOf(row.getString("kind")),
                 row.getDouble("price"),
                 row.getInt("period_days"),
                 row.get("keeper", UUID_BYTES),

@@ -14,11 +14,11 @@ import de.eldoria.companies.commands.support.PlayerOnly;
 import de.eldoria.companies.commands.support.Senders;
 import de.eldoria.companies.components.area.AreaCapability;
 import de.eldoria.companies.components.area.AreaSource;
+import de.eldoria.companies.components.area.OfferKind;
 import de.eldoria.companies.components.company.CompanyPermission;
 import de.eldoria.companies.components.company.ICompanyMember;
 import de.eldoria.companies.components.company.TreasuryKind;
 import de.eldoria.companies.data.repository.AAreaData;
-import de.eldoria.companies.data.wrapper.area.AreaOffer;
 import de.eldoria.companies.data.wrapper.area.CompanyArea;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.events.company.CompanyAreasChangeEvent;
@@ -267,7 +267,7 @@ public final class CompanyAreaCommand {
                 offer.kind().source(),
                 null,
                 offer.price(),
-                offer.kind() == AreaOffer.Kind.RENT ? now.plusDays(offer.periodDays()) : null,
+                offer.kind() == OfferKind.RENT ? now.plusDays(offer.periodDays()) : null,
                 now,
                 offer.id(),
                 true,
@@ -289,7 +289,7 @@ public final class CompanyAreaCommand {
                 changed(company);
                 return stored.get();
             }
-            var kind = offer.kind() == AreaOffer.Kind.RENT ? TreasuryKind.AREA_RENT : TreasuryKind.AREA_BUY;
+            var kind = offer.kind() == OfferKind.RENT ? TreasuryKind.AREA_RENT : TreasuryKind.AREA_BUY;
             var treasury = deps.services().treasury();
             var result = treasury.spend(
                             company,

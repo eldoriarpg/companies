@@ -5,9 +5,9 @@
  */
 package de.eldoria.companies.data.repository;
 
+import de.eldoria.companies.components.job.JobState;
 import de.eldoria.companies.data.wrapper.job.Job;
 import de.eldoria.companies.data.wrapper.job.JobArea;
-import de.eldoria.companies.data.wrapper.job.JobState;
 import org.jetbrains.annotations.Nullable;
 
 import java.time.LocalDateTime;

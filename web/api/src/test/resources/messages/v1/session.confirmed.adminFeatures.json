@@ -1,0 +1,8 @@
+{
+  "type": "session.confirmed",
+  "id": "g-1",
+  "v": 1,
+  "session": "s-7f3a9c",
+  "admin": true,
+  "adminFeatures": ["admin.orders"]
+}

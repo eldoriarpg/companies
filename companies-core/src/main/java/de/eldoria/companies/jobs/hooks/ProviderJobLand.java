@@ -14,6 +14,7 @@ import de.eldoria.companies.data.wrapper.job.JobArea;
 import de.eldoria.companies.data.wrapper.job.JobLand;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.Nullable;
@@ -56,7 +57,7 @@ public final class ProviderJobLand implements JobLandHook {
     }
 
     @Override
-    public Claim claim(Player owner, JobArea area) {
+    public Claim claim(OfflinePlayer owner, JobArea area) {
         var world = Bukkit.getWorld(area.world());
         if (world == null) return new Claim.None();
         Claim.Owned owned = null;

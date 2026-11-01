@@ -74,7 +74,7 @@ public final class AdminServerWrites {
             Actions.ADMIN_BOARDS_NPC_UNLINK, Permission.Admin.BOARDS,
             Actions.ADMIN_NODES_LIST, Permission.Admin.NODES,
             Actions.ADMIN_NODES_REMOVE, Permission.Admin.NODES,
-            Actions.ADMIN_CONFIG_SYNC, Permission.Admin.ADMIN);
+            Actions.ADMIN_CONFIG_SYNC, Permission.Admin.RELOAD);
 
     private static final String INVALID = "dashboard.invalid";
     private static final String SELECTED = "selected";

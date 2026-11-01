@@ -5,10 +5,10 @@
  */
 package de.eldoria.companies.jobs;
 
+import de.eldoria.companies.components.job.JobKind;
+import de.eldoria.companies.components.job.JobState;
 import de.eldoria.companies.data.repository.AJobData;
 import de.eldoria.companies.data.wrapper.job.Job;
-import de.eldoria.companies.data.wrapper.job.JobKind;
-import de.eldoria.companies.data.wrapper.job.JobState;
 import de.eldoria.companies.jobs.hooks.JobHooks;
 import de.eldoria.companies.util.Permission;
 import org.bukkit.Material;

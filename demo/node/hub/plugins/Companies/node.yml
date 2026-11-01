@@ -1,0 +1,6 @@
+nodeType: PRIMARY
+nodeUid: a5c211c6-00ce-48eb-b695-15288750553e
+name: hub
+proxyServer: hub
+dashboard:
+  serverKey: ${CFG_DASHBOARD_KEY}

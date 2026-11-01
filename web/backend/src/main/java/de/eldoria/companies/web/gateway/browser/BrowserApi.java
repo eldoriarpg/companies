@@ -30,6 +30,7 @@ import de.eldoria.companies.web.gateway.session.Sessions;
 import de.eldoria.companies.web.gateway.session.Turnstile;
 import de.eldoria.companies.web.gateway.snapshot.ReadRelay;
 import de.eldoria.companies.web.gateway.snapshot.SnapshotCache;
+import de.eldoria.companies.web.gateway.storage.AdminAccess;
 import de.eldoria.companies.web.gateway.storage.IconRepository;
 import de.eldoria.companies.web.gateway.storage.ServerRepository;
 import de.eldoria.companies.web.gateway.storage.StoredSession;
@@ -243,7 +244,7 @@ public final class BrowserApi {
      */
     public void server(Context ctx) {
         StoredSession session = session(ctx);
-        ctx.json(serverInfo(session.serverId(), session.admin()));
+        ctx.json(serverInfo(session.serverId(), session.access()));
     }
 
     /**
@@ -290,7 +291,7 @@ public final class BrowserApi {
         if (name == null || !(write || ReadRelay.READ_ACTIONS.contains(name))) {
             throw new ApiError(403, ApiError.Code.UNAUTHORIZED, "This action is not available on the dashboard");
         }
-        if (name.startsWith(Features.ADMIN_PREFIX) && !session.admin()) {
+        if (name.startsWith(Features.ADMIN_PREFIX) && !adminMay(session.access(), name)) {
             throw new ApiError(403, ApiError.Code.UNAUTHORIZED, "This action is for admins only");
         }
         if (!(write ? limits.writes() : limits.reads()).tryAcquire(session.id())) throw tooMany();
@@ -341,7 +342,7 @@ public final class BrowserApi {
                 return;
             }
             StoredSession found = session.get();
-            Views.ServerInfo info = serverInfo(found.serverId(), found.admin());
+            Views.ServerInfo info = serverInfo(found.serverId(), found.access());
             if (!info.online() && info.version().status() == VersionState.DISCONTINUED) {
                 ctx.closeSession(BrowserStreams.CLOSE_DISCONTINUED, "Discontinued");
                 return;
@@ -351,7 +352,7 @@ public final class BrowserApi {
                     found.id(),
                     found.serverId(),
                     found.player(),
-                    found.admin(),
+                    found.access(),
                     new QueuedSocket(new JettySocket(ctx.session)));
             streams.reply(ctx.sessionId(), GatewayEvent.server(info));
         });
@@ -377,17 +378,23 @@ public final class BrowserApi {
         ws.onClose(ctx -> streams.closed(ctx.sessionId()));
     }
 
+    private static boolean adminMay(AdminAccess access, String action) {
+        String feature = Actions.feature(action);
+        return access.admin() && (feature == null || access.allows(feature));
+    }
+
     /**
      * The server as the browser sees it: branding, the features both the server and the gateway support, the limits
      * and the version status of the node requests go to, and for players with admin rights the deprecated parts it
-     * uses. While no node is connected, the features are empty and the version reads as supported, unless a node on a
-     * discontinued version is connected.
+     * uses. Of the admin features it lists only those the player's permissions allow. While no node is connected, the
+     * features are empty and the version reads as supported, unless a node on a discontinued version is connected.
      *
      * @param serverId the server
-     * @param admin whether the player has admin rights, as the plugin confirmed with the login
+     * @param access what of the admin tools the player may see, as the plugin confirmed with the login
      * @return the server's info
      */
-    public Views.ServerInfo serverInfo(String serverId, boolean admin) {
+    public Views.ServerInfo serverInfo(String serverId, AdminAccess access) {
+        boolean admin = access.admin();
         Optional<LiveServer> live = hub.server(serverId);
         Optional<NodeLink> routed = live.flatMap(LiveServer::route);
         Optional<NodeLink.Handshake> agreed =
@@ -395,7 +402,7 @@ public final class BrowserApi {
         return new Views.ServerInfo(
                 brand(serverId),
                 routed.map(link -> link.agreed().features().stream()
-                                .filter(feature -> admin || !feature.startsWith(Features.ADMIN_PREFIX))
+                                .filter(access::allows)
                                 .sorted()
                                 .toList())
                         .orElse(List.of()),

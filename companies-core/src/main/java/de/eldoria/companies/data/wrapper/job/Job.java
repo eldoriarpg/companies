@@ -5,6 +5,8 @@
  */
 package de.eldoria.companies.data.wrapper.job;
 
+import de.eldoria.companies.components.job.JobKind;
+import de.eldoria.companies.components.job.JobState;
 import org.jetbrains.annotations.Nullable;
 
 import java.time.LocalDateTime;
@@ -45,6 +47,7 @@ import java.util.UUID;
  * @param target      the shape a terraform job asks for, null for other kinds
  * @param harvest     the item price and what was paid of a harvest job, null for other kinds
  * @param extension   the extra time the company holding the job got, and its open request for more
+ * @param charged     whether the owner paid price and fee; an uncharged job, posted by a plugin, refunds nothing
  */
 public record Job(
         int id,
@@ -71,7 +74,8 @@ public record Job(
         JobReview review,
         @Nullable JobTarget target,
         @Nullable JobHarvest harvest,
-        JobExtension extension) {
+        JobExtension extension,
+        boolean charged) {
     /**
      * The longest title.
      */
@@ -137,7 +141,8 @@ public record Job(
                 JobReview.NONE,
                 null,
                 null,
-                JobExtension.NONE);
+                JobExtension.NONE,
+                true);
     }
 
     /**
@@ -170,7 +175,8 @@ public record Job(
                 review,
                 target,
                 harvest,
-                extension);
+                extension,
+                charged);
     }
 
     /**
@@ -203,7 +209,8 @@ public record Job(
                 review,
                 target,
                 harvest,
-                extension);
+                extension,
+                charged);
     }
 
     /**
@@ -236,7 +243,8 @@ public record Job(
                 review,
                 target,
                 harvest,
-                extension);
+                extension,
+                charged);
     }
 
     /**
@@ -269,7 +277,42 @@ public record Job(
                 review,
                 target,
                 harvest,
-                extension);
+                extension,
+                charged);
+    }
+
+    /**
+     * @param charged whether the owner paid price and fee
+     * @return the job with that payment
+     */
+    public Job withCharged(boolean charged) {
+        return new Job(
+                id,
+                owner,
+                kind,
+                title,
+                description,
+                price,
+                fee,
+                state,
+                company,
+                node,
+                area,
+                land,
+                landRef,
+                dueHours,
+                created,
+                expires,
+                taken,
+                due,
+                closed,
+                closedBy,
+                granted,
+                review,
+                target,
+                harvest,
+                extension,
+                charged);
     }
 
     /**

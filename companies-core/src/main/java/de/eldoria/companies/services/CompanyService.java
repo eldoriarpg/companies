@@ -169,7 +169,20 @@ public final class CompanyService {
      * @return the id of the new company, or why it was not founded
      */
     public CompletableFuture<ActionResult<Integer>> found(UUID actor, String name) {
-        return CompletableFuture.supplyAsync(() -> foundNow(actor, name), executor);
+        return found(actor, name, true);
+    }
+
+    /**
+     * Founds a company like {@link #found(UUID, String)}, optionally without charging the founding price. A founding
+     * that is not charged is logged.
+     *
+     * @param actor  player who founds the company
+     * @param name   name of the company
+     * @param charge whether the founder pays the founding price
+     * @return the id of the new company, or why it was not founded
+     */
+    public CompletableFuture<ActionResult<Integer>> found(UUID actor, String name, boolean charge) {
+        return CompletableFuture.supplyAsync(() -> foundNow(actor, name, charge), executor);
     }
 
     private ActionResult<String> checkFoundable(UUID actor, String name) {
@@ -184,24 +197,26 @@ public final class CompanyService {
         return ActionResult.done(name);
     }
 
-    private ActionResult<Integer> foundNow(UUID actor, String name) {
+    private ActionResult<Integer> foundNow(UUID actor, String name, boolean charge) {
         var lock = founding.computeIfAbsent(actor, id -> new ReentrantLock());
         lock.lock();
         try {
-            return foundLocked(actor, name);
+            return foundLocked(actor, name, charge);
         } finally {
             lock.unlock();
         }
     }
 
-    private ActionResult<Integer> foundLocked(UUID actor, String name) {
+    private ActionResult<Integer> foundLocked(UUID actor, String name, boolean charge) {
         var checked = checkFoundable(actor, name);
         if (checked instanceof ActionResult.Refused<String>(var failure)) return ActionResult.refused(failure);
         var founder = players.apply(actor);
-        var price = foundingPrice();
+        var price = charge ? foundingPrice() : 0;
         var refusal = onMain(() -> online.apply(actor)
                 .flatMap(player -> changes.mayFound(player, name, price))
-                .or(() -> wallet.withdraw(founder, price) ? Optional.empty() : Optional.of(insufficient(price))));
+                .or(() -> !charge || wallet.withdraw(founder, price)
+                        ? Optional.empty()
+                        : Optional.of(insufficient(price))));
         if (refusal.isPresent()) return ActionResult.refused(refusal.get());
         var id = companyData
                 .submitCompanyCreation(name, settings.get().joining().defaultMode())
@@ -212,12 +227,15 @@ public final class CompanyService {
                 })
                 .join();
         if (id == -1) {
-            onMain(() -> {
-                wallet.deposit(founder, price);
-                return null;
-            });
+            if (charge) {
+                onMain(() -> {
+                    wallet.deposit(founder, price);
+                    return null;
+                });
+            }
             return ActionResult.refusedActionBar(SAVE_FAILED);
         }
+        if (!charge) logger.info("Founded " + name + " for " + actor + " without charging the founding price");
         companyData
                 .submitMemberUpdate(CompanyMember.forCompanyId(id, founder).addPermission(CompanyPermission.OWNER))
                 .asFuture()

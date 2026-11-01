@@ -18,6 +18,7 @@ services:
       DB_HOST: postgres
       DB_PASSWORD: ${DB_PASSWORD}
       GATEWAY_MODE: ${GATEWAY_MODE:-self-hosted}
+      SERVER_TOKEN: ${SERVER_TOKEN:-}
       PUBLIC_URL: ${PUBLIC_URL:?set PUBLIC_URL in .env}
       TRUSTED_PROXIES: ${TRUSTED_PROXIES:-172.16.0.0/12,10.0.0.0/8,192.168.0.0/16,127.0.0.1,::1}
       CLOUDFLARE: ${CLOUDFLARE:-false}

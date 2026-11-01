@@ -84,4 +84,11 @@ public interface CompaniesApi {
      * @return area API
      */
     AreaApi areas();
+
+    /**
+     * Access to jobs: reading them and posting new ones.
+     *
+     * @return job API
+     */
+    JobApi jobs();
 }

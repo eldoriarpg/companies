@@ -9,6 +9,7 @@ import de.eldoria.companies.components.area.AreaBounds;
 import de.eldoria.companies.components.area.AreaCapability;
 import de.eldoria.companies.components.area.AreaProvider;
 import de.eldoria.companies.components.area.AreaSource;
+import de.eldoria.companies.components.area.OfferKind;
 import de.eldoria.companies.components.company.CompanyPermission;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteAreaData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteTestDatabase;
@@ -259,7 +260,7 @@ class AreaSyncTest {
     void aBoughtAreaBelongsToTheCompanyOwnerAndOnlyItsBuildersBuild() {
         plot.owners.clear();
         plot.owners.add(keeper);
-        fromServer(AreaOffer.Kind.BUY);
+        fromServer(OfferKind.BUY);
 
         sync.check();
 
@@ -272,7 +273,7 @@ class AreaSyncTest {
         var worker = UUID.randomUUID();
         plot.builders.add(worker);
         working = Map.of("plotsquared:" + REF, Set.of(worker));
-        fromServer(AreaOffer.Kind.BUY);
+        fromServer(OfferKind.BUY);
 
         sync.check();
 
@@ -284,7 +285,7 @@ class AreaSyncTest {
         var worker = UUID.randomUUID();
         plot.builders.add(worker);
         working = Map.of("plotsquared:plots|2;1", Set.of(worker));
-        fromServer(AreaOffer.Kind.BUY);
+        fromServer(OfferKind.BUY);
 
         sync.check();
 
@@ -293,7 +294,7 @@ class AreaSyncTest {
 
     @Test
     void anEndedRentGoesBackToTheKeeperAtOnce() {
-        var id = fromServer(AreaOffer.Kind.RENT);
+        var id = fromServer(OfferKind.RENT);
         sync.check();
         areas.endRent(id);
 
@@ -306,7 +307,7 @@ class AreaSyncTest {
 
     @Test
     void anEndedRentOfAnAreaThatIsGoneIsDropped() {
-        var id = fromServer(AreaOffer.Kind.RENT);
+        var id = fromServer(OfferKind.RENT);
         sync.check();
         areas.endRent(id);
         plot.exists = false;
@@ -321,7 +322,7 @@ class AreaSyncTest {
 
     @Test
     void aBoughtAreaOfACompanyThatIsGoneGoesBackToTheKeeper() {
-        var id = fromServer(AreaOffer.Kind.BUY);
+        var id = fromServer(OfferKind.BUY);
         sync.check();
         gone = true;
 
@@ -334,7 +335,7 @@ class AreaSyncTest {
         assertEquals(Set.of(keeper), plot.owners);
     }
 
-    private int fromServer(AreaOffer.Kind kind) {
+    private int fromServer(OfferKind kind) {
         var offer = areas.addOffer(new AreaOffer(
                         0,
                         "plotsquared",
@@ -343,7 +344,7 @@ class AreaSyncTest {
                         NODE,
                         kind,
                         100,
-                        kind == AreaOffer.Kind.RENT ? 7 : 0,
+                        kind == OfferKind.RENT ? 7 : 0,
                         keeper,
                         LocalDateTime.of(2026, 10, 31, 12, 0)))
                 .orElseThrow();
@@ -357,7 +358,7 @@ class AreaSyncTest {
                         kind.source(),
                         null,
                         100,
-                        kind == AreaOffer.Kind.RENT ? LocalDateTime.of(2026, 11, 7, 12, 0) : null,
+                        kind == OfferKind.RENT ? LocalDateTime.of(2026, 11, 7, 12, 0) : null,
                         LocalDateTime.of(2026, 10, 31, 12, 0),
                         offer,
                         true,

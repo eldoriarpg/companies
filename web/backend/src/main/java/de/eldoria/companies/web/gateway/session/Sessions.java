@@ -34,6 +34,7 @@ import de.eldoria.companies.web.gateway.storage.StoredSession;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import tools.jackson.databind.JsonNode;
 
 import java.time.Clock;
 import java.time.Duration;
@@ -237,10 +238,21 @@ public final class Sessions {
         }
         String cookie = Secrets.token();
         boolean admin = answer.raw().path("admin").asBoolean(false);
-        if (!repository.bind(session.id(), Secrets.hash(cookie), device, admin, clock.instant())) {
+        if (!repository.bind(
+                session.id(), Secrets.hash(cookie), device, admin, adminFeatures(answer.raw()), clock.instant())) {
             return new LoginResult.Unknown();
         }
         return new LoginResult.LoggedIn(cookie, repository.find(session.id()).orElse(session));
+    }
+
+    private static @Nullable Set<String> adminFeatures(JsonNode confirmation) {
+        JsonNode features = confirmation.path("adminFeatures");
+        if (!features.isArray()) return null;
+        Set<String> allowed = new HashSet<>();
+        for (JsonNode feature : features) {
+            if (feature.isString()) allowed.add(feature.asString());
+        }
+        return allowed;
     }
 
     private LoginResult noAttemptLeft(StoredSession session) {

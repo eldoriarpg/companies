@@ -306,6 +306,31 @@ public class MariaDbDashboardData extends ADashboardData {
     }
 
     @Override
+    public List<MarketRow> marketHistoryTotals() {
+        @Language("mariadb")
+        var query = """
+                SELECT material,
+                       SUM(orders)                                    AS orders,
+                       SUM(items)                                     AS volume,
+                       SUM(avg_price * items) / NULLIF(SUM(items), 0) AS avg_price,
+                       MIN(min_price)                                 AS min_price,
+                       MAX(max_price)                                 AS max_price
+                FROM market_history
+                GROUP BY material""";
+        return queries()
+                .query(query)
+                .single()
+                .map(row -> new MarketRow(
+                        row.getString("material"),
+                        row.getInt("orders"),
+                        row.getLong("volume"),
+                        row.getDouble("avg_price"),
+                        row.getDouble("min_price"),
+                        row.getDouble("max_price")))
+                .all();
+    }
+
+    @Override
     public boolean saveMarketDay(LocalDate day, List<MarketDay> rows) {
         @Language("mariadb")
         var clear = "DELETE FROM market_history WHERE day = ?";
