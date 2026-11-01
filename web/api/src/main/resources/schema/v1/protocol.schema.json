@@ -1613,6 +1613,9 @@
     "admin.offers.prize" : {
       "feature" : "admin.offers"
     },
+    "admin.offers.edit" : {
+      "feature" : "admin.offers"
+    },
     "admin.events.list" : {
       "feature" : "admin.events"
     },

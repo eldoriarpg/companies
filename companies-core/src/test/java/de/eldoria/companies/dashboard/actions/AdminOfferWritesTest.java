@@ -24,6 +24,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Path;
+import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -205,6 +207,31 @@ class AdminOfferWritesTest {
         assertEquals("companyadmin.offers.error.notGoal", notGoal.reason());
         assertEquals("companyadmin.offers.error.numbers", tooMany.reason());
         assertTrue(world.adminActions.stream().anyMatch(line -> line.contains("offer open")));
+    }
+
+    @Test
+    void theEndOrTheBudgetChangesOnePerCall() {
+        var goal = world.goal("Bridge logs", 0, true);
+        var end = Times.now().plusDays(5).truncatedTo(ChronoUnit.SECONDS);
+
+        var moved = offers(
+                Actions.ADMIN_OFFERS_EDIT,
+                "{\"offer\":" + goal + ",\"end\":\"" + end.toInstant(ZoneOffset.UTC) + "\"}");
+        var budgeted = offers(Actions.ADMIN_OFFERS_EDIT, "{\"offer\":" + goal + ",\"budget\":12345}");
+        var both = offers(Actions.ADMIN_OFFERS_EDIT, "{\"offer\":" + goal + ",\"budget\":1,\"end\":\"x\"}");
+        var neither = offers(Actions.ADMIN_OFFERS_EDIT, "{\"offer\":" + goal + "}");
+        var unreadable = offers(Actions.ADMIN_OFFERS_EDIT, "{\"offer\":" + goal + ",\"end\":\"soon\"}");
+        var tooLow = offers(Actions.ADMIN_OFFERS_EDIT, "{\"offer\":" + goal + ",\"budget\":0}");
+
+        assertTrue(moved.ok(), moved.reason());
+        assertEquals(end, world.offers.offer(goal).orElseThrow().ends());
+        assertEquals(12345.0, budgeted.data().path("budget").asDouble());
+        assertEquals("dashboard.invalid", both.reason());
+        assertEquals("dashboard.invalid", neither.reason());
+        assertEquals("dashboard.invalid", unreadable.reason());
+        assertEquals("companyadmin.offers.error.budgetPositive", tooLow.reason());
+        assertTrue(world.adminActions.stream().anyMatch(line -> line.contains("offer end")));
+        assertTrue(world.adminActions.stream().anyMatch(line -> line.contains("offer budget")));
     }
 
     @Test

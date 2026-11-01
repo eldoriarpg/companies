@@ -907,6 +907,16 @@ function action(name, args, state, story = {}) {
             offer.openChunks = args.count
             return done(offer)
         }
+        case 'admin.offers.edit': {
+            const offer = adminOffers(state)[args.offer]
+            if (args.budget !== undefined) {
+                if (args.budget < offer.spent) return refused(`The offer #${offer.id} spent ${offer.spent} already, prizes included; its budget can not go below that.`)
+                offer.budget = args.budget
+                offer.left = Math.max(0, args.budget - offer.spent)
+            }
+            if (args.end !== undefined) offer.ends = args.end
+            return done(offer)
+        }
         case 'admin.offers.prize': {
             const offer = adminOffers(state)[args.offer]
             const prize = offer.prizes.find(entry => entry.place === args.place)

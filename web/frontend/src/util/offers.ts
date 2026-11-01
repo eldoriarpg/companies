@@ -71,14 +71,15 @@ export function draftOf(form: OfferForm): AdminOfferDraft {
  *
  * @param state the offer's state
  * @param kind the offer's kind
- * @returns whether it can be paused, resumed, cancelled and have its waiting chunks changed
+ * @returns whether it can be paused, resumed, cancelled, have its waiting chunks changed and its end and budget changed
  */
-export function offerActions(state: string, kind: OfferKind): {pause: boolean, resume: boolean, cancel: boolean, open: boolean} {
+export function offerActions(state: string, kind: OfferKind): {pause: boolean, resume: boolean, cancel: boolean, open: boolean, edit: boolean} {
     const running = state === 'scheduled' || state === 'active' || state === 'paused'
     return {
         pause: state === 'scheduled' || state === 'active',
         resume: state === 'paused',
         cancel: running,
         open: running && kind === 'goal',
+        edit: running,
     }
 }

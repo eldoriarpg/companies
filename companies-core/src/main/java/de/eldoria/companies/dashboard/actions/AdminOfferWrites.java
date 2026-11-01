@@ -16,9 +16,11 @@ import de.eldoria.companies.data.wrapper.offer.OfferLine;
 import de.eldoria.companies.data.wrapper.offer.OfferState;
 import de.eldoria.companies.menus.Values;
 import de.eldoria.companies.orders.offers.GoalDraft;
+import de.eldoria.companies.orders.offers.OfferEdits;
 import de.eldoria.companies.orders.system.SystemOrderService;
 import de.eldoria.companies.util.AdminLog;
 import de.eldoria.companies.util.Permission;
+import de.eldoria.companies.util.Times;
 import de.eldoria.companies.web.api.Actions;
 import de.eldoria.companies.web.api.action.ActionRequest;
 import de.eldoria.companies.web.api.action.ActionResult;
@@ -27,8 +29,10 @@ import org.jetbrains.annotations.Nullable;
 import tools.jackson.databind.JsonNode;
 
 import java.math.BigDecimal;
+import java.time.DateTimeException;
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -61,7 +65,8 @@ public final class AdminOfferWrites {
             Actions.ADMIN_OFFERS_RESUME,
             Actions.ADMIN_OFFERS_CANCEL,
             Actions.ADMIN_OFFERS_OPEN,
-            Actions.ADMIN_OFFERS_PRIZE);
+            Actions.ADMIN_OFFERS_PRIZE,
+            Actions.ADMIN_OFFERS_EDIT);
 
     /**
      * The most offers listed, the newest first.
@@ -124,6 +129,7 @@ public final class AdminOfferWrites {
             case Actions.ADMIN_OFFERS_OPEN ->
                 open(request, admin, id, args.path("count").asInt(0));
             case Actions.ADMIN_OFFERS_PRIZE -> prize(request, admin, id, args);
+            case Actions.ADMIN_OFFERS_EDIT -> edit(request, admin, id, args);
             default -> answers.refused(request, "dashboard.unsupported");
         };
     }
@@ -283,6 +289,56 @@ public final class AdminOfferWrites {
                 yield detailsOf(request, id);
             }
         };
+    }
+
+    /**
+     * Moves the end of an offer, {@code end} as an instant, or changes its budget, {@code budget}; one of them per
+     * call, so a refused change never leaves the other done.
+     */
+    private ActionResult edit(ActionRequest request, String admin, int id, JsonNode args) {
+        if (id <= 0) return unknown(request, id);
+        var end = args.path("end");
+        var budget = args.path("budget");
+        var hasEnd = !end.isMissingNode() && !end.isNull();
+        var hasBudget = !budget.isMissingNode() && !budget.isNull();
+        if (hasEnd == hasBudget || (hasBudget && !budget.isNumber())) {
+            return answers.refused(request, "dashboard.invalid");
+        }
+        LocalDateTime ends = null;
+        if (hasEnd) {
+            try {
+                ends = LocalDateTime.ofInstant(Instant.parse(end.asString("")), ZoneOffset.UTC);
+            } catch (DateTimeException e) {
+                return answers.refused(request, "dashboard.invalid");
+            }
+        }
+        if (hasBudget) {
+            var from = sources.offers().offer(id).map(EventOffer::budget).orElse(0.0);
+            var result = OfferEdits.budget(sources.offers(), sources.funding(), id, budget.asDouble());
+            if (result != OfferEdits.Outcome.DONE) {
+                return answers.refused(request, OfferEdits.budgetFailure(result, sources.offers(), id));
+            }
+            sources.log()
+                    .entry(admin, "offer budget")
+                    .with("id", id)
+                    .with("from", from)
+                    .with("budget", budget.asDouble())
+                    .write();
+        }
+        if (ends != null) {
+            var now = Times.now();
+            var result = OfferEdits.end(sources.offers(), id, ends, now);
+            if (result != OfferEdits.Outcome.DONE) {
+                return answers.refused(request, OfferEdits.endFailure(result, id));
+            }
+            sources.log()
+                    .entry(admin, "offer end")
+                    .with("id", id)
+                    .with("ends", OfferEdits.stored(ends, now).toString())
+                    .write();
+        }
+        checkSoon();
+        return detailsOf(request, id);
     }
 
     private ActionResult prize(ActionRequest request, String admin, int id, JsonNode args) {

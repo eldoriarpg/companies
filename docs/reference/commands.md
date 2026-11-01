@@ -409,6 +409,8 @@ The confirm commands take no id. They confirm the last request you made.
 | `/companyadmin offers list` | `companies.admin.offers` | yes | Lists the newest offers with state, progress and end. |
 | `/companyadmin offers info <id>` | `companies.admin.offers` | yes | Shows who created an offer, its money and budget, its progress and top contributors, or for a contest its ranking, payouts and prizes. |
 | `/companyadmin offers open <id> <count>` | `companies.admin.offers` | yes | Changes how many chunks of a goal wait to be taken at once, while the goal is not closed. |
+| `/companyadmin offers end <id> <when>` | `companies.admin.offers` | yes | Moves the end of an offer that is not closed and not on a server event, to hours from now or a date. |
+| `/companyadmin offers budget <id> <budget>` | `companies.admin.offers` | yes | Changes the budget of an offer that is not closed, never below what it spent and its prizes. |
 | `/companyadmin offers pause <id>` | `companies.admin.offers` | yes | Pauses an offer and withdraws its waiting chunks. |
 | `/companyadmin offers resume <id>` | `companies.admin.offers` | yes | Resumes a paused offer. |
 | `/companyadmin offers cancel <id>` | `companies.admin.offers` | yes | Closes an offer and withdraws its waiting chunks; a cancelled contest pays no prizes. |

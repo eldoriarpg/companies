@@ -29,6 +29,7 @@ import de.eldoria.companies.menus.Values;
 import de.eldoria.companies.menus.order.EventTexts;
 import de.eldoria.companies.orders.OrderDraftService;
 import de.eldoria.companies.orders.offers.GoalDraft;
+import de.eldoria.companies.orders.offers.OfferEdits;
 import de.eldoria.companies.orders.system.SystemOrderService;
 import de.eldoria.companies.services.events.EventTimes;
 import de.eldoria.companies.services.events.GoalRewards;
@@ -51,6 +52,7 @@ import org.bukkit.Material;
 import org.bukkit.command.CommandSender;
 import org.jetbrains.annotations.Nullable;
 
+import java.time.DateTimeException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -78,6 +80,8 @@ import java.util.stream.Collectors;
  *     <li>{@code info <id>} shows who created an offer, its money, its progress and its top contributors, for a
  *     contest its ranking, what each company was paid and the prizes;</li>
  *     <li>{@code open <id> <count>} changes how many chunks of a goal wait to be taken at once;</li>
+ *     <li>{@code end <id> <when>} moves the end of an offer to hours from now ({@code 12}, {@code 2d}) or a date
+ *     ({@code 2026-12-24 18:00}), {@code budget <id> <budget>} changes its budget, see {@link OfferEdits};</li>
  *     <li>{@code pause}, {@code resume} and {@code cancel <id>} stop, restart and close an offer;</li>
  *     <li>{@code event <id> <event>} puts an offer on a server event, which it then starts, ends and is cancelled with;
  *     {@code standalone <id>} takes it off again;</li>
@@ -709,6 +713,109 @@ public final class OffersCommand {
         if (offer.get().state().closed()) return Transition.REFUSED;
         return data.chunkLimit(id, count) ? Transition.DONE : Transition.UNKNOWN;
     }
+
+    /**
+     * Moves the end of an offer that still runs and is not linked to a server event.
+     *
+     * @param sender sender of the command
+     * @param id     id of the offer
+     * @param when   hours from now such as {@code 12} or {@code 1d12h}, or a date such as {@code 2026-12-24 18:00}
+     */
+    @Executes("end")
+    public void end(CommandSender sender, @IntArg(min = 0) int id, @StringArg(StringArgType.GREEDY) String when) {
+        deps.requireReady();
+        var now = Times.now();
+        var ends = endOf(when, now)
+                .orElseThrow(() -> CommandFailure.of(PREFIX + "error.when", Values.text("when", when.strip())));
+        run(sender, () -> OfferEdits.end(offers(), id, ends, now), result -> {
+            if (result != OfferEdits.Outcome.DONE) {
+                OfferEdits.endFailure(result, id).sendTo(sender, deps.messages());
+                return;
+            }
+            deps.adminLog()
+                    .entry(sender, "offer end")
+                    .with("id", id)
+                    .with("ends", OfferEdits.stored(ends, now).toString())
+                    .write();
+            deps.messages()
+                    .sendMessage(
+                            sender,
+                            PREFIX + "endMoved",
+                            Values.number("id", id),
+                            Values.text("ends", time(OfferEdits.stored(ends, now))));
+            checkSoon();
+        });
+    }
+
+    /**
+     * Reads when an offer should end.
+     *
+     * @param when hours from now such as {@code 12}, a duration such as {@code 1d12h}, or a date in the server's
+     *             time zone such as {@code 2026-12-24 18:00}
+     * @param now  the current time in UTC
+     * @return the end in UTC, empty when the text is none of these
+     */
+    public static Optional<LocalDateTime> endOf(String when, LocalDateTime now) {
+        var text = when.strip();
+        try {
+            if (text.matches("\\d{1,6}")) return Optional.of(now.plusHours(Long.parseLong(text)));
+            var duration = EventTimes.duration(text);
+            if (duration.isPresent()) return Optional.of(now.plus(duration.get()));
+            return EventTimes.date(text, Times.zone());
+        } catch (ArithmeticException | IllegalArgumentException | DateTimeException e) {
+            return Optional.empty();
+        }
+    }
+
+    /**
+     * Changes the budget of an offer that still runs.
+     *
+     * @param sender sender of the command
+     * @param id     id of the offer
+     * @param budget the new budget
+     */
+    @Executes("budget")
+    public void budget(CommandSender sender, @IntArg(min = 0) int id, @DoubleArg(min = 0) double budget) {
+        deps.requireReady();
+        var funding = deps.services().systemFunding();
+        run(
+                sender,
+                () -> {
+                    var from = offers().offer(id).map(EventOffer::budget).orElse(0.0);
+                    var result = OfferEdits.budget(offers(), funding, id, budget);
+                    return new Budgeted(
+                            result == OfferEdits.Outcome.DONE ? null : OfferEdits.budgetFailure(result, offers(), id),
+                            from);
+                },
+                budgeted -> {
+                    var failure = budgeted.failure();
+                    if (failure != null) {
+                        failure.sendTo(sender, deps.messages());
+                        return;
+                    }
+                    deps.adminLog()
+                            .entry(sender, "offer budget")
+                            .with("id", id)
+                            .with("from", budgeted.from())
+                            .with("budget", budget)
+                            .write();
+                    deps.messages()
+                            .sendMessage(
+                                    sender,
+                                    PREFIX + "budgetChanged",
+                                    Values.number("id", id),
+                                    Values.money("budget", economy(), budget));
+                    checkSoon();
+                });
+    }
+
+    /**
+     * What changing a budget came to.
+     *
+     * @param failure why it was refused, null when it was changed
+     * @param from    the budget before
+     */
+    private record Budgeted(@Nullable CommandFailure failure, double from) {}
 
     /**
      * Settles a prize whose payment stopped without a known outcome, after an admin checked whether the money reached

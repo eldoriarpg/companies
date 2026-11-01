@@ -247,6 +247,56 @@ public abstract class OfferDataContract {
     }
 
     @Test
+    void theBudgetChangesOnlyFromTheReadValuesAndAboveWhatWasSpent() {
+        var id = active();
+        offers.addChunk(id, order().id(), 100, 250.0, "Bank", NOW);
+        var budget = offers.offer(id).orElseThrow().budget();
+
+        assertFalse(offers.budget(id, budget, 0, 200, 0, 200));
+        assertFalse(offers.budget(id, budget + 1, 0, 300, 0, 300));
+        assertTrue(offers.budget(id, budget, 0, 300, 0, 300));
+        assertEquals(300.0, offers.offer(id).orElseThrow().budget());
+        assertFalse(offers.budget(id, budget, 0, 400, 0, 400));
+        offers.state(id, OfferState.ACTIVE, OfferState.CANCELLED, NOW);
+        assertFalse(offers.budget(id, 300, 0, 400, 0, 400));
+    }
+
+    @Test
+    void aChunkTheBudgetCanNotHoldIsNotStored() {
+        var id = active();
+        var budget = offers.offer(id).orElseThrow().budget();
+        var chunk = order();
+
+        assertFalse(offers.addChunk(id, chunk.id(), 100, budget + 1, null, NOW));
+
+        assertEquals(0.0, offers.offer(id).orElseThrow().spent());
+        assertTrue(offers.openChunks(id).isEmpty());
+        assertTrue(offers.addChunk(id, chunk.id(), 100, budget, null, NOW));
+    }
+
+    @Test
+    void anAccountContestStartsOnlyWithItsWholeBudgetHeld() {
+        var id = contest(100, 2.0, List.of(50.0), 150.0);
+
+        assertFalse(offers.activate(id, 100.0, NOW));
+        assertTrue(offers.activate(id, 150.0, NOW));
+    }
+
+    @Test
+    void aDeliveryAfterABudgetCutIsCappedByTheNewBudget() {
+        var id = contest(100, 2.0, List.of(50.0), 150.0);
+        offers.activate(id, 0, NOW);
+        var iron = company("Iron Works");
+        offers.join(id, iron, NOW);
+
+        assertTrue(offers.budget(id, 150.0, 0, 90.0, 0, 40.0));
+        var taken = offers.deliver(id, iron, UUID.randomUUID(), 50, NOW);
+
+        assertEquals(20, taken.items());
+        assertEquals(40.0, offers.offer(id).orElseThrow().spent());
+    }
+
+    @Test
     void chunksMarkTheirOrdersAndHoldTheOffersMoney() {
         var id = active();
         var chunk = order();

@@ -112,6 +112,20 @@ public abstract class AOfferData {
     public abstract boolean times(int offer, LocalDateTime starts, LocalDateTime ends);
 
     /**
+     * Changes the budget of an offer that has not closed, as long as nobody changed it meanwhile and it still pays
+     * what was spent.
+     *
+     * @param offer    id of the offer
+     * @param from     the budget it had when read
+     * @param heldFrom what its account had paid in when read
+     * @param to       the new budget
+     * @param heldTo   what its account has paid in afterwards
+     * @param maxSpent the most it may have spent for the change to hold
+     * @return true when the offer is changed
+     */
+    public abstract boolean budget(int offer, double from, double heldFrom, double to, double heldTo, double maxSpent);
+
+    /**
      * @param offer id of a goal
      * @return its reward, empty when it has none
      */
@@ -180,7 +194,8 @@ public abstract class AOfferData {
 
     /**
      * Notes a placed chunk: stores it open, marks its order with the offer and adds what it holds to the offer's spent
-     * money.
+     * money. Nothing is stored when the chunk would spend more than the offer's budget, give or take a cent, as when
+     * the budget was cut after it was read.
      *
      * @param offer   id of the offer
      * @param order   id of the chunk's order
@@ -188,7 +203,7 @@ public abstract class AOfferData {
      * @param paid    what was put into it
      * @param account economy account that paid it, null for minted money
      * @param at      when it was placed
-     * @return true when it was stored
+     * @return true when it was stored, false when it failed or the budget can not hold it
      */
     public abstract boolean addChunk(
             int offer, int order, int amount, double paid, @Nullable String account, LocalDateTime at);
@@ -307,9 +322,9 @@ public abstract class AOfferData {
     /**
      * Takes items of a worker of a company into a running contest, as many as it misses and its money, less the
      * prizes kept back, can pay; at most what was offered. The contest's delivered items and spent money, the company's
-     * entry and a delivery row change together, and only when nobody delivered meanwhile, so two companies delivering
-     * the last items at once never take more than the contest misses: the one that lost the race reads again and takes
-     * what is left. A delivery that fills the contest closes it as {@link OfferState#REACHED}; one that leaves less
+     * entry and a delivery row change together, and only when nobody delivered or changed the budget meanwhile, so two
+     * companies delivering the last items at once never take more than the contest misses, and a cut budget is never
+     * overspent: the one that lost the race reads again and takes what is left. A delivery that fills the contest closes it as {@link OfferState#REACHED}; one that leaves less
      * money than one more item costs closes it as {@link OfferState#DEPLETED}.
      *
      * @param offer   id of the contest
@@ -323,10 +338,11 @@ public abstract class AOfferData {
 
     /**
      * Starts a scheduled offer that never ran, noting when it started and, for a contest, the money its account paid
-     * in.
+     * in. Money paid in has to be the whole budget, so a contest whose budget changed since it was read does not
+     * start.
      *
      * @param offer id of the offer
-     * @param held  what the account of a contest paid in, 0 for minted money and goals
+     * @param held  what the account of a contest paid in, its whole budget; 0 for minted money and goals
      * @param at    the current time
      * @return true when it waited and runs now
      */

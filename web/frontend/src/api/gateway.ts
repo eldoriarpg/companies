@@ -1356,6 +1356,7 @@ export interface WriteActions {
     'admin.offers.resume': {args: OfferRef, result: AdminOffer}
     'admin.offers.cancel': {args: OfferRef, result: AdminOffer}
     'admin.offers.open': {args: OfferRef & {count: number}, result: AdminOffer}
+    'admin.offers.edit': {args: OfferRef & ({end: string} | {budget: number}), result: AdminOffer}
     'admin.offers.prize': {args: OfferRef & {place: number, outcome: 'paid' | 'failed'}, result: AdminOffer}
     'admin.events.list': {args: Record<string, never>, result: {events: AdminEventRow[]}}
     'admin.events.create': {args: AdminEventDraft, result: AdminEventRow}

@@ -46,8 +46,8 @@ describe('the offer form', () => {
     })
 
     it('offers the changes the plugin allows in each state', () => {
-        expect(offerActions('active', 'goal')).toEqual({pause: true, resume: false, cancel: true, open: true})
-        expect(offerActions('paused', 'contest')).toEqual({pause: false, resume: true, cancel: true, open: false})
-        expect(offerActions('ended', 'goal')).toEqual({pause: false, resume: false, cancel: false, open: false})
+        expect(offerActions('active', 'goal')).toEqual({pause: true, resume: false, cancel: true, open: true, edit: true})
+        expect(offerActions('paused', 'contest')).toEqual({pause: false, resume: true, cancel: true, open: false, edit: true})
+        expect(offerActions('ended', 'goal')).toEqual({pause: false, resume: false, cancel: false, open: false, edit: false})
     })
 })
