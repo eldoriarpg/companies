@@ -168,6 +168,7 @@ import de.eldoria.companies.orders.offers.ContestService;
 import de.eldoria.companies.orders.offers.EventOfferService;
 import de.eldoria.companies.orders.offers.NetworkAnnouncer;
 import de.eldoria.companies.orders.offers.OfferAnnouncer;
+import de.eldoria.companies.orders.offers.OfferApiEvents;
 import de.eldoria.companies.orders.system.GuessedLimit;
 import de.eldoria.companies.orders.system.GuessedOutcomes;
 import de.eldoria.companies.orders.system.SystemFunding;
@@ -582,14 +583,16 @@ public class Companies extends EldoPlugin {
                         }))
                 .start();
         var networkAnnouncer = new NetworkAnnouncer(offerNetwork, getLogger());
+        var offerApiEvents =
+                new OfferApiEvents(getServer().getPluginManager()::callEvent, getServer()::getOfflinePlayer);
         var eventOffers = new EventOfferService(
                 offerData,
                 orderData,
                 systemPlacement,
                 systemFunding,
                 ContestService.prizes(companyData, treasuryService),
-                EventOfferService.Announcer.all(
-                        List.of(() -> networkAnnouncer, () -> discord == null ? null : discord.offers())),
+                EventOfferService.Announcer.all(List.of(
+                        () -> networkAnnouncer, () -> discord == null ? null : discord.offers(), () -> offerApiEvents)),
                 Times.UTC,
                 () -> ThreadLocalRandom.current().nextDouble(),
                 getLogger());
@@ -725,7 +728,8 @@ public class Companies extends EldoPlugin {
                     systemFunding,
                     offerData,
                     eventOffers,
-                    ContestService.create(this, offerData, orderData, economy, configuration, treasuryService),
+                    ContestService.create(
+                            this, offerData, orderData, economy, configuration, treasuryService, offerApiEvents),
                     serverEventService,
                     serverEventData,
                     activeEvents,
@@ -1287,6 +1291,8 @@ public class Companies extends EldoPlugin {
                                 commands.services().contests(),
                                 commands.services().systemFunding(),
                                 () -> commands.services().offers().checkSoon(),
+                                EventOfferService.Announcer.all(List.of(
+                                        () -> commands.services().offers().announcer())),
                                 commands.services().serverEventData(),
                                 commands.services().serverEvents(),
                                 () -> configuration.economySettings().collectorAccount()),

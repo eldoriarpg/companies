@@ -23,11 +23,13 @@ public final class OrderLogger implements Listener {
 }
 ```
 
-The events live in three packages:
+The events live in five packages:
 
 - `de.eldoria.companies.events.company` for companies and treasuries
 - `de.eldoria.companies.events.order` for orders
 - `de.eldoria.companies.events.player` for items that return to a player
+- `de.eldoria.companies.events.server` for server events
+- `de.eldoria.companies.events.offer` for event offers: goals and contests
 
 ## Threads
 
@@ -41,17 +43,18 @@ There are three kinds:
 - **Either.** The event is asynchronous when it is fired off the main thread and synchronous on the main thread. The
   tables say where it usually happens. Check `event.isAsynchronous()` when it matters to you.
 
-The base classes `CompanyEvent` and `OrderEvent` have no handler list. Listen to the events below, not to the bases.
+The base classes `CompanyEvent`, `OrderEvent`, `OfferEvent` and `ContestMembershipEvent` have no handler list. Listen to the events below, not to the bases.
 
 ## Pre-events and cancel reasons
 
-Four events fire **before** an action and can stop it:
+Six events fire **before** an action and can stop it:
 
 - `PreCompanyCreateEvent`: a player is about to found a company. It fires only while the founder is online on that
   server; a company founded on the dashboard by a player who is not online skips it.
 - `PreOrderCreateEvent`: an order is about to be created.
 - `PreOrderAcceptEvent`: a member is about to claim an order for their company.
 - `PreSoloOrderAcceptEvent`: a player is about to take an order to work on it alone.
+- `ContestJoinEvent` and `ContestLeaveEvent`: a company is about to join or leave a contest.
 
 They implement `CancellableWithReason`. Cancel them in one of two ways:
 
@@ -223,6 +226,36 @@ The extra of reward multipliers is paid only to workers whose payment event was 
 and fires a `ServerEventPayoutEvent` per worker. The extra is neither taxed nor shared with the treasury, and the money
 is taken already, so the event can not be cancelled.
 
+## Event offer events
+
+Goals and contests the server pays for (see [Event offers](../admin/admin-commands.md#event-offers)) fire these
+events in `de.eldoria.companies.events.offer`. `offer()` is an `IEventOffer`: its id, kind (`GOAL` or `CONTEST`),
+state, item, amount, delivered items, price, budget, spent money, prizes and times.
+
+| Event                  | When                                                                                     | Thread | Cancellable | Key methods |
+|------------------------|------------------------------------------------------------------------------------------|--------|-------------|-------------|
+| `OfferStartEvent`      | A goal or a contest started, the first time it runs                                      | Either, usually off main | No          | `offer()` |
+| `OfferEndEvent`        | A goal or a contest that ran closed                                                      | Either, usually off main | No          | `offer()`, `reason()` |
+| `ContestJoinEvent`     | A company is about to join a contest                                                     | Either, usually off main | With reason | `offer()`, `company()`, `player()` |
+| `ContestLeaveEvent`    | A company is about to leave a contest; it keeps its place                                | Either, usually off main | With reason | `offer()`, `company()`, `player()` |
+| `ContestDeliveryEvent` | A worker delivered into a contest, after it was stored; a failed payment is logged       | Either, usually off main | No          | `offer()`, `company()`, `player()`, `items()`, `paid()`, `place()`, `companyDelivered()` |
+| `ContestSettledEvent`  | A closed contest was settled: its places are fixed and its prizes paid                   | Either, usually off main | No          | `offer()`, `places()` |
+
+Each fires once in the whole network, on the server where it happens. The primary server starts offers, closes them
+at their end, when a goal is reached or runs out of money and with their server event, and settles contests. A
+delivery that fills a contest or spends its money closes it on the server of the delivery, after its
+`ContestDeliveryEvent`. An admin's cancel fires on the admin's server. An offer that never started fires no end, and a
+cancelled contest is not settled. Join and leave events fire after every check passed; cancelling them stops the
+change and shows the member your reason. `places()` lists the companies that delivered and still exist, first place
+first, each with the prize money that reached it (0 when its place has no prize or paying it failed).
+
+| `OfferEndEvent.Reason` | Meaning                                                          |
+|------------------------|------------------------------------------------------------------|
+| `REACHED`              | Its whole amount was delivered                                   |
+| `ENDED`                | Its end passed                                                   |
+| `BUDGET_SPENT`         | Its budget could not pay what was still missing                  |
+| `CANCELLED`            | An admin cancelled it, or it was cancelled with its server event |
+
 ## Solo order events
 
 A player can work on an order alone, without a company (see [Working alone](../players/working-alone.md)). Such an
@@ -273,6 +306,8 @@ On a network, an event fires only on the server where the action happened. These
 - `SoloOrderExpiredEvent`
 - `OrderRemovedEvent` with the reason `PURGED`
 - `ItemsReturnedEvent` with the reason `ORDER_EXPIRED`
+- `OfferStartEvent` and `ContestSettledEvent`
+- `OfferEndEvent`, except for a contest a delivery closed and an offer an admin cancelled
 
 See [Several servers](../admin/multiserver.md) for how a network is set up.
 

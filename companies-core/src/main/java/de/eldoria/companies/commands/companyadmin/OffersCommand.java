@@ -28,7 +28,9 @@ import de.eldoria.companies.menus.MenuText;
 import de.eldoria.companies.menus.Values;
 import de.eldoria.companies.menus.order.EventTexts;
 import de.eldoria.companies.orders.OrderDraftService;
+import de.eldoria.companies.orders.offers.EventOfferService;
 import de.eldoria.companies.orders.offers.GoalDraft;
+import de.eldoria.companies.orders.offers.OfferApiEvents;
 import de.eldoria.companies.orders.offers.OfferEdits;
 import de.eldoria.companies.orders.system.SystemOrderService;
 import de.eldoria.companies.services.events.EventTimes;
@@ -1180,7 +1182,8 @@ public final class OffersCommand {
     private void change(CommandSender sender, int id, String action, List<OfferState> from, OfferState to) {
         deps.requireReady();
         var data = offers();
-        run(sender, () -> transition(data, id, from, to), result -> {
+        var announcer = deps.services().offers().announcer();
+        run(sender, () -> transition(data, id, from, to, announcer), result -> {
             switch (result) {
                 case Transition.UNKNOWN ->
                     deps.messages().sendError(sender, PREFIX + "error.unknown", Values.number("id", id));
@@ -1216,6 +1219,29 @@ public final class OffersCommand {
      * @return what came of it
      */
     public static Transition transition(AOfferData data, int id, List<OfferState> from, OfferState to) {
+        return transition(data, id, from, to, OfferApiEvents.NONE);
+    }
+
+    /**
+     * Moves an offer into a state, see {@link #transition(AOfferData, int, List, OfferState)}, and tells the
+     * announcers when that closed it.
+     *
+     * @param data      offer repository
+     * @param id        id of the offer
+     * @param from      the states it may come from
+     * @param to        the new state
+     * @param announcer told when the offer closed
+     * @return what came of it
+     */
+    public static Transition transition(
+            AOfferData data, int id, List<OfferState> from, OfferState to, EventOfferService.Announcer announcer) {
+        var result = move(data, id, from, to);
+        if (result == Transition.DONE && to.closed())
+            announcer.ended(data.offer(id).orElse(null));
+        return result;
+    }
+
+    private static Transition move(AOfferData data, int id, List<OfferState> from, OfferState to) {
         var offer = data.offer(id);
         if (offer.isEmpty()) return Transition.UNKNOWN;
         var current = offer.get().state();

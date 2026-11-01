@@ -221,7 +221,12 @@ public final class EventWrites {
         if (company.isEmpty()) return answers.refused(request, "error.noMember");
         if (id <= 0) return answers.refused(request, PREFIX + "error.unknown");
         var contests = sources.contests();
-        var result = join ? contests.join(company.get(), player, id) : contests.leave(company.get(), player, id);
+        ContestService.Joining result;
+        try {
+            result = join ? contests.join(company.get(), player, id) : contests.leave(company.get(), player, id);
+        } catch (CommandFailure failure) {
+            return answers.refused(request, failure);
+        }
         var number = Values.number("id", id);
         return switch (result) {
             case JOINED, LEFT -> {

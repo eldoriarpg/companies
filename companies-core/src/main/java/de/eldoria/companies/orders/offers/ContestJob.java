@@ -119,7 +119,15 @@ final class ContestJob {
         }
         if (to == null || !offers.state(offer.id(), offer.state(), to, now)) return null;
         run.changed().put(offer.id(), to);
-        return offers.offer(offer.id()).orElse(null);
+        var changed = offers.offer(offer.id()).orElse(null);
+        if (to.closed()) {
+            try {
+                announcer.ended(changed);
+            } catch (RuntimeException e) {
+                logger.log(Level.WARNING, "Could not announce the end of contest " + offer.id(), e);
+            }
+        }
+        return changed;
     }
 
     /**

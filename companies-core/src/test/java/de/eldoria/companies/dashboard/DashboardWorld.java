@@ -104,6 +104,7 @@ import de.eldoria.companies.orders.OwnerOrderService;
 import de.eldoria.companies.orders.SavedItemService;
 import de.eldoria.companies.orders.SystemOwner;
 import de.eldoria.companies.orders.offers.ContestService;
+import de.eldoria.companies.orders.offers.EventOfferService;
 import de.eldoria.companies.orders.system.SystemOrderService;
 import de.eldoria.companies.services.AdminCompanyService;
 import de.eldoria.companies.services.AdminGrantService;
@@ -233,6 +234,7 @@ public final class DashboardWorld implements AutoCloseable {
     public final ServerEventService eventService;
     public final ContestService contests;
     public final AtomicInteger offerChecks = new AtomicInteger();
+    public final List<Integer> endedOffers = new CopyOnWriteArrayList<>();
     public final Map<String, Double> accounts = new ConcurrentHashMap<>();
     public volatile int contestSlots = 5;
 
@@ -717,6 +719,15 @@ public final class DashboardWorld implements AutoCloseable {
                             }
                         },
                         offerChecks::incrementAndGet,
+                        new EventOfferService.Announcer() {
+                            @Override
+                            public void reached(EventOffer offer) {}
+
+                            @Override
+                            public void ended(@Nullable EventOffer offer) {
+                                if (offer != null) endedOffers.add(offer.id());
+                            }
+                        },
                         this::name,
                         views::instant,
                         Times::now,

@@ -185,6 +185,7 @@ class AdminOfferWritesTest {
         assertEquals("companyadmin.offers.error.pause", twice.reason());
         assertTrue(resumed.ok());
         assertEquals("cancelled", cancelled.data().path("state").asString());
+        assertEquals(List.of(goal), world.endedOffers);
         assertEquals("companyadmin.offers.error.cancel", again.reason());
         assertEquals(
                 OfferState.CANCELLED, world.offers.offer(goal).orElseThrow().state());

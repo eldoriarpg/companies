@@ -184,6 +184,15 @@ public final class EventOfferService {
     }
 
     /**
+     * The announcers of the offers, for an offer that closed outside the checks, as when an admin cancelled it.
+     *
+     * @return the announcer telling all of them
+     */
+    public Announcer announcer() {
+        return announcer;
+    }
+
+    /**
      * Runs a check soon, after an admin changed an offer. Does nothing on a node that does not run the checks.
      */
     public void checkSoon() {
@@ -243,10 +252,12 @@ public final class EventOfferService {
         var event = events.apply(id).orElse(null);
         if (event == null) return offer;
         switch (event.state()) {
-            case CANCELLED -> offers.state(offer.id(), offer.state(), OfferState.CANCELLED, now);
+            case CANCELLED -> {
+                if (offers.state(offer.id(), offer.state(), OfferState.CANCELLED, now)) ended(offer.id());
+            }
             case ENDED, DEPLETED -> {
                 if (offer.state() == OfferState.SCHEDULED) {
-                    offers.state(offer.id(), OfferState.SCHEDULED, OfferState.ENDED, now);
+                    if (offers.state(offer.id(), OfferState.SCHEDULED, OfferState.ENDED, now)) ended(offer.id());
                 } else if (now.isBefore(offer.ends())) {
                     offers.times(offer.id(), offer.starts(), now);
                 }
@@ -319,6 +330,7 @@ public final class EventOfferService {
                 reward(current);
             }
             if (first) started(current);
+            if (next.closed()) ended(current.id());
         }
     }
 
@@ -373,6 +385,14 @@ public final class EventOfferService {
             announcer.started(offer);
         } catch (RuntimeException e) {
             logger.log(Level.WARNING, "Could not announce the start of the event offer #" + offer.id(), e);
+        }
+    }
+
+    private void ended(int offer) {
+        try {
+            announcer.ended(offers.offer(offer).orElse(null));
+        } catch (RuntimeException e) {
+            logger.log(Level.WARNING, "Could not announce the end of the event offer #" + offer, e);
         }
     }
 
@@ -458,6 +478,7 @@ public final class EventOfferService {
     private void outOfMoney(EventOffer offer, int inWork, LocalDateTime now, Run run, String label) {
         if (inWork == 0 && offers.state(offer.id(), OfferState.ACTIVE, OfferState.DEPLETED, now)) {
             run.changed().put(offer.id(), OfferState.DEPLETED);
+            ended(offer.id());
         } else {
             purchases.note(label, Step.BUDGET, "");
         }
@@ -575,6 +596,13 @@ public final class EventOfferService {
         default void contestCancelled(EventOffer offer) {}
 
         /**
+         * Tells that an offer closed on this server: its end passed, it was reached, ran out of money or was cancelled.
+         *
+         * @param offer the offer as it is after closing, null when it could not be read again
+         */
+        default void ended(@Nullable EventOffer offer) {}
+
+        /**
          * @param announcers the announcers, each asked in turn; one that fails does not stop the others
          * @return an announcer telling all of them
          */
@@ -616,6 +644,11 @@ public final class EventOfferService {
                 @Override
                 public void contestCancelled(EventOffer offer) {
                     each(announcer -> announcer.contestCancelled(offer));
+                }
+
+                @Override
+                public void ended(@Nullable EventOffer offer) {
+                    each(announcer -> announcer.ended(offer));
                 }
             };
         }

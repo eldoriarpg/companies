@@ -15,6 +15,7 @@ import de.eldoria.companies.data.wrapper.offer.OfferKind;
 import de.eldoria.companies.data.wrapper.offer.OfferLine;
 import de.eldoria.companies.data.wrapper.offer.OfferState;
 import de.eldoria.companies.menus.Values;
+import de.eldoria.companies.orders.offers.EventOfferService;
 import de.eldoria.companies.orders.offers.GoalDraft;
 import de.eldoria.companies.orders.offers.OfferEdits;
 import de.eldoria.companies.orders.system.SystemOrderService;
@@ -256,7 +257,7 @@ public final class AdminOfferWrites {
     private ActionResult change(
             ActionRequest request, String admin, int id, String action, List<OfferState> from, OfferState to) {
         if (id <= 0) return unknown(request, id);
-        var result = OffersCommand.transition(sources.offers(), id, from, to);
+        var result = OffersCommand.transition(sources.offers(), id, from, to, sources.announcer());
         return switch (result) {
             case UNKNOWN -> unknown(request, id);
             case REFUSED, WRONG_KIND, EARLY ->
@@ -492,6 +493,7 @@ public final class AdminOfferWrites {
      * @param offers    the offer repository
      * @param funding   gives a failed prize back to the account that paid it
      * @param checkSoon asks the primary to place and withdraw chunks soon
+     * @param announcer told when an admin closed an offer
      * @param names     a player's name by id, for players who delivered to a goal alone
      * @param instant   turns stored times into instants
      * @param now       the current time as stored
@@ -503,6 +505,7 @@ public final class AdminOfferWrites {
             AOfferData offers,
             SystemOrderService.Funding funding,
             Runnable checkSoon,
+            EventOfferService.Announcer announcer,
             Function<UUID, String> names,
             Function<LocalDateTime, Instant> instant,
             Supplier<LocalDateTime> now,

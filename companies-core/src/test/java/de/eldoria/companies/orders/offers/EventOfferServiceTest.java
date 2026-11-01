@@ -67,6 +67,7 @@ class EventOfferServiceTest {
     private final List<Integer> removed = new ArrayList<>();
     private final List<EventOffer> announced = new ArrayList<>();
     private final List<Integer> started = new ArrayList<>();
+    private final List<OfferState> ended = new ArrayList<>();
     private final List<String> progressed = new ArrayList<>();
     private Logger logger;
     private SqLiteOrderData orderData;
@@ -128,6 +129,11 @@ class EventOfferServiceTest {
                     @Override
                     public void goalProgress(EventOffer offer, int threshold) {
                         progressed.add(offer.id() + ":" + threshold);
+                    }
+
+                    @Override
+                    public void ended(@Nullable EventOffer offer) {
+                        if (offer != null) ended.add(offer.state());
                     }
                 },
                 clock,
@@ -205,9 +211,11 @@ class EventOfferServiceTest {
         clock.advance(Duration.ofHours(24));
         service.run();
         assertEquals(OfferState.ENDED, offer(id).state());
+        assertEquals(List.of(OfferState.ENDED), ended);
 
         deliver(first, 100);
         service.run();
+        assertEquals(List.of(OfferState.ENDED), ended);
 
         assertEquals(100, offer(id).delivered());
         assertTrue(progressed.isEmpty());
@@ -313,6 +321,7 @@ class EventOfferServiceTest {
         event.set(serverEvent(EventState.CANCELLED, now, now.plusHours(5)));
         service.run();
         assertEquals(OfferState.CANCELLED, offers.offer(other).orElseThrow().state());
+        assertEquals(List.of(OfferState.ENDED, OfferState.CANCELLED), ended);
     }
 
     @Test
@@ -499,6 +508,7 @@ class EventOfferServiceTest {
         assertEquals(OfferState.DEPLETED, run.changed().get(id));
         assertEquals(125, offer(id).delivered());
         assertTrue(announced.isEmpty());
+        assertEquals(List.of(OfferState.DEPLETED), ended);
     }
 
     @Test

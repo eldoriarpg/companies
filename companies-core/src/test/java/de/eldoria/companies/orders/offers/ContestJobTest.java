@@ -64,6 +64,7 @@ class ContestJobTest {
     private final List<List<Integer>> rankings = new ArrayList<>();
     private final List<Integer> cancelled = new ArrayList<>();
     private final List<Integer> contestsStarted = new ArrayList<>();
+    private final List<OfferState> ended = new ArrayList<>();
     private final List<List<String>> paidPrizes = new ArrayList<>();
     private Integer failingWinner;
     private boolean failOutcome;
@@ -138,6 +139,11 @@ class ContestJobTest {
                     public void contestCancelled(EventOffer offer) {
                         cancelled.add(offer.id());
                     }
+
+                    @Override
+                    public void ended(@Nullable EventOffer offer) {
+                        if (offer != null) ended.add(offer.state());
+                    }
                 },
                 clock,
                 () -> 0.5,
@@ -197,6 +203,7 @@ class ContestJobTest {
         var run = service.run();
 
         assertEquals(OfferState.ENDED, run.changed().get(id));
+        assertEquals(List.of(OfferState.ENDED), ended);
         assertEquals(List.of(id), run.settled());
         assertEquals(List.of(stone + ":50.0", iron + ":30.0"), prizesPaid);
         var settled = offers.offer(id).orElseThrow();
@@ -230,6 +237,7 @@ class ContestJobTest {
         assertEquals(List.of(id), run.settled());
         assertEquals(List.of(iron + ":25.0"), prizesPaid);
         assertEquals(75.0, offers.offer(id).orElseThrow().spent());
+        assertTrue(ended.isEmpty());
     }
 
     @Test

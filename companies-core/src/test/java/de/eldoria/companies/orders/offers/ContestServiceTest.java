@@ -5,8 +5,10 @@
  */
 package de.eldoria.companies.orders.offers;
 
+import de.eldoria.companies.commands.support.CommandFailure;
 import de.eldoria.companies.components.company.CompanyPermission;
 import de.eldoria.companies.components.company.JoinMode;
+import de.eldoria.companies.components.offer.EventOfferState;
 import de.eldoria.companies.configuration.elements.systemorders.MoneySource.SourceType;
 import de.eldoria.companies.configuration.elements.systemorders.RuleEntry;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteCompanyData;
@@ -19,10 +21,16 @@ import de.eldoria.companies.data.wrapper.offer.ContestDelivery;
 import de.eldoria.companies.data.wrapper.offer.EventOffer;
 import de.eldoria.companies.data.wrapper.offer.OfferLine;
 import de.eldoria.companies.data.wrapper.offer.OfferState;
+import de.eldoria.companies.events.offer.ContestDeliveryEvent;
+import de.eldoria.companies.events.offer.ContestMembershipEvent;
+import de.eldoria.companies.events.offer.OfferEndEvent;
 import de.eldoria.companies.orders.DeliveryPart;
 import de.eldoria.companies.orders.OrderTable;
 import de.eldoria.companies.util.TestExecutors;
+import net.kyori.adventure.text.Component;
+import org.bukkit.Bukkit;
 import org.bukkit.Material;
+import org.bukkit.event.Event;
 import org.bukkit.inventory.ItemStack;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -42,11 +50,13 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.function.Consumer;
 import java.util.logging.Logger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ContestServiceTest {
@@ -68,6 +78,8 @@ class ContestServiceTest {
     private CompanyProfile company;
     private int slots = 2;
     private boolean failPayment;
+    private ContestService.Payments payments;
+    private final List<Event> fired = new ArrayList<>();
 
     @BeforeEach
     void setUp() throws Exception {
@@ -84,7 +96,7 @@ class ContestServiceTest {
         companies.submitMemberUpdate(CompanyMember.of(id, worker, 0)).join();
         var simple = companies.retrieveCompanyById(id).join().orElseThrow();
         company = companies.retrieveCompanyProfile(simple).join().orElseThrow();
-        var payments = new ContestService.Payments() {
+        payments = new ContestService.Payments() {
             @Override
             public double taxPercent(CompanyProfile company) {
                 return 10;
@@ -187,6 +199,67 @@ class ContestServiceTest {
         assertEquals(0, orders.retrieveCompanyOrderCount(company).join());
         offers.activate(early, 0, LocalDateTime.ofInstant(NOW, ZoneOffset.UTC));
         assertEquals(ContestService.Joining.LIMIT, service.join(company, manager, early));
+    }
+
+    @Test
+    void aListenerKeepsACompanyOutOfAContestOrInIt() {
+        var id = contest(100, 2.0, List.of(), 200.0, true);
+        var refusing = withEvents(event -> {
+            if (event instanceof ContestMembershipEvent membership) membership.cancel(Component.text("Not today"));
+        });
+
+        var join = assertThrows(CommandFailure.class, () -> refusing.join(company, manager, id));
+        assertEquals("error.cancelledByIntegration", join.localeKey());
+        assertTrue(offers.entry(id, company.id()).isEmpty());
+        service.join(company, manager, id);
+        assertThrows(CommandFailure.class, () -> refusing.leave(company, manager, id));
+        assertTrue(offers.entry(id, company.id()).orElseThrow().active());
+    }
+
+    @Test
+    void aDeliveryFiresItsEventWithThePlaceAndAFillingOneTheEnd() {
+        var id = contest(30, 2.0, List.of(), 200.0, true);
+        var events = withEvents(fired::add);
+        events.join(company, manager, id);
+
+        events.deliver(company, worker, id, 30);
+
+        var delivery = fired.stream()
+                .filter(ContestDeliveryEvent.class::isInstance)
+                .map(ContestDeliveryEvent.class::cast)
+                .findFirst()
+                .orElseThrow();
+        assertEquals(30, delivery.items());
+        assertEquals(60.0, delivery.paid());
+        assertEquals(1, delivery.place());
+        assertEquals(30, delivery.companyDelivered());
+        assertEquals(worker, delivery.player().getUniqueId());
+        var end = (OfferEndEvent) fired.getLast();
+        assertEquals(OfferEndEvent.Reason.REACHED, end.reason());
+        assertEquals(EventOfferState.REACHED, end.offer().state());
+    }
+
+    @Test
+    void aDeliveryThatDidNotCloseTheContestFiresNoEndAlsoWhenItClosedMeanwhile() {
+        var id = contest(100, 2.0, List.of(), 200.0, true);
+        service.join(company, manager, id);
+        offers.deliver(id, company.id(), worker, 10, LocalDateTime.ofInstant(NOW, ZoneOffset.UTC));
+        offers.state(id, OfferState.ACTIVE, OfferState.CANCELLED, LocalDateTime.ofInstant(NOW, ZoneOffset.UTC));
+
+        new OfferApiEvents(fired::add, Bukkit::getOfflinePlayer).delivered(offers, id, company, worker, 10, 20, false);
+
+        assertTrue(fired.stream().noneMatch(OfferEndEvent.class::isInstance));
+    }
+
+    private ContestService withEvents(Consumer<Event> call) {
+        return new ContestService(
+                offers,
+                orders,
+                payments,
+                found -> slots,
+                Clock.fixed(NOW, ZoneOffset.UTC),
+                Logger.getAnonymousLogger(),
+                new OfferApiEvents(call, Bukkit::getOfflinePlayer));
     }
 
     @Test

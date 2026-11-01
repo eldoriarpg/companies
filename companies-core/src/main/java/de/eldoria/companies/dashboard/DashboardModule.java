@@ -73,6 +73,7 @@ import de.eldoria.companies.orders.OwnerOrderService;
 import de.eldoria.companies.orders.SavedItemService;
 import de.eldoria.companies.orders.SystemOwner;
 import de.eldoria.companies.orders.offers.ContestService;
+import de.eldoria.companies.orders.offers.EventOfferService;
 import de.eldoria.companies.orders.system.SystemOrderService;
 import de.eldoria.companies.prices.ShopPrices;
 import de.eldoria.companies.services.AdminCompanyService;
@@ -409,6 +410,7 @@ public final class DashboardModule {
                         data.offers().data(),
                         data.offers().funding(),
                         data.offers().checkSoon(),
+                        data.offers().announcer(),
                         names,
                         views::instant,
                         Times::now,
@@ -591,6 +593,7 @@ public final class DashboardModule {
      * @param contests     lets companies join and leave contests
      * @param funding      gives a failed prize back to the account that paid it
      * @param checkSoon    asks the primary to place and withdraw the chunks of goals soon
+     * @param announcer    told when an admin closed an offer
      * @param events       the server event repository
      * @param eventService creates and changes server events as {@code /companyadmin event} does
      * @param collector    the collector account an event paid from an account uses when none is named
@@ -600,6 +603,7 @@ public final class DashboardModule {
             ContestService contests,
             SystemOrderService.Funding funding,
             Runnable checkSoon,
+            EventOfferService.Announcer announcer,
             AServerEventData events,
             ServerEventService eventService,
             Supplier<String> collector) {}
