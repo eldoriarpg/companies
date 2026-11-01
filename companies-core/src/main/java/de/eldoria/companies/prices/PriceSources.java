@@ -25,6 +25,7 @@ import java.util.Set;
 import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.regex.Pattern;
 
 /**
  * The price sources of this server: Companies' own for the shop plugins it knows and those other plugins register.
@@ -38,6 +39,8 @@ public final class PriceSources implements Listener {
      * The longest id a source may have, as long as the column that stores it.
      */
     public static final int MAX_ID = 64;
+
+    private static final Pattern ID = Pattern.compile("[a-z0-9_.-]{1," + MAX_ID + "}");
 
     private final Map<String, Registered> registered = new LinkedHashMap<>();
     private final TradeLog trades;
@@ -68,9 +71,9 @@ public final class PriceSources implements Listener {
      */
     public void register(Plugin plugin, PriceSource source) {
         var id = source.id();
-        if (id == null || id.isBlank() || id.length() > MAX_ID) {
-            logger.warning("The price source " + id + " of " + plugin.getName() + " was refused: its id must not be"
-                    + " blank and has at most " + MAX_ID + " characters.");
+        if (id == null || !ID.matcher(key(id)).matches()) {
+            logger.warning("The price source " + id + " of " + plugin.getName() + " was refused: its id is 1 to "
+                    + MAX_ID + " letters, digits, _, - and .");
             return;
         }
         var key = key(id);
@@ -134,6 +137,13 @@ public final class PriceSources implements Listener {
             }
         }
         return new Sample(sampled, failed);
+    }
+
+    /**
+     * @return the ids of the registered sources, switched off or not, in the order they registered
+     */
+    public List<String> registered() {
+        return registeredKeys();
     }
 
     private synchronized Registered current(String key) {

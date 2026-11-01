@@ -52,6 +52,7 @@ import de.eldoria.companies.data.repository.AMembershipData;
 import de.eldoria.companies.data.repository.ANodeData;
 import de.eldoria.companies.data.repository.AOfferData;
 import de.eldoria.companies.data.repository.AOrderData;
+import de.eldoria.companies.data.repository.APriceData;
 import de.eldoria.companies.data.repository.AServerEventData;
 import de.eldoria.companies.data.repository.AStatsData;
 import de.eldoria.companies.data.repository.ATreasuryData;
@@ -59,6 +60,7 @@ import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.company.SimpleCompany;
 import de.eldoria.companies.data.wrapper.inbox.InboxEntry;
 import de.eldoria.companies.data.wrapper.nodes.Node;
+import de.eldoria.companies.data.wrapper.price.Baseline;
 import de.eldoria.companies.jobs.JobServices;
 import de.eldoria.companies.menus.Values;
 import de.eldoria.companies.orders.CompanyOrderService;
@@ -72,6 +74,7 @@ import de.eldoria.companies.orders.SavedItemService;
 import de.eldoria.companies.orders.SystemOwner;
 import de.eldoria.companies.orders.offers.ContestService;
 import de.eldoria.companies.orders.system.SystemOrderService;
+import de.eldoria.companies.prices.ShopPrices;
 import de.eldoria.companies.services.AdminCompanyService;
 import de.eldoria.companies.services.AdminGrantService;
 import de.eldoria.companies.services.AdminOrderLookup;
@@ -108,6 +111,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Duration;
+import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Objects;
@@ -121,6 +125,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.IntSupplier;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 /**
  * Builds the dashboard of this node from the plugin's parts and registers its listeners.
@@ -216,6 +221,11 @@ public final class DashboardModule {
                                 days,
                                 configuration.orderSetting().market().minOrders()),
                         market::today,
+                        new Expiring<>(
+                                () -> data.prices().baselines().stream()
+                                        .collect(Collectors.toMap(Baseline::material, Function.identity())),
+                                MARKET_LIFETIME,
+                                clock),
                         new Expiring<>(catalogue::catalogue, CATALOGUE_LIFETIME, clock),
                         catalogue::known,
                         entry -> inboxText(renderer, messages, entry),
@@ -357,7 +367,19 @@ public final class DashboardModule {
                         Threading.mainThread(plugin),
                         data.admin().log(),
                         plugin.getLogger(),
-                        failure -> PlainText.of(failure.render(null, messages)))),
+                        failure -> PlainText.of(failure.render(null, messages)),
+                        new AdminServerWrites.Prices(
+                                configuration::priceSettings,
+                                data.priceSources(),
+                                () -> {
+                                    var current = configuration.priceSettings();
+                                    var now = LocalDateTime.now(clock);
+                                    return data.prices()
+                                            .sourceStats(
+                                                    ShopPrices.firstDay(now, current),
+                                                    ShopPrices.oldestSample(now, current));
+                                },
+                                () -> data.prices().baselines()))),
                 new AdminSettingsWrites(new AdminSettingsWrites.Sources(
                         configuration,
                         data.admin().nodeData(),
@@ -539,6 +561,8 @@ public final class DashboardModule {
      * @param admin         the admin tools
      * @param offers        the services of the event offers
      * @param jobs          the jobs of this server, null while they are not running
+     * @param prices        the prices read from shop plugins
+     * @param priceSources  the ids of the price sources registered on this server, switched off or not
      */
     public record Data(
             ADashboardData dashboard,
@@ -560,7 +584,9 @@ public final class DashboardModule {
             ItemServices items,
             AdminServices admin,
             OfferServices offers,
-            Supplier<@Nullable JobServices> jobs) {}
+            Supplier<@Nullable JobServices> jobs,
+            APriceData prices,
+            Supplier<List<String>> priceSources) {}
 
     /**
      * The services behind the Events page and the admin tools for event offers and server events.

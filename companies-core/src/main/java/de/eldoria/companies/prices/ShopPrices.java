@@ -9,6 +9,7 @@ import de.eldoria.companies.configuration.elements.prices.PriceSettings;
 import de.eldoria.companies.data.repository.APriceData;
 import de.eldoria.companies.data.wrapper.price.QuoteGroup;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -147,9 +148,27 @@ public final class ShopPrices {
     public void refreshBaselines() {
         var current = settings.get();
         var now = clock.get();
-        var from = now.toLocalDate().minusDays(current.days() - 1L);
+        var from = firstDay(now, current);
         prices.purgeTrades(from);
-        var baselines = Baselines.compute(prices.trades(from), prices.quotes(now.minusDays(current.days())), current);
+        var baselines = Baselines.compute(prices.trades(from), prices.quotes(oldestSample(now, current)), current);
         prices.replaceBaselines(baselines, now);
+    }
+
+    /**
+     * @param now      the current time, in UTC
+     * @param settings the settings of shop prices
+     * @return the first day whose trades count: {@code days} days, today included
+     */
+    public static LocalDate firstDay(LocalDateTime now, PriceSettings settings) {
+        return now.toLocalDate().minusDays(settings.days() - 1L);
+    }
+
+    /**
+     * @param now      the current time, in UTC
+     * @param settings the settings of shop prices
+     * @return the time of the oldest sample of offers that counts
+     */
+    public static LocalDateTime oldestSample(LocalDateTime now, PriceSettings settings) {
+        return now.minusDays(settings.days());
     }
 }

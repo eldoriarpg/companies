@@ -232,13 +232,19 @@ export function snapshot(session, delivered = false) {
 /** The change of some mock materials against the week before, in percent. */
 const CHANGES = {'Iron Ingot': 4.1, 'Diamond': -6.5, 'Oak Log': 0.8, 'Glass': -1.2}
 
+/** The shop prices of some mock materials: one order prices go by, one shown next to enough orders. */
+const SHOPS = {
+    'Diamond': {price: 90, basis: 'TRADES', sources: ['chestshop'], used: false},
+    'Beacon': {price: 450, basis: 'SERVER', sources: ['shopgui'], used: true},
+}
+
 /** The market of the mock, most ordered first. */
 export const MARKET = [
     ['Iron Ingot', 8.7, 6, 11.5, 9400], ['Oak Log', 1.2, 0.8, 1.6, 22800], ['Stone Bricks', 2.43, 1.9, 3.1, 14300],
     ['Diamond', 96, 80, 120, 310], ['Wheat', 1.5, 1, 2, 6400], ['Redstone Dust', 0.9, 0.5, 1.4, 18100],
     ['Glass', 0.6, 0.4, 0.9, 11000], ['Bookshelf', 24.1, 18, 30, 840], ['Sea Lantern', 14.2, 11, 18, 1200],
     ['Deepslate Tiles', 3.1, 2.4, 3.9, 7700], ['Polished Blackstone', 3.2, 2.5, 4, 5200], ['Beacon', undefined, undefined, undefined, 2],
-].map(([name, avg, min, max, volume]) => ({item: item(name, 1), avg, min, max, volume, change: CHANGES[name]}))
+].map(([name, avg, min, max, volume]) => ({item: item(name, 1), avg, min, max, volume, change: CHANGES[name], shop: SHOPS[name]}))
 
 /**
  * The price history of a mock material over a number of days: a price on most days, none on every fifth, where too

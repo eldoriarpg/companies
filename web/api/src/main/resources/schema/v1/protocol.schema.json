@@ -1514,6 +1514,9 @@
     "admin.nodes.remove" : {
       "feature" : "admin.nodes"
     },
+    "admin.nodes.prices" : {
+      "feature" : "admin.nodes"
+    },
     "admin.config.sync" : {
       "feature" : "admin.config"
     },

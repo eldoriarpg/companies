@@ -67,5 +67,6 @@ CREATE TABLE IF NOT EXISTS companies_schema.material_baseline
     buy_unit      DOUBLE PRECISION,
     baseline_unit DOUBLE PRECISION NOT NULL,
     basis         TEXT             NOT NULL,
+    sources       TEXT             NOT NULL DEFAULT '',
     updated_at    TIMESTAMP        NOT NULL
 );

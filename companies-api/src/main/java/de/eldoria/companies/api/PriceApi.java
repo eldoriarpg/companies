@@ -21,8 +21,8 @@ public interface PriceApi {
     /**
      * Registers a source. A source with the same id replaces the one registered before. It is handed its recorder at
      * once; the recorder drops the trades it is handed while the source is switched off in {@code prices.yml} or
-     * replaced. The id must not be blank and has at most 64 characters, otherwise the source is refused with a
-     * warning.
+     * replaced. The id is 1 to 64 letters, digits, {@code _}, {@code -} and {@code .}, compared ignoring case; a source
+     * with another id is refused with a warning.
      *
      * @param plugin the plugin the source belongs to; it is dropped when the plugin is disabled
      * @param source the source

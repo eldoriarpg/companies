@@ -16,7 +16,8 @@ import {compact, money, percentChange, trendOf} from '~/util/format'
 
 /**
  * The figures of one material: the average price per item large with its change against the week before, the lowest
- * and highest price and the volume, then the chart of its average price per day over a week, a month or a quarter.
+ * and highest price and the volume, the price of the server's shops with what it came from and whether order prices go
+ * by it, then the chart of its average price per day over a week, a month or a quarter.
  * The days sit on a time axis; days without orders or with too few for a price leave a gap in the line.
  */
 const props = defineProps<{
@@ -44,6 +45,14 @@ const trend = computed(() => {
       <FigureValue :label="t('market.columnLow')">{{ entry.min === undefined ? '-' : money(entry.min, locale) }}</FigureValue>
       <FigureValue :label="t('market.columnHigh')">{{ entry.max === undefined ? '-' : money(entry.max, locale) }}</FigureValue>
       <FigureValue :label="t('market.columnVolume')">{{ entry.volume === undefined ? '-' : compact(entry.volume, locale) }}</FigureValue>
+    </div>
+    <div v-if="entry.shop" class="flex flex-col gap-1 border-t border-line-soft pt-3" data-testid="market-shop">
+      <span class="flex flex-wrap items-baseline justify-between gap-2">
+        <span class="text-xs font-semibold">{{ t('market.shopPrice') }}</span>
+        <span class="tabular text-lg font-semibold">{{ money(entry.shop.price, locale) }}</span>
+      </span>
+      <MutedText>{{ t(`market.shopBasis.${entry.shop.basis}`) }}<template v-if="entry.shop.sources.length > 0"> · {{ entry.shop.sources.join(', ') }}</template></MutedText>
+      <MutedText>{{ t(entry.shop.used ? 'market.shopUsed' : 'market.shopNotUsed') }}</MutedText>
     </div>
     <div class="flex flex-col gap-2 border-t border-line-soft pt-3">
       <div class="flex flex-wrap items-center justify-between gap-2">

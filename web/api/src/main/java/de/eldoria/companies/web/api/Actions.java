@@ -400,6 +400,11 @@ public final class Actions {
     public static final String ADMIN_NODES_REMOVE = "admin.nodes.remove";
 
     /**
+     * Lists the shop plugins prices are read from, with what each gave.
+     */
+    public static final String ADMIN_NODES_PRICES = "admin.nodes.prices";
+
+    /**
      * Loads the configuration stored in the database on every node.
      */
     public static final String ADMIN_CONFIG_SYNC = "admin.config.sync";
@@ -734,6 +739,7 @@ public final class Actions {
             ADMIN_BOARDS_NPC_UNLINK,
             ADMIN_NODES_LIST,
             ADMIN_NODES_REMOVE,
+            ADMIN_NODES_PRICES,
             ADMIN_CONFIG_SYNC,
             ADMIN_SETTINGS_GET,
             ADMIN_SETTINGS_HISTORY,

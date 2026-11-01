@@ -26,7 +26,8 @@ public interface PriceSource {
     /**
      * The id of the source.
      *
-     * @return the stable id of the source, lower case, such as {@code chestshop}
+     * @return the stable id of the source: 1 to 64 lower case letters, digits, {@code _}, {@code -} and {@code .}, such
+     *     as {@code chestshop}
      */
     String id();
 

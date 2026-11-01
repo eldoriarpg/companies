@@ -65,6 +65,7 @@ class BaselinesTest {
         assertEquals(PriceBasis.LISTINGS, listings.basis());
         assertEquals(4.0, server.unit(), 1e-9);
         assertEquals(PriceBasis.SERVER, server.basis());
+        assertEquals(List.of("shopgui"), server.sources());
     }
 
     @Test
@@ -76,6 +77,7 @@ class BaselinesTest {
 
         assertEquals(2.0, baseline.unit(), 1e-9);
         assertEquals(PriceBasis.LISTINGS, baseline.basis());
+        assertEquals(List.of("chestshop"), baseline.sources());
     }
 
     @Test
@@ -101,7 +103,9 @@ class BaselinesTest {
                 settings));
 
         assertEquals(5.0, high.unit(), 1e-9);
+        assertEquals(List.of("chestshop", "shopgui"), high.sources());
         assertEquals(2.0, low.unit(), 1e-9);
+        assertEquals(List.of("chestshop", "shopgui"), low.sources());
     }
 
     @Test
@@ -160,7 +164,10 @@ class BaselinesTest {
 
     @Test
     void theWeightedMedianTakesTheLowerOfTwoMiddles() {
-        assertEquals(1.0, Baselines.median(List.of(new Baselines.Weighted(3, 1), new Baselines.Weighted(1, 1))), 1e-9);
+        assertEquals(
+                1.0,
+                Baselines.median(List.of(new Baselines.Weighted(3, 1, "a"), new Baselines.Weighted(1, 1, "b"))),
+                1e-9);
         assertNull(Baselines.median(List.of()));
         assertTrue(Baselines.compute(List.of(), List.of(), settings).isEmpty());
     }

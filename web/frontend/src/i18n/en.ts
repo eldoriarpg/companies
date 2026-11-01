@@ -599,6 +599,14 @@ export default {
             syncQuestion: 'Sync the configuration? The primary writes its files to the database and applies them; secondaries with Redis, PostgreSQL notify or low latency mode load them at once. The dashboard reconnects for a moment.',
             syncConfirm: 'Sync',
             synced: 'The configuration is synced.',
+            prices: {
+                title: 'Shop prices',
+                none: 'No shop plugin gives prices. Companies reads them from supported shop plugins and from plugins that register a price source.',
+                here: 'on this server',
+                off: 'switched off',
+                adminOnly: 'admin shops only',
+                facts: '{servers} servers · {offers} offers of {offered} items · {trades} trades of {traded} items · shop price of {baselines} items',
+            },
         },
         setup: {
             loadFailed: 'These files could not be loaded, so this step cannot be saved here: {files}. Try again later or use the Settings tab.',
@@ -1275,6 +1283,15 @@ export default {
         daysLong: '{days} days',
         moversEmpty: 'Price changes appear once two weeks in a row have enough orders.',
         moversFailed: 'The biggest movers could not be loaded. Try again in a moment.',
+        columnShop: 'Shops',
+        shopPrice: 'Shop price',
+        shopUsed: 'Order prices go by the shop price while there are too few delivered orders.',
+        shopNotUsed: 'Order prices go by the delivered orders; the shop price is shown for comparison.',
+        shopBasis: {
+            TRADES: 'From shop trades',
+            LISTINGS: 'From the offers of player shops',
+            SERVER: 'From the prices of the server shops',
+        },
     },
     company: {
         transfer: 'Hand the company over',

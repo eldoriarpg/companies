@@ -64,6 +64,11 @@ what its price history adds up to.
 An item or a day with fewer delivered orders than the server's minimum shows no price, and such days do not count
 towards a change, so no single order can be traced back to the player who placed it.
 
+Where the server reads prices from its shop plugins, the **Shops** column shows the [shop price](../admin/configuration/prices-yml.md)
+of an item, and opening the item says what it came from. Items only the shops price are listed after the ordered
+ones. While an item has too few delivered orders, order prices go by its shop price; the shop price is then shown in
+bold.
+
 ## Jobs
 
 Where the server offers [jobs](jobs.md), the **Jobs** page lists the jobs your company holds, the open jobs companies

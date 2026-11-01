@@ -22,6 +22,7 @@ import de.eldoria.companies.data.repository.ATreasuryData;
 import de.eldoria.companies.data.wrapper.dashboard.MarketRow;
 import de.eldoria.companies.data.wrapper.dashboard.StoredSession;
 import de.eldoria.companies.data.wrapper.inbox.InboxEntry;
+import de.eldoria.companies.data.wrapper.price.Baseline;
 import de.eldoria.companies.services.notifications.NotificationCategory;
 import de.eldoria.companies.web.api.Actions;
 import de.eldoria.companies.web.api.Features;
@@ -50,6 +51,7 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
@@ -377,17 +379,32 @@ public final class DashboardReads {
 
     private Stream<Payloads.MarketItem> marketItems() {
         var changes = sources.marketChanges().get();
-        return sources.market().get().stream()
-                .map(row -> marketItem(row, changes))
+        var baselines = sources.baselines().get();
+        return marketRows(baselines).stream()
+                .map(row -> marketItem(row, changes, baselines))
                 .flatMap(Optional::stream);
+    }
+
+    /**
+     * The materials of delivered orders, and with them those only the shops price, as rows without orders.
+     */
+    private List<MarketRow> marketRows(Map<String, Baseline> baselines) {
+        var rows = new ArrayList<>(sources.market().get());
+        var known = rows.stream().map(MarketRow::material).collect(Collectors.toSet());
+        baselines.keySet().stream()
+                .filter(material -> !known.contains(material))
+                .sorted()
+                .forEach(material -> rows.add(new MarketRow(material, 0, 0, 0, 0, 0)));
+        return rows;
     }
 
     private ActionResult marketItem(ActionRequest request, JsonNode args) {
         var key = args.path("material").asString("").toUpperCase(Locale.ROOT).replace("MINECRAFT:", "");
-        var item = sources.market().get().stream()
+        var baselines = sources.baselines().get();
+        var item = marketRows(baselines).stream()
                 .filter(row -> row.material().equals(key))
                 .findFirst()
-                .flatMap(row -> marketItem(row, sources.marketChanges().get()));
+                .flatMap(row -> marketItem(row, sources.marketChanges().get(), baselines));
         if (item.isEmpty()) return refused(request, "dashboard.invalid");
         var days = Math.clamp(
                 args.path("days").asInt(DEFAULT_HISTORY_DAYS),
@@ -403,10 +420,16 @@ public final class DashboardReads {
                         item.get(), days, sources.marketToday().get().toString(), history));
     }
 
-    private Optional<Payloads.MarketItem> marketItem(MarketRow row, Map<String, Double> changes) {
+    private Optional<Payloads.MarketItem> marketItem(
+            MarketRow row, Map<String, Double> changes, Map<String, Baseline> baselines) {
         var material = Material.matchMaterial(row.material());
         if (material == null) return Optional.empty();
         var shown = row.orders() >= sources.marketSettings().get().minOrders();
+        var baseline = baselines.get(row.material());
+        var shop = baseline == null
+                ? null
+                : new Payloads.ShopPrice(
+                        baseline.unit(), baseline.basis().name(), baseline.sources(), !shown || row.avg() <= 0);
         return Optional.of(new Payloads.MarketItem(
                 Views.item(material, 1),
                 shown ? row.avg() : null,
@@ -414,7 +437,8 @@ public final class DashboardReads {
                 shown ? row.max() : null,
                 row.volume(),
                 row.orders(),
-                changes.get(row.material())));
+                changes.get(row.material()),
+                shop));
     }
 
     private ActionResult applications(ActionRequest request, UUID player) {
@@ -511,6 +535,7 @@ public final class DashboardReads {
      * @param marketChanges  the change of each material's price in percent, by material name
      * @param marketHistory  the price history of a material over a number of days
      * @param marketToday    today as the market history counts days
+     * @param baselines      the baselines of the shops, by material name
      * @param catalogue      what orders can be made of on this server
      * @param knownItems     the items a player can order again exactly
      * @param inboxText      renders an inbox entry as plain text
@@ -528,6 +553,7 @@ public final class DashboardReads {
             Supplier<Map<String, Double>> marketChanges,
             BiFunction<String, Integer, List<MarketHistory.Point>> marketHistory,
             Supplier<LocalDate> marketToday,
+            Supplier<Map<String, Baseline>> baselines,
             Supplier<Payloads.Catalogue> catalogue,
             Function<UUID, CompletableFuture<Payloads.KnownItems>> knownItems,
             Function<InboxEntry, String> inboxText,

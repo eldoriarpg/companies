@@ -216,6 +216,7 @@ public final class Payloads {
      * @param orders the number of delivered orders
      * @param change the change of the average unit price in percent over the last week against the week before, absent
      *               while either week stands on too few orders
+     * @param shop   the price the server's shops give the material, absent when no shop prices it
      */
     public record MarketItem(
             ItemView item,
@@ -224,7 +225,20 @@ public final class Payloads {
             @Nullable Double max,
             long volume,
             int orders,
-            @Nullable Double change) {}
+            @Nullable Double change,
+            @Nullable ShopPrice shop) {}
+
+    /**
+     * The price the server's shops give a material, which order prices go by while it has too few delivered orders.
+     *
+     * @param price   the price of one item
+     * @param basis   what it was worked out from: {@code TRADES}, {@code LISTINGS} or {@code SERVER}
+     * @param sources the ids of the shop plugins it came from
+     * @param used    whether order prices go by it rather than by the delivered orders, judged by the orders the market
+     *                lists; the order builder judges by the latest delivered lines, so the two can differ for a
+     *                material whose orders were removed from the history
+     */
+    public record ShopPrice(double price, String basis, List<String> sources, boolean used) {}
 
     /**
      * The market statistics of one material with its price history: the fields of {@link MarketItem}, then the
@@ -237,6 +251,7 @@ public final class Payloads {
      * @param volume  the number of items ordered
      * @param orders  the number of delivered orders
      * @param change  the change of the average unit price in percent, as in {@link MarketItem}
+     * @param shop    the price of the shops, as in {@link MarketItem}
      * @param days    how many days the history reaches back, today included
      * @param to      the server's today, the last day of the history, as {@code yyyy-MM-dd}
      * @param history one point per day with delivered orders, oldest first
@@ -249,6 +264,7 @@ public final class Payloads {
             long volume,
             int orders,
             @Nullable Double change,
+            @Nullable ShopPrice shop,
             int days,
             String to,
             List<HistoryPoint> history) {
@@ -267,6 +283,7 @@ public final class Payloads {
                     item.volume(),
                     item.orders(),
                     item.change(),
+                    item.shop(),
                     days,
                     to,
                     history);
@@ -602,6 +619,32 @@ public final class Payloads {
             boolean current,
             boolean behind,
             @Nullable String restart) {}
+
+    /**
+     * A shop plugin prices are read from, with what it gave over the days that count.
+     *
+     * @param id              the id of the source
+     * @param here            whether it is registered on the node answering
+     * @param enabled         whether {@code prices.yml} lets it be used
+     * @param adminOnly       whether only its admin shops and server prices count
+     * @param servers         how many servers have a recent sample of its offers
+     * @param offers          how many offers those samples hold
+     * @param offeredItems    how many materials it offers
+     * @param trades          how many trades it recorded
+     * @param tradedItems     how many materials were traded
+     * @param baselines       how many materials its prices give a baseline
+     */
+    public record AdminPriceSource(
+            String id,
+            boolean here,
+            boolean enabled,
+            boolean adminOnly,
+            int servers,
+            long offers,
+            int offeredItems,
+            long trades,
+            int tradedItems,
+            int baselines) {}
 
     /**
      * A shared settings file as the dashboard's settings editor shows it.

@@ -124,9 +124,11 @@ public abstract class PriceDataContract {
 
     @Test
     void baselinesAreReplacedAsAWholeAndReadWithTheMarketPrice() {
-        prices.replaceBaselines(List.of(new Baseline("DIRT", 1.0, null, 1.0, PriceBasis.TRADES)), NOW);
+        prices.replaceBaselines(
+                List.of(new Baseline("DIRT", 1.0, null, 1.0, PriceBasis.TRADES, List.of("chestshop"))), NOW);
         assertTrue(prices.replaceBaselines(
-                List.of(new Baseline("STONE", null, 3.0, 2.5, PriceBasis.SERVER)), NOW.plusHours(1)));
+                List.of(new Baseline("STONE", null, 3.0, 2.5, PriceBasis.SERVER, List.of("chestshop", "shopgui"))),
+                NOW.plusHours(1)));
 
         var orders = orders();
         orders.minOrders(() -> 3);
@@ -140,6 +142,34 @@ public abstract class PriceDataContract {
         assertTrue(dirt.baseline().isEmpty());
         assertNull(dirt.basis().orElse(null));
         assertEquals(0, dirt.price(), 1e-9);
+
+        var stored = prices.baselines();
+        assertEquals(1, stored.size());
+        assertEquals(List.of("chestshop", "shopgui"), stored.getFirst().sources());
+        assertNull(stored.getFirst().sellUnit());
+        assertEquals(3.0, stored.getFirst().buyUnit(), 1e-9);
+
+        prices.replaceBaselines(List.of(new Baseline("SAND", 1.0, 2.0, 1.5, PriceBasis.LISTINGS, List.of())), NOW);
+        assertEquals(List.of(), prices.baselines().getFirst().sources());
+    }
+
+    @Test
+    void eachSourceSumsUpItsTradesAndRecentOffers() {
+        prices.addTrades(List.of(trade(DAY, 2, 4, 8, 2, 2), trade(DAY.minusDays(20), 9, 9, 9, 1, 1)));
+        prices.replaceQuotes(NODE, List.of(quote("STONE", NOW), quote("DIRT", NOW)));
+        prices.replaceQuotes(OTHER_NODE, List.of(quote("STONE", NOW)));
+        prices.replaceQuotes(UUID.randomUUID(), List.of(quote("SAND", NOW.minusDays(30))));
+
+        var stats = prices.sourceStats(DAY.minusDays(1), NOW.minusDays(1));
+
+        assertEquals(1, stats.size());
+        var chestshop = stats.getFirst();
+        assertEquals("chestshop", chestshop.source());
+        assertEquals(2, chestshop.nodes());
+        assertEquals(9, chestshop.quotes());
+        assertEquals(2, chestshop.quoteMaterials());
+        assertEquals(2, chestshop.trades());
+        assertEquals(1, chestshop.tradeMaterials());
     }
 
     private static TradeDay trade(LocalDate day, int trades, long items, double total, double min, double max) {

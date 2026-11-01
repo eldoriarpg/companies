@@ -231,6 +231,22 @@ export interface MarketItemView {
     orders?: number
     /** The change of the average in percent over the last week against the week before, where both weeks have enough orders. */
     change?: number
+    /** The price the server's shops give the material, where a shop prices it. */
+    shop?: ShopPriceView | null
+}
+
+/** What a shop price was worked out from, the most trusted first. */
+export type ShopPriceBasis = 'TRADES' | 'LISTINGS' | 'SERVER'
+
+/** The price the server's shops give a material, which order prices go by while it has too few delivered orders. */
+export interface ShopPriceView {
+    /** The price of one item. */
+    price: number
+    basis: ShopPriceBasis
+    /** The ids of the shop plugins it came from. */
+    sources: string[]
+    /** Whether order prices go by it rather than by the delivered orders. */
+    used: boolean
 }
 
 /** One day of a material's price history. The price is absent on days with too few orders. */
@@ -965,6 +981,25 @@ export interface AdminNode {
     restart?: string | null
 }
 
+/** A shop plugin prices are read from, with what it gave over the days that count. */
+export interface AdminPriceSource {
+    id: string
+    /** Whether it is registered on the server answering. */
+    here: boolean
+    /** Whether `prices.yml` lets it be used. */
+    enabled: boolean
+    /** Whether only its admin shops and server prices count. */
+    adminOnly: boolean
+    /** How many servers have a recent sample of its offers. */
+    servers: number
+    offers: number
+    offeredItems: number
+    trades: number
+    tradedItems: number
+    /** How many materials its prices give a baseline. */
+    baselines: number
+}
+
 /** A shared settings file. */
 export type SettingsFileName =
   | 'config.yml'
@@ -1287,6 +1322,7 @@ export interface WriteActions {
         result: {result: 'saved' | 'unchanged' | 'newer' | 'invalid', revision: number, errors: Record<string, string>, rules?: Partial<SystemOrderRule>[] | null, applied: boolean}
     }
     'admin.nodes.remove': {args: {uid: string}, result: {nodes: AdminNode[]}}
+    'admin.nodes.prices': {args: Record<string, never>, result: {sources: AdminPriceSource[]}}
     'events.join': {args: OfferRef, result: EventDetails}
     'jobs.contract': {args: {title: string, description: string, price: number, hours: number}, result: JobDetails}
     'jobs.describe': {args: JobRef & {text: string}, result: JobDetails}

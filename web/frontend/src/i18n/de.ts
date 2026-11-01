@@ -599,6 +599,14 @@ export default {
             syncQuestion: 'Konfiguration abgleichen? Der Hauptserver schreibt seine Dateien in die Datenbank und wendet sie an; Nebenserver mit Redis, PostgreSQL notify oder Low-Latency-Modus laden sie sofort. Das Dashboard verbindet sich kurz neu.',
             syncConfirm: 'Abgleichen',
             synced: 'Die Konfiguration ist abgeglichen.',
+            prices: {
+                title: 'Shop-Preise',
+                none: 'Kein Shop-Plugin liefert Preise. Companies liest sie aus unterstützten Shop-Plugins und aus Plugins, die eine Preisquelle registrieren.',
+                here: 'auf diesem Server',
+                off: 'ausgeschaltet',
+                adminOnly: 'nur Admin-Shops',
+                facts: '{servers} Server · {offers} Angebote zu {offered} Items · {trades} Verkäufe zu {traded} Items · Shop-Preis für {baselines} Items',
+            },
         },
         setup: {
             loadFailed: 'Diese Dateien ließen sich nicht laden, daher kann dieser Schritt hier nicht gespeichert werden: {files}. Versuche es später oder nutze den Tab Einstellungen.',
@@ -1275,6 +1283,15 @@ export default {
         daysLong: '{days} Tage',
         moversEmpty: 'Preisänderungen erscheinen, sobald zwei Wochen nacheinander genug Aufträge haben.',
         moversFailed: 'Die größten Bewegungen konnten nicht geladen werden. Versuch es gleich noch einmal.',
+        columnShop: 'Shops',
+        shopPrice: 'Shop-Preis',
+        shopUsed: 'Auftragspreise richten sich nach dem Shop-Preis, solange zu wenige Aufträge geliefert wurden.',
+        shopNotUsed: 'Auftragspreise richten sich nach den gelieferten Aufträgen; der Shop-Preis steht zum Vergleich da.',
+        shopBasis: {
+            TRADES: 'Aus Shop-Verkäufen',
+            LISTINGS: 'Aus den Angeboten von Spieler-Shops',
+            SERVER: 'Aus den Preisen der Server-Shops',
+        },
     },
     company: {
         transfer: 'Unternehmen übergeben',

@@ -5,12 +5,18 @@
  */
 package de.eldoria.companies.dashboard.actions;
 
+import de.eldoria.companies.components.price.PriceBasis;
+import de.eldoria.companies.components.price.PriceSource;
+import de.eldoria.companies.components.price.ShopOrigin;
+import de.eldoria.companies.components.price.ShopSide;
 import de.eldoria.companies.configuration.ChangeTracker;
 import de.eldoria.companies.configuration.elements.NodeSettings;
 import de.eldoria.companies.configuration.elements.NodeType;
 import de.eldoria.companies.dashboard.DashboardWorld;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteNodeData;
 import de.eldoria.companies.data.wrapper.dashboard.StoredSession;
+import de.eldoria.companies.data.wrapper.price.Baseline;
+import de.eldoria.companies.data.wrapper.price.TradeDay;
 import de.eldoria.companies.util.Permission;
 import de.eldoria.companies.util.Times;
 import de.eldoria.companies.web.api.Actions;
@@ -23,7 +29,10 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Path;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -146,6 +155,48 @@ class AdminServerWritesTest {
                 boards(Actions.ADMIN_BOARDS_NPC_UNLINK, "{\"hook\":\"Citizens\",\"npc\":\"4\"}")
                         .reason());
         assertTrue(world.adminActions.stream().anyMatch(line -> line.contains("board npc link")));
+    }
+
+    @Test
+    void thePriceSourcesListWhatEachGaveAndHowTheSettingsTreatIt() {
+        world.prices.addTrades(List.of(
+                new TradeDay(LocalDate.now(), "chestshop", "STONE", ShopSide.SELL, ShopOrigin.PLAYER, 4, 8, 16, 2, 2)));
+        world.prices.replaceBaselines(
+                List.of(new Baseline("STONE", 2.0, null, 2.0, PriceBasis.TRADES, List.of("chestshop"))),
+                LocalDateTime.now());
+        world.priceSettings.sources(Map.of("shopgui", false));
+        world.api.priceSources().register(world.plugin, new PriceSource() {
+            @Override
+            public String id() {
+                return "shopgui";
+            }
+
+            @Override
+            public String name() {
+                return "ShopGUI+";
+            }
+        });
+        world.priceSettings.adminOnly(List.of("chestshop"));
+
+        assertEquals(
+                "companyadmin.error.permission",
+                perform(Actions.ADMIN_NODES_PRICES, "{}", Permission.Admin.BOARDS)
+                        .reason());
+        var listed = perform(Actions.ADMIN_NODES_PRICES, "{}", Permission.Admin.NODES);
+        assertTrue(listed.ok(), listed.reason());
+        var sources = listed.data().path("sources");
+
+        assertEquals(2, sources.size());
+        var chestshop = sources.get(0);
+        assertEquals("chestshop", chestshop.path("id").asString());
+        assertEquals(4, chestshop.path("trades").asInt());
+        assertEquals(1, chestshop.path("baselines").asInt());
+        assertTrue(chestshop.path("adminOnly").asBoolean());
+        assertTrue(chestshop.path("enabled").asBoolean());
+        assertFalse(chestshop.path("here").asBoolean());
+        assertEquals("shopgui", sources.get(1).path("id").asString());
+        assertFalse(sources.get(1).path("enabled").asBoolean());
+        assertTrue(sources.get(1).path("here").asBoolean());
     }
 
     @Test

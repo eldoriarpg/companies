@@ -18,8 +18,10 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
+import java.util.stream.Collectors;
 
 /**
  * Works out the baseline of every material from the trades and offers of the shops.
@@ -34,6 +36,7 @@ import java.util.TreeSet;
  * </ol>
  * The baseline is the midpoint of the sell and the buy side when both are known, otherwise the known side times its
  * factor. Where the server prices a side, the baseline never falls below its sell price nor rises above its buy price.
+ * The sources of a baseline are those of the prices its sides came from, and those whose server prices held it in.
  * Sources switched off are left out, and of a source that counts only admins and the server, so are its players.
  */
 public final class Baselines {
@@ -54,14 +57,14 @@ public final class Baselines {
                     .computeIfAbsent(trade.material(), key -> new Evidence())
                     .side(trade.side())
                     .trades
-                    .add(new Weighted(trade.unit(), trade.trades()));
+                    .add(new Weighted(trade.unit(), trade.trades(), trade.source()));
         }
         for (var quote : quotes) {
             if (!counts(quote.source(), quote.origin(), settings) || quote.quotes() <= 0) continue;
             var side = materials
                     .computeIfAbsent(quote.material(), key -> new Evidence())
                     .side(quote.side());
-            var weighted = new Weighted(quote.medianUnit(), quote.quotes());
+            var weighted = new Weighted(quote.medianUnit(), quote.quotes(), quote.source());
             if (quote.origin() == ShopOrigin.PLAYER) side.listings.add(weighted);
             else side.server.add(weighted);
         }
@@ -104,10 +107,11 @@ public final class Baselines {
      *
      * @param value  the value
      * @param weight how much it counts
+     * @param source id of the source it comes from
      */
-    record Weighted(double value, long weight) {}
+    record Weighted(double value, long weight, String source) {}
 
-    private record Price(double unit, PriceBasis basis) {}
+    private record Price(double unit, PriceBasis basis, Set<String> sources) {}
 
     private static final class Evidence {
         private final Side sell = new Side();
@@ -126,10 +130,20 @@ public final class Baselines {
             if (sellPrice != null && buyPrice != null) unit = (sellPrice.unit() + buyPrice.unit()) / 2;
             else if (sellPrice != null) unit = sellPrice.unit() * settings.sellFactor();
             else unit = buyPrice.unit() * settings.buyFactor();
+            var sources = new TreeSet<String>();
+            if (sellPrice != null) sources.addAll(sellPrice.sources());
+            if (buyPrice != null) sources.addAll(buyPrice.sources());
             var floor = median(sell.server);
             var ceiling = median(buy.server);
-            if (floor != null && (ceiling == null || floor <= ceiling)) unit = Math.max(unit, floor);
-            if (ceiling != null && (floor == null || floor <= ceiling)) unit = Math.min(unit, ceiling);
+            var clampable = floor == null || ceiling == null || floor <= ceiling;
+            if (clampable && floor != null && unit < floor) {
+                unit = floor;
+                sell.server.forEach(value -> sources.add(value.source()));
+            }
+            if (clampable && ceiling != null && unit > ceiling) {
+                unit = ceiling;
+                buy.server.forEach(value -> sources.add(value.source()));
+            }
             if (unit <= 0) return null;
             var basis = weaker(sellPrice, buyPrice);
             return new Baseline(
@@ -137,7 +151,8 @@ public final class Baselines {
                     sellPrice == null ? null : sellPrice.unit(),
                     buyPrice == null ? null : buyPrice.unit(),
                     unit,
-                    basis);
+                    basis,
+                    List.copyOf(sources));
         }
 
         private static PriceBasis weaker(@Nullable Price sell, @Nullable Price buy) {
@@ -163,7 +178,9 @@ public final class Baselines {
 
         private static @Nullable Price price(List<Weighted> values, PriceBasis basis) {
             var median = median(values);
-            return median == null || median <= 0 ? null : new Price(median, basis);
+            if (median == null || median <= 0) return null;
+            var sources = values.stream().map(Weighted::source).collect(Collectors.toCollection(TreeSet::new));
+            return new Price(median, basis, sources);
         }
 
         private static long weight(List<Weighted> values) {

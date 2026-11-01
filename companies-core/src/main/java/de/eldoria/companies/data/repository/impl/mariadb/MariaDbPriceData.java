@@ -7,6 +7,7 @@ package de.eldoria.companies.data.repository.impl.mariadb;
 
 import de.chojo.sadu.mapper.wrapper.Row;
 import de.chojo.sadu.queries.api.call.adapter.Adapter;
+import de.eldoria.companies.components.price.PriceBasis;
 import de.eldoria.companies.components.price.ShopOrigin;
 import de.eldoria.companies.components.price.ShopSide;
 import de.eldoria.companies.data.repository.APriceData;
@@ -14,14 +15,18 @@ import de.eldoria.companies.data.repository.impl.TimeColumns;
 import de.eldoria.companies.data.repository.impl.Transactions;
 import de.eldoria.companies.data.wrapper.price.Baseline;
 import de.eldoria.companies.data.wrapper.price.QuoteGroup;
+import de.eldoria.companies.data.wrapper.price.SourceStats;
 import de.eldoria.companies.data.wrapper.price.TradeDay;
 import org.intellij.lang.annotations.Language;
+import org.jetbrains.annotations.Nullable;
 
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 import java.util.UUID;
 
 import static de.chojo.sadu.queries.api.call.Call.call;
@@ -191,8 +196,8 @@ public class MariaDbPriceData extends APriceData {
     public boolean replaceBaselines(List<Baseline> baselines, LocalDateTime now) {
         @Language("mariadb")
         var insert = """
-                INSERT INTO material_baseline(material, sell_unit, buy_unit, baseline_unit, basis, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?)""";
+                INSERT INTO material_baseline(material, sell_unit, buy_unit, baseline_unit, basis, sources, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)""";
         var errors = new ArrayList<SQLException>();
         var conf = Transactions.open(errors);
         try (conf) {
@@ -204,6 +209,7 @@ public class MariaDbPriceData extends APriceData {
                                 .bind(baseline.buyUnit())
                                 .bind(baseline.unit())
                                 .bind(baseline.basis().name())
+                                .bind(String.join(",", baseline.sources()))
                                 .bind(now, time())))
                         .insert();
             }
@@ -213,5 +219,76 @@ public class MariaDbPriceData extends APriceData {
             }
         }
         return true;
+    }
+
+    @Override
+    public List<Baseline> baselines() {
+        @Language("mariadb")
+        var select = """
+                SELECT material, sell_unit, buy_unit, baseline_unit, basis, sources
+                FROM material_baseline""";
+        return query(select)
+                .single()
+                .map(row -> new Baseline(
+                        row.getString("material"),
+                        nullable(row, "sell_unit"),
+                        nullable(row, "buy_unit"),
+                        row.getDouble("baseline_unit"),
+                        PriceBasis.valueOf(row.getString("basis")),
+                        sources(row.getString("sources"))))
+                .all();
+    }
+
+    @Override
+    public List<SourceStats> sourceStats(LocalDate from, LocalDateTime sampledFrom) {
+        @Language("mariadb")
+        var trades = """
+                SELECT source, SUM(trades) AS trades, COUNT(DISTINCT material) AS materials
+                FROM shop_trade_day
+                WHERE day >= ?
+                GROUP BY source""";
+        @Language("mariadb")
+        var quotes = """
+                SELECT source, COUNT(DISTINCT node) AS nodes, SUM(quotes) AS quotes, COUNT(DISTINCT material) AS materials
+                FROM shop_quote
+                WHERE sampled_at >= ?
+                GROUP BY source""";
+        Map<String, SourceStats> stats = new TreeMap<>();
+        query(trades)
+                .single(call().bind(from.toEpochDay()))
+                .map(row -> new SourceStats(
+                        row.getString("source"), 0, 0, 0, row.getLong("trades"), row.getInt("materials")))
+                .all()
+                .forEach(row -> stats.put(row.source(), row));
+        query(quotes)
+                .single(call().bind(sampledFrom, time()))
+                .map(row -> new SourceStats(
+                        row.getString("source"),
+                        row.getInt("nodes"),
+                        row.getLong("quotes"),
+                        row.getInt("materials"),
+                        0,
+                        0))
+                .all()
+                .forEach(row -> stats.merge(
+                        row.source(),
+                        row,
+                        (traded, offered) -> new SourceStats(
+                                traded.source(),
+                                offered.nodes(),
+                                offered.quotes(),
+                                offered.quoteMaterials(),
+                                traded.trades(),
+                                traded.tradeMaterials())));
+        return List.copyOf(stats.values());
+    }
+
+    private static @Nullable Double nullable(Row row, String column) throws SQLException {
+        return row.getObject(column) == null ? null : row.getDouble(column);
+    }
+
+    private static List<String> sources(@Nullable String joined) {
+        if (joined == null || joined.isBlank()) return List.of();
+        return List.of(joined.split(","));
     }
 }

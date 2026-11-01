@@ -43,5 +43,6 @@ CREATE TABLE IF NOT EXISTS material_baseline
     buy_unit      DOUBLE,
     baseline_unit DOUBLE       NOT NULL,
     basis         VARCHAR(16)  NOT NULL,
+    sources       TEXT         NOT NULL DEFAULT '',
     updated_at    DATETIME     NOT NULL
 );

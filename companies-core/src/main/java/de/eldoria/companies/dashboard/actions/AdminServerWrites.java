@@ -11,11 +11,14 @@ import de.eldoria.companies.boards.npc.NpcBoards;
 import de.eldoria.companies.commands.support.CommandFailure;
 import de.eldoria.companies.configuration.elements.NodeType;
 import de.eldoria.companies.configuration.elements.boardbindings.NpcBinding;
+import de.eldoria.companies.configuration.elements.prices.PriceSettings;
 import de.eldoria.companies.dashboard.views.Payloads;
 import de.eldoria.companies.data.repository.ANodeData;
 import de.eldoria.companies.data.wrapper.dashboard.StoredSession;
 import de.eldoria.companies.data.wrapper.nodes.AppliedSettings;
 import de.eldoria.companies.data.wrapper.nodes.Node;
+import de.eldoria.companies.data.wrapper.price.Baseline;
+import de.eldoria.companies.data.wrapper.price.SourceStats;
 import de.eldoria.companies.util.AdminLog;
 import de.eldoria.companies.util.Permission;
 import de.eldoria.companies.web.api.Actions;
@@ -28,8 +31,12 @@ import tools.jackson.databind.JsonNode;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -48,9 +55,10 @@ import java.util.stream.Collectors;
  * <p>
  * Board signs and NPC bindings belong to the node, so the gateway sends those actions to the node the admin picked.
  * Boards need the permission of {@code /companyadmin board}, nodes the one of {@code node}, syncing the general admin
- * permission, as the commands do. An NPC is named as in its plugin: a Citizens id or a FancyNpcs name; {@code selected}
- * is refused, since the console's selection is not the admin's. A node to remove is named by {@code uid}. Syncing is
- * refused on a secondary, which would pull instead of push. The methods block and are called off the main thread.
+ * permission, as the commands do. The price sources, with what each stored, need the permission of {@code node}. An
+ * NPC is named as in its plugin: a Citizens id or a FancyNpcs name; {@code selected} is refused, since the console's
+ * selection is not the admin's. A node to remove is named by {@code uid}. Syncing is refused on a secondary, which
+ * would pull instead of push. The methods block and are called off the main thread.
  */
 public final class AdminServerWrites {
     /**
@@ -64,6 +72,7 @@ public final class AdminServerWrites {
             Actions.ADMIN_BOARDS_NPC_UNLINK,
             Actions.ADMIN_NODES_LIST,
             Actions.ADMIN_NODES_REMOVE,
+            Actions.ADMIN_NODES_PRICES,
             Actions.ADMIN_CONFIG_SYNC);
 
     private static final Map<String, String> PERMISSIONS = Map.of(
@@ -74,6 +83,7 @@ public final class AdminServerWrites {
             Actions.ADMIN_BOARDS_NPC_UNLINK, Permission.Admin.BOARDS,
             Actions.ADMIN_NODES_LIST, Permission.Admin.NODES,
             Actions.ADMIN_NODES_REMOVE, Permission.Admin.NODES,
+            Actions.ADMIN_NODES_PRICES, Permission.Admin.NODES,
             Actions.ADMIN_CONFIG_SYNC, Permission.Admin.RELOAD);
 
     private static final String INVALID = "dashboard.invalid";
@@ -112,6 +122,7 @@ public final class AdminServerWrites {
                 case Actions.ADMIN_BOARDS_NPC_UNLINK -> unlink(request, admin, args);
                 case Actions.ADMIN_NODES_LIST -> nodes(request);
                 case Actions.ADMIN_NODES_REMOVE -> remove(request, admin, args);
+                case Actions.ADMIN_NODES_PRICES -> prices(request);
                 case Actions.ADMIN_CONFIG_SYNC -> sync(request, admin);
                 default -> answers.refused(request, "dashboard.unsupported");
             };
@@ -207,6 +218,39 @@ public final class AdminServerWrites {
         return answers.data(request, Map.of("nodes", nodes));
     }
 
+    private ActionResult prices(ActionRequest request) {
+        var settings = sources.prices().settings().get();
+        var here = Set.copyOf(sources.prices().here().get());
+        var stats = sources.prices().stats().get().stream()
+                .collect(Collectors.toMap(SourceStats::source, Function.identity()));
+        Map<String, Integer> baselines = new HashMap<>();
+        for (var baseline : sources.prices().baselines().get()) {
+            for (var source : baseline.sources()) baselines.merge(source, 1, Integer::sum);
+        }
+        var ids = new TreeSet<String>();
+        ids.addAll(here);
+        ids.addAll(stats.keySet());
+        settings.sources().keySet().forEach(id -> ids.add(id.toLowerCase(Locale.ROOT)));
+        var empty = new SourceStats("", 0, 0, 0, 0, 0);
+        var listed = ids.stream()
+                .map(id -> {
+                    var stat = stats.getOrDefault(id, empty);
+                    return new Payloads.AdminPriceSource(
+                            id,
+                            here.contains(id),
+                            settings.sourceEnabled(id),
+                            settings.adminOnly(id),
+                            stat.nodes(),
+                            stat.quotes(),
+                            stat.quoteMaterials(),
+                            stat.trades(),
+                            stat.tradeMaterials(),
+                            baselines.getOrDefault(id, 0));
+                })
+                .toList();
+        return answers.data(request, Map.of("sources", listed));
+    }
+
     private ActionResult remove(ActionRequest request, String admin, JsonNode args) {
         UUID uid;
         try {
@@ -282,6 +326,7 @@ public final class AdminServerWrites {
      * @param log               the admin log
      * @param logger            where a failed sync is reported
      * @param render            renders a refusal as plain text
+     * @param prices            what the price sources stored
      */
     public record Sources(
             Boards boards,
@@ -294,5 +339,20 @@ public final class AdminServerWrites {
             Executor mainThread,
             AdminLog log,
             Logger logger,
-            Function<CommandFailure, String> render) {}
+            Function<CommandFailure, String> render,
+            Prices prices) {}
+
+    /**
+     * What the price sources of the network stored.
+     *
+     * @param settings  the settings of shop prices
+     * @param here      the ids of the sources registered on this node, switched off or not
+     * @param stats     what each source stored over the days that count
+     * @param baselines the baselines of every material
+     */
+    public record Prices(
+            Supplier<PriceSettings> settings,
+            Supplier<List<String>> here,
+            Supplier<List<SourceStats>> stats,
+            Supplier<List<Baseline>> baselines) {}
 }

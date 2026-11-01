@@ -8,6 +8,7 @@ package de.eldoria.companies.prices;
 import de.eldoria.companies.data.repository.APriceData;
 import de.eldoria.companies.data.wrapper.price.Baseline;
 import de.eldoria.companies.data.wrapper.price.QuoteGroup;
+import de.eldoria.companies.data.wrapper.price.SourceStats;
 import de.eldoria.companies.data.wrapper.price.TradeDay;
 
 import java.time.LocalDate;
@@ -71,5 +72,15 @@ class MemoryPriceData extends APriceData {
     public synchronized boolean replaceBaselines(List<Baseline> replaced, LocalDateTime now) {
         baselines = List.copyOf(replaced);
         return true;
+    }
+
+    @Override
+    public synchronized List<Baseline> baselines() {
+        return baselines;
+    }
+
+    @Override
+    public synchronized List<SourceStats> sourceStats(LocalDate from, LocalDateTime sampledFrom) {
+        return List.of();
     }
 }

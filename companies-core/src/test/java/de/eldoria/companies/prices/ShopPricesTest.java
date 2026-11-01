@@ -257,6 +257,7 @@ class ShopPricesTest {
     @Test
     void aSourceWithoutAUsableIdIsRefused() {
         sources.register(plugin, new FakeSource(" "));
+        sources.register(plugin, new FakeSource("chest,shop"));
         sources.register(plugin, new FakeSource("x".repeat(PriceSources.MAX_ID + 1)));
         sources.register(plugin, new FakeSource("x".repeat(PriceSources.MAX_ID)));
 

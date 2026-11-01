@@ -7,6 +7,7 @@ package de.eldoria.companies.data.repository;
 
 import de.eldoria.companies.data.wrapper.price.Baseline;
 import de.eldoria.companies.data.wrapper.price.QuoteGroup;
+import de.eldoria.companies.data.wrapper.price.SourceStats;
 import de.eldoria.companies.data.wrapper.price.TradeDay;
 
 import java.time.LocalDate;
@@ -65,4 +66,18 @@ public abstract class APriceData {
      * @return true when they were stored
      */
     public abstract boolean replaceBaselines(List<Baseline> baselines, LocalDateTime now);
+
+    /**
+     * @return the baselines of every material, as last worked out
+     */
+    public abstract List<Baseline> baselines();
+
+    /**
+     * Sums up what each source stored, for admins to see which shop plugins give prices.
+     *
+     * @param from        the first day of trades counted
+     * @param sampledFrom the oldest sample counted
+     * @return one row per source with trades or offers, by id
+     */
+    public abstract List<SourceStats> sourceStats(LocalDate from, LocalDateTime sampledFrom);
 }

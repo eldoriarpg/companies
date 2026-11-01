@@ -63,4 +63,7 @@ reads the shops it runs itself, so in a network the shops of every server count.
 ## Shop plugins
 
 Other plugins can add sources for their own shops through the API (`CompaniesApi.prices().register(...)`); their id is
-what `sources` and `adminOnly` name.
+what `sources` and `adminOnly` name. An id is letters, digits, `_`, `-` and `.`, at most 64 characters, and is written in lower case.
+
+The **Servers** tab of the [dashboard](../dashboard.md) lists every source with what it gave: offers, trades and the
+shop prices it was used for. It needs `companies.admin.nodes`.

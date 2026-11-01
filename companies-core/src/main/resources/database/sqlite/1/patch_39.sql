@@ -46,5 +46,6 @@ CREATE TABLE material_baseline
     buy_unit      FLOAT,
     baseline_unit FLOAT    NOT NULL,
     basis         TEXT     NOT NULL,
+    sources       TEXT     NOT NULL DEFAULT '',
     updated_at    datetime NOT NULL
 );

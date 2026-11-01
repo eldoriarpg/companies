@@ -15,8 +15,9 @@ import CapsLabel from '@/components/typography/CapsLabel.vue'
 import {compact, money, percentChange, trendOf} from '~/util/format'
 
 /**
- * The materials of the market as ticker rows: the average price per item, the lowest and highest, the volume and the
- * change against the week before where both weeks have enough orders. A row opens the material's figures. Without
+ * The materials of the market as ticker rows: the average price per item, the lowest and highest, the volume, the
+ * change against the week before where both weeks have enough orders, and the price of the server's shops, marked
+ * where order prices go by it. Materials only the shops price come last. A row opens the material's figures. Without
  * items it says why, in the caller's words where given.
  */
 defineProps<{
@@ -31,7 +32,7 @@ defineEmits<{
 }>()
 
 const {t, locale} = useI18n()
-const COLUMNS = 'md:grid md:grid-cols-[minmax(0,2fr)_5rem_5rem_5rem_4rem_4.5rem] md:gap-3'
+const COLUMNS = 'md:grid md:grid-cols-[minmax(0,2fr)_5rem_5rem_5rem_4rem_4.5rem_5rem] md:gap-3'
 
 /**
  * A price, or a dash where too few orders back one.
@@ -53,6 +54,7 @@ function price(value: number | undefined): string {
       <CapsLabel class="text-right">{{ t('market.columnHigh') }}</CapsLabel>
       <CapsLabel class="text-right">{{ t('market.columnVolume') }}</CapsLabel>
       <CapsLabel class="text-right">{{ t('market.columnChange') }}</CapsLabel>
+      <CapsLabel class="text-right">{{ t('market.columnShop') }}</CapsLabel>
     </div>
     <EmptyState v-if="items.length === 0" :loading="loading">{{ empty ?? t('market.none') }}</EmptyState>
     <PlainList v-else :aria-busy="loading" data-testid="market">
@@ -73,6 +75,11 @@ function price(value: number | undefined): string {
           <span class="tabular hidden text-right text-sm text-ink-soft md:block">{{ entry.volume === undefined ? '-' : compact(entry.volume, locale) }}</span>
           <TrendText v-if="entry.change !== undefined" :trend="trendOf(entry.change)" class="w-16 shrink-0 text-right text-xs md:w-auto md:text-sm">{{ percentChange(entry.change, locale) }}</TrendText>
           <span v-else class="tabular w-16 shrink-0 text-right text-xs text-ink-muted md:w-auto">-</span>
+          <span
+              class="tabular hidden text-right text-sm md:block"
+              :class="entry.shop?.used ? 'font-semibold' : 'text-ink-soft'"
+              :title="entry.shop ? t(entry.shop.used ? 'market.shopUsed' : 'market.shopNotUsed') : undefined"
+          >{{ entry.shop ? price(entry.shop.price) : '-' }}</span>
         </RowButton>
       </li>
     </PlainList>

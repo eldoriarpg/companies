@@ -599,6 +599,14 @@ export default {
             syncQuestion: 'Synchroniser la configuration ? Le serveur principal écrit ses fichiers dans la base de données et les applique ; les serveurs secondaires avec Redis, PostgreSQL notify ou le mode faible latence les chargent aussitôt. Le tableau de bord se reconnecte un instant.',
             syncConfirm: 'Synchroniser',
             synced: 'La configuration est synchronisée.',
+            prices: {
+                title: 'Prix des boutiques',
+                none: 'Aucun plugin de boutique ne fournit de prix. Companies les lit dans les plugins de boutique pris en charge et dans les plugins qui enregistrent une source de prix.',
+                here: 'sur ce serveur',
+                off: 'désactivé',
+                adminOnly: 'boutiques admin seulement',
+                facts: '{servers} serveurs · {offers} offres pour {offered} objets · {trades} ventes pour {traded} objets · prix de boutique pour {baselines} objets',
+            },
         },
         setup: {
             loadFailed: 'Ces fichiers n\'ont pas pu être chargés, cette étape ne peut donc pas être enregistrée ici : {files}. Réessayez plus tard ou utilisez l\'onglet Paramètres.',
@@ -1275,6 +1283,15 @@ export default {
         daysLong: '{days} jours',
         moversEmpty: 'Les variations de prix apparaissent dès que deux semaines de suite ont assez de commandes.',
         moversFailed: 'Les plus fortes variations n’ont pas pu être chargées. Réessaie dans un instant.',
+        columnShop: 'Boutiques',
+        shopPrice: 'Prix des boutiques',
+        shopUsed: 'Les prix des commandes suivent le prix des boutiques tant que trop peu de commandes ont été livrées.',
+        shopNotUsed: 'Les prix des commandes suivent les commandes livrées ; le prix des boutiques sert de comparaison.',
+        shopBasis: {
+            TRADES: 'Selon les ventes des boutiques',
+            LISTINGS: 'Selon les offres des boutiques de joueurs',
+            SERVER: 'Selon les prix des boutiques du serveur',
+        },
     },
     company: {
         transfer: 'Céder l’entreprise',
