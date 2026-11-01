@@ -14,6 +14,9 @@ how large they may be and how long you have to deliver them.
 Orders stay anonymous. The player who placed the order never learns who works on it, and you never learn who placed
 it.
 
+Working alone happens in game. The [dashboard](./dashboard.md)'s order book shows the open orders, so you can look for
+one there first; whether you may take one alone is checked in game.
+
 ## Find an order
 
 `/order work` opens the order search when you work on no order yet. `/order work search` opens it any time.

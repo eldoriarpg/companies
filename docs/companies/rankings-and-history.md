@@ -10,9 +10,10 @@ history and the member statistics answer that.
 
 ## The ranking
 
-`/company top` shows the ranking of all companies, one page at a time. Every company shows its tag in its colour. Hover
-over a company to see its numbers, and click it to open its profile. Below the page you see the place of your own
-company.
+The **Rankings** page of the [dashboard](../players/dashboard.md) ranks the companies by what you choose and over the
+time you choose, with your own company's place. In game, `/company top` shows the ranking of all companies, one page at
+a time. Every company shows its tag in its colour. Hover over a company to see its numbers, and click it to open its
+profile. Below the page you see the place of your own company.
 
 Choose what the ranking is sorted by and the time it covers. In the menu these are buttons. With the command they come
 in this order:

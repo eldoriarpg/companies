@@ -20,67 +20,53 @@ company worked on it.
 | Delivered | Every item is there. You can receive the items. |
 | Received | You took the items. The order is finished and moves to your history. |
 
-`/order` or `/order list` shows your orders that you have not received yet, your order limit and items that wait for
-you. Click an order or use `/order info <id>` to see one order with its lines, progress and price.
+**Your orders** in the [dashboard](./dashboard.md)'s portfolio shows the orders you have not received yet, with their
+lines, progress and price. In game, `/order list` shows them with your order limit and the items that wait for you,
+and `/order info <id>` shows one order.
 
 ## Create an order
 
-You build an order as a draft first. Nothing is paid until you finish it.
+On the dashboard, **New order** in the order book or under *Your orders* opens the order builder: name the order, add
+lines, give each an amount and a price, and press **Place order**. The builder shows the cost before you pay. See
+[Placing an order](./dashboard.md#placing-an-order).
 
-1. Start a draft with `/order create <name>`. The name can have up to 31 characters.
-2. Add lines: one line per item you want.
-3. Check the lines, the amounts and the prices.
-4. Click `Done` or type `/order draft done`. The order is posted and the money is taken.
+Nothing is paid until you place the order.
 
-If you already have a draft, `/order create` shows it again instead of starting a new one. `/order draft cancel` or
-the `Cancel` button throws the draft away. A draft you leave alone for 15 minutes is dropped.
+### In game
 
-### Dialog or chat
+`/order create <name>` starts a draft; the name can have up to 31 characters. Add lines, check them, and click
+`Done` to place the order and pay; `Cancel` throws the draft away. If you already have a draft, `/order create` shows
+it again. A draft you leave alone
+for 15 minutes is dropped.
 
 The builder looks different depending on your server and your game version.
 
 - **Dialog.** A window with buttons and input fields. `Add` opens a small form with the material, an amount slider and
   the price per item. `Add item in hand` does the same for the item you hold. Instead of a material you can type
-  [criteria](#criteria-lines), such as `#logs`. Click a line to change its amount or
-  price, or to remove it. `Repeat` sets up a [repeating order](./repeating-orders.md).
+  [criteria](#criteria-lines), such as `#logs`. Click a line to change its amount or price, or to remove it. `Repeat`
+  sets up a [repeating order](./repeating-orders.md).
 - **Chat.** A menu in chat. Buttons like `[Add]`, `[Add by criteria]`, `[Amount]` and `[Price]` put the matching
   `/order draft` command into your chat line, so you only type the numbers. `[Remove]` removes a line at once.
 
 Dialogs need Minecraft 1.21.6 or newer. Players on older game versions always get the chat menu. While a chat menu is
 open, other chat messages are held back. You get them once you close the menu with `[x]`.
 
-### Commands of the draft
-
-You can do everything with commands too. Line numbers start at 1.
-
-| Command | What it does |
-|---|---|
-| `/order draft add <item> <amount> <unit price>` | Add a line |
-| `/order draft add hand <amount> <unit price>` | Add the item in your main hand |
-| `/order draft add saved <name> <amount> <unit price>` | Add one of your [saved items](#saved-items) |
-| `/order draft add criteria <amount> <unit price> <criteria>` | Add a [criteria line](#criteria-lines) |
-| `/order draft amount <line> <amount>` | Change the amount. `0` removes the line. |
-| `/order draft price <line> <unit price>` | Change the price for one item |
-| `/order draft price <line> market` | Use the market price as the price |
-| `/order draft remove <line>` | Remove a line |
-| `/order draft name <name>` | Rename the order |
-| `/order draft done` | Place the order and pay |
-| `/order draft cancel` | Throw the draft away |
-
-All order commands are listed on the [Commands](../reference/commands.md) page.
+Every `/order draft` command is on the [Commands](../reference/commands.md) page.
 
 ## Material lines, exact lines and criteria lines
 
 Each line is one of three kinds.
 
-- **Material line.** Any item of that material counts, for example any stone or any iron ingot.
-  `/order draft add stone 64 0.5` makes one.
-- **Exact line.** The item needs the same data as the item you ordered, such as its enchantments. You get one when
-  the item has extra data, for example `diamond_sword[enchantments={sharpness:5}]` or an enchanted sword in your hand.
-- **Criteria line.** Any item of a set counts, mixed, and it may need enchantments. See [Criteria lines](#criteria-lines).
+- **Material line.** Any item of that material counts, for example any stone or any iron ingot. On the dashboard,
+  pick a material and leave its enchantments and other details empty.
+- **Exact line.** The item needs the same data as the item you ordered, such as its enchantments. On the dashboard you
+  set them when you add the item; in game you get one when the item has extra data, for example
+  `diamond_sword[enchantments={sharpness:5}]` or an enchanted sword in your hand.
+- **Criteria line.** Any item of a set counts, mixed, and it may need enchantments. See [Criteria
+  lines](#criteria-lines).
 
-`/order draft add hand` looks at the item you hold. A plain item becomes a material line. An item with extra data
-becomes an exact line.
+In game, `/order draft add hand` looks at the item you hold. A plain item becomes a material line. An item with extra
+data becomes an exact line.
 
 Some things to know:
 
@@ -100,7 +86,8 @@ lowered to what fits.
 ### Criteria lines
 
 A criteria line asks for any item of a set instead of one material. The amount may be filled with a mix:
-`64 logs` may be 40 oak logs and 24 birch logs. Write the criteria as entries separated by spaces:
+`64 logs` may be 40 oak logs and 24 birch logs. On the dashboard, **Add by criteria** lets you pick materials, item
+tags and enchantments. In game, write the criteria as entries separated by spaces:
 
 | Entry | Meaning |
 |---|---|
@@ -125,7 +112,8 @@ found in the order search under every material they accept. They have no market 
 ## Saved items
 
 Save an item you order often, for example a sword with your favourite enchantments, and order it again without holding
-it. Saving copies the item in your main hand; you keep it.
+it. Saving copies the item in your main hand, so it happens in game; you keep the item. The dashboard's item picker
+finds your saved items by typing.
 
 | Command | What it does |
 |---|---|
@@ -147,8 +135,9 @@ The price is what companies earn. A good price gets your order claimed faster.
 
 ### The market price
 
-For material lines the builder shows what others paid. Hover over a line in chat to see the average, the lowest and
-the highest price per item. Click `[Market price]` or type `/order draft price <line> market` to use it.
+For material lines the builder shows what others paid. On the dashboard the average is filled in as the price and
+shown below it. In game, hover over a line in chat to see the average, the lowest and the highest price per item, and
+click `[Market price]` to use it.
 
 The market prices come from the last delivered orders of that material. They are updated about once an hour. While a
 material has only a few delivered orders, the builder offers what the server's shops charge for it instead; the hover
@@ -166,34 +155,37 @@ The fee is not refunded when you cancel an order yourself.
 
 ## Your order limit
 
-You can only have a certain number of orders at the same time. The default is 7. `/order list` shows your limit, and
-`/order create` tells you when you reached it. Only orders that are not fully delivered yet count. Your server may give you a
+You can only have a certain number of orders at the same time. The default is 7. `/order list` shows your limit, and the
+builder tells you when you reached it. Only orders that are not fully delivered yet count. Your server may give you a
 different limit with a permission, see [Permissions](../reference/permissions.md).
 
 ## While nobody claimed your order
 
 ### It is removed after a while
 
-An order that no company claims is removed after some time and you get your money back, price and fee. The default is
-7 days. `/order info` shows when it will be refunded. You get a warning in your [inbox](./inbox.md) before that, 24 hours before by default.
+An order that no company claims is removed after some time and you get your money back, price and fee. The default is 7
+days. `/order info` shows when it will be refunded. You get a warning in your [inbox](./inbox.md) before that, 24 hours
+before by default.
 
 ### Extend it
 
-`/order extend <id>` or the `Extend` button starts the waiting time again. You can extend an order a few times, 2 times
-by default. The button shows how many extensions are left.
+**More time** under *Your orders* on the dashboard, `/order extend <id>` or the `Extend` button starts the waiting time
+again. You can extend an order a few times, 2 times by default. The button shows how many extensions are left.
+
 
 ### Raise the price
 
-If nobody takes your order, offer more money. `/order raise <id> <amount>` adds the amount to the price of the order.
-In the dialog you enter the amount in the order view. The increase is spread over the lines, so every unit price goes
-up a little.
+If nobody takes your order, offer more money. **Raise payout** under *Your orders* on the dashboard adds an amount to
+the price of the order; in game, `/order raise <id> <amount>` or the amount field in the order view does the same. The
+increase is spread over the lines, so every unit price goes up a little.
 
 You confirm the raise first. The confirmation shows what you pay. If your server takes a percentage fee, you also pay
 that percentage on the increase. A fixed fee is not charged again.
 
 ### Cancel it
 
-`/order cancel <id>` cancels an order that nobody claimed yet. You get the price back. The fee is kept.
+**Cancel** under *Your orders* on the dashboard, or `/order cancel <id>`, cancels an order that nobody claimed yet.
+You get the price back. The fee is kept.
 
 Once a company claimed your order, you cannot cancel it, extend it or raise its price.
 
@@ -207,21 +199,21 @@ get a message when that happens. Items that were already delivered go back to th
 
 ## Receive your items
 
-When everything is delivered, you get a message with a `[Receive your items]` button. Until you receive the order, you
-are reminded each time you join.
+When everything is delivered, you get a message. Until you receive the order, you are reminded each time you join.
 
-Click the button or type `/order receive <id>`. The items go into your inventory. Items that do not fit are kept for
-you. Free up some space and get them with `/order collect`. `/order list` shows how many items are waiting.
+While you are online on the server, press **Receive into inventory** under *Your orders* on the dashboard, or click
+`[Receive your items]` in game. Items that do not fit are kept for you. Free up some space and get them with
+**Collect waiting items**. In game, `/order receive <id>` and `/order collect` do the same.
 
 :::tip
-Admins can also give you items through Companies. Those wait for you in the same place, so `/order collect` picks them
-up too.
+Admins can also give you items through Companies. Those wait for you in the same place, so collecting picks them up
+too.
 :::
 
 ## Your order history
 
-Once an order is over for you, it moves to your history. This happens when you received it, when you cancelled it,
-when it was removed because nobody claimed it, or when an admin cancelled it.
+Once an order is over for you, it moves to your history, which you read in game. This happens when you received it, when
+you cancelled it, when it was removed because nobody claimed it, or when an admin cancelled it.
 
 - `/order history [page]` lists your ended orders.
 - `/order history info <entry>` shows one of them with its items, price, fee and outcome.

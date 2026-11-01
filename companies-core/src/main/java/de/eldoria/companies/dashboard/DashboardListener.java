@@ -15,24 +15,32 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.plugin.Plugin;
 
 import java.util.function.Supplier;
 
 /**
- * Shows admins the dashboard's deprecation notices when they join, refreshes the remembered permissions of players
- * with dashboard sessions, and hands the joins and quits to the {@link PresenceReporter}.
+ * Shows admins the dashboard's deprecation notices when they join, reminds admins who may enter the key while none is
+ * stored, refreshes the remembered permissions of players with dashboard sessions, and hands the joins and quits to the
+ * {@link PresenceReporter}.
  */
 public final class DashboardListener implements Listener {
+    private static final long REMINDER_DELAY_TICKS = 60L;
+
+    private final Plugin plugin;
     private final Dashboard dashboard;
     private final Supplier<MessageSender> messages;
     private final PresenceReporter presence;
 
     /**
+     * @param plugin    the plugin, for the scheduler
      * @param dashboard the dashboard
      * @param messages  the plugin's message sender
      * @param presence  reports joins and quits to the gateway
      */
-    public DashboardListener(Dashboard dashboard, Supplier<MessageSender> messages, PresenceReporter presence) {
+    public DashboardListener(
+            Plugin plugin, Dashboard dashboard, Supplier<MessageSender> messages, PresenceReporter presence) {
+        this.plugin = plugin;
         this.dashboard = dashboard;
         this.messages = messages;
         this.presence = presence;
@@ -47,6 +55,21 @@ public final class DashboardListener implements Listener {
         for (var notice : dashboard.notices()) {
             messages.get().sendError(player, "dashboard.notice", Values.text("notice", notice));
         }
+        if (player.hasPermission(Permission.Admin.DASHBOARD)) remindOfKey(player);
+    }
+
+    private void remindOfKey(Player player) {
+        dashboard.keyMissing().thenAccept(missing -> {
+            if (!missing) return;
+            plugin.getServer()
+                    .getScheduler()
+                    .runTaskLater(
+                            plugin,
+                            () -> {
+                                if (player.isOnline()) messages.get().sendError(player, "dashboard.keyMissing");
+                            },
+                            REMINDER_DELAY_TICKS);
+        });
     }
 
     @EventHandler(priority = EventPriority.MONITOR)

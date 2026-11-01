@@ -252,7 +252,7 @@ copied to every server; see [node.yml](./node-yml.md).
 
 | Key | Type | Default | Meaning | Applies |
 |---|---|---|---|---|
-| `enabled` | true/false | `false` | Connect to the gateway and let players open the dashboard. | reload |
+| `enabled` | true/false | `true` | Connect to the gateway and let players open the dashboard. Until a key is stored, the primary server's console and joining admins with `companies.admin.dashboard` are reminded to enter one. | reload |
 | `gateway` | text | `wss://companies.eldoria.de/api/v1/servers/connect` | The gateway's address, `ws://` or `wss://`. Change it only for a self-hosted gateway. | reload |
 | `sessionIdleMinutes` | number (minutes) | `60` | A login ends after this long without use. From 5 minutes to a week. | reload |
 | `sessionMaxHours` | number (hours) | `24` | A login ends after this long in any case. From 1 hour to 30 days. | reload |

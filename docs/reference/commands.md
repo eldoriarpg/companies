@@ -5,7 +5,8 @@ sidebar_position: 1
 
 # Commands
 
-Every command, its arguments and the permission it needs.
+Every command, its arguments and the permission it needs. Most of what players and admins do with them can also be
+done on the [web dashboard](../players/dashboard.md); this page is for the game and the console.
 
 ## How to read this page
 

@@ -22,12 +22,10 @@ invites. The button still works later from the inbox.
 
 ## Open your inbox
 
-| Command | What it does |
-|---|---|
-| `/company inbox [page]` | Show your messages, newest first, grouped by day |
-| `/company inbox read` | Mark every message as read |
-| `/company inbox clear` | Delete the messages you have read |
-| `/company inbox settings` | Choose which categories are muted |
+The **Inbox** of the [dashboard](./dashboard.md) lists your messages, newest first, with a search. **Mark all read**
+marks every message as read, **Delete read** deletes the ones you have read, and the muted categories are switched
+there too. In game, `/company inbox` shows the same, page by page and grouped by day; the
+[Commands](../reference/commands.md) page lists its subcommands.
 
 You do not need to be in a company to use the inbox.
 
@@ -53,12 +51,12 @@ Every message belongs to a category. Some categories can be muted.
 
 In a busy company, many messages fly by. Mute the categories you do not want to see live.
 
-- `/company inbox mute <category>` mutes a category.
-- `/company inbox unmute <category>` shows it again.
-- `/company inbox settings` shows a switch for each category. The inbox menu has a button for it too.
+- On the dashboard, switch a category under **Muted categories** in the inbox.
+- In game, `/company inbox settings` shows a switch for each category, and `/company inbox mute <category>` and
+  `unmute <category>` do it directly.
 
 Muted messages still land in your inbox. They are just not shown in chat, and they are not counted in the summary when
-you join. Look at them any time with `/company inbox`.
+you join. Look at them any time in the inbox.
 
 :::note
 Messages about your own orders, invites and your company cannot be muted. They are always shown.

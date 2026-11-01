@@ -20,10 +20,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class DashboardPartsTest {
     @Test
-    void theDashboardIsOffAndPointsAtTheHostedGateway() {
+    void theDashboardIsOnAndPointsAtTheHostedGateway() {
         var settings = new DashboardSettings();
 
-        assertFalse(settings.enabled());
+        assertTrue(settings.enabled());
         assertEquals(
                 DashboardSettings.DEFAULT_GATEWAY,
                 settings.gateway().orElseThrow().toString());

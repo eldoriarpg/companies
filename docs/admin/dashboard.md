@@ -41,15 +41,11 @@ the server connects again by itself when the gateway restarts or the connection 
    server folder. Typed in game, it may stay in your client's chat history. The environment variable keeps the key out
    of both.
    :::
-3. Switch the dashboard on in `config.yml`:
+3. Check the connection with `/companyadmin dashboard status`.
 
-   ```yaml
-   dashboard:
-     enabled: true
-   ```
-
-4. Run `/companyadmin reload`.
-5. Check the connection with `/companyadmin dashboard status`.
+The dashboard is on from the first start. Until a key is stored, the primary server's console and every admin with
+`companies.admin.dashboard` who joins are reminded to enter one. A `config.yml` that already says `enabled: false`
+keeps it; set it to `true` and run `/companyadmin reload`.
 
 Players log in with `/company dashboard`, which shows the link and the code in a dialog, or in chat where
 [menus](./configuration/config-yml.md#menus) are shown in chat. Geyser shows the dialog to Bedrock players as a form;
@@ -88,7 +84,7 @@ The `dashboard` section of `config.yml`:
 
 ```yaml
 dashboard:
-  enabled: false
+  enabled: true
   gateway: wss://companies.eldoria.de/api/v1/servers/connect
   sessionIdleMinutes: 60
   sessionMaxHours: 24
@@ -117,7 +113,7 @@ dashboard:
 
 | Setting | What it does |
 |---|---|
-| `enabled` | Whether the servers connect and players can open the dashboard. Off by default. |
+| `enabled` | Whether the servers connect and players can open the dashboard. On by default. |
 | `gateway` | The gateway to connect to. Change it only for a [self-hosted gateway](#self-hosted-gateway). |
 | `sessionIdleMinutes` | A login ends after this many minutes without use. |
 | `sessionMaxHours` | A login ends after this many hours in any case. |
@@ -171,8 +167,8 @@ write it.
 | Boards | Show the board presets with their open orders; write the board signs again; bind NPCs to boards and unbind them. On a network you pick the server first, since signs and NPCs belong to a server. An NPC is named by its Citizens id or FancyNpcs name. | `companies.admin.boards` | `/companyadmin board …` |
 | Servers | Show the servers in the database with role, version, last seen and how they exchange messages; remove an old one after asking once more | `companies.admin.nodes` | `/companyadmin node …` |
 | Servers | Mark the servers that use an older revision of the shared settings, and the changed settings each applies only after a restart | `companies.admin.nodes` | `/companyadmin node list` |
-| Servers | List the shop plugins [prices](./configuration/prices-yml.md) are read from: whether one runs on this server, is switched off or counts admin shops only, and how many offers, trades and shop prices it gave | `companies.admin.nodes` | — |
-| Setup | A guided setup of the most important settings: economy, levels, language and menus, integrations, the dashboard, and the usual permissions. Each step saves like the Settings tab when you go on, or is skipped. Progress is kept for the whole network, so the setup continues at the first open step on any server and for any admin. Until every step is done or skipped, the admin view reminds you; hide the reminder for everyone with one click. | `companies.admin`; saving `companies.admin.reload` too | — |
+| Servers | List the shop plugins [prices](./configuration/prices-yml.md) are read from: whether one runs on this server, is switched off or counts admin shops only, and how many offers, trades and shop prices it gave | `companies.admin.nodes` | none |
+| Setup | A guided setup of the most important settings: economy, levels, language and menus, integrations, the dashboard, and the usual permissions. Each step saves like the Settings tab when you go on, or is skipped. Progress is kept for the whole network, so the setup continues at the first open step on any server and for any admin. Until every step is done or skipped, the admin view reminds you; hide the reminder for everyone with one click. | `companies.admin`; saving `companies.admin.reload` too | none |
 | Settings | Show `config.yml`, `company.yml`, `order.yml`, `user.yml`, `system-orders.yml` and `events.yml` as their latest revision, grouped in sections, marking the settings that need a restart and those a server sets for itself in its `node.yml`; which servers are behind; the history of each file and what each revision changed. Secrets such as the Discord webhook are never shown, only whether they are set. | `companies.admin` | `/companyadmin settings status`, `history` |
 | Settings | Change settings in forms and save them together, after asking once more, as the next revision, which every server takes. A wrong value is marked at its field and nothing is saved. When someone saved the same file meanwhile, nothing is saved: the newer revision is loaded, your changes stay, and each field the newer revision changed shows its value; saving again keeps your values. Admins without `companies.admin.reload` see the settings without being able to change them. The Discord webhook can be replaced or cleared but is never shown, and cannot be changed while `COMPANIES_DISCORD_WEBHOOK` sets it. Make an earlier revision the newest again from the history. Upload one PNG of at most 256×256 pixels and 40 KB as the dashboard icon of every server, or go back to each server's own server icon. The levels, the board presets and the system order rules stay in their own editors and files. | `companies.admin` and `companies.admin.reload` | `/companyadmin reload confirm`, `/companyadmin settings rollback` |
 | System orders | List the orders the server placed itself that are open or in work, show why one was placed with the numbers its decision stood on, and what guessed orders learned per material | `companies.admin.orders` | `/companyadmin systemorders list`, `info`, `stats` |

@@ -31,7 +31,7 @@ public class DashboardSettings {
     private static final int MAX_IDLE_MINUTES = 7 * 24 * 60;
     private static final int MAX_HOURS = 30 * 24;
 
-    private boolean enabled = false;
+    private boolean enabled = true;
     private String gateway = DEFAULT_GATEWAY;
     private int sessionIdleMinutes = DEFAULT_IDLE_MINUTES;
     private int sessionMaxHours = DEFAULT_MAX_HOURS;
@@ -58,7 +58,8 @@ public class DashboardSettings {
     }
 
     /**
-     * Whether the nodes connect to the gateway and players can open the dashboard.
+     * Whether the nodes connect to the gateway and players can open the dashboard. On unless the config switches it
+     * off.
      *
      * @return true when enabled
      */

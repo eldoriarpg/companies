@@ -10,17 +10,13 @@ what the owner can do: kick members, hand over the company or disband it.
 
 ## Your members
 
-`/company member` lists the members of your company. Each member shows whether they are online, their permissions and
-what they contributed: delivered items, earned money and orders, for all time and for the last 30 days.
+The **Members** panel of the [dashboard](../players/dashboard.md)'s company page lists your members with their
+permissions and what they delivered, how many orders they worked on and what they earned. Search it by name.
 
-Sort the list by a contribution:
-
-- `/company member items` sorts by delivered items.
-- `/company member earned 30d` sorts by money earned in the last 30 days.
-- The sortings are `name`, `items`, `earned` and `orders`. The ranges are `all` and `30d`.
-
-`/company member id <id>` lists the members of another company. You see who is in it, but not their permissions or
-contributions.
+In game, `/company member` shows the same, with whether each member is online and the contributions of all time and
+of the last 30 days; sort it with `/company member items` or `/company member earned 30d` (the sortings are `name`,
+`items`, `earned` and `orders`, the ranges `all` and `30d`). `/company member id <id>` lists the members of another
+company: who is in it, but not their permissions or contributions.
 
 How contributions are counted is explained in [Rankings and history](./rankings-and-history.md#member-statistics).
 
@@ -42,7 +38,7 @@ server.
 | `manage_areas` | Set the company's home and link, buy, rent and give up areas, paid from the treasury |
 
 The **owner** holds every permission. There is exactly one owner, and nobody can give or take that role with these
-commands. Use `/company transfer` for that.
+commands. [Hand over the company](#hand-over-the-company) for that.
 
 Every member can do a few things without any permission: deliver items to the orders of the company, look at its
 orders, alerts, history and treasury, and pay money into the treasury.
@@ -53,12 +49,9 @@ New members start without permissions.
 
 You need the `manage_permissions` permission, or you are the owner.
 
-- `/company permission <member>` opens the permission editor of a member. The member list has a button for it too.
-- `/company permission <member> give <permission>` gives a permission.
-- `/company permission <member> remove <permission>` removes one.
-
-In the dialog, every permission is a switch. Click `Save` to apply your changes. In chat, every permission is a button
-that gives or removes it right away.
+On the dashboard, open a member in the members list: every permission is a switch, and **Save permissions** applies
+your changes. In game, `/company permission <member>` opens the same editor, as a dialog with switches and `Save`, or
+in chat with a button per permission that gives or removes it right away.
 
 There are two rules:
 
@@ -71,7 +64,8 @@ Give `manage_orders` to the members who should pick the orders. Everyone else ca
 
 ## Kick a member
 
-`/company kick <member>` removes a member from the company. Confirm with the button or `/company kick confirm`.
+**Remove from the company** on a member, or `/company kick <member>`, removes a member from the company after you
+confirm.
 
 - The owner can kick anyone.
 - A member with the `kick` permission can kick members who do not have `kick` themselves.
@@ -81,16 +75,16 @@ The kicked player and the other members get a message.
 
 ## Hand over the company
 
-Only the owner can do this. `/company transfer <member>` makes another member the owner. Confirm with the button or
-`/company transfer confirm`.
+Only the owner can do this. **Hand the company over** on a member, or `/company transfer <member>`, makes another
+member the owner after you confirm.
 
 You stay in the company as a normal member, without owner rights. The new owner gets a message and can give you
 permissions again.
 
 ## Disband the company
 
-Only the owner can do this. `/company disband` dissolves the company. Confirm with the button or
-`/company disband confirm`.
+Only the owner can do this. **Dissolve the company** on the dashboard asks you to type the company's name first;
+`/company disband` in game asks you to confirm.
 
 When a company is disbanded:
 
@@ -105,5 +99,5 @@ Disbanding cannot be undone. The company, its profile and its members are gone.
 
 ## Leave
 
-Members leave with `/company leave`, see [Founding and joining](./founding-and-joining.md#leave-a-company). The owner
-has to hand over the company or disband it first.
+Members leave with **Leave the company** or `/company leave`, see [Founding and
+joining](./founding-and-joining.md#leave-a-company). The owner has to hand over the company or disband it first.

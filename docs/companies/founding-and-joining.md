@@ -10,6 +10,11 @@ be in one company at a time.
 
 ## Found a company
 
+On the [dashboard](../players/dashboard.md), open **Company** while you are in none. **Found a company** takes a name,
+shows what founding costs, and takes the price from your balance, also while you are not online.
+
+In game:
+
 1. Type `/company create <name>`. The name can have up to 31 characters and must not be taken.
 2. Companies shows what founding costs. The default is 20,000.
 3. Confirm with the button or `/company create confirm`. `/company create deny` or the deny button stops it.
@@ -22,8 +27,8 @@ A confirmation is valid for 30 seconds. After that, run the command again.
 :::
 
 A new company starts at level 1. The level decides how many members the company can have and how many orders it can
-work on at once. It grows as the company completes orders. `/company` shows the level, its limits and what the next
-level needs. Server owners set up the levels, see [Levels](../admin/levels.md).
+work on at once. It grows as the company completes orders. The company page of the dashboard and `/company` show the
+level and the progress to the next one. Server owners set up the levels, see [Levels](../admin/levels.md).
 
 ## How players join
 
@@ -37,9 +42,10 @@ Every company has a join mode. It decides how new players get in. The profile of
 
 Invites work in every join mode.
 
-`/company joinmode` shows the join mode of your company. To change it, use `/company joinmode open`,
-`/company joinmode applications` or `/company joinmode invite`. This needs the `edit_profile` permission. Applications
-that are already open stay open when you change the mode, and you can still accept them.
+Change the join mode under **Joining** in **Edit profile** on the dashboard's company page, or with
+`/company joinmode open`, `/company joinmode applications` or `/company joinmode invite` in game. This needs the
+`edit_profile` permission. Applications that are already open stay open when you change the mode, and you can still
+accept them.
 
 A company cannot take new members while it is at the member limit of its level.
 
@@ -47,15 +53,15 @@ A company cannot take new members while it is at the member limit of its level.
 
 ### Invite a player
 
-`/company invite <player>` invites a player to your company. You need the `invite` permission. The player does not need
-to be online. They get a message in their [inbox](../players/inbox.md) when they join.
+Inviting happens in game: `/company invite <player>` invites a player to your company. You need the `invite` permission.
+The player does not need to be online. They get a message in their [inbox](../players/inbox.md) when they join.
 
-An invite is open for 24 hours by default. Inviting the same player again starts the time again.
-`/company invite revoke <player>` takes an invite back.
+An invite is open for 24 hours by default. Inviting the same player again starts the time again. **Take back** on the
+dashboard's company page, or `/company invite revoke <player>`, takes an invite back.
 
 ### Answer an invite
 
-`/company invites` shows the invites you received, with buttons to accept or deny them.
+Answering happens in game. `/company invites` shows the invites you received, with buttons to accept or deny them.
 
 - `/company invites accept <company>` joins the company.
 - `/company invites deny <company>` declines the invite.
@@ -67,7 +73,7 @@ both get a message.
 
 ### Apply to a company
 
-If a company takes applications, apply with a short message:
+If a company takes applications, apply in game with a short message:
 
 `/company apply <company> <message>`
 
@@ -78,11 +84,9 @@ message can have up to 120 characters. You can have up to 3 open applications at
 
 ### Answer applications
 
-Members with the `invite` permission get a message when someone applies.
-
-- `/company applications` shows the open applications to your company, each with its message.
-- `/company applications accept <player>` makes the player a member.
-- `/company applications deny <player>` denies the application.
+Members with the `invite` permission get a message when someone applies. The dashboard's company page lists the open
+applications with their messages, with **Accept** and **Deny**. In game, `/company applications` shows them, and
+`/company applications accept <player>` or `deny <player>` answers one.
 
 The player is told about your answer. An application that nobody answers expires after 24 hours by default.
 
@@ -97,10 +101,11 @@ its treasury. The owner, or a member with the `manage_permissions` permission, c
 
 ## Leave a company
 
-`/company leave` leaves your company. Confirm with the button or `/company leave confirm`.
+**Leave the company** on the dashboard's company page, or `/company leave` in game, leaves your company. Either asks
+you to confirm first.
 
-The owner cannot leave. Hand the company to another member first with `/company transfer`, or disband it. Both are
-explained in [Members and permissions](./members-and-permissions.md).
+The owner cannot leave. Hand the company to another member first, or disband it. Both are explained in [Members and
+permissions](./members-and-permissions.md).
 
 ## Permissions
 

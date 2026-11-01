@@ -28,6 +28,10 @@ reaches a higher level. It uses a Discord webhook, so you need no bot.
 4. Set the URL as the environment variable `COMPANIES_DISCORD_WEBHOOK`, or write it into `url` (see below).
 5. Run `/companyadmin reload`.
 
+On the [dashboard](./dashboard.md#admin-tools), the *Setup* tab's Integrations page and the *Settings* tab switch the
+webhook on, pick the events and take the URL instead of steps 3 to 5. The URL is never shown there again, and it can not
+be changed there while `COMPANIES_DISCORD_WEBHOOK` sets it.
+
 The webhook is off by default (`enabled: false`). When it starts, the console says "Posting to the Discord webhook."
 
 ## The URL

@@ -217,7 +217,10 @@ public final class Dashboard implements GatewayLink {
         gateway = uri.get();
         // TODO: with a realtime bus (Redis) only the primary connects and relays the other nodes' patches and actions
         parts.status().allowLynaKey();
-        if (parts.primary()) seedKey();
+        if (parts.primary()) {
+            seedKey();
+            warnWithoutKey();
+        }
         var address = uri.get();
         var next = new GatewayConnection(
                 new GatewayConnection.Endpoint(address, parts.userAgent()),
@@ -238,6 +241,32 @@ public final class Dashboard implements GatewayLink {
         } catch (RuntimeException e) {
             parts.logger().log(Level.WARNING, "Could not store the dashboard key from node.yml.", e);
         }
+    }
+
+    private void warnWithoutKey() {
+        try {
+            if (parts.keys().current().isPresent()) return;
+            parts.logger()
+                    .warning(
+                            "The dashboard has no key yet, so players can not open it. Get one on the Companies page of"
+                                    + " Lyna and set COMPANIES_DASHBOARD_KEY on this server, or enter it with"
+                                    + " /companyadmin dashboard key.");
+        } catch (RuntimeException e) {
+            parts.logger().log(Level.FINE, "Could not read the dashboard key.", e);
+        }
+    }
+
+    /**
+     * Whether the dashboard is enabled but no key is stored, so players can not open it.
+     *
+     * @return true while an admin has to enter a key, false as well when the key could not be read
+     */
+    public CompletableFuture<Boolean> keyMissing() {
+        return CompletableFuture.supplyAsync(
+                        () -> parts.settings().get().enabled()
+                                && parts.keys().current().isEmpty(),
+                        parts.work())
+                .exceptionally(e -> false);
     }
 
     private Optional<String> configuredKey() {

@@ -6,6 +6,7 @@ sidebar_position: 8
 # Company home
 
 A company has one home its members teleport to.
+It is set and used in game; the [dashboard](../players/dashboard.md)'s company page shows where it is.
 
 | Command | Who | What it does |
 |---|---|---|
