@@ -123,7 +123,7 @@ services:
       DB_PASSWORD_FILE: /run/secrets/gateway_db
       GATEWAY_MODE: self-hosted
       SERVER_TOKEN_FILE: /run/secrets/dashboard_key
-      PUBLIC_URL: https://${DEMO_HOST:-demo.companies.eldoria.de}
+      PUBLIC_URL: https://${DEMO_HOST:-demo-companies.eldoria.de}
       TRUSTED_PROXIES: 172.16.0.0/12,10.0.0.0/8,192.168.0.0/16
       COOKIE_SECURE: ${COOKIE_SECURE:-true}
     secrets: [gateway_db, dashboard_key]
@@ -141,7 +141,7 @@ services:
     labels:
       traefik.enable: "true"
       traefik.docker.network: ${TRAEFIK_NETWORK:-traefik}
-      traefik.http.routers.companies-demo.rule: Host(`${DEMO_HOST:-demo.companies.eldoria.de}`)
+      traefik.http.routers.companies-demo.rule: Host(`${DEMO_HOST:-demo-companies.eldoria.de}`)
       traefik.http.routers.companies-demo.entrypoints: ${TRAEFIK_ENTRYPOINT:-websecure}
       traefik.http.routers.companies-demo.tls.certresolver: ${TRAEFIK_CERTRESOLVER:-letsencrypt}
       traefik.http.services.companies-demo.loadbalancer.server.port: "4000"

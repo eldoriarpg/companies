@@ -8,7 +8,7 @@ sidebar_position: 4
 A public demo network runs Companies, so you can try it before installing it.
 
 - **Server:** `demo.companies.eldoria.de` with Minecraft Java Edition 26.3
-- **Dashboard:** [demo.companies.eldoria.de](https://demo.companies.eldoria.de)
+- **Dashboard:** [demo-companies.eldoria.de](https://demo-companies.eldoria.de)
 
 You land on `hub`, where companies, orders and weeks of market prices are already waiting. Run `/company dashboard`
 and open the link with the code it shows: the demo dashboard is the quickest way around. Browse the order book and the
