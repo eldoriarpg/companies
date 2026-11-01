@@ -236,9 +236,11 @@ public final class AdminOrderService {
      *
      * @param order  order as it was before the deletion
      * @param refund true to refund the owner
-     * @return price and fee for the owner on a refund, otherwise price and fee for the collector
+     * @return price and fee for the owner on a refund, otherwise price and fee for the collector; nothing for an order
+     *     created without charging its owner
      */
     public static CancelMoney cancelMoney(FullOrder order, boolean refund) {
+        if (!order.charged()) return new CancelMoney(0, 0);
         var total = BigDecimal.valueOf(order.price())
                 .add(BigDecimal.valueOf(order.fee()))
                 .doubleValue();
@@ -249,9 +251,11 @@ public final class AdminOrderService {
      * The price share of the items missing from an order, which is what the workers are not paid for.
      *
      * @param order delivered order with its deliveries
-     * @return the price minus the workers' shares, rounded to cents and never negative
+     * @return the price minus the workers' shares, rounded to cents and never negative; 0 for an order created without
+     *     charging its owner
      */
     public static double undeliveredRefund(FullOrder order) {
+        if (!order.charged()) return 0;
         var paid = order.payments(PaymentType.STACK).values().stream()
                 .map(BigDecimal::valueOf)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -569,6 +573,13 @@ public final class AdminOrderService {
 
         @Override
         public void ownerCancelled(SimpleOrder order, double refund) {
+            if (!order.charged()) {
+                notifications.send(
+                        order.owner(),
+                        NotificationType.MY_ORDER_CANCELLED_BY_ADMIN_UNCHARGED,
+                        NotificationService.orderArgs(order));
+                return;
+            }
             if (refund > 0) {
                 notifications.send(
                         order.owner(), NotificationType.MY_ORDER_CANCELLED_BY_ADMIN, withAmount(order, refund));

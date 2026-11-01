@@ -53,6 +53,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -107,6 +108,7 @@ class OrderCreationServiceTest {
         assertEquals(0.0, order.order().fee());
         assertEquals(OrderSource.SYSTEM, created.getLast().source());
         assertEquals(Optional.of("harbour"), orderData.systemRule(order.order().id()));
+        assertTrue(order.order().charged());
         assertEquals(Optional.empty(), orderData.systemRule(order.order().id() + 1));
     }
 
@@ -120,6 +122,7 @@ class OrderCreationServiceTest {
         assertEquals(944.0, balance());
         assertEquals(6.0, order.order().fee());
         assertEquals(OrderState.UNCLAIMED, order.order().state());
+        assertTrue(order.order().charged());
         assertEquals(1, created.size());
         assertEquals(OrderSource.API, created.get(0).source());
         assertEquals(order.order().id(), created.get(0).order().id());
@@ -181,6 +184,12 @@ class OrderCreationServiceTest {
         assertEquals(0.0, order.order().fee());
         assertEquals(50.0, order.order().price());
         assertEquals(1000.0, balance());
+        assertFalse(order.order().charged());
+        assertFalse(orderData
+                .retrieveOrderById(order.order().id())
+                .join()
+                .orElseThrow()
+                .charged());
     }
 
     @Test

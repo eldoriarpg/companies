@@ -49,6 +49,7 @@ public class PostgresOrderData extends MariaDbOrderData {
                        extensions,
                        delivery_bonus,
                        series_id,
+                       charged,
                        solo_worker
                 FROM order_states s
                          LEFT JOIN orders o
@@ -78,6 +79,7 @@ public class PostgresOrderData extends MariaDbOrderData {
                        extensions,
                        delivery_bonus,
                        series_id,
+                       charged,
                        solo_worker
                 FROM order_states s
                          JOIN orders o
@@ -106,6 +108,7 @@ public class PostgresOrderData extends MariaDbOrderData {
                        extensions,
                        delivery_bonus,
                        series_id,
+                       charged,
                        solo_worker
                 FROM order_states s
                          JOIN orders o
@@ -124,7 +127,7 @@ public class PostgresOrderData extends MariaDbOrderData {
     protected List<FullOrder> getOrdersByQuery(SearchQuery searchQuery, OrderState min, OrderState max) {
         @Language("postgresql")
         var query = """
-                SELECT o.id, o.owner_uuid, o.name, o.created, os.company, os.last_update, os.state, o.fee, os.extensions, os.delivery_bonus, o.series_id, os.solo_worker
+                SELECT o.id, o.owner_uuid, o.name, o.created, os.company, os.last_update, os.state, o.fee, os.extensions, os.delivery_bonus, o.series_id, o.charged, os.solo_worker
                 FROM orders o
                          LEFT JOIN (SELECT c.id, sum(amount) AS amount, sum(price) AS price
                                     FROM order_content c

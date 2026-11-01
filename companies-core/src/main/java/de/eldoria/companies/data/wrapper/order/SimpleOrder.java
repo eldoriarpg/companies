@@ -31,6 +31,7 @@ public class SimpleOrder implements ISimpleOrder {
     private final int extensions;
     private final int deliveryBonus;
     private final int seriesId;
+    private final boolean charged;
 
     @Nullable
     private final UUID soloWorker;
@@ -49,6 +50,18 @@ public class SimpleOrder implements ISimpleOrder {
      * @param fee   fee the owner pays for placing the order
      */
     public SimpleOrder(UUID owner, String name, double fee) {
+        this(owner, name, fee, true);
+    }
+
+    /**
+     * Creates an order which is not saved yet.
+     *
+     * @param owner   owner of the order
+     * @param name    name of the order
+     * @param fee     fee the owner pays for placing the order
+     * @param charged whether the owner pays for the order; an uncharged order refunds nothing
+     */
+    public SimpleOrder(UUID owner, String name, double fee, boolean charged) {
         id = -1;
         this.owner = owner;
         this.name = Texts.trimLeft(name, 32);
@@ -61,6 +74,7 @@ public class SimpleOrder implements ISimpleOrder {
         deliveryBonus = 0;
         seriesId = 0;
         soloWorker = null;
+        this.charged = charged;
     }
 
     /**
@@ -150,6 +164,53 @@ public class SimpleOrder implements ISimpleOrder {
             int deliveryBonus,
             int seriesId,
             @Nullable UUID soloWorker) {
+        this(
+                id,
+                owner,
+                name,
+                created,
+                company,
+                claimed,
+                state,
+                fee,
+                extensions,
+                deliveryBonus,
+                seriesId,
+                soloWorker,
+                true);
+    }
+
+    /**
+     * Creates a saved order, charged or not.
+     *
+     * @param id            id of the order
+     * @param owner         owner of the order
+     * @param name          name of the order
+     * @param created       when the order was placed
+     * @param company       company working on the order, or 0 when none
+     * @param claimed       last state change, which is when the order was accepted while it is claimed
+     * @param state         state of the order
+     * @param fee           fee the owner paid
+     * @param extensions    how often the owner extended the purge timer
+     * @param deliveryBonus extra delivery hours the claimant got
+     * @param seriesId      id of the repeating order that posted this copy, or 0 for a one-off order
+     * @param soloWorker    player working on the order alone, or null when a company or nobody claimed it
+     * @param charged       whether the owner paid for the order; an uncharged order refunds nothing
+     */
+    public SimpleOrder(
+            int id,
+            UUID owner,
+            String name,
+            LocalDateTime created,
+            int company,
+            LocalDateTime claimed,
+            OrderState state,
+            double fee,
+            int extensions,
+            int deliveryBonus,
+            int seriesId,
+            @Nullable UUID soloWorker,
+            boolean charged) {
         this.id = id;
         this.owner = owner;
         this.name = Texts.trimLeft(name, 32);
@@ -162,6 +223,7 @@ public class SimpleOrder implements ISimpleOrder {
         this.deliveryBonus = deliveryBonus;
         this.seriesId = seriesId;
         this.soloWorker = soloWorker;
+        this.charged = charged;
     }
 
     public FullOrder toFullOrder(List<OrderContent> contents) {
@@ -178,6 +240,7 @@ public class SimpleOrder implements ISimpleOrder {
                 deliveryBonus,
                 seriesId,
                 soloWorker,
+                charged,
                 contents);
     }
 
@@ -249,6 +312,11 @@ public class SimpleOrder implements ISimpleOrder {
     @Override
     public OrderState state() {
         return state;
+    }
+
+    @Override
+    public boolean charged() {
+        return charged;
     }
 
     @Override

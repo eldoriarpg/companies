@@ -131,6 +131,24 @@ public abstract class OrderLineDataContract {
     }
 
     @Test
+    void anOrderRemembersWhetherItsOwnerWasCharged() {
+        var charged = place(plainLine(Material.OAK_LOG, 5, 10.0));
+        orders.submitOrder(
+                        owner,
+                        new SimpleOrder(owner.getUniqueId(), "free", 0.0, false)
+                                .toFullOrder(List.of(plainLine(Material.OAK_LOG, 5, 10.0))))
+                .join();
+        var uncharged = orders.retrieveOrdersByPlayer(owner, OrderState.UNCLAIMED, OrderState.RECEIVED)
+                .join()
+                .getLast();
+
+        assertTrue(orders.retrieveOrderById(charged.id()).join().orElseThrow().charged());
+        assertFalse(
+                orders.retrieveOrderById(uncharged.id()).join().orElseThrow().charged());
+        assertFalse(orders.retrieveFullOrder(uncharged).join().charged());
+    }
+
+    @Test
     void criteriaLinesStayOutOfPricesAndVolumes() {
         var delivered = place(criteriaLine(10, 1000.0), plainLine(Material.OAK_LOG, 10, 20.0));
         state(delivered, OrderState.DELIVERED);

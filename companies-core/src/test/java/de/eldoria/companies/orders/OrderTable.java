@@ -35,11 +35,22 @@ public record OrderTable(SqLiteOrderData orderData, OfflinePlayer owner) {
     }
 
     public SimpleOrder place(double fee) {
+        return place(fee, true);
+    }
+
+    /**
+     * Places an order of the owner, charged or not.
+     *
+     * @param fee     the fee of the order
+     * @param charged whether the owner paid for it
+     * @return the placed order
+     */
+    public SimpleOrder place(double fee, boolean charged) {
         var contents = List.of(
                 new OrderContent(0, new ItemStack(Material.STONE), false, 10, 100.0),
                 new OrderContent(1, new ItemStack(Material.DIRT), false, 5, 50.0));
         orderData
-                .submitOrder(owner, new SimpleOrder(owner.getUniqueId(), "test", fee).toFullOrder(contents))
+                .submitOrder(owner, new SimpleOrder(owner.getUniqueId(), "test", fee, charged).toFullOrder(contents))
                 .join();
         var orders = orderData
                 .retrieveOrdersByPlayer(owner, OrderState.UNCLAIMED, OrderState.RECEIVED)

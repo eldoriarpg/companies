@@ -118,6 +118,10 @@ public final class Cancel {
     }
 
     private void sendCanceled(Player player, FullOrder order, Economy economy) {
+        if (!order.charged()) {
+            deps.messages().sendMessage(player, "order.cancel.canceledUncharged");
+            return;
+        }
         var money = Replacement.create("money", economy.format(order.price()));
         if (order.fee() > 0) {
             deps.messages()

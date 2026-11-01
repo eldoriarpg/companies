@@ -440,6 +440,7 @@ public final class Payloads {
      * @param refundOnCancel  what cancelling with a refund gives the owner back
      * @param keptOnCancel    what cancelling without a refund hands to the collector
      * @param refundOnDeliver what marking it delivered refunds the owner for the missing items
+     * @param charged         whether the owner paid for it; an order created without charge refunds nothing
      */
     public record AdminOrder(
             int id,
@@ -456,7 +457,8 @@ public final class Payloads {
             List<AdminOrderLine> lines,
             double refundOnCancel,
             double keptOnCancel,
-            double refundOnDeliver) {}
+            double refundOnDeliver,
+            boolean charged) {}
 
     /**
      * One line of an order as an admin sees it.

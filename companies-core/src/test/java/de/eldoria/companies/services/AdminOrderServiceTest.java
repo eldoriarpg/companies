@@ -16,6 +16,7 @@ import de.eldoria.companies.data.wrapper.company.CompanyDetails;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.history.HistoryEntry;
 import de.eldoria.companies.data.wrapper.order.DeliveredStack;
+import de.eldoria.companies.data.wrapper.order.FullOrder;
 import de.eldoria.companies.data.wrapper.order.OrderContent;
 import de.eldoria.companies.data.wrapper.order.ReturnKind;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
@@ -245,6 +246,34 @@ class AdminOrderServiceTest {
     }
 
     @Test
+    void anUnchargedOrderRefundsAndCollectsNothing() {
+        var placed = orders.full(orders.place(FEE));
+        var order = uncharged(placed);
+
+        assertEquals(new AdminOrderService.CancelMoney(0, 0), AdminOrderService.cancelMoney(order, true));
+        assertEquals(new AdminOrderService.CancelMoney(0, 0), AdminOrderService.cancelMoney(order, false));
+        assertEquals(0.0, AdminOrderService.undeliveredRefund(order));
+    }
+
+    private static FullOrder uncharged(FullOrder order) {
+        return new FullOrder(
+                order.id(),
+                order.owner(),
+                order.name(),
+                order.created(),
+                order.company(),
+                order.claimed(),
+                order.state(),
+                order.fee(),
+                order.extensions(),
+                order.deliveryBonus(),
+                order.seriesId().orElse(0),
+                order.soloWorker().orElse(null),
+                false,
+                order.contents());
+    }
+
+    @Test
     void cancelWithRefundReturnsPriceAndFee() {
         var order = orders.full(orders.place(FEE));
 
@@ -384,6 +413,19 @@ class AdminOrderServiceTest {
         assertEquals(List.of(HistoryOutcome.CANCELLED_BY_ADMIN), ownerOutcomes());
         assertEquals(List.of(HistoryOutcome.CANCELLED_BY_ADMIN), companyOutcomes());
         assertEquals(List.of("company cancelled " + COMPANY, "owner cancelled 155.0"), notices);
+    }
+
+    @Test
+    void cancelOfAnUnchargedOrderRefundsAndCollectsNothing() {
+        var order = orders.place(0.0, false);
+
+        AdminOrderService.Cancelled cancelled =
+                done(service.cancel(order.id(), true).join());
+
+        assertEquals(new AdminOrderService.CancelMoney(0, 0), cancelled.money());
+        assertTrue(refunded.isEmpty());
+        assertEquals(0.0, collected.get());
+        assertTrue(orders.orderData().retrieveOrderById(order.id()).join().isEmpty());
     }
 
     @Test

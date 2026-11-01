@@ -479,6 +479,8 @@ export interface AdminOrder {
     keptOnCancel: number
     /** What marking it delivered refunds the owner for the missing items. */
     refundOnDeliver: number
+    /** Whether the owner paid for it; an order created without charge refunds nothing. */
+    charged: boolean
 }
 
 /** An order of a page of an admin search. */
@@ -1288,7 +1290,7 @@ export interface WriteActions {
     'admin.orders.info': {args: OrderRef, result: AdminOrder}
     'admin.orders.search': {args: {player?: string, company?: string, page: number}, result: AdminOrderPage}
     'admin.orders.unclaim': {args: OrderRef, result: OrderRef & {workers: number}}
-    'admin.orders.cancel': {args: OrderRef & {refund: boolean}, result: OrderRef & {refunded: number, collected: number}}
+    'admin.orders.cancel': {args: OrderRef & {refund: boolean}, result: OrderRef & {refunded: number, collected: number, charged: boolean}}
     'admin.orders.deliver': {args: OrderRef, result: OrderRef & {refund: number}}
     'admin.orders.extend': {args: OrderRef & {hours: number}, result: OrderRef & {hours: number}}
     'admin.players.lookup': {args: PlayerName, result: AdminPlayer}
@@ -1371,7 +1373,7 @@ export interface WriteActions {
     'orders.deliver.collect': {args: Record<string, never>, result: {received: number, remaining: number}}
     'orders.accept': {args: OrderRef, result: OrderRef}
     'orders.accept.abort': {args: OrderRef, result: OrderRef}
-    'orders.own.cancel': {args: OrderRef & {quote?: boolean}, result: OrderRef & {repeating?: boolean}}
+    'orders.own.cancel': {args: OrderRef & {quote?: boolean}, result: OrderRef & {repeating?: boolean, charged?: boolean}}
     'orders.own.extend': {args: OrderRef, result: OrderRef & {left: number, refundInSeconds: number}}
     'orders.own.raise': {
         args: OrderRef & {increase: number, quote?: boolean}

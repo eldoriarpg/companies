@@ -98,4 +98,14 @@ public interface ISimpleOrder {
      * @return fee of the order
      */
     double fee();
+
+    /**
+     * Whether the owner paid for the order. An order a plugin created without charging its owner refunds nothing when
+     * it is cancelled or expires.
+     *
+     * @return true when the owner was charged, true by default for implementations that do not know
+     */
+    default boolean charged() {
+        return true;
+    }
 }

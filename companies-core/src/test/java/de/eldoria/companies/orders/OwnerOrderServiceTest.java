@@ -154,6 +154,30 @@ class OwnerOrderServiceTest {
     }
 
     @Test
+    void cancellingAnUnchargedOrderRefundsAndCollectsNothing() {
+        var order = orders.place(0.0, false);
+
+        done(service.cancel(owner, order.id()).join());
+
+        assertEquals(0.0, wallet());
+        assertEquals(0.0, collected.get());
+        assertFalse(exists(order));
+    }
+
+    @Test
+    void anUnchargedOrderCanNotBeRaised() {
+        var order = orders.place(0.0, false);
+
+        assertRefused(
+                "order.raise.error.uncharged",
+                service.raiseQuote(owner, order.id(), 10).join());
+        assertRefused(
+                "order.raise.error.uncharged",
+                service.raise(owner, order.id(), 10).join());
+        assertEquals(0.0, wallet());
+    }
+
+    @Test
     void onlyTheOwnerCancelsAnUnclaimedOrder() {
         var order = orders.place(FEE);
 

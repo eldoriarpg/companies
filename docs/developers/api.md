@@ -374,7 +374,8 @@ not air. A line that breaks one of these rules throws an `IllegalArgumentExcepti
   be saved, the money is refunded. Cancelling and removing the order refund the owner as usual.
 - `charge(false)`: the server funds the order. Nothing is taken and the fee is 0. The workers are still paid the full
   price when the order is completed, so this money is created at that point. Cancelling or removing such an order
-  refunds nothing, because nothing was paid. Use this for rewards and quests.
+  refunds nothing, because nothing was paid; `charged()` on the order says so. Its owner can not raise its price
+  either. Use this for rewards and quests.
 
 **`respectLimits`: which limits apply**
 

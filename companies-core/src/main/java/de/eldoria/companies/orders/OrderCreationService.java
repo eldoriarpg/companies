@@ -50,7 +50,9 @@ import java.util.logging.Logger;
  * <p>
  * The fee of a charged order is lowered by the fee reductions of the server events running now, see
  * {@link FeeReductions}, read off the main thread before the owner is charged; the order stores the lowered fee.
- * Uncharged orders are funded by the server: nothing is withdrawn and the order stores a fee of 0.
+ * Uncharged orders are funded by the server: nothing is withdrawn and the order stores a fee of 0. An uncharged order
+ * a plugin created is stored as such and refunds nothing when it is cancelled or expires; system orders are paid by
+ * their account and count as charged.
  */
 public final class OrderCreationService {
     private final AOrderData orderData;
@@ -205,7 +207,7 @@ public final class OrderCreationService {
                 .thenCompose(order -> checkActive(owner, order, respectLimits))
                 .thenCompose(order -> reduce(order, charge))
                 .thenApplyAsync(order -> charge(owner, order, charge), mainThread)
-                .thenCompose(order -> save(owner, order, source))
+                .thenCompose(order -> save(owner, order, source, charge || source == OrderSource.SYSTEM))
                 .handle(OrderCreationService::outcome);
     }
 
@@ -344,10 +346,15 @@ public final class OrderCreationService {
         return fee;
     }
 
-    private CompletableFuture<Outcome> save(OfflinePlayer owner, PendingOrder order, OrderSource source) {
+    /**
+     * Saves the order, remembering whether it was charged. An order of the server counts as charged, as its account
+     * paid for it; only an order a plugin created without charging its owner is not, and refunds nothing.
+     */
+    private CompletableFuture<Outcome> save(
+            OfflinePlayer owner, PendingOrder order, OrderSource source, boolean charged) {
         var price = order.builder().price();
         return orderData
-                .submitOrder(owner, order.builder().build(order.fee()))
+                .submitOrder(owner, order.builder().build(order.fee(), charged))
                 .asFuture()
                 .exceptionally(err -> {
                     logger.log(Level.SEVERE, "Could not save order", err);

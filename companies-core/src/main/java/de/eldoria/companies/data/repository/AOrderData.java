@@ -824,7 +824,8 @@ public abstract class AOrderData {
                 row.getInt("extensions"),
                 row.getInt("delivery_bonus"),
                 row.getInt("series_id"),
-                row.get("solo_worker", UUID_BYTES));
+                row.get("solo_worker", UUID_BYTES),
+                row.getBoolean("charged"));
     }
 
     public BukkitFutureResult<List<FullOrder>> retrieveFullOrders(List<SimpleOrder> orders) {

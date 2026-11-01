@@ -90,7 +90,7 @@ const rows = computed(() => found.value.map(order => ({
         <ProgressBar :value="row.totals.progress" :label="t('portfolio.filled', {name: row.order.name})"/>
         <span v-if="row.waiting > 0" class="text-xs font-semibold text-accent">{{ t('portfolio.toCollect', {count: count(row.waiting, locale)}) }}</span>
         <OwnOrderReceive v-if="delivers && row.order.state === OrderState.DELIVERED" :order="row.order.id" :name="row.order.name" @received="text => done = text"/>
-        <OwnOrderActions v-if="manageable && row.order.state === OrderState.UNCLAIMED" :order="row.order" @cancelled="name => done = t('own.cancelled', {name})"/>
+        <OwnOrderActions v-if="manageable && row.order.state === OrderState.UNCLAIMED" :order="row.order" @cancelled="(name, refunded) => done = t(refunded ? 'own.cancelled' : 'own.cancelledUncharged', {name})"/>
       </li>
     </PlainList>
   </PanelBox>
