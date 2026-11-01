@@ -1,7 +1,8 @@
 # Companies demo network
 
 A Velocity proxy with two Paper servers, `hub` (primary) and `lands` (secondary), sharing MariaDB and Redis, and
-the web dashboard. `compose.yml` is the blueprint of the public demo at `demo.companies.eldoria.de`.
+the web dashboard. `compose.yml` is the blueprint of the public demo: the game at `demo.companies.eldoria.de`, the
+dashboard at `demo-companies.eldoria.de`.
 
 | Service | Purpose |
 |---|---|
@@ -128,7 +129,7 @@ environment.
 | Setting | Default | What it is |
 |---|---|---|
 | `DEMO_TAG` | `latest` | Image tag: `latest` for the newest release, `dev` for `main` |
-| `DEMO_HOST` | `demo.companies.eldoria.de` | Host name of the dashboard |
+| `DEMO_HOST` | `demo-companies.eldoria.de` | Host name of the dashboard |
 | `TRAEFIK_NETWORK` | `traefik` | The existing Traefik's external Docker network |
 | `TRAEFIK_ENTRYPOINT` | `websecure` | Traefik's HTTPS entry point |
 | `TRAEFIK_CERTRESOLVER` | `letsencrypt` | Traefik's certificate resolver |
@@ -137,6 +138,10 @@ environment.
 | `RESET_AT` | `04:00` | Time of the nightly reset |
 | `COOKIE_SECURE` | `true` | Whether the dashboard cookie needs HTTPS |
 | `DOCKER_SOCKET` | `/var/run/docker.sock` | Socket of the Docker daemon running the demo, which the reset uses to stop and start the nodes; rootless Docker: `/run/user/<uid>/docker.sock` |
+
+Behind a router that picks the server by host name, such as mc-router, publish no port: a `compose.override.yml`
+next to `compose.yml` sets `ports: !reset []` on `velocity` and puts it on the router's network, where the router
+reaches it on port 25577.
 
 The dashboard is reached through the existing Traefik; Velocity's port is published for the Minecraft proxy in front
 of it, which routes players to the demo.
