@@ -1020,6 +1020,7 @@ export default {
                     sources: 'Shop plugins prices may be read from',
                     adminOnly: 'Shop plugins whose player shops do not count',
                     zshopEconomies: 'zShop economies paying in the main currency (empty: all)',
+                    shopkeepersCurrencyValue: 'Money one Shopkeepers currency item is worth (0: Shopkeepers is not read)',
                     sampleMinutes: 'Minutes between two samples of the shop offers',
                     days: 'Days of shop trades and offers that count',
                     minTrades: 'Fewest trades a shop price goes by',

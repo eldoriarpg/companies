@@ -27,9 +27,9 @@ class KnownPriceHooksTest {
             ids.add(source.id());
         }
 
-        assertEquals(Set.of("economyshopgui", "shopguiplus", "zshop"), ids);
+        assertEquals(Set.of("economyshopgui", "shopguiplus", "zshop", "chestshop", "shopkeepers"), ids);
         assertEquals(
-                Set.of("EconomyShopGUI", "EconomyShopGUI-Premium", "ShopGUIPlus", "zShop"),
+                Set.of("EconomyShopGUI", "EconomyShopGUI-Premium", "ShopGUIPlus", "zShop", "ChestShop", "Shopkeepers"),
                 PriceHooks.KNOWN.keySet().stream().collect(Collectors.toSet()));
     }
 }

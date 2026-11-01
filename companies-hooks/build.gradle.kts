@@ -22,6 +22,12 @@ repositories {
             includeGroup("com.github.brcdev-minecraft")
         }
     }
+    maven("https://repo.minebench.de/") {
+        content { includeGroup("com.acrobot.chestshop") }
+    }
+    maven("https://raw.githubusercontent.com/Shopkeepers/Repository/main/releases/") {
+        content { includeGroup("com.nisovin.shopkeepers") }
+    }
     maven("https://repo.groupez.dev/releases") {
         content {
             includeGroup("fr.maxlego08.shop")
@@ -65,6 +71,12 @@ dependencies {
     compileOnly(libs.zmenu) {
         isTransitive = false
     }
+    compileOnly(libs.chestshop) {
+        isTransitive = false
+    }
+    compileOnly(libs.shopkeepers) {
+        isTransitive = false
+    }
 
     testImplementation(project(":companies-core"))
     testImplementation(libs.economyshopgui) {
@@ -77,6 +89,12 @@ dependencies {
         isTransitive = false
     }
     testImplementation(libs.zmenu) {
+        isTransitive = false
+    }
+    testImplementation(libs.chestshop) {
+        isTransitive = false
+    }
+    testImplementation(libs.shopkeepers) {
         isTransitive = false
     }
 }

@@ -22,6 +22,7 @@ public class PriceSettings {
     private Map<String, Boolean> sources = new LinkedHashMap<>();
     private List<String> adminOnly = new ArrayList<>();
     private List<String> zshopEconomies = new ArrayList<>();
+    private double shopkeepersCurrencyValue = 0;
     private int sampleMinutes = 30;
     private int days = 14;
     private int minTrades = 5;
@@ -99,6 +100,19 @@ public class PriceSettings {
 
     public void zshopEconomies(List<String> zshopEconomies) {
         this.zshopEconomies = new ArrayList<>(zshopEconomies);
+    }
+
+    /**
+     * Shopkeepers prices are counts of currency items, emeralds by default, so this says what one is worth.
+     *
+     * @return the money one currency item of Shopkeepers is worth, 0 while Shopkeepers is not read
+     */
+    public double shopkeepersCurrencyValue() {
+        return Double.isFinite(shopkeepersCurrencyValue) ? Math.max(0, shopkeepersCurrencyValue) : 0;
+    }
+
+    public void shopkeepersCurrencyValue(double shopkeepersCurrencyValue) {
+        this.shopkeepersCurrencyValue = shopkeepersCurrencyValue;
     }
 
     /**

@@ -90,6 +90,12 @@ pluginManifest {
     optional("zShop") {
         link("https://www.spigotmc.org/resources/74073/")
     }
+    optional("ChestShop") {
+        link("https://www.spigotmc.org/resources/51856/")
+    }
+    optional("Shopkeepers") {
+        link("https://www.spigotmc.org/resources/80756/")
+    }
 }
 
 tasks {
@@ -148,7 +154,9 @@ bukkit {
         "EconomyShopGUI-Premium",
         "ShopGUIPlus",
         "zShop",
-        "zMenu"
+        "zMenu",
+        "ChestShop",
+        "Shopkeepers"
     )
 
     permissions {
