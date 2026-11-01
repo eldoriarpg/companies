@@ -39,13 +39,13 @@ const manages = computed(() => {
 const delivers = computed(() => supports(Feature['orders.deliver']))
 const done = ref('')
 const now = useNow({interval: 60_000})
-const enchantments = (value: number) => t('builder.atLeastEnchantments', {count: value})
-const {query, found} = useListSearch(toRef(props, 'orders'), order => [order.name, ...order.lines.map(line => lineName(line, enchantments))])
+const conditions = useConditionTexts()
+const {query, found} = useListSearch(toRef(props, 'orders'), order => [order.name, ...order.lines.map(line => lineName(line, conditions))])
 
 const rows = computed(() => found.value.map(order => ({
   order,
   totals: totalsOf(order.lines),
-  items: itemsText(order.lines, value => count(value, locale.value), enchantments),
+  items: itemsText(order.lines, value => count(value, locale.value), conditions),
   left: order.deadline ? t('portfolio.hoursLeft', {hours: hoursLeft(order.deadline, now.value)}) : '',
 })))
 </script>

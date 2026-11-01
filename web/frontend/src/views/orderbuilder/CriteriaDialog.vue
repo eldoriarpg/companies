@@ -13,15 +13,17 @@ import ItemMark from '@/components/display/ItemMark.vue'
 import Modal from '@/components/feedback/Modal.vue'
 import NumberInput from '@/components/input/NumberInput.vue'
 import SearchSelectInput from '@/components/input/SearchSelectInput.vue'
+import SelectInput from '@/components/input/SelectInput.vue'
 import SectionHeader from '@/components/typography/SectionHeader.vue'
 import MutedText from '@/components/typography/MutedText.vue'
 import {criteriaSource, entryName, type LineSource, roman} from '~/util/orderDraft'
 
 /**
  * Builds a criteria line: any item of a set of materials and item tags, mixed, optionally with at least a number of
- * enchantments and with chosen enchantments at a minimum level. Entries and enchantments are added by typing and
- * removed again beside their name. Given the criteria of a line already there, the dialog opens on them to change
- * them instead.
+ * enchantments, with chosen enchantments at a minimum level, of one potion type and with at least a share of durability
+ * left. Entries and enchantments are added by typing and removed again beside their name. The potion type is offered
+ * while the set holds potions, the durability while it holds items that have durability, or while one is chosen. Given
+ * the criteria of a line already there, the dialog opens on them to change them instead.
  */
 const open = defineModel<boolean>('open', {required: true})
 
@@ -42,6 +44,8 @@ const enchantments = ref<Record<string, number>>({})
 const pickedItem = ref('')
 const pickedEnchantment = ref('')
 const level = ref<number | undefined>(1)
+const potion = ref('')
+const minDurability = ref<number | undefined>(0)
 
 const itemOptions = computed(() => [
   ...(props.catalogue.tags ?? []).map(tag => ({value: tag.key, label: tag.name, group: t('builder.tags')})),
@@ -50,11 +54,23 @@ const itemOptions = computed(() => [
 const enchantmentOptions = computed(() => props.catalogue.enchantments
   .filter(entry => !(entry.key in enchantments.value))
   .map(entry => ({value: entry.key, label: entry.name})))
+const setMaterials = computed(() => items.value
+  .flatMap(entry => (entry.startsWith('#') ? props.catalogue.tags?.find(tag => tag.key === entry)?.materials ?? [] : [entry]))
+  .map(key => props.catalogue.materials.find(material => material.item.material === key))
+  .filter(material => material !== undefined))
+const potionOptions = computed(() => [
+  {value: '', label: t('builder.anyPotion')},
+  ...props.catalogue.potions.map(entry => ({value: entry.key, label: entry.name})),
+])
+const showPotion = computed(() => potion.value !== '' || setMaterials.value.some(material => material.potion))
+const showDurability = computed(() => (minDurability.value ?? 0) > 0 || setMaterials.value.some(material => material.damageable))
 const chosenEnchantment = computed(() => props.catalogue.enchantments.find(entry => entry.key === pickedEnchantment.value))
 const criteria = computed<CriteriaArgs>(() => ({
   items: items.value,
   minEnchantments: Math.max(0, minEnchantments.value ?? 0),
   enchantments: enchantments.value,
+  ...(potion.value ? {potion: potion.value} : {}),
+  ...((minDurability.value ?? 0) > 0 ? {minDurability: Math.min(100, minDurability.value ?? 0)} : {}),
 }))
 const source = computed(() => (items.value.length > 0 ? criteriaSource(criteria.value, props.catalogue) : null))
 
@@ -70,6 +86,8 @@ watch(open, isOpen => {
   items.value = [...(props.editing?.items ?? [])]
   minEnchantments.value = props.editing?.minEnchantments ?? 0
   enchantments.value = {...(props.editing?.enchantments ?? {})}
+  potion.value = props.editing?.potion ?? ''
+  minDurability.value = props.editing?.minDurability ?? 0
   pickedEnchantment.value = ''
   level.value = 1
 }, {immediate: true})
@@ -144,6 +162,11 @@ function add(): void {
           <IconButton icon="trash" :label="t('builder.remove', {name: catalogue.enchantments.find(entry => entry.key === key)?.name ?? String(key)})" @click="removeEnchantment(String(key))"/>
         </li>
       </ul>
+      <template v-if="showPotion || showDurability">
+        <SectionHeader :note="t('builder.itemConditionsNote')">{{ t('builder.itemConditions') }}</SectionHeader>
+        <SelectInput v-if="showPotion" v-model="potion" :label="t('builder.potion')" :options="potionOptions"/>
+        <NumberInput v-if="showDurability" v-model="minDurability" :label="t('builder.minDurability')" :min="0" :max="100"/>
+      </template>
       <ButtonRow>
         <SecondaryButton data-cancel @click="open = false">{{ t('builder.cancel') }}</SecondaryButton>
         <PrimaryButton :disabled="!source" @click="add">{{ editing ? t('builder.save') : t('builder.add') }}</PrimaryButton>

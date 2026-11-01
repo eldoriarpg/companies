@@ -19,8 +19,10 @@ import java.util.regex.Pattern;
  * <p>
  * Entries are separated by spaces or commas. An entry starting with {@code #} is an item tag, {@code enchants:<n>} is
  * the fewest enchantments an item must carry, {@code <enchantment>:<level>} requires an enchantment at a minimum level,
- * and every other entry is a material. A count or level that is no number, negative or given twice is refused. Keys
- * may carry a namespace, such as {@code minecraft:sharpness:3}.
+ * {@code potion:<type>} takes only items of a potion type, {@code durability:<percent>} only items with at least that
+ * share of durability left, and every other entry is a material. A count, level or share that is no number, out of
+ * range or given twice, and a second potion, are refused. Keys may carry a namespace, such as
+ * {@code minecraft:sharpness:3} or {@code potion:minecraft:swiftness}.
  */
 public final class CriteriaSyntax {
     /**
@@ -28,9 +30,21 @@ public final class CriteriaSyntax {
      */
     public static final String COUNT = "enchants";
 
+    /**
+     * The entry that sets the potion type.
+     */
+    public static final String POTION = "potion";
+
+    /**
+     * The entry that sets the least share of durability left.
+     */
+    public static final String DURABILITY = "durability";
+
     private static final Pattern SEPARATOR = Pattern.compile("[\\s,]+");
     private static final Pattern LEVELLED = Pattern.compile("(.+):(-?\\d+)");
-    private static final Pattern COUNTED = Pattern.compile(COUNT + ":.*", Pattern.CASE_INSENSITIVE);
+    private static final Pattern COUNTED =
+            Pattern.compile("(" + COUNT + "|" + DURABILITY + "):.*", Pattern.CASE_INSENSITIVE);
+    private static final Pattern POTIONED = Pattern.compile(POTION + ":(.*)", Pattern.CASE_INSENSITIVE);
 
     private CriteriaSyntax() {
         throw new UnsupportedOperationException("This is a utility class.");
@@ -49,7 +63,8 @@ public final class CriteriaSyntax {
         var entry = entries.getFirst();
         return ItemCriteria.isTag(entry)
                 || LEVELLED.matcher(entry).matches()
-                || COUNTED.matcher(entry).matches();
+                || COUNTED.matcher(entry).matches()
+                || POTIONED.matcher(entry).matches();
     }
 
     /**
@@ -63,7 +78,15 @@ public final class CriteriaSyntax {
         List<String> items = new ArrayList<>();
         List<ItemCriteria.Required> enchantments = new ArrayList<>();
         Integer count = null;
+        Integer durability = null;
+        String potion = null;
         for (var entry : entries(text)) {
+            var potioned = POTIONED.matcher(entry);
+            if (potioned.matches()) {
+                if (potion != null || potioned.group(1).isBlank()) throw failure(entry);
+                potion = potioned.group(1);
+                continue;
+            }
             var levelled = LEVELLED.matcher(entry);
             if (!levelled.matches() && COUNTED.matcher(entry).matches()) throw failure(entry);
             if (ItemCriteria.isTag(entry) || !levelled.matches()) {
@@ -80,6 +103,9 @@ public final class CriteriaSyntax {
             if (key.equalsIgnoreCase(COUNT)) {
                 if (count != null || level < 0) throw failure(entry);
                 count = level;
+            } else if (key.equalsIgnoreCase(DURABILITY)) {
+                if (durability != null || level < 1 || level > ItemCriteria.MAX_DURABILITY) throw failure(entry);
+                durability = level;
             } else if (level < 1 || enchantments.stream().anyMatch(other -> sameKey(other.enchantment(), key))) {
                 throw failure(entry);
             } else {
@@ -88,7 +114,8 @@ public final class CriteriaSyntax {
         }
         if (items.isEmpty()) throw failure(text.strip());
         try {
-            return new ItemCriteria(items, count == null ? 0 : count, enchantments);
+            return new ItemCriteria(
+                    items, count == null ? 0 : count, enchantments, potion, durability == null ? 0 : durability);
         } catch (IllegalArgumentException e) {
             throw failure(text.strip());
         }
@@ -98,7 +125,7 @@ public final class CriteriaSyntax {
      * Writes criteria in the text form, so they can be shown and entered again.
      *
      * @param criteria the criteria
-     * @return the text, such as {@code #logs bamboo_block enchants:2 sharpness:3}
+     * @return the text, such as {@code #logs bamboo_block enchants:2 sharpness:3 durability:80}
      */
     public static String format(ItemCriteria criteria) {
         List<String> entries = new ArrayList<>();
@@ -111,6 +138,9 @@ public final class CriteriaSyntax {
         for (var required : criteria.enchantments()) {
             entries.add(shortKey(required.enchantment()) + ":" + required.minLevel());
         }
+        var potion = criteria.potion();
+        if (potion != null) entries.add(POTION + ":" + shortKey(potion));
+        if (criteria.minDurability() > 0) entries.add(DURABILITY + ":" + criteria.minDurability());
         return String.join(" ", entries);
     }
 

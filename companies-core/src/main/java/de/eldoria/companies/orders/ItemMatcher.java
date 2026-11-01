@@ -31,7 +31,8 @@ import java.util.stream.Collectors;
  * An offered item matches a requested item when it has the same type, holds no container or bundle content, is
  * undamaged unless damaged items are allowed, and carries every component the request overrides with the same value.
  * Components the offer adds on top of the request, ignored components and damage never decide a match. An offer that
- * removes a component the request keeps does not match.
+ * removes a component the request keeps does not match. Criteria lines match by their criteria instead, see
+ * {@link #matches(ItemStack, ItemCriteria, ItemStack)}.
  * <p>
  * The matcher is immutable and built from the settings on load and on reload.
  */
@@ -116,8 +117,9 @@ public final class ItemMatcher {
      * Checks whether an offered item may be delivered for a request.
      * <p>
      * Without criteria the template decides, see {@link #matches(ItemStack, ItemStack)}. With criteria the item's
-     * material has to be in their set and the item has to meet their enchantment conditions; other data does not
-     * matter. Items with container content and, unless allowed, damaged items never match.
+     * material has to be in their set and the item has to meet their enchantment and potion conditions; other data
+     * does not matter. Items with container content never match. A durability condition decides about damaged items
+     * for its line; without one, damaged items match only when allowed.
      *
      * @param template template of the order line
      * @param criteria criteria of a criteria line, null for material and exact lines
@@ -128,14 +130,40 @@ public final class ItemMatcher {
         if (criteria == null) return matches(template, offered);
         if (!criteria.accepts(offered.getType())) return false;
         if (hasContent(offered)) return false;
-        if (!allowDamaged && isDamaged(offered)) return false;
+        if (criteria.minDurability() > 0) {
+            if (!durable(offered, criteria.minDurability())) return false;
+        } else if (!allowDamaged && isDamaged(offered)) {
+            return false;
+        }
+        var potion = criteria.potion();
+        if (potion != null && !potion.equals(potion(offered))) return false;
         return meets(criteria, enchantments(offered));
+    }
+
+    private static boolean customPotion(ItemStack stack) {
+        var contents = stack.getData(DataComponentTypes.POTION_CONTENTS);
+        return contents != null
+                && (!contents.customEffects().isEmpty()
+                        || contents.customColor() != null
+                        || contents.customName() != null);
+    }
+
+    /**
+     * The potion type an item holds.
+     *
+     * @param stack the item
+     * @return the key of its potion type, such as {@code minecraft:swiftness}; null without one
+     */
+    public static @Nullable String potion(ItemStack stack) {
+        var contents = stack.getData(DataComponentTypes.POTION_CONTENTS);
+        var type = contents == null ? null : contents.potion();
+        return type == null ? null : type.getKey().toString();
     }
 
     /**
      * Counts what an offer brings beyond a request: the extra components for a template; for criteria the enchantments
-     * beyond the required count and every other component the item carries, leaving out ignored components and
-     * damage.
+     * beyond the required count and every other component the item carries, leaving out ignored components, damage
+     * and the potion a potion condition asks for, unless the potion also carries custom effects, a colour or a name.
      *
      * @param template template of the order line
      * @param criteria criteria of a criteria line, null for material and exact lines
@@ -148,6 +176,9 @@ public final class ItemMatcher {
                 .filter(offered::isDataOverridden)
                 .filter(type -> !ignored.contains(type))
                 .filter(type -> !ENCHANTMENT_TYPES.contains(type) && !type.equals(DataComponentTypes.DAMAGE))
+                .filter(type -> criteria.potion() == null
+                        || !type.equals(DataComponentTypes.POTION_CONTENTS)
+                        || customPotion(offered))
                 .count();
         return components + Math.max(0, enchantments(offered).size() - criteria.minEnchantments());
     }
@@ -252,6 +283,20 @@ public final class ItemMatcher {
                 .filter(offered::isDataOverridden)
                 .filter(type -> !requested.isDataOverridden(type))
                 .collect(Collectors.toSet());
+    }
+
+    /**
+     * Whether an item has at least a share of its durability left. Items without durability always have.
+     *
+     * @param offered the item
+     * @param percent the share, in percent
+     * @return true when enough is left
+     */
+    private static boolean durable(ItemStack offered, int percent) {
+        var maxDamage = offered.getData(DataComponentTypes.MAX_DAMAGE);
+        if (maxDamage == null || maxDamage <= 0) return true;
+        long left = maxDamage - Math.max(0, damageOf(offered));
+        return left * 100 >= (long) percent * maxDamage;
     }
 
     private static boolean isDamaged(ItemStack offered) {

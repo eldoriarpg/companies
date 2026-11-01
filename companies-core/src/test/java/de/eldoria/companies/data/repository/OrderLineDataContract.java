@@ -193,6 +193,21 @@ public abstract class OrderLineDataContract {
     }
 
     @Test
+    void potionConditionsAreNoDemandAndFoundOnlyUnderPotions() {
+        var brews = ItemCriteria.of("POTION", "OAK_LOG").withPotion("swiftness");
+        place(new OrderContent(0, brews.template(), false, brews, 3, 3.0));
+        var kept = ItemCriteria.of("DIAMOND_SWORD").withMinDurability(50);
+        place(new OrderContent(0, kept.template(), false, kept, 2, 2.0));
+
+        var demand = orders.openPlayerDemand();
+
+        assertFalse(demand.containsKey("POTION"));
+        assertEquals(1, search(true, "potion").size());
+        assertEquals(0, search(true, "oak_log").size());
+        assertEquals(2, demand.get("DIAMOND_SWORD").items());
+    }
+
+    @Test
     void deletingAnOrderRemovesItsLineMaterials() {
         var order = place(criteriaLine(10, 50.0));
 

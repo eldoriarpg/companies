@@ -34,6 +34,7 @@ defineEmits<{
 }>()
 
 const {t, locale} = useI18n()
+const conditions = useConditionTexts()
 const COLUMNS = 'md:grid md:grid-cols-[minmax(0,2fr)_minmax(0,1.5fr)_5rem_5rem_5rem_6rem] md:gap-3'
 
 const rows = computed(() => props.orders.map(order => {
@@ -46,7 +47,7 @@ const rows = computed(() => props.orders.map(order => {
     item: first?.item,
     items: order.lines.length > 1
       ? t('orders.lines', {count: order.lines.length})
-      : first ? lineName(first, value => t('builder.atLeastEnchantments', {count: value})) : '',
+      : first ? lineName(first, conditions) : '',
     versus: versus === null ? null : {trend: trendOf(versus), text: `${{up: '+', down: '−', flat: ''}[trendOf(versus)]}${Math.abs(versus).toFixed(1)}%`},
   }
 }))

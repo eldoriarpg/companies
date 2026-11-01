@@ -8,6 +8,8 @@ import {describe, expect, it} from 'vitest'
 import type {OrderLineView} from '~/api/generated/protocol'
 import {itemsText, lineName, totalsOf, versusAverage} from './orders'
 
+const TEXTS = {count: (value: number) => `at least ${value}`, durability: (value: number) => `${value} % left`}
+
 /**
  * A line of an order.
  *
@@ -40,16 +42,16 @@ describe('orders', () => {
     })
 
     it('writes its items in one line', () => {
-        expect(itemsText([line('minecraft:diamond', 64, 0, 1), line('minecraft:stone', 512, 0, 1)], String, String)).toBe('diamond ×64 · stone ×512')
+        expect(itemsText([line('minecraft:diamond', 64, 0, 1), line('minecraft:stone', 512, 0, 1)], String, TEXTS)).toBe('diamond ×64 · stone ×512')
     })
 
     it('names a criteria line with its conditions', () => {
         const swords = {
             ...line('minecraft:diamond_sword', 1, 0, 1),
-            criteria: {items: [], minEnchantments: 3, enchantments: [{key: 'minecraft:sharpness', name: 'Sharpness', minLevel: 3}]},
+            criteria: {items: [], minEnchantments: 3, enchantments: [{key: 'minecraft:sharpness', name: 'Sharpness', minLevel: 3}], minDurability: 0},
         }
 
-        expect(lineName(swords, value => `at least ${value}`)).toBe('diamond_sword (at least 3, Sharpness III+)')
-        expect(lineName(line('minecraft:stone', 1, 0, 1), String)).toBe('stone')
+        expect(lineName(swords, TEXTS)).toBe('diamond_sword (at least 3, Sharpness III+)')
+        expect(lineName(line('minecraft:stone', 1, 0, 1), TEXTS)).toBe('stone')
     })
 })

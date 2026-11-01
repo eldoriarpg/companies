@@ -128,4 +128,27 @@ class CriteriaSyntaxTest {
         return assertThrows(CommandFailure.class, () -> CriteriaSyntax.parse(text))
                 .localeKey();
     }
+
+    @Test
+    void potionAndDurabilityAreReadAndWrittenBack() {
+        var criteria = CriteriaSyntax.parse("splash_potion potion:minecraft:Strong_Healing durability:80");
+
+        assertEquals("minecraft:strong_healing", criteria.potion());
+        assertEquals(80, criteria.minDurability());
+        assertEquals("splash_potion potion:strong_healing durability:80", CriteriaSyntax.format(criteria));
+        assertEquals(criteria, CriteriaSyntax.parse(CriteriaSyntax.format(criteria)));
+        assertTrue(CriteriaSyntax.isCriteria("potion:swiftness"));
+        assertTrue(CriteriaSyntax.isCriteria("durability:50"));
+        assertFalse(CriteriaSyntax.isCriteria("potion"));
+    }
+
+    @Test
+    void unreadablePotionAndDurabilityAreRefused() {
+        assertEquals("order.criteria.error.syntax", refusal("potion potion:swiftness potion:healing"));
+        assertEquals("order.criteria.error.syntax", refusal("potion potion:"));
+        assertEquals("order.criteria.error.syntax", refusal("diamond_sword durability:0"));
+        assertEquals("order.criteria.error.syntax", refusal("diamond_sword durability:101"));
+        assertEquals("order.criteria.error.syntax", refusal("diamond_sword durability:half"));
+        assertEquals("order.criteria.error.syntax", refusal("diamond_sword durability:50 durability:60"));
+    }
 }

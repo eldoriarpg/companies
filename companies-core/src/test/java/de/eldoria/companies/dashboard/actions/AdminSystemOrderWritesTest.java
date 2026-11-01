@@ -197,7 +197,9 @@ class AdminSystemOrderWritesTest {
         var averaged = "{\"id\":\"logs\",\"pick\":\"rotate\",\"items\":["
                 + "{\"material\":\"OAK_LOG\"},"
                 + "{\"criteria\":\"#logs\",\"resolve\":\"ONE\"},"
-                + "{\"criteria\":\"#logs\"}]}";
+                + "{\"criteria\":\"#logs\"},"
+                + "{\"criteria\":\"diamond_sword durability:50\",\"resolve\":\"ONE\"},"
+                + "{\"criteria\":\"potion potion:swiftness\",\"resolve\":\"ONE\"}]}";
 
         var saved = perform(
                 Actions.ADMIN_SYSTEM_ORDERS_RULES_SAVE,
@@ -219,6 +221,8 @@ class AdminSystemOrderWritesTest {
         assertTrue(errors.path("rules.1.pick").isMissingNode());
         assertTrue(errors.path("rules.1.items.1").isMissingNode());
         assertEquals("fixedPrice", errors.path("rules.1.items.2").asString());
+        assertEquals("fixedPrice", errors.path("rules.1.items.3").asString());
+        assertEquals("fixedPrice", errors.path("rules.1.items.4").asString());
     }
 
     @Test

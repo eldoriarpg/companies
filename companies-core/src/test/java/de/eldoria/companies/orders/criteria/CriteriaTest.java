@@ -14,6 +14,7 @@ import org.bukkit.Material;
 import org.bukkit.Tag;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.potion.PotionType;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -224,5 +225,65 @@ class CriteriaTest {
 
     private static String problem(ItemCriteria criteria) {
         return CriteriaRules.problem(criteria).map(CommandFailure::localeKey).orElse("none");
+    }
+
+    @Test
+    void potionAndDurabilityAreCheckedAgainstTheSet() {
+        var swiftness =
+                ItemCriteria.ofMaterials(Material.POTION, Material.TIPPED_ARROW).withPotion(PotionType.SWIFTNESS);
+        var keptSwords = ItemCriteria.ofMaterials(Material.DIAMOND_SWORD).withMinDurability(80);
+
+        assertEquals("minecraft:swiftness", swiftness.potion());
+        assertEquals(PotionType.SWIFTNESS, swiftness.potionType().orElseThrow());
+        assertTrue(CriteriaRules.problem(swiftness).isEmpty());
+        assertTrue(CriteriaRules.problem(keptSwords).isEmpty());
+        assertEquals(
+                "order.criteria.error.unknownPotion",
+                CriteriaRules.problem(ItemCriteria.of("POTION").withPotion("no_such_potion"))
+                        .orElseThrow()
+                        .localeKey());
+        assertEquals(
+                "order.criteria.error.potionNotApplicable",
+                CriteriaRules.problem(ItemCriteria.of("DIAMOND_SWORD").withPotion(PotionType.SWIFTNESS))
+                        .orElseThrow()
+                        .localeKey());
+        assertEquals(
+                "order.criteria.error.durabilityNotApplicable",
+                CriteriaRules.problem(ItemCriteria.of("#minecraft:logs").withMinDurability(50))
+                        .orElseThrow()
+                        .localeKey());
+        assertThrows(IllegalArgumentException.class, () -> keptSwords.withMinDurability(101));
+        assertThrows(IllegalArgumentException.class, () -> keptSwords.withMinDurability(-1));
+        assertThrows(IllegalArgumentException.class, () -> keptSwords.withPotion(" "));
+    }
+
+    @Test
+    void potionAndDurabilityAreConditions() {
+        var potions = ItemCriteria.of("POTION");
+
+        assertFalse(potions.hasConditions());
+        assertTrue(potions.withPotion("swiftness").hasConditions());
+        assertTrue(potions.withMinDurability(10).hasConditions());
+        assertFalse(potions.sameAs(potions.withPotion("swiftness")));
+        assertFalse(potions.sameAs(potions.withMinDurability(10)));
+        assertTrue(potions.withPotion("swiftness").sameAs(potions.withPotion("minecraft:swiftness")));
+        assertEquals(
+                "Potion (⚗ Long Swiftness, ⚒ ≥80 %)",
+                CriteriaText.plain(potions.withPotion("long_swiftness").withMinDurability(80)));
+    }
+
+    @Test
+    void criteriaStoredBeforePotionAndDurabilityStillParse() throws Exception {
+        var mapper = SqLiteTestDatabase.mapper();
+        var stored = "{\"items\":[\"#minecraft:logs\"],\"minEnchantments\":2,"
+                + "\"enchantments\":[{\"enchantment\":\"minecraft:unbreaking\",\"minLevel\":2}]}";
+        var withBoth = ItemCriteria.of("POTION").withPotion("swiftness").withMinDurability(50);
+
+        var read = mapper.readValue(stored, ItemCriteria.class);
+
+        assertEquals(new ItemCriteria(List.of("#minecraft:logs"), 2, List.of()).withEnchantment("unbreaking", 2), read);
+        assertNull(read.potion());
+        assertEquals(0, read.minDurability());
+        assertEquals(withBoth, mapper.readValue(mapper.writeValueAsString(withBoth), ItemCriteria.class));
     }
 }

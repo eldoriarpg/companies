@@ -292,9 +292,15 @@
           "items" : {
             "$ref" : "#/$defs/Required"
           }
+        },
+        "potion" : {
+          "$ref" : "#/$defs/Potion"
+        },
+        "minDurability" : {
+          "type" : "integer"
         }
       },
-      "required" : [ "items", "minEnchantments", "enchantments" ]
+      "required" : [ "items", "minEnchantments", "enchantments", "minDurability" ]
     },
     "DeprecatedPart" : {
       "type" : "object",
@@ -841,6 +847,18 @@
         }
       },
       "required" : [ "type", "v", "time" ]
+    },
+    "Potion" : {
+      "type" : "object",
+      "properties" : {
+        "key" : {
+          "type" : "string"
+        },
+        "name" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "key", "name" ]
     },
     "RankingEntry" : {
       "type" : "object",

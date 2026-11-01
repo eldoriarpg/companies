@@ -69,48 +69,70 @@ export function entryName(entry: string, catalogue: OrderCatalogue | null): stri
     return catalogue?.materials.find(material => material.item.material === entry)?.item.name ?? entry
 }
 
-/** Writes the enchantment count of criteria, such as "Enchantments: 2 or more". */
-export type CountText = (count: number) => string
+/** Writes the conditions of criteria that need words, in the reader's language. */
+export interface ConditionTexts {
+    /** The enchantment count, such as "Enchantments: 2 or more". */
+    count: (count: number) => string
+    /** The least durability left, such as "Durability: 80 % or more". */
+    durability: (percent: number) => string
+}
+
+/** The conditions of criteria, with their names, ready to be written as lines. */
+interface Conditions {
+    count: number
+    required: {name: string, minLevel: number}[]
+    potion?: string
+    durability: number
+}
 
 /**
- * The conditions of criteria as short lines: the enchantment count and each required enchantment with its level.
+ * The conditions of criteria as short lines: the enchantment count, each required enchantment with its level, the
+ * potion type and the durability.
  *
  * @param criteria the criteria
- * @param catalogue the enchantment names
- * @param countText writes the count
+ * @param catalogue the enchantment and potion names
+ * @param texts writes the conditions that need words
  * @returns the lines, empty without conditions
  */
-export function conditionsOf(criteria: CriteriaArgs, catalogue: OrderCatalogue | null, countText: CountText): string[] {
+export function conditionsOf(criteria: CriteriaArgs, catalogue: OrderCatalogue | null, texts: ConditionTexts): string[] {
     const required = Object.entries(criteria.enchantments ?? {}).map(([key, level]) => ({
         name: catalogue?.enchantments.find(entry => entry.key === key)?.name ?? key,
         minLevel: level,
     }))
-    return conditionLines(criteria.minEnchantments ?? 0, required, countText)
+    const potion = criteria.potion ? catalogue?.potions.find(entry => entry.key === criteria.potion)?.name ?? criteria.potion : undefined
+    return conditionLines({count: criteria.minEnchantments ?? 0, required, potion, durability: criteria.minDurability ?? 0}, texts)
 }
 
 /**
  * The conditions of a criteria line as the plugin sent them, as short lines.
  *
  * @param criteria the criteria of the line
- * @param countText writes the count
+ * @param texts writes the conditions that need words
  * @returns the lines, empty without conditions
  */
-export function viewConditions(criteria: CriteriaView, countText: CountText): string[] {
-    return conditionLines(criteria.minEnchantments, criteria.enchantments, countText)
+export function viewConditions(criteria: CriteriaView, texts: ConditionTexts): string[] {
+    return conditionLines({
+        count: criteria.minEnchantments,
+        required: criteria.enchantments,
+        potion: criteria.potion?.name,
+        durability: criteria.minDurability ?? 0,
+    }, texts)
 }
 
 /**
- * Writes conditions: the count when it asks for more than the required enchantments, then each of them.
+ * Writes conditions: the count when it asks for more than the required enchantments, each of them, the potion type
+ * and the durability.
  *
- * @param count the fewest enchantments
- * @param required the required enchantments with their names
- * @param countText writes the count
+ * @param conditions the conditions
+ * @param texts writes the conditions that need words
  * @returns the lines
  */
-function conditionLines(count: number, required: {name: string, minLevel: number}[], countText: CountText): string[] {
+function conditionLines(conditions: Conditions, texts: ConditionTexts): string[] {
     const lines: string[] = []
-    if (count > required.length) lines.push(countText(count))
-    for (const {name, minLevel} of required) lines.push(minLevel > 1 ? `${name} ${roman(minLevel)}+` : name)
+    if (conditions.count > conditions.required.length) lines.push(texts.count(conditions.count))
+    for (const {name, minLevel} of conditions.required) lines.push(minLevel > 1 ? `${name} ${roman(minLevel)}+` : name)
+    if (conditions.potion) lines.push(conditions.potion)
+    if (conditions.durability > 0) lines.push(texts.durability(conditions.durability))
     return lines
 }
 
@@ -137,13 +159,13 @@ export function criteriaSource(criteria: CriteriaArgs, catalogue: OrderCatalogue
  *
  * @param source where the item comes from
  * @param catalogue the names of the properties
- * @param countText writes the enchantment count of criteria
+ * @param texts writes the conditions of criteria that need words
  * @returns the lines, empty for a plain material
  */
-export function detailsOf(source: LineSource, catalogue: OrderCatalogue | null, countText: CountText): string[] {
+export function detailsOf(source: LineSource, catalogue: OrderCatalogue | null, texts: ConditionTexts): string[] {
     if (source.kind === 'known') return source.known.details
     if (source.kind === 'material') return []
-    if (source.kind === 'criteria') return conditionsOf(source.criteria, catalogue, countText)
+    if (source.kind === 'criteria') return conditionsOf(source.criteria, catalogue, texts)
     const {definition} = source
     const named = (entries: {key: string, name: string}[] | undefined, key: string) =>
         entries?.find(entry => entry.key === key)?.name ?? key

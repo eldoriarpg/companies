@@ -37,6 +37,7 @@ import de.eldoria.companies.data.wrapper.order.SystemOutcome;
 import de.eldoria.companies.events.player.ItemsReturnedEvent.ReturnedStack;
 import de.eldoria.companies.orders.DeliveryPart;
 import de.eldoria.companies.orders.SystemOwner;
+import de.eldoria.companies.orders.criteria.CriteriaRules;
 import de.eldoria.companies.util.Times;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.inventory.ItemStack;
@@ -136,7 +137,9 @@ public class MariaDbOrderData extends AOrderData {
 
     /**
      * One row per material a criteria line accepts, its tags resolved, so searches and demand find the line under
-     * every material it takes. A line with enchantment conditions is marked, as it is no demand for the plain items.
+     * every material it takes. A line with enchantment or potion conditions is marked, as it is no demand for the plain
+     * items; a durability condition takes plain items too. A line with a potion condition is found only under the
+     * materials that hold potions.
      *
      * @param orderId id of the order
      * @param contents lines of the order
@@ -147,8 +150,11 @@ public class MariaDbOrderData extends AOrderData {
         for (var line = 0; line < contents.size(); line++) {
             var criteria = contents.get(line).criteria();
             if (criteria.isEmpty()) continue;
-            var conditions = criteria.get().minEnchantments() > 0;
+            var conditions =
+                    criteria.get().minEnchantments() > 0 || criteria.get().potion() != null;
+            var potion = criteria.get().potion() != null;
             for (var material : criteria.get().materials()) {
+                if (potion && !CriteriaRules.holdsPotion(material)) continue;
                 rows.add(call().bind(orderId).bind(line).bind(material.name()).bind(conditions));
             }
         }

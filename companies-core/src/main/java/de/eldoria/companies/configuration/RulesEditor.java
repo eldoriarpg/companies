@@ -190,8 +190,7 @@ public final class RulesEditor {
         }
         if (CriteriaRules.problem(parsed).isPresent()) return Optional.of("unknown");
         var one = upper(resolve).equals(RuleEntry.Resolve.ONE.name());
-        var conditions = parsed.minEnchantments() > 0 || !parsed.enchantments().isEmpty();
-        if (average && (!one || conditions)) return Optional.of("fixedPrice");
+        if (average && (!one || parsed.hasConditions())) return Optional.of("fixedPrice");
         return Optional.empty();
     }
 

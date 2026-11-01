@@ -27,7 +27,7 @@ import java.util.function.Supplier;
  *     <li>A material entry orders that material; its market average can price it.</li>
  *     <li>A criteria entry with {@code resolve: ANY} orders a criteria line accepting the whole set.</li>
  *     <li>A criteria entry with {@code resolve: ONE} picks one material of the set at random, leaving out materials the
- *     server does not know, that rest, or that can not meet the enchantment conditions. Without conditions it orders
+ *     server does not know, that rest, or that can not meet the conditions. Without conditions it orders
  *     that material, which its market average can price; with them a criteria line of that one material.</li>
  *     <li>An item entry orders exactly the captured item.</li>
  * </ul>
@@ -94,15 +94,19 @@ public final class RuleItems {
                 .map(material -> material.name())
                 .filter(knows)
                 .filter(material -> !resting.get().contains(material))
-                .map(material ->
-                        new ItemCriteria(List.of(material), criteria.minEnchantments(), criteria.enchantments()))
+                .map(material -> new ItemCriteria(
+                        List.of(material),
+                        criteria.minEnchantments(),
+                        criteria.enchantments(),
+                        criteria.potion(),
+                        criteria.minDurability()))
                 .filter(single -> CriteriaRules.problem(single).isEmpty())
                 .toList();
         if (candidates.isEmpty()) return new Problem(entry.criteria());
         var single = candidates.get(
                 Math.min(candidates.size() - 1, (int) Math.floor(random.getAsDouble() * candidates.size())));
         var material = single.items().getFirst();
-        if (single.minEnchantments() == 0 && single.enchantments().isEmpty()) {
+        if (!single.hasConditions()) {
             return new Chosen(index, material, null, material);
         }
         return new Chosen(index, CriteriaText.plain(single), new Line(single.template(), false, single), null);

@@ -337,6 +337,8 @@ export interface CatalogueMaterial {
     dye: boolean
     /** Whether it takes an armour trim. */
     trim: boolean
+    /** Whether it has durability. Missing from servers before durability conditions. */
+    damageable?: boolean
 }
 
 /** An enchantment with its highest survival level and the enchantments it excludes. */
@@ -408,12 +410,15 @@ export interface ItemDefinition {
 
 /**
  * What a criteria line accepts: any item of a set of materials (`minecraft:oak_log`) and tags (`#minecraft:logs`), with
- * at least `minEnchantments` enchantments and each of `enchantments` at a minimum level.
+ * at least `minEnchantments` enchantments, each of `enchantments` at a minimum level, the potion type `potion` and at
+ * least `minDurability` percent of durability left.
  */
 export interface CriteriaArgs {
     items: string[]
     minEnchantments?: number
     enchantments?: Record<string, number>
+    potion?: string
+    minDurability?: number
 }
 
 /** One line of an order to place: a material key, a known item's ref, a defined item, or criteria. */

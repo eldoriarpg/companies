@@ -652,6 +652,33 @@ class SystemOrderServiceTest {
     }
 
     @Test
+    void oneMaterialPickedFromASetKeepsItsPotionAndDurability() {
+        rule(fixed("brews", 5.0))
+                .items(List.of(RuleEntry.criteria("potion oak_log potion:swiftness", RuleEntry.Resolve.ONE)));
+        rule(fixed("tools", 5.0))
+                .items(List.of(RuleEntry.criteria("diamond_pickaxe oak_log durability:60", RuleEntry.Resolve.ONE)));
+
+        service.run();
+
+        var brews = wanted.stream()
+                .filter(entry -> entry.line() != null && entry.line().criteria().potion() != null)
+                .findFirst()
+                .orElseThrow()
+                .line()
+                .criteria();
+        assertEquals(List.of("POTION"), brews.items());
+        assertEquals("minecraft:swiftness", brews.potion());
+        var tools = wanted.stream()
+                .filter(entry -> entry.line() != null && entry.line().criteria().minDurability() > 0)
+                .findFirst()
+                .orElseThrow()
+                .line()
+                .criteria();
+        assertEquals(List.of("DIAMOND_PICKAXE"), tools.items());
+        assertEquals(60, tools.minDurability());
+    }
+
+    @Test
     void entriesThatNameNothingAreNoted() {
         rule(fixed("broken", 2.0)).items(List.of(RuleEntry.criteria("#minecraft:no_such_tag", RuleEntry.Resolve.ANY)));
 

@@ -50,13 +50,13 @@ async function collect(): Promise<void> {
 }
 const done = ref('')
 const now = useNow({interval: 60_000})
-const enchantments = (value: number) => t('builder.atLeastEnchantments', {count: value})
-const {query, found} = useListSearch(toRef(props, 'orders'), order => [order.name, ...order.lines.map(line => lineName(line, enchantments))])
+const conditions = useConditionTexts()
+const {query, found} = useListSearch(toRef(props, 'orders'), order => [order.name, ...order.lines.map(line => lineName(line, conditions))])
 
 const rows = computed(() => found.value.map(order => ({
   order,
   totals: totalsOf(order.lines),
-  items: itemsText(order.lines, value => count(value, locale.value), enchantments),
+  items: itemsText(order.lines, value => count(value, locale.value), conditions),
   state: openLabel({t, te}, `orderState.${order.state}`, order.state),
   waiting: order.waiting.reduce((sum, item) => sum + item.amount, 0),
 })))

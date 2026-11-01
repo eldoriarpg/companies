@@ -13,6 +13,9 @@ import org.bukkit.NamespacedKey;
 import org.bukkit.Tag;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.PotionMeta;
+import org.bukkit.potion.PotionType;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -25,29 +28,49 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * What a criteria line accepts: any item of a set of materials and item tags, optionally with enchantment conditions.
+ * What a criteria line accepts: any item of a set of materials and item tags, optionally with enchantment, potion and
+ * durability conditions.
  * <p>
  * The amount of the line is filled by any mix of matching items, so 64 of {@code #minecraft:logs} may be 40 oak and
  * 24 birch logs. Enchanted books count their stored enchantments.
  * <p>
  * Build criteria from materials, item tags and enchantments with {@link #ofMaterials(Material...)},
- * {@link #ofTags(Tag[])}, {@link #withTag(Tag)} and {@link #withEnchantment(Enchantment, int)}, so only what the
- * server knows can be named: they refuse a material that is no item, a tag that is no item tag of the server, and an
- * enchantment level above its maximum. The criteria are kept as text, as orders store them: a material is its upper
- * case name such as {@code OAK_LOG}, a tag is {@code #} followed by its lower case key such as
- * {@code #minecraft:logs}. The text forms ({@link #of(String...)}, {@link #withEnchantment(String, int)}) take any
- * name; creating an order refuses criteria that name something the server does not know. The minimum enchantment
- * count is at least the number of required enchantments.
+ * {@link #ofTags(Tag[])}, {@link #withTag(Tag)}, {@link #withEnchantment(Enchantment, int)} and
+ * {@link #withPotion(PotionType)}, so only what the server knows can be named: they refuse a material that is no item,
+ * a tag that is no item tag of the server, and an enchantment level above its maximum. The criteria are kept as text,
+ * as orders store them: a material is its upper case name such as {@code OAK_LOG}, a tag is {@code #} followed by its
+ * lower case key such as {@code #minecraft:logs}. The text forms ({@link #of(String...)},
+ * {@link #withEnchantment(String, int)}, {@link #withPotion(String)}) take any name; creating an order refuses criteria
+ * that name something the server does not know. The minimum enchantment count is at least the number of required
+ * enchantments.
+ * <p>
+ * A potion condition takes potions, splash and lingering potions and tipped arrows of one potion type. A durability
+ * condition takes items with at least that share of their durability left, damaged or not, whatever the server's
+ * setting for damaged items says; items without durability always meet it.
  *
  * @param items           materials and item tags, at least one
  * @param minEnchantments the fewest enchantments an item must carry, 0 for no condition
  * @param enchantments    enchantments an item must carry, each at a minimum level
+ * @param potion          key of the potion type an item must hold, such as {@code minecraft:swiftness}; null for no
+ *                        condition
+ * @param minDurability   the least share of durability left, in percent from 1 to 100; 0 for no condition
  */
-public record ItemCriteria(List<String> items, int minEnchantments, List<Required> enchantments) {
+public record ItemCriteria(
+        List<String> items,
+        int minEnchantments,
+        List<Required> enchantments,
+        @Nullable String potion,
+        int minDurability) {
+    /**
+     * The highest durability condition: undamaged items only.
+     */
+    public static final int MAX_DURABILITY = 100;
+
     /**
      * Validates and normalizes the criteria.
      *
-     * @throws IllegalArgumentException when no item is given, an entry is blank or the count is negative
+     * @throws IllegalArgumentException when no item is given, an entry or the potion is blank, the count is negative
+     *                                  or the durability out of range
      */
     public ItemCriteria {
         Objects.requireNonNull(items, "items");
@@ -65,6 +88,26 @@ public record ItemCriteria(List<String> items, int minEnchantments, List<Require
             throw new IllegalArgumentException("An enchantment may be required only once");
         }
         minEnchantments = Math.max(minEnchantments, enchantments.size());
+        if (potion != null) {
+            if (potion.isBlank()) throw new IllegalArgumentException("The potion must not be blank");
+            potion = key(potion);
+        }
+        if (minDurability < 0 || minDurability > MAX_DURABILITY) {
+            throw new IllegalArgumentException(
+                    "The durability must be from 0 to " + MAX_DURABILITY + " percent, was " + minDurability);
+        }
+    }
+
+    /**
+     * Criteria without potion and durability conditions.
+     *
+     * @param items           materials and item tags, at least one
+     * @param minEnchantments the fewest enchantments an item must carry, 0 for no condition
+     * @param enchantments    enchantments an item must carry, each at a minimum level
+     * @throws IllegalArgumentException when no item is given, an entry is blank or the count is negative
+     */
+    public ItemCriteria(List<String> items, int minEnchantments, List<Required> enchantments) {
+        this(items, minEnchantments, enchantments, null, 0);
     }
 
     /**
@@ -113,7 +156,7 @@ public record ItemCriteria(List<String> items, int minEnchantments, List<Require
     public ItemCriteria withMaterial(Material material) {
         var accepted = new ArrayList<>(items);
         accepted.add(entry(material));
-        return new ItemCriteria(accepted, minEnchantments, enchantments);
+        return new ItemCriteria(accepted, minEnchantments, enchantments, potion, minDurability);
     }
 
     /**
@@ -126,7 +169,7 @@ public record ItemCriteria(List<String> items, int minEnchantments, List<Require
     public ItemCriteria withTag(Tag<Material> tag) {
         var accepted = new ArrayList<>(items);
         accepted.add(entry(tag));
-        return new ItemCriteria(accepted, minEnchantments, enchantments);
+        return new ItemCriteria(accepted, minEnchantments, enchantments, potion, minDurability);
     }
 
     /**
@@ -149,7 +192,7 @@ public record ItemCriteria(List<String> items, int minEnchantments, List<Require
      * @return a copy with the new count
      */
     public ItemCriteria withMinEnchantments(int minEnchantments) {
-        return new ItemCriteria(items, minEnchantments, enchantments);
+        return new ItemCriteria(items, minEnchantments, enchantments, potion, minDurability);
     }
 
     /**
@@ -178,17 +221,75 @@ public record ItemCriteria(List<String> items, int minEnchantments, List<Require
     private ItemCriteria with(Required enchantment) {
         var required = new ArrayList<>(enchantments);
         required.add(enchantment);
-        return new ItemCriteria(items, minEnchantments, required);
+        return new ItemCriteria(items, minEnchantments, required, potion, minDurability);
     }
 
     /**
-     * Whether other criteria accept the same: the same items and enchantments in any order, and the same count.
+     * Criteria like these that take only items of a potion type.
+     *
+     * @param potion key of the potion type, such as {@code minecraft:swiftness}
+     * @return a copy with the potion condition
+     */
+    public ItemCriteria withPotion(String potion) {
+        return new ItemCriteria(
+                items, minEnchantments, enchantments, Objects.requireNonNull(potion, "potion"), minDurability);
+    }
+
+    /**
+     * Criteria like these that take only items of a potion type.
+     *
+     * @param potion the potion type
+     * @return a copy with the potion condition
+     */
+    public ItemCriteria withPotion(PotionType potion) {
+        return withPotion(Objects.requireNonNull(potion, "potion").getKey().toString());
+    }
+
+    /**
+     * Criteria like these with another durability condition.
+     *
+     * @param minDurability the least share of durability left, in percent from 1 to {@value #MAX_DURABILITY}; 0 for
+     *                      no condition
+     * @return a copy with the durability condition
+     * @throws IllegalArgumentException when the share is out of range
+     */
+    public ItemCriteria withMinDurability(int minDurability) {
+        return new ItemCriteria(items, minEnchantments, enchantments, potion, minDurability);
+    }
+
+    /**
+     * The potion type the potion condition names, looked up in the server's potion registry. Needs a running server.
+     *
+     * @return the potion type, empty without a potion condition or when the server does not know it
+     */
+    public Optional<PotionType> potionType() {
+        if (potion == null) return Optional.empty();
+        var key = NamespacedKey.fromString(potion);
+        if (key == null) return Optional.empty();
+        return Optional.ofNullable(
+                RegistryAccess.registryAccess().getRegistry(RegistryKey.POTION).get(key));
+    }
+
+    /**
+     * Whether the criteria ask for more than the items of their set: enchantments, a potion type or durability.
+     *
+     * @return true with any condition
+     */
+    public boolean hasConditions() {
+        return minEnchantments > 0 || potion != null || minDurability > 0;
+    }
+
+    /**
+     * Whether other criteria accept the same: the same items and enchantments in any order, and the same count,
+     * potion and durability.
      *
      * @param other the other criteria
      * @return true when both accept the same items
      */
     public boolean sameAs(ItemCriteria other) {
         return minEnchantments == other.minEnchantments
+                && minDurability == other.minDurability
+                && Objects.equals(potion, other.potion)
                 && Set.copyOf(items).equals(Set.copyOf(other.items))
                 && Set.copyOf(enchantments).equals(Set.copyOf(other.enchantments));
     }
@@ -244,10 +345,17 @@ public record ItemCriteria(List<String> items, int minEnchantments, List<Require
     /**
      * The item standing for the line where one item has to be shown, such as an icon.
      *
-     * @return the first material of the set, a barrier when the set accepts nothing
+     * @return the first material of the set, holding the potion type a potion condition asks for; a barrier when the
+     *         set accepts nothing
      */
     public ItemStack template() {
-        return ItemStack.of(materials().stream().findFirst().orElse(Material.BARRIER));
+        var template = ItemStack.of(materials().stream().findFirst().orElse(Material.BARRIER));
+        var type = potionType();
+        if (type.isPresent() && template.getItemMeta() instanceof PotionMeta meta) {
+            meta.setBasePotionType(type.get());
+            template.setItemMeta(meta);
+        }
+        return template;
     }
 
     /**
