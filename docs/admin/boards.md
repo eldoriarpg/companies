@@ -9,6 +9,8 @@ An order board is the order search with a filter already set. Put one on a sign 
 Players right-click and see the matching open orders.
 
 This page shows you how to set boards up. For how players use them, see [Order boards](../players/order-boards.md).
+The *Boards* tab of the [dashboard](./dashboard.md#admin-tools) shows the presets with their open orders, writes the
+signs again and binds NPCs; the signs themselves are placed in game.
 
 ## What a board shows
 

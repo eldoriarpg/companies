@@ -8,6 +8,9 @@ sidebar_position: 7
 `/companyadmin` holds the tools for server staff. You can look into any order, settle disputes, help players, fix
 companies and manage the plugin.
 
+Most of these tools are also in the *Admin* section of the [web dashboard](./dashboard.md#admin-tools), where they need
+the same permissions; each section below with a tab names it.
+
 Every subcommand has its own permission, so you can give your staff only what they need. `/companyadmin` shows up
 for anyone who has at least one of them. The [Commands](../reference/commands.md) and
 [Permissions](../reference/permissions.md) pages list them all.
@@ -19,7 +22,8 @@ the `board` commands and the `node` commands.
 
 ## Orders
 
-You need `companies.admin.orders`.
+You need `companies.admin.orders`. The same tools are in the *Orders* tab of the
+[dashboard](./dashboard.md#admin-tools).
 
 | Command | What it does |
 |---|---|
@@ -90,7 +94,8 @@ notification, and `deliver` pays them with the solo tax. Nothing counts for or a
 
 ## System orders
 
-You need `companies.admin.orders`. These commands also work from the console.
+You need `companies.admin.orders`. These commands also work from the console. The same tools, except adding the item you
+hold, are in the *System orders* tab of the [dashboard](./dashboard.md#admin-tools).
 
 | Command | What it does |
 |---|---|
@@ -252,9 +257,10 @@ Every change is written to the [admin log](#the-admin-log).
 
 ## Server events
 
-You need `companies.admin.events`. [Server events](./configuration/events-yml.md) lower the tax, lower the order fee
-or pay extra on top of payouts for a time; see [Economy](./economy.md#server-events) for what they change. Events can
-also come from the templates of [events.yml](./configuration/events-yml.md#templates).
+You need `companies.admin.events`. [Server events](./configuration/events-yml.md) lower the tax, lower the order fee or
+pay extra on top of payouts for a time; see [Economy](./economy.md#server-events) for what they change. Events can also
+come from the templates of [events.yml](./configuration/events-yml.md#templates). The same tools are in the *Server
+events* tab of the [dashboard](./dashboard.md#admin-tools).
 
 | Command | What it does |
 |---|---|
@@ -291,10 +297,10 @@ server. Every change is written to the [admin log](#the-admin-log).
 
 ## Job disputes
 
-You need `companies.admin.jobs`. The owner of a [job](../players/jobs.md#disputes) or the company working on it may
-open a dispute. The job is frozen until you settle it: the company's access ends, its time stops and nobody may build
-in its area. The side that opened it may withdraw it, and the owner may still approve the job, so a dispute may vanish
-from the list before you get to it.
+You need `companies.admin.jobs`. The owner of a [job](../players/jobs.md#disputes) or the company working on it may open
+a dispute. The job is frozen until you settle it: the company's access ends, its time stops and nobody may build in its
+area. The side that opened it may withdraw it, and the owner may still approve the job, so a dispute may vanish from the
+list before you get to it. The same tools are in the *Disputes* tab of the [dashboard](./dashboard.md#admin-tools).
 
 | Command | What it does |
 |---|---|
@@ -305,6 +311,8 @@ Settling is written to the server log. Players with `companies.admin.jobs.bypass
 job areas, which helps when you look at a disputed area.
 
 ## Players
+
+The same tools are in the *Players* tab of the [dashboard](./dashboard.md#admin-tools).
 
 | Command | Permission | What it does |
 |---|---|---|
@@ -319,6 +327,8 @@ The player can be offline, as long as the server knows them.
 through the economy plugin. The player gets a notification for both.
 
 ## Companies
+
+The same tools are in the *Companies* tab of the [dashboard](./dashboard.md#admin-tools).
 
 | Command | Permission | What it does |
 |---|---|---|
@@ -346,11 +356,13 @@ written to the company's treasury log with you as the actor.
 ## Levels
 
 `/companyadmin level ...` opens the level editor, and `/companyadmin calclevel` checks the level of every company
-again. See [Levels](./levels.md).
+again. The *Levels* tab of the [dashboard](./dashboard.md#admin-tools) has the same editor. See
+[Levels](./levels.md).
 
 ## Boards
 
-`/companyadmin board ...` lists presets, rewrites board signs and binds NPCs. See [Boards](./boards.md).
+`/companyadmin board ...` lists presets, rewrites board signs and binds NPCs, as the *Boards* tab of the
+[dashboard](./dashboard.md#admin-tools) does. See [Boards](./boards.md).
 
 ## Web dashboard
 
@@ -359,6 +371,10 @@ dashboard key, and `/companyadmin dashboard revoke <player>` logs a player out o
 [Web dashboard](./dashboard.md).
 
 ## Plugin
+
+The *Settings* tab of the [dashboard](./dashboard.md#admin-tools) shows and saves the shared settings with their
+history and rollback, the *Setup* tab runs the guided setup, and the *Servers* tab lists and removes servers and syncs
+the configuration.
 
 | Command | Permission | What it does |
 |---|---|---|

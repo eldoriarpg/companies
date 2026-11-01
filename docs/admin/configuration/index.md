@@ -5,7 +5,8 @@ sidebar_position: 1
 
 # Configuration
 
-Every configuration file and what its settings do.
+Every configuration file and what its settings do. Most settings can also be changed in forms in the *Settings* tab
+of the [dashboard](../dashboard.md#admin-tools), which saves them for every server of the network.
 
 ## The files
 

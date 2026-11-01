@@ -8,6 +8,9 @@ sidebar_position: 5
 Companies has no currency of its own. It uses your economy plugin through Vault: players pay for orders with their
 normal money, and workers are paid with it.
 
+The prices, fees and taxes on this page are set in the *Settings* tab of the [dashboard](./dashboard.md#admin-tools);
+the *Setup* tab's Economy page has the most important ones in one form.
+
 ## Vault and an economy plugin
 
 You need [Vault](https://github.com/MilkBowl/Vault) and an economy plugin that works with Vault, such as EssentialsX.
