@@ -50,6 +50,9 @@ services:
         {"block": "minecraft:dirt", "height": 3}, {"block": "minecraft:grass_block", "height": 1}],
         "biome": "minecraft:plains"}
       GENERATE_STRUCTURES: "FALSE"
+      RCON_CMDS_STARTUP: |-
+        setworldspawn 0 0 0 180 0
+        gamerule respawn_radius 0
       MOTD: Companies demo - hub
       CFG_DASHBOARD_KEY_FILE: /run/secrets/dashboard_key
     secrets: [rcon, forwarding, db_password, dashboard_key]

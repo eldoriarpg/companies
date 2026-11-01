@@ -27,8 +27,18 @@ after every reset: the companies, members and item orders of `node/hub/plugins/C
 Companies API, without charging anyone, and the market history from 3 to 30 days ago with the material prices for the
 dashboard, written over its own connection to the database (the last days come from the orders delivered since). A
 seed that stopped halfway is completed on the next start; an order of the seed that was removed is placed again then.
-The server orders come from `system-orders.yml`. The demo players of the seed never join; each name gets the id an
-offline-mode server would give it, and `usercache.json` of both nodes names them.
+The server orders come from `system-orders.yml`; `company.yml` makes new companies open, so visitors join them with
+`/company join`. The demo players of the seed never join; each name gets the id an offline-mode server would give it,
+and `usercache.json` of both nodes names them.
+
+## Spawn and guide
+
+`hub` sets its spawn to 0 0 0, facing the holograms, on every start; the WorldGuard region `spawn` keeps 24 blocks
+around it from being built on. Three holograms of DecentHolograms stand there
+(`node/hub/plugins/DecentHolograms/holograms`): what to try with the commands, the biggest companies, and the
+visitor's own company and orders, the last two through Companies' placeholders. `/demo guide` gives the guide book of
+the `guide` section of the `CompaniesDemo` config; a visitor joining `hub` for the first time gets it by themselves,
+and since the reset forgets who joined, once a day.
 
 ## Visitors and the admin sandbox
 

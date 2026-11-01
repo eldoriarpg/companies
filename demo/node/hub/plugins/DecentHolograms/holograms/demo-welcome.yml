@@ -1,0 +1,28 @@
+location: hub:0.500:3.000:-4.500
+enabled: true
+display-range: 48
+update-range: 48
+update-interval: 40
+facing: 0.0
+down-origin: false
+pages:
+- lines:
+  - content: '&6&lCompanies demo'
+    height: 0.3
+  - content: '&7Found a company, take orders, get paid'
+    height: 0.3
+  - content: ''
+    height: 0.3
+  - content: '&e/company create <name>  &7found a company'
+    height: 0.3
+  - content: '&e/company order search  &7find orders'
+    height: 0.3
+  - content: '&e/company dashboard  &7open the web dashboard'
+    height: 0.3
+  - content: '&e/demo guide  &7the guide book'
+    height: 0.3
+  - content: '&e/demo admin  &7try the admin tools'
+    height: 0.3
+  - content: '&8Everything resets every night'
+    height: 0.3
+  actions: {}

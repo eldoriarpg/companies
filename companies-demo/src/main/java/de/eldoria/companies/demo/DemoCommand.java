@@ -18,24 +18,32 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- * {@code /demo}: {@code admin} takes the admin sandbox, {@code admin off} ends it early. Its texts are MiniMessage from
- * the {@code messages} section of the config.
+ * {@code /demo}: {@code guide} gives the guide book, {@code admin} takes the admin sandbox, {@code admin off} ends it
+ * early. Its texts are MiniMessage from the {@code messages} section of the config.
  */
 final class DemoCommand implements BasicCommand {
     private final AdminSandbox sandbox;
     private final SandboxSessions sessions;
+    private final GuideBook guide;
     private final ConfigurationSection messages;
     private final Logger logger;
 
     /**
      * @param sandbox  the admin sandbox
      * @param sessions ends the dashboard sessions when the sandbox runs out
+     * @param guide    the guide book
      * @param messages the texts
      * @param logger   told about failures
      */
-    DemoCommand(AdminSandbox sandbox, SandboxSessions sessions, ConfigurationSection messages, Logger logger) {
+    DemoCommand(
+            AdminSandbox sandbox,
+            SandboxSessions sessions,
+            GuideBook guide,
+            ConfigurationSection messages,
+            Logger logger) {
         this.sandbox = sandbox;
         this.sessions = sessions;
+        this.guide = guide;
         this.messages = messages;
         this.logger = logger;
     }
@@ -44,6 +52,10 @@ final class DemoCommand implements BasicCommand {
     public void execute(CommandSourceStack source, String[] args) {
         if (!(source.getSender() instanceof Player player)) {
             source.getSender().sendRichMessage(text("players"));
+            return;
+        }
+        if (args.length == 1 && args[0].equalsIgnoreCase("guide")) {
+            guide.give(player);
             return;
         }
         if (args.length >= 1 && args[0].equalsIgnoreCase("admin")) {
@@ -92,7 +104,7 @@ final class DemoCommand implements BasicCommand {
 
     @Override
     public Collection<String> suggest(CommandSourceStack source, String[] args) {
-        if (args.length <= 1) return List.of("admin");
+        if (args.length <= 1) return List.of("guide", "admin");
         if (args.length == 2 && args[0].equalsIgnoreCase("admin")) return List.of("off");
         return List.of();
     }

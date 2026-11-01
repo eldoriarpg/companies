@@ -1,0 +1,22 @@
+location: hub:-5.500:3.000:-4.500
+enabled: true
+display-range: 48
+update-range: 48
+update-interval: 40
+facing: 0.0
+down-origin: false
+pages:
+- lines:
+  - content: '&6&lYou'
+    height: 0.3
+  - content: '&7Company: &f%companies_company_name%'
+    height: 0.3
+  - content: '&7Orders worked on: &f%companies_active_orders%'
+    height: 0.3
+  - content: '&7Your open orders: &f%companies_player_open_orders%'
+    height: 0.3
+  - content: '&7Items waiting for you: &f%companies_player_items_waiting%'
+    height: 0.3
+  - content: '&8No company yet? &7/company create <name>'
+    height: 0.3
+  actions: {}

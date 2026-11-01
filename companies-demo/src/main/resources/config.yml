@@ -18,8 +18,13 @@ commands:
   enabled: false
   allowed: [demo]
 groups: {}
+guide:
+  title: '<gold>Companies demo'
+  author: Companies
+  onFirstJoin: false
+  pages: []
 messages:
-  usage: '<gray>/demo admin</gray> takes the admin sandbox for a while, <gray>/demo admin off</gray> ends it.'
+  usage: '<gray>/demo guide</gray> gives the guide, <gray>/demo admin</gray> takes the admin sandbox, <gray>/demo admin off</gray> ends it.'
   players: 'Only players use /demo.'
   permission: '<red>You may not use the admin sandbox.'
   failed: '<red>That did not work, try again in a moment.'

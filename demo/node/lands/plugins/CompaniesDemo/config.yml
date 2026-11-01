@@ -8,7 +8,7 @@ commands:
   allowed: [demo, company, comp, order, companyadmin, plot, plots, p, balance, bal, money, pay, baltop, balancetop,
             help, list, msg, tell, r, claim, trust, untrust, trustlist, abandonclaim, claimslist, trapped]
 messages:
-  usage: '<gray>/demo admin</gray> takes the admin sandbox for a while, <gray>/demo admin off</gray> ends it.'
+  usage: '<gray>/demo guide</gray> gives the guide, <gray>/demo admin</gray> takes the admin sandbox, <gray>/demo admin off</gray> ends it.'
   players: 'Only players use /demo.'
   permission: '<red>You may not use the admin sandbox.'
   failed: '<red>That did not work, try again in a moment.'
@@ -19,3 +19,15 @@ messages:
     wait: '<yellow>You were a demo admin lately. Try again later.'
     disabled: '<green>You are no demo admin anymore.'
     none: '<yellow>You are no demo admin.'
+guide:
+  title: '<gold>Companies demo'
+  author: Companies
+  onFirstJoin: false
+  pages:
+    - "<bold>Companies demo</bold>\n\nFound a company, take orders, deliver items and get paid.\n\nEverything resets every night."
+    - "<bold>Your company</bold>\n\n<dark_gray>/company create \\<name></dark_gray>\nfounds one.\n\n<dark_gray>/company join \\<name></dark_gray>\njoins Stonebridge, Copperworks or Greenfield Farms."
+    - "<bold>Orders</bold>\n\n<dark_gray>/company order search</dark_gray>\nfinds orders to take with your company.\n\n<dark_gray>/order create \\<name></dark_gray>\nplaces your own."
+    - "<bold>The market</bold>\n\nPrices of the last weeks are on the dashboard.\n\nServer orders appear every few hours."
+    - "<bold>Dashboard</bold>\n\n<dark_gray>/company dashboard</dark_gray>\ngives a link and a code. Open it on phone or PC."
+    - "<bold>Two servers</bold>\n\n<dark_gray>/server hub</dark_gray> is the spawn, <dark_gray>/server lands</dark_gray> has plots and claims.\n\nCompanies and orders are shared."
+    - "<bold>Admin tools</bold>\n\n<dark_gray>/demo admin</dark_gray>\nmakes you a demo admin for 30 minutes.\n\n<dark_gray>/demo guide</dark_gray>\ngives this book again."

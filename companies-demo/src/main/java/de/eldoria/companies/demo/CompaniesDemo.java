@@ -29,16 +29,16 @@ import java.util.concurrent.CompletionException;
 import java.util.logging.Level;
 
 /**
- * The helper of the Companies demo network. On every server it offers {@code /demo} with the admin sandbox and, where
- * {@code commands.enabled}, keeps visitors to the commands of its allow list. The server with {@code groups} sets up
- * the LuckPerms groups of the demo on each start, since the nightly reset empties their database.
+ * The helper of the Companies demo network. On every server it offers {@code /demo} with the guide book and the admin
+ * sandbox and, where {@code commands.enabled}, keeps visitors to the commands of its allow list. The server with {@code
+ * groups} sets up the LuckPerms groups of the demo on each start, since the nightly reset empties their database.
  * <p>
  * The server whose config has {@code seed.enabled} creates the starting state of the demo after every reset, which
- * empties the Companies database. On each start it first writes the market history, which has no API, over a
- * connection to the Companies database of its own ({@code database}), so it lands before the plugin's own recording
- * sweeps; then it completes companies, members and orders through the API. Companies accepts writes only once its
- * economy is set up, so that part waits and tries again every few seconds; any other failure is logged and the next
- * start completes what is missing.
+ * empties the Companies database. On each start it first writes the market history, which has no API, over a connection
+ * to the Companies database of its own ({@code database}), so it lands before the plugin's own recording sweeps; then
+ * it completes companies, members and orders through the API. Companies accepts writes only once its economy is set up,
+ * so that part waits and tries again every few seconds; any other failure is logged and the next start completes what
+ * is missing.
  */
 public final class CompaniesDemo extends JavaPlugin {
     private static final long RETRY_TICKS = 20L * 10;
@@ -56,8 +56,11 @@ public final class CompaniesDemo extends JavaPlugin {
         var sessions = new SandboxSessions(this);
         sessions.listen(luckPerms);
         getServer().getPluginManager().registerEvents(sessions, this);
+        var guideSection = getConfig().getConfigurationSection("guide");
+        var guide = GuideBook.of(guideSection == null ? new MemoryConfiguration() : guideSection);
+        getServer().getPluginManager().registerEvents(guide, this);
         var command = new DemoCommand(
-                sandbox, sessions, messages == null ? new MemoryConfiguration() : messages, getLogger());
+                sandbox, sessions, guide, messages == null ? new MemoryConfiguration() : messages, getLogger());
         getLifecycleManager().registerEventHandler(LifecycleEvents.COMMANDS, event -> event.registrar()
                 .register("demo", "The Companies demo", command));
         if (getConfig().getBoolean("commands.enabled")) {
