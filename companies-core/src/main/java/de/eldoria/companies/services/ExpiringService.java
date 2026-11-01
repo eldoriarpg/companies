@@ -215,7 +215,10 @@ public class ExpiringService implements Runnable, Listener {
             var left = Duration.between(Times.now(), order.claimed().plusHours(settings.maxUnclaimedHours()));
             var args = NotificationService.orderArgs(order)
                     .text("duration", Texts.prettyDuration(left.isNegative() ? Duration.ZERO : left));
-            notificationService.send(order.owner(), NotificationType.MY_ORDER_PURGE_WARNING, args);
+            var type = order.charged()
+                    ? NotificationType.MY_ORDER_PURGE_WARNING
+                    : NotificationType.MY_ORDER_PURGE_WARNING_UNCHARGED;
+            notificationService.send(order.owner(), type, args);
         }
     }
 
@@ -248,7 +251,7 @@ public class ExpiringService implements Runnable, Listener {
 
     /**
      * Removes orders nobody accepted in time and refunds their price and fee to the owner, or for a system order to
-     * the account that paid it.
+     * the account that paid it; an order created without charging its owner refunds nothing.
      */
     private void purgeDeadOrders() {
         var expired = orderData

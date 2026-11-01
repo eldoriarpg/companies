@@ -13,6 +13,7 @@ import Alert from '@/components/feedback/Alert.vue'
 import ConfirmStep from '@/components/feedback/ConfirmStep.vue'
 import NumberInput from '@/components/input/NumberInput.vue'
 import SectionHeader from '@/components/typography/SectionHeader.vue'
+import AdminOrderCancel from './AdminOrderCancel.vue'
 import AdminOrderFacts from './AdminOrderFacts.vue'
 import {money} from '~/util/format'
 import {openLabel} from '~/util/labels'
@@ -61,6 +62,10 @@ async function cancel(refund: boolean): Promise<void> {
   const result = await action.run('admin.orders.cancel', {order: props.order.id, refund})
   if (!result) {
     emit('changed', props.order.id)
+    return
+  }
+  if (!result.charged) {
+    emit('removed', t('admin.orders.cancelledUncharged', {name: props.order.name}))
     return
   }
   emit('removed', refund
@@ -117,20 +122,7 @@ async function extend(): Promise<void> {
             :busy="action.busy.value"
             @confirmed="deliver"
         />
-        <ConfirmStep
-            :trigger="t('admin.orders.cancelRefund')"
-            :question="t('admin.orders.cancelRefundQuestion', {name: order.name, amount: money(order.refundOnCancel, locale)})"
-            :confirm="t('admin.orders.cancelConfirm')"
-            :busy="action.busy.value"
-            @confirmed="cancel(true)"
-        />
-        <ConfirmStep
-            :trigger="t('admin.orders.cancelKeep')"
-            :question="t('admin.orders.cancelKeepQuestion', {name: order.name, amount: money(order.keptOnCancel, locale)})"
-            :confirm="t('admin.orders.cancelConfirm')"
-            :busy="action.busy.value"
-            @confirmed="cancel(false)"
-        />
+        <AdminOrderCancel :order="order" :busy="action.busy.value" @cancel="cancel"/>
       </template>
     </div>
   </PanelBox>

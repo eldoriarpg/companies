@@ -182,7 +182,15 @@ public final class AdminOrderWrites {
                     .with("collected", money.collected())
                     .with("workers", cancelled.workers().size())
                     .write();
-            return Map.of("order", id, "refunded", money.refund(), "collected", money.collected());
+            return Map.of(
+                    "order",
+                    id,
+                    "refunded",
+                    money.refund(),
+                    "collected",
+                    money.collected(),
+                    "charged",
+                    cancelled.order().charged());
         });
     }
 
@@ -234,7 +242,8 @@ public final class AdminOrderWrites {
                 lines,
                 cancelRefund.refund(),
                 cancelKeep.collected(),
-                AdminOrderService.undeliveredRefund(order));
+                AdminOrderService.undeliveredRefund(order),
+                order.charged());
     }
 
     private <T> ActionResult done(

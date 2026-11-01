@@ -9,6 +9,7 @@ import de.eldoria.companies.commands.support.CommandFailure;
 import de.eldoria.companies.components.order.ISimpleOrder;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.dashboard.StoredSession;
+import de.eldoria.companies.data.wrapper.order.FullOrder;
 import de.eldoria.companies.orders.CompanyOrderService;
 import de.eldoria.companies.orders.OrderAcceptService;
 import de.eldoria.companies.orders.OwnerOrderService;
@@ -249,12 +250,14 @@ public final class DashboardWrites {
                             request,
                             Map.of(
                                     "order", cancellable.order().id(),
-                                    "repeating", cancellable.activeSeries().isPresent()));
+                                    "repeating", cancellable.activeSeries().isPresent(),
+                                    "charged", cancellable.order().charged()));
                 case Refused<OwnerOrderService.Cancellable>(var failure) -> refused(request, failure);
             };
         }
         return switch (sources.ownerOrders().cancel(player, order).join()) {
-            case Done<?>(var ignored) -> data(request, Map.of("order", order));
+            case Done<FullOrder>(var cancelled) ->
+                data(request, Map.of("order", order, "charged", cancelled.charged()));
             case Refused<?>(var failure) -> refused(request, failure);
         };
     }

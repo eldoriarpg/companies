@@ -260,13 +260,24 @@ public class OrderBuilder {
      * @return the order
      */
     public FullOrder build(double fee) {
+        return build(fee, true);
+    }
+
+    /**
+     * Turns the draft into an order which is not saved yet. Each line keeps its position and its rounded total.
+     *
+     * @param fee     fee the owner pays for placing the order
+     * @param charged whether money was taken for the order; an uncharged order refunds nothing
+     * @return the order
+     */
+    public FullOrder build(double fee, boolean charged) {
         List<OrderContent> contents = new ArrayList<>();
         for (var index = 0; index < lines.size(); index++) {
             var line = lines.get(index);
             contents.add(new OrderContent(
                     index, line.template(), line.exact(), line.criteria(), line.amount(), line.total()));
         }
-        return new SimpleOrder(order.owner(), order.name(), fee).toFullOrder(contents);
+        return new SimpleOrder(order.owner(), order.name(), fee, charged).toFullOrder(contents);
     }
 
     /**

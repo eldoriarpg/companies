@@ -15,7 +15,8 @@ import java.util.UUID;
 import java.util.function.BiConsumer;
 
 /**
- * Gives money of an order back: to its owner, or for an order of the server to the account that paid it.
+ * Gives money of an order back: to its owner, or for an order of the server to the account that paid it. An order
+ * created without charging its owner refunds nothing.
  */
 @FunctionalInterface
 public interface OrderRefunds {
@@ -32,6 +33,7 @@ public interface OrderRefunds {
      */
     static OrderRefunds of(BiConsumer<UUID, Double> owners, SystemFunding system) {
         return (order, amount) -> {
+            if (!order.charged()) return;
             if (SystemOwner.is(order.owner())) system.refund(order.id(), amount);
             else owners.accept(order.owner(), amount);
         };

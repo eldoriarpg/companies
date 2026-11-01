@@ -25,7 +25,7 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  cancelled: [name: string]
+  cancelled: [name: string, refunded: boolean]
 }>()
 
 /** What raising costs, as the plugin quoted it. */
@@ -40,6 +40,7 @@ const step = ref<'idle' | 'raise' | 'raise-confirm' | 'cancel-confirm'>('idle')
 const increase = ref<number>()
 const quote = ref<RaiseQuote | null>(null)
 const repeating = ref(false)
+const charged = ref(true)
 const done = ref('')
 const cancelled = ref(false)
 const confirm = useTemplateRef<HTMLElement>('confirm')
@@ -73,14 +74,16 @@ async function askCancel(): Promise<void> {
   const result = await action.run('orders.own.cancel', {order: props.order.id, quote: true})
   if (!result) return
   repeating.value = result.repeating === true
+  charged.value = result.charged !== false
   await ask('cancel-confirm')
 }
 
 /** Cancels the order. */
 async function cancel(): Promise<void> {
-  if (!await action.run('orders.own.cancel', {order: props.order.id})) return
+  const result = await action.run('orders.own.cancel', {order: props.order.id})
+  if (!result) return
   cancelled.value = true
-  emit('cancelled', props.order.name)
+  emit('cancelled', props.order.name, result.charged !== false)
 }
 
 /**
@@ -131,7 +134,7 @@ function finish(text: string): void {
         </ButtonRow>
       </template>
       <template v-else-if="step === 'cancel-confirm'">
-        <span class="text-sm">{{ repeating ? t('own.cancelRepeating') : t('own.cancelQuestion') }}</span>
+        <span class="text-sm">{{ !charged ? t('own.cancelQuestionUncharged') : repeating ? t('own.cancelRepeating') : t('own.cancelQuestion') }}</span>
         <ButtonRow>
           <PrimaryButton :disabled="action.busy.value" @click="cancel">{{ t('own.cancelConfirm') }}</PrimaryButton>
           <SecondaryButton @click="step = 'idle'">{{ t('common.back') }}</SecondaryButton>

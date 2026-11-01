@@ -399,6 +399,7 @@ const ADMIN_ORDER = {
     refundOnCancel: 1155,
     keptOnCancel: 1155,
     refundOnDeliver: 670,
+    charged: true,
 }
 
 /** The most items an order may hold on the mock server. */
@@ -773,7 +774,7 @@ function action(name, args, state, story = {}) {
             if (args.player && args.player.toLowerCase() !== 'orla') return refused('This player is not known.')
             return done({target: 'Orla', page: 1, hasNext: false, orders: [{id: ADMIN_ORDER.id, name: ADMIN_ORDER.name, state: 'CLAIMED', owner: 'Orla', claimant: 'Stonebridge Builders', created: ADMIN_ORDER.created}]})
         case 'admin.orders.cancel':
-            return done({order: args.order, refunded: args.refund ? 1155 : 0, collected: args.refund ? 0 : 1155})
+            return done({order: args.order, refunded: args.refund ? 1155 : 0, collected: args.refund ? 0 : 1155, charged: true})
         case 'admin.orders.unclaim':
             return done({order: args.order, workers: 2})
         case 'admin.orders.deliver':
@@ -1036,7 +1037,7 @@ function action(name, args, state, story = {}) {
         case 'orders.accept.abort':
             return done({order: args.order})
         case 'orders.own.cancel':
-            return done(args.quote ? {order: args.order, repeating: false} : {order: args.order})
+            return done(args.quote ? {order: args.order, repeating: false, charged: true} : {order: args.order, charged: true})
         case 'orders.own.extend':
             return done({order: args.order, left: 1, refundInSeconds: 86_400})
         case 'orders.own.raise':

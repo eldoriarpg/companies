@@ -105,6 +105,19 @@ class NotificationServiceTest {
     }
 
     @Test
+    void aPurgedUnchargedOrderTellsTheOwnerThatNothingWentBack() throws InterruptedException {
+        var owner = UUID.randomUUID();
+        service.onOrderRemoved(
+                new OrderRemovedEvent(new SimpleOrder(owner, "Wood", 0, false), OrderRemovedEvent.Reason.PURGED));
+
+        var deadline = System.currentTimeMillis() + 5_000;
+        while (data.all().isEmpty() && System.currentTimeMillis() < deadline) {
+            Thread.sleep(5);
+        }
+        assertEquals(NotificationType.MY_ORDER_REMOVED_UNCHARGED, data.only().type());
+    }
+
+    @Test
     void sharedPaymentShowsTheTreasuryShare() {
         var order = new SimpleOrder(UUID.randomUUID(), "Wood", 0);
         var event = new OrderPaymentEvent(order, ISimpleCompany.forId(1), online, 81.0, 100.0, 10.0, 9.0);

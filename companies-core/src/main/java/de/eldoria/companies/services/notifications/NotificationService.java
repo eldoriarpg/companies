@@ -420,7 +420,10 @@ public class NotificationService implements Listener {
     @EventHandler
     public void onOrderRemoved(OrderRemovedEvent event) {
         if (event.reason() != OrderRemovedEvent.Reason.PURGED) return;
-        send(event.order().owner(), NotificationType.MY_ORDER_REMOVED, orderArgs(event.order()));
+        var type = event.order().charged()
+                ? NotificationType.MY_ORDER_REMOVED
+                : NotificationType.MY_ORDER_REMOVED_UNCHARGED;
+        send(event.order().owner(), type, orderArgs(event.order()));
     }
 
     @EventHandler

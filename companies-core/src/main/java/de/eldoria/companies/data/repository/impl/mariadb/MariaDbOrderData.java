@@ -80,9 +80,9 @@ public class MariaDbOrderData extends AOrderData {
         var query = """
                 INSERT
                 INTO
-                	orders(owner_uuid, name, fee, created)
+                	orders(owner_uuid, name, fee, created, charged)
                 VALUES
-                	(?, ?, ?, ?)
+                	(?, ?, ?, ?, ?)
                 RETURNING id""";
         var conf = QueryConfiguration.getDefault().withSingleTransaction();
         Optional<Integer> optOrderId;
@@ -91,7 +91,8 @@ public class MariaDbOrderData extends AOrderData {
                     .single(call().bind(player.getUniqueId(), UUID_BYTES)
                             .bind(order.name())
                             .bind(order.fee())
-                            .bind(Times.now(), time()))
+                            .bind(Times.now(), time())
+                            .bind(order.charged()))
                     .map(rs -> rs.getInt(1))
                     .first();
             if (optOrderId.isEmpty()) return Optional.empty();
@@ -200,6 +201,7 @@ public class MariaDbOrderData extends AOrderData {
                     extensions,
                     delivery_bonus,
                     series_id,
+                    charged,
                     solo_worker
                 FROM
                     order_states s
@@ -231,6 +233,7 @@ public class MariaDbOrderData extends AOrderData {
                     extensions,
                     delivery_bonus,
                     series_id,
+                    charged,
                     solo_worker
                 FROM
                     order_states s
@@ -356,6 +359,7 @@ public class MariaDbOrderData extends AOrderData {
                     extensions,
                     delivery_bonus,
                     series_id,
+                    charged,
                     solo_worker
                 FROM
                     orders o
@@ -652,6 +656,7 @@ public class MariaDbOrderData extends AOrderData {
                     extensions,
                     delivery_bonus,
                     series_id,
+                    charged,
                     solo_worker
                 FROM
                     orders o
@@ -706,6 +711,7 @@ public class MariaDbOrderData extends AOrderData {
                     extensions,
                     delivery_bonus,
                     series_id,
+                    charged,
                     solo_worker
                 FROM
                     order_states s
@@ -1307,6 +1313,7 @@ public class MariaDbOrderData extends AOrderData {
                     extensions,
                     delivery_bonus,
                     series_id,
+                    charged,
                     solo_worker
                 FROM
                     orders o
@@ -1332,6 +1339,7 @@ public class MariaDbOrderData extends AOrderData {
                     extensions,
                     delivery_bonus,
                     series_id,
+                    charged,
                     solo_worker
                 FROM
                     orders o
@@ -1361,6 +1369,7 @@ public class MariaDbOrderData extends AOrderData {
                     extensions,
                     delivery_bonus,
                     series_id,
+                    charged,
                     solo_worker
                 FROM
                     orders o
@@ -1391,6 +1400,7 @@ public class MariaDbOrderData extends AOrderData {
                     extensions,
                     delivery_bonus,
                     series_id,
+                    charged,
                     solo_worker
                 FROM
                     orders o
@@ -1573,7 +1583,7 @@ public class MariaDbOrderData extends AOrderData {
     protected List<FullOrder> getOrdersByQuery(SearchQuery searchQuery, OrderState min, OrderState max) {
         @Language("mariadb")
         var query = """
-                SELECT o.id, o.owner_uuid, o.name, o.created, os.company, os.last_update, os.state, o.fee, os.extensions, os.delivery_bonus, o.series_id, os.solo_worker
+                SELECT o.id, o.owner_uuid, o.name, o.created, os.company, os.last_update, os.state, o.fee, os.extensions, os.delivery_bonus, o.series_id, o.charged, os.solo_worker
                 FROM orders o
                          LEFT JOIN (SELECT c.id, SUM(amount) AS amount, SUM(price) AS price
                                     FROM order_content c

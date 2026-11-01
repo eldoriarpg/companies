@@ -489,7 +489,28 @@ public enum NotificationType {
      * An admin settled the dispute about the player's job; it was posted without charge, so nothing went back.
      * Arguments: {@code job_title}.
      */
-    MY_JOB_SETTLED_UNCHARGED(81, "notification.myJobSettledUncharged", NotificationCategory.MY_ORDERS, true, null);
+    MY_JOB_SETTLED_UNCHARGED(81, "notification.myJobSettledUncharged", NotificationCategory.MY_ORDERS, true, null),
+    /**
+     * The player's order was removed because nobody accepted it; it was created without charge, so nothing went back.
+     * Arguments: {@code order_name}.
+     */
+    MY_ORDER_REMOVED_UNCHARGED(82, "notification.orderRemovedUncharged", NotificationCategory.MY_ORDERS, true, null),
+    /**
+     * The player's order, created without charge, is removed soon unless somebody accepts it. Arguments:
+     * {@code order_name}, {@code duration}, {@code order_id}.
+     */
+    MY_ORDER_PURGE_WARNING_UNCHARGED(
+            83,
+            "notification.orderPurgeWarningUncharged",
+            NotificationCategory.MY_ORDERS,
+            true,
+            new Action("/order info <order_id>", "words.info")),
+    /**
+     * An admin removed the player's order, created without charge, so nothing went back. Arguments:
+     * {@code order_name}.
+     */
+    MY_ORDER_CANCELLED_BY_ADMIN_UNCHARGED(
+            84, "notification.ownerOrderCancelledByAdminUncharged", NotificationCategory.MY_ORDERS, true, null);
 
     private final int id;
     private final String key;

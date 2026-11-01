@@ -60,6 +60,7 @@ public class SqLiteOrderData extends MariaDbOrderData {
                        extensions,
                        delivery_bonus,
                        series_id,
+                       charged,
                        solo_worker
                 FROM order_states s
                          LEFT JOIN orders o
@@ -89,6 +90,7 @@ public class SqLiteOrderData extends MariaDbOrderData {
                        extensions,
                        delivery_bonus,
                        series_id,
+                       charged,
                        solo_worker
                 FROM order_states s
                          JOIN orders o
@@ -117,6 +119,7 @@ public class SqLiteOrderData extends MariaDbOrderData {
                        extensions,
                        delivery_bonus,
                        series_id,
+                       charged,
                        solo_worker
                 FROM order_states s
                          JOIN orders o
@@ -200,7 +203,7 @@ public class SqLiteOrderData extends MariaDbOrderData {
 
         @Language("sqlite")
         var query = """
-                SELECT o.id, o.owner_uuid, o.name, o.created, os.company, os.last_update, os.state, o.fee, os.extensions, os.delivery_bonus, o.series_id, os.solo_worker
+                SELECT o.id, o.owner_uuid, o.name, o.created, os.company, os.last_update, os.state, o.fee, os.extensions, os.delivery_bonus, o.series_id, o.charged, os.solo_worker
                 FROM orders o
                          LEFT JOIN (SELECT c.id, SUM(amount) AS amount, SUM(price) AS price
                                     FROM order_content c
@@ -280,7 +283,8 @@ public class SqLiteOrderData extends MariaDbOrderData {
                 row.getInt("extensions"),
                 row.getInt("delivery_bonus"),
                 row.getInt("series_id"),
-                row.get("solo_worker", UUID_BYTES));
+                row.get("solo_worker", UUID_BYTES),
+                row.getBoolean("charged"));
     }
 
     /**

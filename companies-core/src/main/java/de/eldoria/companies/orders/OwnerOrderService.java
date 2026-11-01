@@ -224,8 +224,8 @@ public final class OwnerOrderService {
     }
 
     /**
-     * Cancels an unaccepted order. The price goes back to the owner and the fee to the collector; a copy of a
-     * repeating order stops the repeating order.
+     * Cancels an unaccepted order. The price goes back to the owner and the fee to the collector, unless the order
+     * was created without charging its owner; a copy of a repeating order stops the repeating order.
      *
      * @param owner id of the owner
      * @param id    id of the order
@@ -242,8 +242,10 @@ public final class OwnerOrderService {
         var fullOrder = orderData.retrieveFullOrder(order).join();
         if (fullOrder == null) return ActionResult.refusedActionBar(UNKNOWN_ORDER);
         if (!Boolean.TRUE.equals(outcomes.cancel(fullOrder).join())) return ActionResult.refusedChat(ALREADY_CLAIMED);
-        runOnMain(() -> wallet.deposit(players.apply(owner), fullOrder.price()));
-        collector.accept(fullOrder.fee());
+        if (fullOrder.charged()) {
+            runOnMain(() -> wallet.deposit(players.apply(owner), fullOrder.price()));
+            collector.accept(fullOrder.fee());
+        }
         if (fullOrder.seriesId().isPresent()) copyCancelled.apply(fullOrder).join();
         ordersChanged.accept(owner);
         return ActionResult.done(fullOrder);
@@ -300,7 +302,8 @@ public final class OwnerOrderService {
 
     /**
      * Raises the price of an unaccepted order. The owner pays the increase plus the percentage fee on it; the money
-     * goes back when the order could no longer be changed.
+     * goes back when the order could no longer be changed. An order created without charging its owner can not be
+     * raised, as it refunds nothing and the raise would be lost.
      *
      * @param owner    id of the owner
      * @param id       id of the order
@@ -324,6 +327,7 @@ public final class OwnerOrderService {
     }
 
     private ActionResult<Raise> quote(SimpleOrder order, double increase) {
+        if (!order.charged()) return ActionResult.refusedChat("order.raise.error.uncharged");
         var fullOrder = orderData.retrieveFullOrder(order).join();
         if (fullOrder == null) return ActionResult.refusedActionBar(UNKNOWN_ORDER);
         var fee = reductions.fee(

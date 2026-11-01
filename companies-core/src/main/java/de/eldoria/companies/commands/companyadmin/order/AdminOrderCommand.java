@@ -260,17 +260,22 @@ public final class AdminOrderCommand implements AdminOrderActions {
                                     "companyadmin.order.cancelSystemConfirm",
                                     Values.text("order_name", full.name()),
                                     Values.money("amount", economy, money.refund()))
-                    : refund
+                    : !full.charged()
                             ? MenuText.create()
                                     .locale(
-                                            "companyadmin.order.cancelRefundConfirm",
-                                            Values.text("order_name", full.name()),
-                                            Values.money("amount", economy, money.refund()))
-                            : MenuText.create()
-                                    .locale(
-                                            "companyadmin.order.cancelKeepConfirm",
-                                            Values.text("order_name", full.name()),
-                                            Values.money("amount", economy, money.collected()));
+                                            "companyadmin.order.cancelUnchargedConfirm",
+                                            Values.text("order_name", full.name()))
+                            : refund
+                                    ? MenuText.create()
+                                            .locale(
+                                                    "companyadmin.order.cancelRefundConfirm",
+                                                    Values.text("order_name", full.name()),
+                                                    Values.money("amount", economy, money.refund()))
+                                    : MenuText.create()
+                                            .locale(
+                                                    "companyadmin.order.cancelKeepConfirm",
+                                                    Values.text("order_name", full.name()),
+                                                    Values.money("amount", economy, money.collected()));
             cancels.ask(deps.services().menus(), viewer, new CancelRequest(order, refund), question);
         });
     }
@@ -351,7 +356,11 @@ public final class AdminOrderCommand implements AdminOrderActions {
             var system = SystemOwner.is(full.owner());
             var key = system
                     ? "companyadmin.order.cancelledSystem"
-                    : request.refund() ? "companyadmin.order.cancelledRefund" : "companyadmin.order.cancelledKept";
+                    : !full.charged()
+                            ? "companyadmin.order.cancelledUncharged"
+                            : request.refund()
+                                    ? "companyadmin.order.cancelledRefund"
+                                    : "companyadmin.order.cancelledKept";
             var amount = system || request.refund() ? money.refund() : money.collected();
             var text = notice(key, Values.text("order_name", full.name()), Values.money("amount", economy, amount));
             deps.services().menus().close(viewer).thenRun(() -> deps.messages().sendMessage(viewer, text));
