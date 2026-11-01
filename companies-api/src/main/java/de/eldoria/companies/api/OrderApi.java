@@ -64,10 +64,10 @@ public interface OrderApi {
     CompletableFuture<List<? extends IFullOrder>> byOwner(UUID owner, OrderState min, OrderState max);
 
     /**
-     * The prices other orders paid for a material.
+     * The prices other orders paid for a material, and the baseline the server's shops give it.
      *
      * @param material material of the price
-     * @return future of the price; all values are 0 when the material was never ordered
+     * @return future of the price; the prices of orders are 0 when the material was never ordered
      */
     CompletableFuture<? extends IMaterialPrice> materialPrice(Material material);
 

@@ -7,6 +7,7 @@ package de.eldoria.companies.menus.order;
 
 import de.eldoria.companies.commands.CommandDependencies;
 import de.eldoria.companies.commands.support.CommandFailure;
+import de.eldoria.companies.components.price.PriceBasis;
 import de.eldoria.companies.configuration.elements.OrderSettings;
 import de.eldoria.companies.configuration.elements.StyleSettings;
 import de.eldoria.companies.data.wrapper.order.MaterialPrice;
@@ -110,7 +111,10 @@ class OrderBuilderMenuTest {
     }
 
     private MenuText chat(OrderSettings settings) {
-        var prices = Map.of("oak_log", new MaterialPrice("oak_log", 2, 1, 3));
+        return chat(settings, Map.of("oak_log", MaterialPrice.ofOrders("oak_log", 2, 1, 3)));
+    }
+
+    private MenuText chat(OrderSettings settings, Map<String, MaterialPrice> prices) {
         var view =
                 DraftView.of(draft, settings, material -> prices.getOrDefault(material, new MaterialPrice(material)));
         var actions = new MenuActions(plugin, player, Duration.ofMinutes(15));
@@ -161,6 +165,33 @@ class OrderBuilderMenuTest {
         assertTrue(text.build().contains("<line_1_market>"));
         assertFalse(text.build().contains("<line_2_market>"));
         assertFalse(text.build().contains("<line_3_market>"));
+    }
+
+    @Test
+    void aMaterialOnlyTheShopsKnowOffersTheirPriceAndSaysWhereItComesFrom() {
+        draft.add(new ItemStack(Material.STONE), false, 1, 1);
+        draft.add(new ItemStack(Material.OAK_LOG), false, 1, 1);
+
+        var text = chat(settings(5, 100), Map.of("stone", MaterialPrice.ofShops("stone", 4, PriceBasis.LISTINGS)))
+                .build();
+
+        assertTrue(text.contains("<line_1_market>"), text);
+        assertTrue(text.contains("order.draft.price.shops"), text);
+        assertTrue(text.contains("order.draft.price.basis.LISTINGS"), text);
+        assertFalse(text.contains("<line_2_market>"), text);
+    }
+
+    @Test
+    void theHoverShowsTheOrdersAndTheShopsTheUsedOneFirst() {
+        draft.add(new ItemStack(Material.STONE), false, 1, 1);
+        var fewOrders = new MaterialPrice("stone", 2, 1, 3, 1, 4, PriceBasis.TRADES, 3);
+        var manyOrders = new MaterialPrice("stone", 2, 1, 3, 5, 4, PriceBasis.TRADES, 3);
+
+        var shopsFirst = chat(settings(5, 100), Map.of("stone", fewOrders)).build();
+        var ordersFirst = chat(settings(5, 100), Map.of("stone", manyOrders)).build();
+
+        assertTrue(shopsFirst.indexOf("order.draft.price.shops") < shopsFirst.indexOf("words.avg"), shopsFirst);
+        assertTrue(ordersFirst.indexOf("words.avg") < ordersFirst.indexOf("order.draft.price.shops"), ordersFirst);
     }
 
     @Test

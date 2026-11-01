@@ -142,6 +142,7 @@ public abstract class OrderLineDataContract {
         var market = dashboard.market();
 
         assertEquals(2.0, price.avgPrice(), 0.001);
+        assertEquals(1, price.orders());
         assertEquals(1, volume.size());
         assertEquals(10, volume.getFirst().items());
         assertEquals(10, market.stream().mapToLong(row -> row.volume()).sum());

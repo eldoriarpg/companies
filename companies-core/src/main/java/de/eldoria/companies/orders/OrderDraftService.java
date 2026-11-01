@@ -216,7 +216,7 @@ public final class OrderDraftService {
         var price = OrderBuilder.offeredMarketPrice(
                         draftLine, orderData.getMaterialPrice(draftLine.materialIdentifier()))
                 .orElseThrow(() -> CommandFailure.actionBar("order.draft.error.noMarketPrice"));
-        draft.unitPrice(line, price.avgPrice());
+        draft.unitPrice(line, price.price());
     }
 
     /**

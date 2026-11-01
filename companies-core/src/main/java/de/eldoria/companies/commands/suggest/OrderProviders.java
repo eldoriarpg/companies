@@ -88,11 +88,11 @@ public final class OrderProviders {
     }
 
     /**
-     * Suggests the market average unit price of the item the action is about: the draft line in argument
-     * {@code line}, the item in argument {@code item}, or else the item in the sender's main hand. Exact items and
-     * materials without market data get no suggestion.
+     * Suggests the unit price of the item the action is about: the draft line in argument {@code line}, the item in
+     * argument {@code item}, or else the item in the sender's main hand. Exact items and materials without a known
+     * price get no suggestion.
      *
-     * @return the market average as a number, with a tooltip
+     * @return the price as a number, with a tooltip saying whether it comes from orders or shops
      */
     @UnitPrices
     public static CompletableFuture<Suggestions> unitPrices(
@@ -101,17 +101,16 @@ public final class OrderProviders {
         var sources = SuggestionSources.current();
         if (sources.isEmpty()) return builder.buildFuture();
         var source = sources.get();
-        requested(context, source.drafts(), player)
-                .flatMap(item -> unitPrice(
-                        item.exact(),
-                        source.orderData()
-                                .getMaterialPrice(
-                                        item.template().getType().name().toLowerCase(Locale.ROOT))))
-                .filter(price -> price.startsWith(builder.getRemaining()))
-                .ifPresent(price -> builder.suggest(
-                        price,
-                        MessageComponentSerializer.message()
-                                .serialize(Component.text(source.localize("order.draft.marketAverage")))));
+        var item = requested(context, source.drafts(), player);
+        if (item.isEmpty()) return builder.buildFuture();
+        var price = source.orderData()
+                .getMaterialPrice(item.get().template().getType().name().toLowerCase(Locale.ROOT));
+        var tooltip = price.fromOrders() ? "order.draft.price.fromOrders" : "order.draft.price.fromShops";
+        unitPrice(item.get().exact(), price)
+                .filter(typed -> typed.startsWith(builder.getRemaining()))
+                .ifPresent(typed -> builder.suggest(
+                        typed,
+                        MessageComponentSerializer.message().serialize(Component.text(source.localize(tooltip)))));
         return builder.buildFuture();
     }
 
@@ -141,15 +140,15 @@ public final class OrderProviders {
     }
 
     /**
-     * The unit price suggested for an item: the market average, as long as the item is no exact item and the market
-     * has data.
+     * The unit price suggested for an item: the price Companies goes by, the average of delivered orders or the
+     * baseline of the shops, as long as the item is no exact item and a price is known.
      *
      * @param exact whether the item is requested exactly
      * @param price market price of the item's material
-     * @return the average unit price as it is typed, with at most two decimals
+     * @return the unit price as it is typed, with at most two decimals
      */
     public static Optional<String> unitPrice(boolean exact, MaterialPrice price) {
-        return OrderBuilder.offeredMarketPrice(exact, price).map(offered -> BigDecimal.valueOf(offered.avgPrice())
+        return OrderBuilder.offeredMarketPrice(exact, price).map(offered -> BigDecimal.valueOf(offered.price())
                 .setScale(2, RoundingMode.HALF_UP)
                 .stripTrailingZeros()
                 .toPlainString());

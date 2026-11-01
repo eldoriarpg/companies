@@ -21,6 +21,7 @@ Companies keeps its files in `plugins/Companies/`. They are created with default
 | [events.yml](./events-yml.md) | How the effects of server events combine | yes | on reload |
 | [jobs.yml](./jobs-yml.md) | Where jobs may lie, how large they may be and how long they run | yes | on reload |
 | [areas.yml](./areas-yml.md) | Where company areas may come from | yes | on reload |
+| [prices.yml](./prices-yml.md) | Prices read from the server's shop plugins | yes | on reload |
 | [database.yml](./database-yml.md) | Where the data is stored | no | on restart |
 | [node.yml](./node-yml.md) | The role of this server in a network | no | on restart |
 | [boards.yml](./boards-yml.md) | NPCs bound to order boards | no | on reload |

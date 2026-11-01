@@ -62,6 +62,10 @@ test.describe('dashboard', () => {
         const market = page.getByTestId('market')
         await expect(market.getByText('Diamond')).toBeVisible()
         await expect(market.getByText('96.00').first()).toBeVisible()
+        if (!onPhone(info)) {
+            await expect(market.getByRole('button').filter({hasText: 'Beacon'}).getByText('450.00')).toHaveClass(/font-semibold/)
+            await expect(market.getByRole('button').filter({hasText: 'Diamond'}).getByText('90.00')).not.toHaveClass(/font-semibold/)
+        }
         await page.getByLabel('Search items').fill('oak')
         await expect(market.getByText('Oak Log')).toBeVisible()
         await expect(market.getByText('Diamond')).toHaveCount(0)
@@ -79,6 +83,8 @@ test.describe('dashboard', () => {
         await expect(details.getByRole('img', {name: 'Average price of Diamond per day over 30 days'})).toBeVisible()
         await details.getByRole('button', {name: '90 d'}).click()
         await expect(details.getByRole('img', {name: 'Average price of Diamond per day over 90 days'})).toBeVisible()
+        await expect(details.getByTestId('market-shop')).toContainText('Shop price')
+        await expect(details.getByTestId('market-shop')).toContainText('From shop trades · chestshop')
     })
 
     test('shows the company and finds a member', async ({page}, info) => {

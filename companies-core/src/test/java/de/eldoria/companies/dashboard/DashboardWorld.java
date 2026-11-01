@@ -29,6 +29,7 @@ import de.eldoria.companies.configuration.elements.StyleSettings;
 import de.eldoria.companies.configuration.elements.UserSettings;
 import de.eldoria.companies.configuration.elements.companysettings.ProfileSettings;
 import de.eldoria.companies.configuration.elements.jobs.JobSettings;
+import de.eldoria.companies.configuration.elements.prices.PriceSettings;
 import de.eldoria.companies.configuration.elements.systemorders.MoneySource;
 import de.eldoria.companies.configuration.elements.systemorders.SystemOrderSettings;
 import de.eldoria.companies.dashboard.actions.AdminEventWrites;
@@ -63,6 +64,7 @@ import de.eldoria.companies.data.repository.impl.sqlite.SqLiteMembershipData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteNodeData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteOfferData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteOrderData;
+import de.eldoria.companies.data.repository.impl.sqlite.SqLitePriceData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteSavedItemData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteSeriesData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteServerEventData;
@@ -77,6 +79,7 @@ import de.eldoria.companies.data.wrapper.offer.OfferLine;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
 import de.eldoria.companies.data.wrapper.order.OrderContent;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
+import de.eldoria.companies.data.wrapper.price.Baseline;
 import de.eldoria.companies.data.wrapper.series.OrderSeries;
 import de.eldoria.companies.events.EventRecorder;
 import de.eldoria.companies.jobs.Blueprints;
@@ -141,6 +144,7 @@ import org.mockbukkit.mockbukkit.ServerMock;
 import java.lang.reflect.Proxy;
 import java.nio.file.Path;
 import java.time.Clock;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.HashMap;
@@ -160,6 +164,7 @@ import java.util.function.Function;
 import java.util.logging.Handler;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 import static de.chojo.sadu.queries.api.call.Call.call;
 import static de.chojo.sadu.queries.api.query.Query.query;
@@ -199,6 +204,8 @@ public final class DashboardWorld implements AutoCloseable {
     public final SqLiteDashboardData dashboard;
     public final SqLiteAreaData areas;
     public final SqLiteHomeData homes;
+    public final SqLitePriceData prices = new SqLitePriceData();
+    public final PriceSettings priceSettings = new PriceSettings();
     public final CompaniesApiImpl api;
     public final Views views;
     public final DashboardReads reads;
@@ -253,7 +260,7 @@ public final class DashboardWorld implements AutoCloseable {
         var alerts = new SqLiteAlertData(SqLiteTestDatabase.mapper(), executor);
         api = new CompaniesApiImpl(
                 new CompaniesApiImpl.Repositories(
-                        companies, orders, stats, treasury, serverEvents, areas, homes, new SqLiteJobData()),
+                        companies, orders, stats, treasury, serverEvents, areas, homes, new SqLiteJobData(), prices),
                 new CompaniesApiImpl.Server(
                         server::getOfflinePlayer, failure -> Component.text(failure.localeKey()), Times::now),
                 executor);
@@ -336,6 +343,8 @@ public final class DashboardWorld implements AutoCloseable {
                         (material, days) -> market.points(
                                 material, days, orderSettings.market().minOrders()),
                         market::today,
+                        () -> prices.baselines().stream()
+                                .collect(Collectors.toMap(Baseline::material, Function.identity())),
                         catalogue::catalogue,
                         catalogue::known,
                         entry -> entry.type().name(),
@@ -874,7 +883,12 @@ public final class DashboardWorld implements AutoCloseable {
                 Runnable::run,
                 adminLog,
                 Logger.getAnonymousLogger(),
-                failure -> "text of " + failure.localeKey()));
+                failure -> "text of " + failure.localeKey(),
+                new AdminServerWrites.Prices(
+                        () -> priceSettings,
+                        api.priceSources()::registered,
+                        () -> prices.sourceStats(LocalDate.EPOCH, LocalDateTime.of(2000, 1, 1, 0, 0)),
+                        prices::baselines)));
     }
 
     private static Plugin configPlugin(Path folder) {

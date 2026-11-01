@@ -237,12 +237,13 @@ public class SqLiteOrderData extends MariaDbOrderData {
     public void refreshMaterialPrices() {
         @Language("sqlite")
         var query = """
-                INSERT INTO material_price(material, avg_price, min_price, max_price)
-                SELECT material, avg_price, min_price, max_price
+                INSERT INTO material_price(material, avg_price, min_price, max_price, orders)
+                SELECT material, avg_price, min_price, max_price, orders
                 FROM (SELECT c.material,
                              AVG(c.price / c.amount) AS avg_price,
                              MIN(c.price / c.amount) AS min_price,
-                             MAX(c.price / c.amount) AS max_price
+                             MAX(c.price / c.amount) AS max_price,
+                             COUNT(*)                AS orders
                       FROM (SELECT ROW_NUMBER() OVER (PARTITION BY material ORDER BY last_update DESC) AS id,
                                    material,
                                    amount,
@@ -260,7 +261,8 @@ public class SqLiteOrderData extends MariaDbOrderData {
                 WHERE TRUE
                 ON CONFLICT(material) DO UPDATE SET avg_price = excluded.avg_price,
                                                     min_price = excluded.min_price,
-                                                    max_price = excluded.max_price""";
+                                                    max_price = excluded.max_price,
+                                                    orders = excluded.orders""";
         query(query).single(call().bind(SystemOwner.ID, UUID_BYTES)).update();
     }
 

@@ -27,6 +27,7 @@ import de.eldoria.companies.configuration.elements.dashboard.BrandingSettings;
 import de.eldoria.companies.configuration.elements.events.EventSettings;
 import de.eldoria.companies.configuration.elements.generalsettings.Hooks;
 import de.eldoria.companies.configuration.elements.jobs.JobSettings;
+import de.eldoria.companies.configuration.elements.prices.PriceSettings;
 import de.eldoria.companies.configuration.elements.systemorders.SystemOrderSettings;
 import de.eldoria.companies.data.repository.ANodeData;
 import de.eldoria.companies.data.wrapper.nodes.AppliedSettings;
@@ -110,6 +111,10 @@ public class Configuration extends JacksonConfig<ConfigFile> {
             .name("Company areas")
             .strict()
             .build();
+    public static final Key<PriceSettings> PRICES = Key.builder(Path.of("prices.yml"), PriceSettings::new)
+            .name("Shop prices")
+            .strict()
+            .build();
     public static final Key<BoardBindings> BOARD_BINDINGS = Key.builder(Path.of("boards.yml"), BoardBindings::new)
             .name("Board bindings")
             .build();
@@ -117,8 +122,8 @@ public class Configuration extends JacksonConfig<ConfigFile> {
     /**
      * The files every node of a network shares, in the order they are synced.
      */
-    public static final List<Key<?>> SHARED =
-            List.of(COMPANY_SETTINGS, USER_SETTINGS, ORDER_SETTINGS, SYSTEM_ORDERS, EVENTS, JOBS, AREAS, CONFIG_YML);
+    public static final List<Key<?>> SHARED = List.of(
+            COMPANY_SETTINGS, USER_SETTINGS, ORDER_SETTINGS, SYSTEM_ORDERS, EVENTS, JOBS, AREAS, PRICES, CONFIG_YML);
 
     private static final DateTimeFormatter BACKUP_TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss");
     private static final YAMLMapper YAML = YAMLMapper.builder().build();
@@ -289,6 +294,13 @@ public class Configuration extends JacksonConfig<ConfigFile> {
      */
     public AreaSettings areaSettings() {
         return secondary(AREAS);
+    }
+
+    /**
+     * @return which shop plugins prices are read from and how the baseline is worked out
+     */
+    public PriceSettings priceSettings() {
+        return secondary(PRICES);
     }
 
     public GeneralSettings generalSettings() {

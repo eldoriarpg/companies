@@ -152,7 +152,7 @@ class OrderBuilderTest {
 
     @Test
     void theMarketPriceIsOfferedOnlyForMaterialLinesWithData() {
-        var withData = new MaterialPrice("stone", 2.0, 1.0, 3.0);
+        var withData = MaterialPrice.ofOrders("stone", 2.0, 1.0, 3.0);
         var withoutData = new MaterialPrice("stone");
 
         assertTrue(OrderBuilder.offeredMarketPrice(false, withData).isPresent());

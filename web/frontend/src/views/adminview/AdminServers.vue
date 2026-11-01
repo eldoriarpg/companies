@@ -4,7 +4,7 @@
  *     Copyright (C) EldoriaRPG Team and Contributor
  */
 <script lang="ts" setup>
-import type {AdminNode} from '~/api/gateway'
+import type {AdminNode, AdminPriceSource} from '~/api/gateway'
 import InfoBadge from '@/components/badge/InfoBadge.vue'
 import NoticeBadge from '@/components/badge/NoticeBadge.vue'
 import PanelBox from '@/components/container/PanelBox.vue'
@@ -20,11 +20,14 @@ import {nodeLabel} from '~/util/nodes'
 /**
  * The servers of the network, as `/companyadmin node` and `syncconfiguration` offer them: every server registered in
  * the database with its role, version, when it was last seen and how it exchanges messages, an old one removed after
- * asking once more, and the configuration synced from the primary to every server.
+ * asking once more, the configuration synced from the primary to every server, and the shop plugins prices are read
+ * from with what each gave, whether it runs on this server and how `prices.yml` treats it.
  */
 const {t, locale} = useI18n()
 const {server, supports} = useDashboard()
 const loading = useAction()
+const pricing = useAction()
+const sources = ref<AdminPriceSource[] | null>(null)
 const changing = useAction()
 const syncing = useAction()
 const nodes = ref<AdminNode[] | null>(null)
@@ -33,8 +36,17 @@ const syncRun = ref(0)
 const names = computed(() => new Map((server.value?.nodes ?? []).map(node => [node.uid, node.name])))
 
 onMounted(() => {
-  if (supports(Feature['admin.nodes'])) void load()
+  if (supports(Feature['admin.nodes'])) {
+    void load()
+    void loadPrices()
+  }
 })
+
+/** Loads the shop plugins prices are read from. */
+async function loadPrices(): Promise<void> {
+  const result = await pricing.run('admin.nodes.prices', {})
+  if (result) sources.value = result.sources
+}
 
 /** Loads the servers. */
 async function load(): Promise<void> {
@@ -99,6 +111,24 @@ async function sync(): Promise<void> {
         </li>
       </PlainList>
       <ActionNotice :problem="changing.problem.value" class="mx-3 mb-3 md:mx-4"/>
+    </PanelBox>
+    <PanelBox v-if="supports(Feature['admin.nodes'])" :aria-label="t('admin.servers.prices.title')">
+      <template #head>
+        <SectionHeader>{{ t('admin.servers.prices.title') }}</SectionHeader>
+      </template>
+      <ActionNotice :problem="pricing.problem.value" class="mx-3 mt-3 md:mx-4"/>
+      <p v-if="sources && sources.length === 0" class="px-3 py-2.5 text-sm text-ink-muted md:px-4">{{ t('admin.servers.prices.none') }}</p>
+      <PlainList v-else-if="sources" data-testid="admin-price-sources">
+        <li v-for="source in sources" :key="source.id" class="flex flex-col gap-1 border-t border-line-soft px-3 py-2.5 text-sm md:px-4">
+          <span class="flex flex-wrap items-center gap-2 font-semibold">
+            {{ source.id }}
+            <InfoBadge v-if="source.here">{{ t('admin.servers.prices.here') }}</InfoBadge>
+            <NoticeBadge v-if="!source.enabled">{{ t('admin.servers.prices.off') }}</NoticeBadge>
+            <InfoBadge v-if="source.adminOnly">{{ t('admin.servers.prices.adminOnly') }}</InfoBadge>
+          </span>
+          <span class="text-xs text-ink-muted">{{ t('admin.servers.prices.facts', {servers: source.servers, offers: source.offers, offered: source.offeredItems, trades: source.trades, traded: source.tradedItems, baselines: source.baselines}) }}</span>
+        </li>
+      </PlainList>
     </PanelBox>
     <PanelBox v-if="supports(Feature['admin.config'])" padded :aria-label="t('admin.servers.config')">
       <SectionHeader>{{ t('admin.servers.config') }}</SectionHeader>

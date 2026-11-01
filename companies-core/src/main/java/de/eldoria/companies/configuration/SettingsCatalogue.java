@@ -78,7 +78,11 @@ public final class SettingsCatalogue {
             "guessed.maxItems",
             "guessed.repriceAfterHours",
             "guessed.learning.days",
-            "guessed.learning.fastMinutes");
+            "guessed.learning.fastMinutes",
+            "sampleMinutes",
+            "days",
+            "minTrades",
+            "minListings");
 
     private static final Set<String> PERCENT =
             Set.of("tax.percent", "fee.percent", "solo.taxPercent", "treasury.maxPayoutShare");
@@ -94,7 +98,9 @@ public final class SettingsCatalogue {
             Map.entry("guessed.learning.minFactor", 0.01),
             Map.entry("guessed.learning.weightFloor", 0.01),
             Map.entry("dashboard.sessionIdleMinutes", 5.0),
-            Map.entry("maxMultiplier", 1.0));
+            Map.entry("maxMultiplier", 1.0),
+            Map.entry("sellFactor", 0.01),
+            Map.entry("buyFactor", 0.01));
 
     private static final Map<String, Double> HIGHEST = Map.ofEntries(
             Map.entry("notifications.pageSize", 50.0),
@@ -123,6 +129,7 @@ public final class SettingsCatalogue {
     private static final String EVENTS = "events.yml";
     private static final String JOBS = "jobs.yml";
     private static final String AREAS = "areas.yml";
+    private static final String PRICES = "prices.yml";
 
     private SettingsCatalogue() {}
 
@@ -396,6 +403,19 @@ public final class SettingsCatalogue {
         areas.flag("homeInsideArea");
         areas.whole("sellBackPercent");
         areas.whole("rentWarnHours");
+
+        var prices = new Section(fields, PRICES, "prices");
+        prices.add(Type.FLAG_MAP, "sources", List.of(), false);
+        prices.add(Type.TEXT_LIST, "adminOnly", List.of(), false);
+        prices.add(Type.TEXT_LIST, "zshopEconomies", List.of(), false);
+        prices.add(Type.TEXT_LIST, "zauctionhouseEconomies", List.of(), false);
+        prices.decimal("shopkeepersCurrencyValue");
+        prices.whole("sampleMinutes");
+        prices.whole("days");
+        prices.whole("minTrades");
+        prices.whole("minListings");
+        prices.decimal("sellFactor");
+        prices.decimal("buyFactor");
         return List.copyOf(fields);
     }
 

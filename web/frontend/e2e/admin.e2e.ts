@@ -146,6 +146,7 @@ test.describe('admin', () => {
 
         const servers = page.getByTestId('admin-servers')
         await expect(servers.getByText('survival')).toBeVisible()
+        await expect(page.getByTestId('admin-price-sources').getByRole('listitem').filter({hasText: 'chestshop'})).toContainText('30 trades of 3 items')
         await expect(servers.getByRole('listitem')).toHaveCount(3)
         await servers.getByRole('listitem').filter({hasText: 'Secondary 0b1c2d3e'}).getByRole('button', {name: 'Remove'}).click()
         await servers.getByRole('listitem').filter({hasText: 'Secondary 0b1c2d3e'}).getByRole('button', {name: 'Remove', exact: true}).last().click()

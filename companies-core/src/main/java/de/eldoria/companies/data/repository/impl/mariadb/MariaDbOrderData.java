@@ -14,6 +14,7 @@ import de.eldoria.companies.commands.company.order.search.SearchQuery;
 import de.eldoria.companies.components.company.ISimpleCompany;
 import de.eldoria.companies.components.job.JobState;
 import de.eldoria.companies.components.order.OrderState;
+import de.eldoria.companies.components.price.PriceBasis;
 import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.repository.impl.TimeColumns;
 import de.eldoria.companies.data.wrapper.company.SimpleCompany;
@@ -1611,32 +1612,62 @@ public class MariaDbOrderData extends AOrderData {
     }
 
     @Override
-    protected Optional<MaterialPrice> findMaterialPrice(String material) {
+    protected MaterialPrice findMaterialPrice(String material, int minOrders) {
+        var name = material.toUpperCase(Locale.ROOT);
         @Language("mariadb")
-        var query = """
-                SELECT material, avg_price, min_price, max_price
+        var orders = """
+                SELECT avg_price, min_price, max_price, orders
                 FROM material_price
                 WHERE material = ?""";
-        return query(query)
-                .single(call().bind(material.toUpperCase(Locale.ROOT)))
-                .map(rs -> new MaterialPrice(
-                        material.toLowerCase(Locale.ROOT),
+        @Language("mariadb")
+        var shops = """
+                SELECT baseline_unit, basis
+                FROM material_baseline
+                WHERE material = ?""";
+        var market = query(orders)
+                .single(call().bind(name))
+                .map(rs -> new Market(
                         rs.getDouble("avg_price"),
                         rs.getDouble("min_price"),
-                        rs.getDouble("max_price")))
-                .first();
+                        rs.getDouble("max_price"),
+                        rs.getInt("orders")))
+                .first()
+                .orElse(new Market(0, 0, 0, 0));
+        var baseline = query(shops)
+                .single(call().bind(name))
+                .map(rs -> new Shops(rs.getDouble("baseline_unit"), basis(rs.getString("basis"))))
+                .first()
+                .orElse(new Shops(0, null));
+        return new MaterialPrice(
+                material.toLowerCase(Locale.ROOT),
+                market.avg(),
+                market.min(),
+                market.max(),
+                market.orders(),
+                baseline.unit(),
+                baseline.basis(),
+                minOrders);
+    }
+
+    private static @Nullable PriceBasis basis(String name) {
+        try {
+            return PriceBasis.valueOf(name);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
     }
 
     @Override
     public void refreshMaterialPrices() {
         @Language("mariadb")
         var query = """
-                INSERT INTO material_price(material, avg_price, min_price, max_price)
-                SELECT material, avg_price, min_price, max_price
+                INSERT INTO material_price(material, avg_price, min_price, max_price, orders)
+                SELECT material, avg_price, min_price, max_price, orders
                 FROM (SELECT c.material,
                              AVG(c.price / c.amount) AS avg_price,
                              MIN(c.price / c.amount) AS min_price,
-                             MAX(c.price / c.amount) AS max_price
+                             MAX(c.price / c.amount) AS max_price,
+                             COUNT(*)                AS orders
                       FROM (SELECT ROW_NUMBER() OVER (PARTITION BY material ORDER BY last_update DESC) AS id,
                                    material,
                                    amount,
@@ -1654,7 +1685,12 @@ public class MariaDbOrderData extends AOrderData {
                 WHERE TRUE
                 ON DUPLICATE KEY UPDATE avg_price = avg.avg_price,
                                         min_price = avg.min_price,
-                                        max_price = avg.max_price;""";
+                                        max_price = avg.max_price,
+                                        orders = avg.orders;""";
         query(query).single(call().bind(SystemOwner.ID, UUID_BYTES)).update();
     }
+
+    private record Market(double avg, double min, double max, int orders) {}
+
+    private record Shops(double unit, @Nullable PriceBasis basis) {}
 }

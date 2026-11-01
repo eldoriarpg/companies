@@ -9,12 +9,14 @@ import de.eldoria.companies.components.company.CompanyPermission;
 import de.eldoria.companies.components.company.TreasuryKind;
 import de.eldoria.companies.components.order.HistoryOutcome;
 import de.eldoria.companies.components.order.OrderState;
+import de.eldoria.companies.components.price.PriceBasis;
 import de.eldoria.companies.dashboard.DashboardWorld;
 import de.eldoria.companies.data.wrapper.dashboard.MarketDay;
 import de.eldoria.companies.data.wrapper.dashboard.StoredSession;
 import de.eldoria.companies.data.wrapper.history.HistoryEntry;
 import de.eldoria.companies.data.wrapper.history.HistorySnapshot;
 import de.eldoria.companies.data.wrapper.inbox.InboxStatus;
+import de.eldoria.companies.data.wrapper.price.Baseline;
 import de.eldoria.companies.data.wrapper.treasury.TreasuryEntry;
 import de.eldoria.companies.services.notifications.NotificationArgs;
 import de.eldoria.companies.services.notifications.NotificationType;
@@ -117,6 +119,64 @@ class ReadPagesTest {
         assertFalse(item.data().has("avg"));
         assertFalse(item.data().has("min"));
         assertEquals(1, item.data().path("orders").asInt());
+    }
+
+    @Test
+    void theMarketShowsTheShopPriceAndListsMaterialsOnlyTheShopsPrice() {
+        world.state(world.order(owner, "Only"), OrderState.DELIVERED, miners);
+        world.prices.replaceBaselines(
+                List.of(
+                        new Baseline("STONE", 2.0, 4.0, 3.0, PriceBasis.TRADES, List.of("chestshop")),
+                        new Baseline("SAND", null, 5.0, 5.0, PriceBasis.SERVER, List.of("shopgui"))),
+                LocalDateTime.now());
+
+        var stone =
+                read(kestrel, Actions.MARKET_ITEM, "{\"material\":\"STONE\"}").data();
+        var sand = read(kestrel, Actions.MARKET_ITEM, "{\"material\":\"sand\"}").data();
+        var top = read(kestrel, Actions.MARKET_TOP, "{\"page\":1}").data().path("items");
+
+        assertEquals(3.0, stone.path("shop").path("price").asDouble());
+        assertEquals("TRADES", stone.path("shop").path("basis").asString());
+        assertEquals("chestshop", stone.path("shop").path("sources").get(0).asString());
+        assertTrue(stone.path("shop").path("used").asBoolean());
+        assertEquals(0, sand.path("orders").asInt());
+        assertEquals("SERVER", sand.path("shop").path("basis").asString());
+        assertEquals(
+                "minecraft:sand",
+                top.get(top.size() - 1).path("item").path("material").asString());
+    }
+
+    @Test
+    void aMaterialOnlyTheShopsPriceIsFoundButNoMoverAndAnUnknownOneIsSkipped() {
+        world.prices.replaceBaselines(
+                List.of(
+                        new Baseline("SAND", null, 5.0, 5.0, PriceBasis.SERVER, List.of()),
+                        new Baseline("NOT_A_MATERIAL", null, 5.0, 5.0, PriceBasis.SERVER, List.of("shopgui"))),
+                LocalDateTime.now());
+
+        var search = read(kestrel, Actions.MARKET_SEARCH, "{\"query\":\"sand\",\"page\":1}")
+                .data();
+        var movers = read(kestrel, Actions.MARKET_MOVERS, "{\"page\":1}").data();
+        var top = read(kestrel, Actions.MARKET_TOP, "{\"page\":1}").data();
+
+        assertEquals(1, search.path("total").asInt());
+        assertEquals(0, search.path("items").get(0).path("shop").path("sources").size());
+        assertEquals(0, movers.path("total").asInt());
+        assertEquals(1, top.path("total").asInt());
+    }
+
+    @Test
+    void theShopPriceIsNotUsedOnceEnoughOrdersBackTheMarket() {
+        for (var i = 0; i < 3; i++) world.state(world.order(owner, "Order " + i), OrderState.RECEIVED, miners);
+        world.prices.replaceBaselines(
+                List.of(new Baseline("STONE", 2.0, 4.0, 3.0, PriceBasis.TRADES, List.of("chestshop"))),
+                LocalDateTime.now());
+
+        var stone =
+                read(kestrel, Actions.MARKET_ITEM, "{\"material\":\"STONE\"}").data();
+
+        assertEquals(10.0, stone.path("avg").asDouble());
+        assertFalse(stone.path("shop").path("used").asBoolean());
     }
 
     @Test

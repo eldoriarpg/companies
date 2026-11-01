@@ -81,6 +81,24 @@ pluginManifest {
     optional("Towny") {
         link("https://github.com/TownyAdvanced/Towny")
     }
+    optional("EconomyShopGUI") {
+        link("https://www.spigotmc.org/resources/69927/")
+    }
+    optional("ShopGUIPlus") {
+        link("https://www.spigotmc.org/resources/6515/")
+    }
+    optional("zShop") {
+        link("https://www.spigotmc.org/resources/74073/")
+    }
+    optional("ChestShop") {
+        link("https://www.spigotmc.org/resources/51856/")
+    }
+    optional("Shopkeepers") {
+        link("https://www.spigotmc.org/resources/80756/")
+    }
+    optional("zAuctionHouse") {
+        link("https://www.spigotmc.org/resources/63010/")
+    }
 }
 
 tasks {
@@ -134,7 +152,15 @@ bukkit {
         "GriefPrevention",
         "HuskClaims",
         "Lands",
-        "Towny"
+        "Towny",
+        "EconomyShopGUI",
+        "EconomyShopGUI-Premium",
+        "ShopGUIPlus",
+        "zShop",
+        "zMenu",
+        "ChestShop",
+        "Shopkeepers",
+        "zAuctionHouse"
     )
 
     permissions {

@@ -837,6 +837,8 @@ function action(name, args, state, story = {}) {
             return done({hook: args.hook, npc: args.npc, board: ''})
         case 'admin.nodes.list':
             return done({nodes: servers(state)})
+        case 'admin.nodes.prices':
+            return done({sources: [{id: 'chestshop', here: true, enabled: true, adminOnly: false, servers: 1, offers: 12, offeredItems: 4, trades: 30, tradedItems: 3, baselines: 5}]})
         case 'events.list':
             return done({offers: [{...eventRow(state, GOAL), event: 7}, eventRow(state, CONTEST)], serverEvents: [playerServerEvent()], member: true, canManage: true})
         case 'events.info':
