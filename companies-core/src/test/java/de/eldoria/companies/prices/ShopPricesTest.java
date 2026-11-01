@@ -29,6 +29,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.logging.Logger;
 
@@ -168,7 +169,8 @@ class ShopPricesTest {
             source.trade(new ShopTrade(new ItemStack(Material.STONE), 1, 2, ShopSide.SELL, ShopOrigin.PLAYER));
         }
         prices.tick();
-        data.replaceQuotes(NODE, QuoteSamples.groups(sources.sample().quotes(), now));
+        data.replaceQuotes(
+                NODE, Set.of("fake"), QuoteSamples.groups(sources.sample().quotes(), now));
 
         now = now.plusDays(settings.days() - 1L);
         prices.refreshBaselines();
@@ -213,7 +215,7 @@ class ShopPricesTest {
     }
 
     @Test
-    void aSourceThatFailsOnceKeepsItsLastSample() {
+    void aSourceThatFailsOrIsGoneKeepsItsLastSampleUntilItAgesOut() {
         var failing = new boolean[1];
         var source = new FakeSource("fake") {
             @Override
@@ -234,7 +236,9 @@ class ShopPricesTest {
         sources.unregister("fake");
         now = now.plusMinutes(settings.sampleMinutes());
         prices.tick();
-        assertTrue(data.quotes.get(NODE).isEmpty());
+        assertEquals(1, data.quotes.get(NODE).size());
+        assertTrue(data.quotes(ShopPrices.oldestSample(now.plusDays(settings.days()), settings))
+                .isEmpty());
     }
 
     @Test

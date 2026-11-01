@@ -40,9 +40,10 @@ public interface PriceSource {
 
     /**
      * The prices the shops of the plugin offer right now: open player shops, open auctions and the prices of server
-     * shops. Called on the main thread, at the interval of {@code sampleMinutes} in {@code prices.yml}.
+     * shops. Called on the main thread, at the interval of {@code sampleMinutes} in {@code prices.yml}. A source that
+     * can not tell right now, for example because its plugin is still loading, returns null: its last sample is kept.
      *
-     * @return the current offers, empty by default
+     * @return the current offers, empty by default, null to keep the last sample
      */
     default Collection<ShopQuote> quotes() {
         return List.of();

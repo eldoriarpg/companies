@@ -407,6 +407,7 @@ public final class SettingsCatalogue {
         var prices = new Section(fields, PRICES, "prices");
         prices.add(Type.FLAG_MAP, "sources", List.of(), false);
         prices.add(Type.TEXT_LIST, "adminOnly", List.of(), false);
+        prices.add(Type.TEXT_LIST, "zshopEconomies", List.of(), false);
         prices.whole("sampleMinutes");
         prices.whole("days");
         prices.whole("minTrades");

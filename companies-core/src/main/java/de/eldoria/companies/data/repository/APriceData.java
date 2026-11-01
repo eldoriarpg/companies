@@ -13,6 +13,7 @@ import de.eldoria.companies.data.wrapper.price.TradeDay;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -44,13 +45,15 @@ public abstract class APriceData {
     public abstract int purgeTrades(LocalDate before);
 
     /**
-     * Replaces the sample of the offers of a server, so a shop that is gone is gone from the sample.
+     * Replaces the sample of the offers of some sources on a server, so a shop that is gone is gone from the sample.
+     * The samples of other sources stay, such as one that could not be sampled this time.
      *
-     * @param node   the server
-     * @param quotes what its offers came to, per source, material, side and origin
+     * @param node    the server
+     * @param sources the ids of the sources sampled
+     * @param quotes  what their offers came to, per source, material, side and origin
      * @return true when the sample was stored
      */
-    public abstract boolean replaceQuotes(UUID node, List<QuoteGroup> quotes);
+    public abstract boolean replaceQuotes(UUID node, Set<String> sources, List<QuoteGroup> quotes);
 
     /**
      * @param from the oldest sample read

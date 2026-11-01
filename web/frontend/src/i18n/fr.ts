@@ -1019,6 +1019,7 @@ export default {
                 prices: {
                     sources: 'Plugins de boutique dont les prix peuvent être lus',
                     adminOnly: 'Plugins de boutique dont les boutiques de joueurs ne comptent pas',
+                    zshopEconomies: 'Économies zShop payant dans la monnaie principale (vide : toutes)',
                     sampleMinutes: 'Minutes entre deux relevés des offres des boutiques',
                     days: 'Jours de ventes et d\'offres des boutiques qui comptent',
                     minTrades: 'Nombre minimal de ventes pour un prix de boutique',

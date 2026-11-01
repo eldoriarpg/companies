@@ -14,6 +14,7 @@ file is shared by every server of a network.
 ```yaml
 sources: {}
 adminOnly: []
+zshopEconomies: []
 sampleMinutes: 30
 days: 14
 minTrades: 5
@@ -26,6 +27,7 @@ buyFactor: 1.0
 |-----|--------|---------|-------------|--------------|
 | `sources` | source id: true/false | empty | Switch a shop plugin off as a source of prices. A source not listed is on. | reload |
 | `adminOnly` | list of source ids | empty | Sources whose player shops do not count: only admin shops and the prices the server sets count from them. | reload |
+| `zshopEconomies` | list of zShop economy names | empty | The zShop economies that pay in the server's main currency. zShop does not tell which currency an economy uses; while the list is empty, every zShop price counts. | reload |
 | `sampleMinutes` | number (minutes) | `30` | How often each server reads the offers of its shops. At least 1. | reload |
 | `days` | number (days) | `14` | How many days of trades count, and how old a read of the offers may be. At least 1. | reload |
 | `minTrades` | number | `5` | How many trades of a material the shop price needs before it goes by trades. At least 1. | reload |
@@ -61,6 +63,23 @@ The shop prices are worked out on the primary server about once an hour, togethe
 reads the shops it runs itself, so in a network the shops of every server count.
 
 ## Shop plugins
+
+Companies reads these shop plugins when they are enabled; switch one off with `sources`:
+
+| Plugin | Id | What counts |
+|---|---|---|
+| EconomyShopGUI (free and Premium) | `economyshopgui` | The buy and sell price of every item of its shop sections, and every finished purchase and sale of one item. Selling a whole inventory at once is left out, as it gives one price for many items. |
+| ShopGUI+ | `shopguiplus` | The buy and sell price of one of every item of its shops, and every successful purchase and sale. |
+| zShop | `zshop` | The buy and sell price of every item button, and every purchase and sale, selling a whole inventory included (one trade per item). Mob spawners are left out, and so is buying from a button that runs commands instead of giving its item. |
+
+All three are server shops: their prices are server prices, and their trades are trades at the server's prices. Only
+prices in the server's main currency count: EconomyShopGUI and ShopGUI+ items paid in Vault (on the shop or as
+ShopGUI+'s default economy), and the zShop economies `zshopEconomies` names. zShop makes its items for a player only:
+each server reads it while someone is online, and while nobody has been online since the server started it keeps the
+offers it stored before.
+
+A shop plugin that is still loading, or that fails to be read, keeps the offers stored at its last read. Offers of a
+shop plugin that is removed stop counting after `days` days.
 
 Other plugins can add sources for their own shops through the API (`CompaniesApi.prices().register(...)`); their id is
 what `sources` and `adminOnly` name. An id is letters, digits, `_`, `-` and `.`, at most 64 characters, and is written in lower case.

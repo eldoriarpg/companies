@@ -26,6 +26,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.UUID;
 
@@ -134,7 +135,7 @@ public class MariaDbPriceData extends APriceData {
     }
 
     @Override
-    public boolean replaceQuotes(UUID node, List<QuoteGroup> quotes) {
+    public boolean replaceQuotes(UUID node, Set<String> sources, List<QuoteGroup> quotes) {
         @Language("mariadb")
         var insert = """
                 INSERT INTO shop_quote(source, node, material, side, origin, quotes, items, median_unit, min_unit,
@@ -143,9 +144,12 @@ public class MariaDbPriceData extends APriceData {
         var errors = new ArrayList<SQLException>();
         var conf = Transactions.open(errors);
         try (conf) {
-            conf.query("DELETE FROM shop_quote WHERE node = ?")
-                    .single(call().bind(node, UUID_BYTES))
-                    .delete();
+            if (!sources.isEmpty()) {
+                conf.query("DELETE FROM shop_quote WHERE node = ? AND source = ?")
+                        .batch(sources.stream()
+                                .map(source -> call().bind(node, UUID_BYTES).bind(source)))
+                        .delete();
+            }
             if (!quotes.isEmpty()) {
                 conf.query(insert)
                         .batch(quotes.stream().map(quote -> call().bind(quote.source())

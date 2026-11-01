@@ -7,16 +7,11 @@ package de.eldoria.companies.prices;
 
 import de.eldoria.companies.configuration.elements.prices.PriceSettings;
 import de.eldoria.companies.data.repository.APriceData;
-import de.eldoria.companies.data.wrapper.price.QuoteGroup;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -42,7 +37,6 @@ public final class ShopPrices {
     private final Executor mainThread;
     private final Executor worker;
     private final Logger logger;
-    private final Map<String, List<QuoteGroup>> lastGood = new ConcurrentHashMap<>();
     private volatile LocalDateTime lastSample = LocalDateTime.MIN;
     private volatile boolean sampling;
 
@@ -120,25 +114,11 @@ public final class ShopPrices {
     }
 
     /**
-     * Stores a sample. A source that failed keeps its groups of the last sample it gave, so one failure does not drop
-     * its prices; they age out like any sample.
+     * Stores a sample. A source that failed keeps its stored offers of the last sample it gave; they age out like any
+     * sample, as do those of a source that is not registered any more.
      */
     private void store(PriceSources.Sample sampled, LocalDateTime now) {
-        List<QuoteGroup> groups = new ArrayList<>();
-        var fresh = QuoteSamples.groups(sampled.quotes(), now);
-        for (var source : sampled.quotes().keySet()) {
-            lastGood.put(
-                    source,
-                    fresh.stream()
-                            .filter(group -> group.source().equals(source))
-                            .toList());
-        }
-        lastGood.keySet()
-                .removeIf(source -> !sampled.quotes().containsKey(source)
-                        && !sampled.failed().contains(source));
-        groups.addAll(fresh);
-        for (var source : sampled.failed()) groups.addAll(lastGood.getOrDefault(source, List.of()));
-        prices.replaceQuotes(node, groups);
+        prices.replaceQuotes(node, sampled.quotes().keySet(), QuoteSamples.groups(sampled.quotes(), now));
     }
 
     /**

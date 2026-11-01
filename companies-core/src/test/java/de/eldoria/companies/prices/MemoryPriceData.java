@@ -18,6 +18,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -56,8 +57,11 @@ class MemoryPriceData extends APriceData {
     }
 
     @Override
-    public synchronized boolean replaceQuotes(UUID node, List<QuoteGroup> groups) {
-        quotes.put(node, List.copyOf(groups));
+    public synchronized boolean replaceQuotes(UUID node, Set<String> sources, List<QuoteGroup> groups) {
+        List<QuoteGroup> kept = new ArrayList<>(quotes.getOrDefault(node, List.of()));
+        kept.removeIf(group -> sources.contains(group.source()));
+        kept.addAll(groups);
+        quotes.put(node, List.copyOf(kept));
         return true;
     }
 

@@ -120,7 +120,8 @@ public final class PriceSources implements Listener {
     /**
      * Asks every source in use for the offers of its shops. Called on the main thread.
      *
-     * @return the offers per source id, and the ids of the sources that failed
+     * @return the offers per source id, and the ids of the sources that failed; a source that returned null is in
+     *     neither, so its last sample is kept
      */
     public Sample sample() {
         Map<String, Collection<ShopQuote>> sampled = new LinkedHashMap<>();

@@ -21,6 +21,7 @@ import org.junit.jupiter.api.TestInstance;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 import javax.sql.DataSource;
@@ -108,9 +109,9 @@ public abstract class PriceDataContract {
 
     @Test
     void aSampleReplacesOnlyTheSampleOfItsServer() {
-        prices.replaceQuotes(NODE, List.of(quote("STONE", NOW), quote("DIRT", NOW)));
-        prices.replaceQuotes(OTHER_NODE, List.of(quote("STONE", NOW.minusDays(30))));
-        prices.replaceQuotes(NODE, List.of(quote("SAND", NOW)));
+        prices.replaceQuotes(NODE, Set.of("chestshop"), List.of(quote("STONE", NOW), quote("DIRT", NOW)));
+        prices.replaceQuotes(OTHER_NODE, Set.of("chestshop"), List.of(quote("STONE", NOW.minusDays(30))));
+        prices.replaceQuotes(NODE, Set.of("chestshop"), List.of(quote("SAND", NOW)));
 
         var recent = prices.quotes(NOW.minusDays(1));
         assertEquals(1, recent.size());
@@ -120,6 +121,16 @@ public abstract class PriceDataContract {
         assertEquals(1.5, quote.medianUnit(), 1e-9);
         assertEquals(NOW, quote.sampledAt());
         assertEquals(2, prices.quotes(NOW.minusDays(31)).size());
+    }
+
+    @Test
+    void aSampleLeavesTheOffersOfSourcesItDidNotSample() {
+        prices.replaceQuotes(NODE, Set.of("chestshop", "zshop"), List.of(quote("STONE", NOW), quote("zshop", "DIRT")));
+        prices.replaceQuotes(NODE, Set.of("chestshop"), List.of());
+
+        var left = prices.quotes(NOW.minusDays(1));
+        assertEquals(1, left.size());
+        assertEquals("zshop", left.getFirst().source());
     }
 
     @Test
@@ -156,9 +167,9 @@ public abstract class PriceDataContract {
     @Test
     void eachSourceSumsUpItsTradesAndRecentOffers() {
         prices.addTrades(List.of(trade(DAY, 2, 4, 8, 2, 2), trade(DAY.minusDays(20), 9, 9, 9, 1, 1)));
-        prices.replaceQuotes(NODE, List.of(quote("STONE", NOW), quote("DIRT", NOW)));
-        prices.replaceQuotes(OTHER_NODE, List.of(quote("STONE", NOW)));
-        prices.replaceQuotes(UUID.randomUUID(), List.of(quote("SAND", NOW.minusDays(30))));
+        prices.replaceQuotes(NODE, Set.of("chestshop"), List.of(quote("STONE", NOW), quote("DIRT", NOW)));
+        prices.replaceQuotes(OTHER_NODE, Set.of("chestshop"), List.of(quote("STONE", NOW)));
+        prices.replaceQuotes(UUID.randomUUID(), Set.of("chestshop"), List.of(quote("SAND", NOW.minusDays(30))));
 
         var stats = prices.sourceStats(DAY.minusDays(1), NOW.minusDays(1));
 
@@ -175,6 +186,10 @@ public abstract class PriceDataContract {
     private static TradeDay trade(LocalDate day, int trades, long items, double total, double min, double max) {
         return new TradeDay(
                 day, "chestshop", "STONE", ShopSide.SELL, ShopOrigin.PLAYER, trades, items, total, min, max);
+    }
+
+    private static QuoteGroup quote(String source, String material) {
+        return new QuoteGroup(source, material, ShopSide.BUY, ShopOrigin.SERVER, 1, 1, 2.0, 2.0, 2.0, NOW);
     }
 
     private static QuoteGroup quote(String material, LocalDateTime sampledAt) {

@@ -173,6 +173,7 @@ import de.eldoria.companies.orders.system.GuessedOutcomes;
 import de.eldoria.companies.orders.system.SystemFunding;
 import de.eldoria.companies.orders.system.SystemOrderService;
 import de.eldoria.companies.placeholders.Placeholders;
+import de.eldoria.companies.prices.PriceHookContext;
 import de.eldoria.companies.prices.PriceHooks;
 import de.eldoria.companies.prices.ShopPrices;
 import de.eldoria.companies.services.AdminCompanyService;
@@ -374,7 +375,7 @@ public class Companies extends EldoPlugin {
         getServer().getPluginManager().registerEvents(api.areaProviders(), this);
         api.priceSources().settings(configuration::priceSettings);
         getServer().getPluginManager().registerEvents(api.priceSources(), this);
-        PriceHooks.load(this, api.priceSources());
+        PriceHooks.load(new PriceHookContext(this, configuration::priceSettings), api.priceSources());
         orderData.minOrders(() -> configuration.orderSetting().market().minOrders());
     }
 

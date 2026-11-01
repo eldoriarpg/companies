@@ -6,6 +6,7 @@
 package de.eldoria.companies.prices;
 
 import de.eldoria.companies.components.price.PriceSource;
+import de.eldoria.companies.configuration.elements.prices.PriceSettings;
 import org.bukkit.event.server.PluginDisableEvent;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -50,7 +51,7 @@ class PriceHooksTest {
         known.put("Broken", "de.eldoria.companies.prices.Missing");
         known.put("Absent", Source.class.getName());
 
-        PriceHooks.load(companies, sources, known);
+        PriceHooks.load(new PriceHookContext(companies, PriceSettings::new), sources, known);
 
         assertEquals(List.of("source"), sources.sources());
         sources.onDisable(new PluginDisableEvent(shop));
@@ -61,6 +62,11 @@ class PriceHooksTest {
      * A source loaded by its class name.
      */
     public static final class Source implements PriceSource {
+        /**
+         * @param context what a source gets when it is loaded
+         */
+        public Source(PriceHookContext context) {}
+
         @Override
         public String id() {
             return "source";

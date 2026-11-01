@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -160,6 +161,16 @@ class BaselinesTest {
         assertEquals(4.0, baseline.unit(), 1e-9);
         assertNull(baseline.sellUnit());
         assertEquals(PriceBasis.SERVER, baseline.basis());
+    }
+
+    @Test
+    void everyZShopEconomyCountsUntilSomeAreNamedIgnoringCase() {
+        assertTrue(settings.zshopEconomy("tokens"));
+
+        settings.zshopEconomies(List.of("Money"));
+
+        assertTrue(settings.zshopEconomy("MONEY"));
+        assertFalse(settings.zshopEconomy("tokens"));
     }
 
     @Test

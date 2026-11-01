@@ -1019,6 +1019,7 @@ export default {
                 prices: {
                     sources: 'Shop-Plugins, aus denen Preise gelesen werden dürfen',
                     adminOnly: 'Shop-Plugins, deren Spieler-Shops nicht zählen',
+                    zshopEconomies: 'zShop-Ökonomien in der Hauptwährung (leer: alle)',
                     sampleMinutes: 'Minuten zwischen zwei Stichproben der Shop-Angebote',
                     days: 'Tage, aus denen Shop-Verkäufe und Angebote zählen',
                     minTrades: 'Wenigste Verkäufe, nach denen sich ein Shop-Preis richtet',

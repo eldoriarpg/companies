@@ -21,6 +21,7 @@ import java.util.Map;
 public class PriceSettings {
     private Map<String, Boolean> sources = new LinkedHashMap<>();
     private List<String> adminOnly = new ArrayList<>();
+    private List<String> zshopEconomies = new ArrayList<>();
     private int sampleMinutes = 30;
     private int days = 14;
     private int minTrades = 5;
@@ -72,6 +73,32 @@ public class PriceSettings {
 
     public void adminOnly(List<String> adminOnly) {
         this.adminOnly = new ArrayList<>(adminOnly);
+    }
+
+    /**
+     * zShop does not tell which currency an economy pays in, so this names the zShop economies that pay in the server's
+     * main currency.
+     *
+     * @param name the name of a zShop economy
+     * @return whether its prices count, matched ignoring case; every economy counts while none is listed
+     */
+    public boolean zshopEconomy(String name) {
+        var listed = zshopEconomies();
+        return listed.isEmpty() || listed.contains(name.toLowerCase(Locale.ROOT));
+    }
+
+    /**
+     * @return the names of the zShop economies that pay in the server's main currency, lower case; empty for all
+     */
+    public List<String> zshopEconomies() {
+        if (zshopEconomies == null) return List.of();
+        return zshopEconomies.stream()
+                .map(name -> name.toLowerCase(Locale.ROOT))
+                .toList();
+    }
+
+    public void zshopEconomies(List<String> zshopEconomies) {
+        this.zshopEconomies = new ArrayList<>(zshopEconomies);
     }
 
     /**
