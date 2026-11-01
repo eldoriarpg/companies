@@ -89,9 +89,7 @@ public final class Transfer {
                             refused.failure().sendTo(player, messages());
                         case ActionResult.Done<Affected> done -> {
                             var name = Replacement.unparsed(
-                                    "name",
-                                    String.valueOf(
-                                            done.value().member().player().getName()));
+                                    "name", String.valueOf(done.value().member().name()));
                             messages().sendMessage(player, "company.transfer.done", name);
                         }
                     }
@@ -101,10 +99,7 @@ public final class Transfer {
     private void request(MenuService menus, Player player, Affected transfer) {
         var target = transfer.member();
         var question = MenuText.create()
-                .locale(
-                        "company.transfer.confirm",
-                        Values.text(
-                                "member_name", String.valueOf(target.player().getName())));
+                .locale("company.transfer.confirm", Values.text("member_name", String.valueOf(target.name())));
         transfers.ask(menus, player, new Pending(transfer.company().id(), target.uuid()), question);
     }
 

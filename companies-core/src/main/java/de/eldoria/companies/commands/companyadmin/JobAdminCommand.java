@@ -18,6 +18,7 @@ import de.eldoria.companies.menus.MenuText;
 import de.eldoria.companies.menus.Values;
 import de.eldoria.companies.services.events.EventTimes;
 import de.eldoria.companies.util.Permission.Admin;
+import de.eldoria.companies.util.PlayerNames;
 import de.eldoria.companies.util.Threading;
 import de.eldoria.companies.util.Times;
 import net.kyori.adventure.text.event.ClickEvent;
@@ -203,8 +204,7 @@ public final class JobAdminCommand {
     }
 
     private String playerName(UUID player) {
-        return Objects.requireNonNullElse(
-                deps.plugin().getServer().getOfflinePlayer(player).getName(), player.toString());
+        return Objects.requireNonNullElse(PlayerNames.of(player), player.toString());
     }
 
     private JobServices jobs() {

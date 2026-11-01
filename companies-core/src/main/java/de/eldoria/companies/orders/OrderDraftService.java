@@ -16,6 +16,7 @@ import de.eldoria.companies.configuration.Configuration;
 import de.eldoria.companies.configuration.elements.ItemMatchSettings;
 import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.orders.criteria.CriteriaRules;
+import de.eldoria.companies.util.Money;
 import de.eldoria.companies.util.Permission;
 import de.eldoria.companies.util.Times;
 import org.bukkit.entity.Player;
@@ -216,7 +217,7 @@ public final class OrderDraftService {
         var price = OrderBuilder.offeredMarketPrice(
                         draftLine, orderData.getMaterialPrice(draftLine.materialIdentifier()))
                 .orElseThrow(() -> CommandFailure.actionBar("order.draft.error.noMarketPrice"));
-        draft.unitPrice(line, price.price());
+        draft.unitPrice(line, Money.offered(price.price()));
     }
 
     /**

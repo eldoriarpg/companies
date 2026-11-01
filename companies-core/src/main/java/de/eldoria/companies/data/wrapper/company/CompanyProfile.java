@@ -76,7 +76,7 @@ public class CompanyProfile extends SimpleCompany implements ICompanyProfile {
     @Override
     public Optional<CompanyMember> memberByName(String name) {
         return members.stream()
-                .filter(member -> Optional.ofNullable(member.player().getName())
+                .filter(member -> Optional.ofNullable(member.name())
                         .map(n -> n.equalsIgnoreCase(name))
                         .orElse(false))
                 .findFirst();

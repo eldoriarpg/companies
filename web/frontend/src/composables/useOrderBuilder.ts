@@ -19,6 +19,16 @@ export type QuoteState =
     | {status: 'failed'}
 
 /**
+ * A price rounded half up to cents, at least one cent.
+ *
+ * @param price the price
+ * @returns the rounded price
+ */
+function cents(price: number): number {
+    return Math.max(0.01, Math.round((price + Number.EPSILON) * 100) / 100)
+}
+
+/**
  * An order being built on the dashboard: its name, lines and repetition, the catalogue and known items they are
  * picked from, and the plugin's quote, asked for again whenever the order changes and is complete. A change drops the
  * quote at once, so an order is never placed at the price of what it was before, and an answer overtaken by a newer
@@ -61,13 +71,14 @@ export function useOrderBuilder(api: GatewayApi = gatewayApi()) {
     }
 
     /**
-     * Adds a line.
+     * Adds a line. A suggested price is rounded to cents, as prices are, and is at least one cent.
      *
      * @param source the line's item
      * @param unitPrice the suggested price of one item
      */
     function addLine(source: LineSource, unitPrice?: number): void {
-        lines.value = [...lines.value, {id: nextId++, source, amount: 1, unitPrice}]
+        const suggested = unitPrice === undefined ? undefined : cents(unitPrice)
+        lines.value = [...lines.value, {id: nextId++, source, amount: 1, unitPrice: suggested}]
     }
 
     /**

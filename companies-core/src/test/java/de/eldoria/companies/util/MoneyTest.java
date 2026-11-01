@@ -28,6 +28,14 @@ class MoneyTest {
     }
 
     @Test
+    void anOfferedPriceIsRoundedHalfUpToCentsAndAtLeastOneCent() {
+        Assertions.assertEquals(0.75, Money.offered(0.7460171306209851));
+        Assertions.assertEquals(0.75, Money.offered(0.745));
+        Assertions.assertEquals(0.01, Money.offered(0.001));
+        Assertions.assertEquals(12.0, Money.offered(12));
+    }
+
+    @Test
     void amountsBeyondALongAreRefused() {
         Assertions.assertThrows(ArithmeticException.class, () -> Money.toCents(new BigDecimal("1E20")));
     }

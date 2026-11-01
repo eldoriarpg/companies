@@ -26,6 +26,7 @@ import de.eldoria.companies.services.AdminOrderService;
 import de.eldoria.companies.services.AdminOrderService.Result;
 import de.eldoria.companies.util.AdminLog;
 import de.eldoria.companies.util.Permission.Admin;
+import de.eldoria.companies.util.PlayerNames;
 import de.eldoria.companies.util.Threading;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import net.strokkur.commands.Executes;
@@ -502,8 +503,7 @@ public final class AdminOrderCommand implements AdminOrderActions {
     }
 
     private String playerName(UUID player) {
-        return SystemOwner.name(
-                player, id -> deps.plugin().getServer().getOfflinePlayer(id).getName());
+        return SystemOwner.name(player, PlayerNames::of);
     }
 
     private AdminLog.Entry log(Player admin, String action, SimpleOrder order) {

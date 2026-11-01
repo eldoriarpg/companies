@@ -35,6 +35,7 @@ import de.eldoria.companies.menus.MenuText;
 import de.eldoria.companies.menus.Values;
 import de.eldoria.companies.orders.SystemOwner;
 import de.eldoria.companies.util.AsyncEvents;
+import de.eldoria.companies.util.PlayerNames;
 import de.eldoria.companies.util.Threading;
 import de.eldoria.companies.util.Times;
 import de.eldoria.eldoutilities.localization.ILocalizer;
@@ -364,7 +365,7 @@ public class NotificationService implements Listener {
         sendCompany(
                 event.company(),
                 NotificationType.MEMBER_LEFT,
-                playerArgs(event.player().getName()),
+                playerArgs(PlayerNames.of(event.player())),
                 member -> member.uuid().equals(leaver));
     }
 
@@ -374,7 +375,7 @@ public class NotificationService implements Listener {
         sendCompany(
                 event.company(),
                 NotificationType.MEMBER_JOINED,
-                playerArgs(event.player().getName()),
+                playerArgs(PlayerNames.of(event.player())),
                 member -> member.uuid().equals(joined));
     }
 
@@ -385,7 +386,7 @@ public class NotificationService implements Listener {
         sendCompany(
                 event.company(),
                 NotificationType.MEMBER_KICKED,
-                playerArgs(event.player().getName()),
+                playerArgs(PlayerNames.of(event.player())),
                 member -> member.uuid().equals(kicked));
     }
 

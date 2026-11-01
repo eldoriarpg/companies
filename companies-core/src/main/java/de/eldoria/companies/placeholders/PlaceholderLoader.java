@@ -201,8 +201,7 @@ public final class PlaceholderLoader {
     private static String owner(CompanyProfile profile) {
         return profile.members(CompanyPermission.OWNER).stream()
                 .findFirst()
-                .map(CompanyMember::player)
-                .map(OfflinePlayer::getName)
+                .map(CompanyMember::name)
                 .orElse("");
     }
 

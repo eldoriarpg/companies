@@ -77,16 +77,15 @@ public final class TransferOwner {
                                     .entry(admin, "transferowner")
                                     .with("company", done.value().profile().name())
                                     .with("company_id", done.value().profile().id())
-                                    .with("from", transfer.from().player().getName())
-                                    .with("to", transfer.to().player().getName())
+                                    .with("from", transfer.from().name())
+                                    .with("to", transfer.to().name())
                                     .write();
                             messages()
                                     .sendMessage(
                                             admin,
                                             "companyadmin.transferOwner.done",
                                             Replacement.create(
-                                                    "name",
-                                                    transfer.to().player().getName()));
+                                                    "name", transfer.to().name()));
                         }
                     }
                 });

@@ -7,8 +7,10 @@ package de.eldoria.companies.menus.company;
 
 import de.eldoria.companies.components.company.CompanyPermission;
 import de.eldoria.companies.data.wrapper.company.CompanyMember;
+import de.eldoria.companies.util.PlayerNames;
 import de.eldoria.companies.util.Times;
 import org.bukkit.OfflinePlayer;
+import org.jetbrains.annotations.Nullable;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -16,6 +18,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Function;
 
 /**
  * One member as the member list shows it.
@@ -38,13 +41,24 @@ public record MemberEntry(UUID uuid, String name, Optional<String> lastSeen, Lis
     }
 
     /**
-     * The name of a player, or the id of the player when the server does not know the name.
+     * The name of a player, or the id of the player when neither the server nor its user cache knows the name.
      *
      * @param player the player
      * @return name to show
      */
     public static String nameOf(OfflinePlayer player) {
-        return Optional.ofNullable(player.getName())
+        return nameOf(player, PlayerNames::of);
+    }
+
+    /**
+     * The name of a player, or the id of the player when the lookup does not know the name.
+     *
+     * @param player the player
+     * @param names  looks up a player's name
+     * @return name to show
+     */
+    static String nameOf(OfflinePlayer player, Function<OfflinePlayer, @Nullable String> names) {
+        return Optional.ofNullable(names.apply(player))
                 .orElseGet(() -> player.getUniqueId().toString());
     }
 

@@ -7,8 +7,10 @@ package de.eldoria.companies.data.wrapper.company;
 
 import de.eldoria.companies.components.company.CompanyPermission;
 import de.eldoria.companies.components.company.ICompanyMember;
+import de.eldoria.companies.util.PlayerNames;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.Arrays;
 import java.util.List;
@@ -92,6 +94,13 @@ public class CompanyMember implements ICompanyMember {
     @Override
     public OfflinePlayer player() {
         return Bukkit.getOfflinePlayer(uuid);
+    }
+
+    /**
+     * @return the member's name, null when neither the server nor its user cache knows it
+     */
+    public @Nullable String name() {
+        return PlayerNames.of(player());
     }
 
     @Override

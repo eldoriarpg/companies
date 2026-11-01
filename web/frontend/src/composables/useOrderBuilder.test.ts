@@ -47,6 +47,18 @@ describe('the order builder', () => {
         expect(builder.known.value?.saved[0]?.ref).toBe('saved:1')
     })
 
+    it('rounds a suggested price to cents, at least one cent', () => {
+        const {api} = gateway(() => ({}))
+        const builder = useOrderBuilder(api)
+
+        builder.addLine({kind: 'material', material: material('stone', 'Stone')}, 0.7460171306209851)
+        builder.addLine({kind: 'material', material: material('dirt', 'Dirt')}, 0.001)
+        builder.addLine({kind: 'material', material: material('sand', 'Sand')})
+        builder.addLine({kind: 'material', material: material('glass', 'Glass')}, 0.745)
+
+        expect(builder.lines.value.map(line => line.unitPrice)).toEqual([0.75, 0.01, undefined, 0.75])
+    })
+
     it('quotes once the order is complete, after the typing settles', async () => {
         const {api, read} = gateway(() => ({price: 128, fee: 6.4, total: 134.4}))
         const builder = useOrderBuilder(api)

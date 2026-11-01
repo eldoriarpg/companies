@@ -214,6 +214,7 @@ import de.eldoria.companies.services.notifications.NotificationType;
 import de.eldoria.companies.updates.Updates;
 import de.eldoria.companies.util.AsyncEvents;
 import de.eldoria.companies.util.Money;
+import de.eldoria.companies.util.PlayerNames;
 import de.eldoria.companies.util.StyledMessageSender;
 import de.eldoria.companies.util.Texts;
 import de.eldoria.companies.util.Threading;
@@ -1263,9 +1264,7 @@ public class Companies extends EldoPlugin {
                                         companyData,
                                         information.history(),
                                         configuration,
-                                        uuid -> SystemOwner.name(uuid, id -> getServer()
-                                                .getOfflinePlayer(id)
-                                                .getName())),
+                                        uuid -> SystemOwner.name(uuid, PlayerNames::of)),
                                 commands.adminLog(),
                                 name -> companyData.retrieveCompanyByName(name).asFuture(),
                                 new AdminCompanyService(companyData, commands.companyChanges()),

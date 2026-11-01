@@ -198,7 +198,7 @@ class CompanyViewsTest {
                 new Class<?>[] {OfflinePlayer.class},
                 (proxy, method, args) -> method.getName().equals("getUniqueId") ? unknown : null);
 
-        assertEquals(unknown.toString(), MemberEntry.nameOf(player));
+        assertEquals(unknown.toString(), MemberEntry.nameOf(player, ignored -> null));
     }
 
     @Test

@@ -13,6 +13,7 @@ import de.eldoria.companies.data.wrapper.company.Application;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.company.Invite;
 import de.eldoria.companies.data.wrapper.company.SimpleCompany;
+import de.eldoria.companies.util.PlayerNames;
 import de.eldoria.companies.util.Times;
 import org.bukkit.Bukkit;
 
@@ -176,7 +177,7 @@ public final class MembershipSources {
 
         private static List<String> names(List<UUID> players) {
             return players.stream()
-                    .map(uuid -> Bukkit.getOfflinePlayer(uuid).getName())
+                    .map(PlayerNames::of)
                     .filter(Objects::nonNull)
                     .toList();
         }
