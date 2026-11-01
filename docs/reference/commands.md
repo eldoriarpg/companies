@@ -384,6 +384,12 @@ You see `/companyadmin` if you have any of the `companies.admin` permissions. Ea
 | `/companyadmin order deliver <id>` | `companies.admin.orders` | no | Closes an order as delivered. Asks you to confirm. |
 | `/companyadmin order deliver confirm` | `companies.admin.orders` | no | Confirms the delivery. |
 | `/companyadmin order extend <id> <hours>` | `companies.admin.orders` | no | Gives an order more time to be delivered, or more time before it is removed. `hours` is 1 to 8760. |
+| `/companyadmin systemorders list` | `companies.admin.orders` | yes | Lists the orders the server placed that are open or in work. |
+| `/companyadmin systemorders info <id>` | `companies.admin.orders` | yes | Shows why the server placed an order. |
+| `/companyadmin systemorders stats` | `companies.admin.orders` | yes | Shows per material what guessed orders learned. |
+| `/companyadmin systemorders item add <rule>` | `companies.admin.orders` and `companies.admin.reload` | no | Adds the item you hold to a defined rule. |
+| `/companyadmin systemorders pause <rule>` | `companies.admin.orders` and `companies.admin.reload` | yes | Stops a defined rule from placing orders. Its open orders stay. |
+| `/companyadmin systemorders resume <rule>` | `companies.admin.orders` and `companies.admin.reload` | yes | Lets a paused rule place orders again. |
 | `/companyadmin player <player>` | `companies.admin.player` | no | Shows the company, role, orders, items and notifications of a player. |
 | `/companyadmin grant items <player> [amount]` | `companies.admin.grant` | no | Stores the item in your main hand for a player. The player gets it with `/order collect`. `amount` is 1 to 100000. |
 | `/companyadmin grant money <player> <amount>` | `companies.admin.grant` | no | Gives money to a player. |
