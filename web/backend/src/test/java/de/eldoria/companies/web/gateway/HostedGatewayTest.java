@@ -36,6 +36,7 @@ import de.eldoria.companies.web.api.update.Subscribe;
 import de.eldoria.companies.web.api.update.Unsubscribe;
 import de.eldoria.companies.web.gateway.node.Icons;
 import de.eldoria.companies.web.gateway.node.NodeHub;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -114,10 +115,19 @@ class HostedGatewayTest {
     }
 
     static HttpResponse<String> login(FakeNode node, FakeBrowser browser, SessionCreated created, boolean admin) {
+        return login(node, browser, created, admin, null);
+    }
+
+    static HttpResponse<String> login(
+            FakeNode node,
+            FakeBrowser browser,
+            SessionCreated created,
+            boolean admin,
+            @Nullable List<String> adminFeatures) {
         CompletableFuture<HttpResponse<String>> response =
                 browser.postAsync("/api/v1/s/" + created.shortId() + "/login", "{\"code\":\"" + created.code() + "\"}");
         SessionOpened opened = node.expect(SessionOpened.class);
-        node.send(new SessionConfirmed(opened.id(), 1, opened.session(), admin));
+        node.send(new SessionConfirmed(opened.id(), 1, opened.session(), admin, adminFeatures));
         HttpResponse<String> answer = response.join();
         assertEquals(204, answer.statusCode(), answer.body());
         return answer;
@@ -1266,6 +1276,95 @@ class HostedGatewayTest {
             assertTrue(adminView.path("features").valueStream().anyMatch(feature -> feature.asString()
                     .equals(Features.ADMIN_ORDERS)));
         }
+    }
+
+    @Test
+    void listsAnAdminOnlyTheAdminFeaturesTheirPermissionsAllow() {
+        String key = key();
+        UUID uid = UUID.randomUUID();
+        List<String> features = List.of(Features.ORDERS_BROWSE, Features.ADMIN_ORDERS, Features.ADMIN_CONFIG);
+        try (FakeNode node = FakeNode.welcomed(
+                gateway, FakeNode.hello(KeyKind.DASHBOARD_KEY, key, uid, NodeRole.PRIMARY, PLUGIN, features, null))) {
+            FakeBrowser admin = new FakeBrowser(gateway, "203.0.113.28");
+            login(node, admin, create(node, uid), true, List.of(Features.ADMIN_ORDERS));
+            JsonNode view = FakeBrowser.json(admin.get("/api/v1/me/server"));
+            assertEquals(
+                    List.of(Features.ADMIN_ORDERS, Features.ORDERS_BROWSE),
+                    view.path("features").valueStream().map(JsonNode::asString).toList());
+            assertEquals(
+                    403,
+                    admin.post("/api/v1/me/actions", "{\"name\":\"admin.config.sync\",\"args\":{}}")
+                            .statusCode());
+            CompletableFuture<HttpResponse<String>> info =
+                    admin.postAsync("/api/v1/me/actions", "{\"name\":\"admin.orders.info\",\"args\":{\"order\":1}}");
+            answer(node, node.expect(ActionRequest.class), 1);
+            assertEquals(1, content(info.join()));
+        }
+    }
+
+    @Test
+    void listsNoAdminFeatureToAnAdminWhosePermissionsAllowNone() {
+        String key = key();
+        UUID uid = UUID.randomUUID();
+        List<String> features = List.of(Features.ORDERS_BROWSE, Features.ADMIN_ORDERS);
+        try (FakeNode node = FakeNode.welcomed(
+                gateway, FakeNode.hello(KeyKind.DASHBOARD_KEY, key, uid, NodeRole.PRIMARY, PLUGIN, features, null))) {
+            FakeBrowser admin = new FakeBrowser(gateway, "203.0.113.29");
+            login(node, admin, create(node, uid), true, List.of());
+            JsonNode view = FakeBrowser.json(admin.get("/api/v1/me/server"));
+            assertTrue(view.path("admin").asBoolean());
+            assertEquals(
+                    List.of(Features.ORDERS_BROWSE),
+                    view.path("features").valueStream().map(JsonNode::asString).toList());
+            assertEquals(
+                    403,
+                    admin.post("/api/v1/me/actions", "{\"name\":\"admin.orders.info\",\"args\":{\"order\":1}}")
+                            .statusCode());
+        }
+    }
+
+    @Test
+    void pushesEachAdminTheAdminFeaturesTheirPermissionsAllow() {
+        String key = key();
+        UUID primaryId = UUID.randomUUID();
+        UUID secondaryId = UUID.randomUUID();
+        List<String> features = List.of(Features.ADMIN_CONFIG, Features.ADMIN_ORDERS);
+        try (FakeNode primary = FakeNode.welcomed(
+                gateway,
+                FakeNode.hello(KeyKind.DASHBOARD_KEY, key, primaryId, NodeRole.PRIMARY, PLUGIN, features, null))) {
+            FakeBrowser orders = new FakeBrowser(gateway, "203.0.113.30");
+            login(primary, orders, create(primary, primaryId), true, List.of(Features.ADMIN_ORDERS));
+            FakeBrowser config = new FakeBrowser(gateway, "203.0.113.31");
+            login(primary, config, create(primary, primaryId), true, List.of(Features.ADMIN_CONFIG));
+            try (FakeBrowser.Stream ordersStream = orders.stream();
+                    FakeBrowser.Stream configStream = config.stream()) {
+                ordersStream.next();
+                configStream.next();
+                FakeNode.welcomed(
+                                gateway,
+                                FakeNode.hello(
+                                        KeyKind.DASHBOARD_KEY,
+                                        key,
+                                        secondaryId,
+                                        NodeRole.SECONDARY,
+                                        PLUGIN,
+                                        features,
+                                        null))
+                        .close();
+                assertEquals(List.of(Features.ADMIN_ORDERS), pushedFeatures(ordersStream));
+                assertEquals(List.of(Features.ADMIN_CONFIG), pushedFeatures(configStream));
+            }
+        }
+    }
+
+    private static List<String> pushedFeatures(FakeBrowser.Stream stream) {
+        JsonNode event = stream.next();
+        while (!"server".equals(event.path("type").asString())) event = stream.next();
+        return event.path("server")
+                .path("features")
+                .valueStream()
+                .map(JsonNode::asString)
+                .toList();
     }
 
     @Test

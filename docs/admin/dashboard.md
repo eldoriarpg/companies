@@ -153,8 +153,9 @@ online. Company permissions are always current.
 
 Players with admin rights get an *Admin* section on the dashboard; other players never see it, and the gateway does not
 even list the admin parts to them. Each tool works only with the permission of its `/companyadmin` command, checked by
-the plugin, and every change is written to the server log as `[admin] <name>@dashboard …`, like the commands write
-it.
+the plugin, and an admin sees only the tools their permissions allow; with a plugin older than the gateway every tool is
+shown and refused on use. Every change is written to the server log as `[admin] <name>@dashboard …`, like the commands
+write it.
 
 | Tab | What it does | Permission | Same as |
 |---|---|---|---|

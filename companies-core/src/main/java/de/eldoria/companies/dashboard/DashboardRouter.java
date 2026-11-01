@@ -11,6 +11,7 @@ import de.eldoria.companies.dashboard.feed.PatchFeed;
 import de.eldoria.companies.dashboard.gateway.GatewayLink;
 import de.eldoria.companies.dashboard.gateway.GatewayStatus;
 import de.eldoria.companies.dashboard.gateway.Handshake;
+import de.eldoria.companies.dashboard.sessions.AdminFeatures;
 import de.eldoria.companies.dashboard.sessions.DashboardSessions;
 import de.eldoria.companies.dashboard.sessions.SessionPermissions;
 import de.eldoria.companies.dashboard.views.DashboardReads;
@@ -153,7 +154,8 @@ public final class DashboardRouter {
                         opened.id(),
                         Protocol.VERSION,
                         opened.session(),
-                        SessionPermissions.admin(session.get().permissions())));
+                        SessionPermissions.admin(session.get().permissions()),
+                        AdminFeatures.allowed(session.get().permissions())));
         parts.opened().accept(session.get().player(), session.get().deviceName());
     }
 

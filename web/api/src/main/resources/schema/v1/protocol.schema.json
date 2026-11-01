@@ -946,6 +946,12 @@
         },
         "admin" : {
           "type" : "boolean"
+        },
+        "adminFeatures" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          }
         }
       },
       "required" : [ "type", "v", "session" ]

@@ -8,6 +8,7 @@ package de.eldoria.companies.web.gateway.storage;
 import org.jspecify.annotations.Nullable;
 
 import java.time.Instant;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -25,6 +26,7 @@ import java.util.UUID;
  * @param codeExpires when the code stops working, while pending
  * @param device the browser it is bound to, once bound
  * @param admin whether the plugin confirmed the login as one of a player with admin rights
+ * @param adminFeatures the admin features the plugin allowed the player, null when it did not say
  * @param created when it was created
  * @param boundAt when a browser logged in
  * @param lastAccess when a browser used it last
@@ -42,6 +44,14 @@ public record StoredSession(
         @Nullable Instant codeExpires,
         @Nullable String device,
         boolean admin,
+        @Nullable Set<String> adminFeatures,
         Instant created,
         @Nullable Instant boundAt,
-        Instant lastAccess) {}
+        Instant lastAccess) {
+    /**
+     * @return what of the admin tools the session may see; {@link AdminAccess#NONE} for a player without admin rights
+     */
+    public AdminAccess access() {
+        return admin ? new AdminAccess(true, adminFeatures) : AdminAccess.NONE;
+    }
+}

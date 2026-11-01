@@ -14,6 +14,8 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.UUID;
 
 import static de.chojo.sadu.queries.api.call.Call.call;
@@ -26,7 +28,7 @@ import static de.chojo.sadu.queries.api.query.Query.query;
 public final class SessionRepository {
     private static final String COLUMNS = """
             id, server_id, player::TEXT AS player, player_name, node::TEXT AS node, state, short_id, code_hash,
-            attempts, code_expires, device, admin, created, bound_at, last_access""";
+            attempts, code_expires, device, admin, admin_features, created, bound_at, last_access""";
 
     /**
      * Creates a pending session unless its short id is taken.
@@ -173,11 +175,17 @@ public final class SessionRepository {
      * @param now the time
      * @return whether the session was opening
      */
-    public boolean bind(String id, String cookieHash, @Nullable String device, boolean admin, Instant now) {
+    public boolean bind(
+            String id,
+            String cookieHash,
+            @Nullable String device,
+            boolean admin,
+            @Nullable Set<String> adminFeatures,
+            Instant now) {
         return query("""
                 UPDATE session
                 SET state = :bound, short_id = NULL, code_hash = NULL, code_expires = NULL, cookie_hash = :cookie,
-                    device = :device, admin = :admin, bound_at = :now, last_access = :now
+                    device = :device, admin = :admin, admin_features = :features, bound_at = :now, last_access = :now
                 WHERE id = :id AND state = :opening;""")
                 .single(call().bind("id", id)
                         .bind("bound", SessionState.BOUND.name())
@@ -185,6 +193,7 @@ public final class SessionRepository {
                         .bind("cookie", cookieHash)
                         .bind("device", device)
                         .bind("admin", admin)
+                        .bind("features", adminFeatures == null ? null : String.join(",", new TreeSet<>(adminFeatures)))
                         .bind("now", Timestamp.from(now)))
                 .update()
                 .changed();
@@ -322,6 +331,11 @@ public final class SessionRepository {
                 .all();
     }
 
+    private static @Nullable Set<String> features(@Nullable String stored) {
+        if (stored == null) return null;
+        return stored.isEmpty() ? Set.of() : Set.of(stored.split(","));
+    }
+
     private static StoredSession map(Row row) throws SQLException {
         return new StoredSession(
                 row.getString("id"),
@@ -336,6 +350,7 @@ public final class SessionRepository {
                 instant(row.getTimestamp("code_expires")),
                 row.getString("device"),
                 row.getBoolean("admin"),
+                features(row.getString("admin_features")),
                 row.getTimestamp("created").toInstant(),
                 instant(row.getTimestamp("bound_at")),
                 row.getTimestamp("last_access").toInstant());

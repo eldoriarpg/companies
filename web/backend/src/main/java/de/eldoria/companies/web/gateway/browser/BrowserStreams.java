@@ -7,11 +7,13 @@ package de.eldoria.companies.web.gateway.browser;
 
 import de.eldoria.companies.web.api.Protocol;
 import de.eldoria.companies.web.gateway.Socket;
+import de.eldoria.companies.web.gateway.storage.AdminAccess;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -44,15 +46,15 @@ public final class BrowserStreams {
         private final String sessionId;
         private final String serverId;
         private final UUID player;
-        private final boolean admin;
+        private final AdminAccess access;
         private final Socket socket;
         private volatile Instant lastHeard;
 
-        private Stream(String sessionId, String serverId, UUID player, boolean admin, Socket socket, Instant now) {
+        private Stream(String sessionId, String serverId, UUID player, AdminAccess access, Socket socket, Instant now) {
             this.sessionId = sessionId;
             this.serverId = serverId;
             this.player = player;
-            this.admin = admin;
+            this.access = access;
             this.socket = socket;
             this.lastHeard = now;
         }
@@ -70,11 +72,12 @@ public final class BrowserStreams {
      * @param sessionId the session it belongs to
      * @param serverId the session's server
      * @param player the session's player
-     * @param admin whether the session's player has admin rights
+     * @param access what of the admin tools the session's player may see
      * @param socket the websocket
      */
-    public void open(String socketId, String sessionId, String serverId, UUID player, boolean admin, Socket socket) {
-        streams.put(socketId, new Stream(sessionId, serverId, player, admin, socket, clock.instant()));
+    public void open(
+            String socketId, String sessionId, String serverId, UUID player, AdminAccess access, Socket socket) {
+        streams.put(socketId, new Stream(sessionId, serverId, player, access, socket, clock.instant()));
     }
 
     /**
@@ -130,13 +133,15 @@ public final class BrowserStreams {
 
     /**
      * @param serverId a server
-     * @param message the message for every stream of its sessions, by whether the session's player has admin rights
+     * @param message the message for every stream of its sessions, by what of the admin tools the session's player may
+     *     see
      */
-    public void pushServer(String serverId, Function<Boolean, Object> message) {
-        String forAdmins = MAPPER.writeValueAsString(message.apply(true));
-        String forPlayers = MAPPER.writeValueAsString(message.apply(false));
+    public void pushServer(String serverId, Function<AdminAccess, Object> message) {
+        Map<AdminAccess, String> texts = new HashMap<>();
         for (Stream stream : List.copyOf(streams.values())) {
-            if (stream.serverId.equals(serverId)) stream.socket.send(stream.admin ? forAdmins : forPlayers);
+            if (!stream.serverId.equals(serverId)) continue;
+            stream.socket.send(
+                    texts.computeIfAbsent(stream.access, access -> MAPPER.writeValueAsString(message.apply(access))));
         }
     }
 
