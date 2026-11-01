@@ -49,6 +49,7 @@ import de.eldoria.companies.data.repository.impl.sqlite.SqLiteHomeData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteJobData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteMembershipData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteOrderData;
+import de.eldoria.companies.data.repository.impl.sqlite.SqLitePriceData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteServerEventData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteStatsData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteTestDatabase;
@@ -170,7 +171,8 @@ class CompaniesApiImplTest {
                         serverEventData,
                         areaData,
                         homeData,
-                        new SqLiteJobData()),
+                        new SqLiteJobData(),
+                        new SqLitePriceData()),
                 new CompaniesApiImpl.Server(
                         server::getOfflinePlayer,
                         failure -> failure.message().orElse(Component.text(failure.localeKey())),

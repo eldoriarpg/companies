@@ -256,7 +256,38 @@ public final class OrderBuilderMenu implements Menu<OrderBuilderMenu.View> {
         });
     }
 
+    /**
+     * The prices of a line's material: the statistics of its delivered orders and the price of the shops, each where
+     * known, the one the price goes by first.
+     */
     private MenuText marketText(int number, MaterialPrice price) {
+        var text = MenuText.create();
+        var orders = price.avgPrice() > 0;
+        var shops = price.baseline().isPresent();
+        if (price.fromOrders()) {
+            text.append(ordersText(number, price));
+            if (shops) text.text("<br>").append(shopsText(number, price));
+        } else {
+            text.append(shopsText(number, price));
+            if (orders) text.text("<br>").append(ordersText(number, price));
+        }
+        return text;
+    }
+
+    private MenuText shopsText(int number, MaterialPrice price) {
+        var shops = Keys.of("line", number, "shops");
+        return MenuText.create()
+                .text("<yellow>")
+                .locale("order.draft.price.shops")
+                .text(
+                        ": <" + shops + "><br><gray>",
+                        Values.money(shops, economy, price.baseline().orElse(0)))
+                .locale("order.draft.price.basis."
+                        + price.basis().map(Enum::name).orElse("SERVER"));
+    }
+
+    private MenuText ordersText(int number, MaterialPrice price) {
+        var orders = Keys.of("line", number, "orders");
         var avg = Keys.of("line", number, "avg");
         var min = Keys.of("line", number, "min");
         var max = Keys.of("line", number, "max");
@@ -267,7 +298,9 @@ public final class OrderBuilderMenu implements Menu<OrderBuilderMenu.View> {
                 .locale("words.min")
                 .text(": <" + min + "><br><red>", Values.money(min, economy, price.minPrice()))
                 .locale("words.max")
-                .text(": <" + max + ">", Values.money(max, economy, price.maxPrice()));
+                .text(": <" + max + "><br><gray>", Values.money(max, economy, price.maxPrice()))
+                .locale("order.draft.price.orders")
+                .text(": <" + orders + ">", Values.number(orders, price.orders()));
     }
 
     private MenuText lineSum(int number, DraftView.Line line) {
@@ -439,7 +472,7 @@ public final class OrderBuilderMenu implements Menu<OrderBuilderMenu.View> {
                         locale(player, "order.draft.marketAverage"),
                         null,
                         (viewer, response) -> controller.apply(viewer, edit, (p, current) -> edit.entered(response, max)
-                                .withUnitPrice(price.avgPrice())))));
+                                .withUnitPrice(price.price())))));
         buttons.add(actions.buttonOnce(
                 locale(player, "words.remove"),
                 null,

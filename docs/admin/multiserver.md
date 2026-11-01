@@ -98,6 +98,7 @@ connects on its own.
 | `events.yml` | Yes, stored as revisions |
 | `jobs.yml` | Yes, stored as revisions |
 | `areas.yml` | Yes, stored as revisions |
+| `prices.yml` | Yes, stored as revisions |
 | `database.yml` | No, each server has its own |
 | `node.yml` | No, each server has its own |
 | `boards.yml` | No, each server has its own NPC bindings |

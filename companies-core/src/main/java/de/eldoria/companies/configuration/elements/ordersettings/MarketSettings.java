@@ -16,14 +16,14 @@ public class MarketSettings {
     public MarketSettings() {}
 
     /**
-     * @param minOrders orders a material needs before its prices are shown
+     * @param minOrders orders a material needs before its prices are shown and gone by
      */
     public MarketSettings(int minOrders) {
         this.minOrders = minOrders;
     }
 
     /**
-     * @param minOrders   orders a material needs before its prices are shown
+     * @param minOrders   orders a material needs before its prices are shown and gone by
      * @param historyDays days the price history is kept
      */
     public MarketSettings(int minOrders, int historyDays) {
@@ -33,7 +33,7 @@ public class MarketSettings {
 
     /**
      * How many completed orders a material needs before its prices are shown, so a single order cannot be traced
-     * back. At least 1.
+     * back, and before order prices go by its orders instead of the baseline of the shops. At least 1.
      *
      * @return the minimum number of orders
      */

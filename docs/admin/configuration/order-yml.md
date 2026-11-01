@@ -138,7 +138,7 @@ The market prices on the [web dashboard](../dashboard.md).
 
 | Key | Type | Default | Meaning | Applies |
 |---|---|---|---|---|
-| `market.minOrders` | number | `3` | How many delivered orders a material needs before the dashboard shows its prices. Below that, only the amount ordered is shown, so a single order cannot be traced back. The same applies to each day of the price history; only such days count towards a price change. At least 1. | reload |
+| `market.minOrders` | number | `3` | How many delivered orders a material needs before the dashboard shows its prices. Below that, only the amount ordered is shown, so a single order cannot be traced back. The same applies to each day of the price history; only such days count towards a price change. From this many delivered orders on, the order builder goes by the orders of a material instead of the [shop price](./prices-yml.md#shop-price-or-orders). At least 1. | reload |
 | `market.historyDays` | number | `365` | How many days of price history are kept. The primary server records it every half hour from the orders companies delivered, as the order history holds them. Days already recorded stay when the order history is purged, so this may be longer than `historyDays` in `config.yml`; on the first start the history only reaches back as far as the order history does. Days end at midnight in the zone of `timezone` in `config.yml`. At least 14. | reload |
 
 ## savedItems

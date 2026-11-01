@@ -78,7 +78,7 @@ class DraftViewTest {
         draft.add(new ItemStack(Material.STONE), false, 1, 1);
         draft.add(new ItemStack(Material.OAK_LOG), true, 1, 1);
         Function<String, MaterialPrice> prices = material ->
-                material.equals("oak_log") ? new MaterialPrice(material, 2, 1, 3) : new MaterialPrice(material);
+                material.equals("oak_log") ? MaterialPrice.ofOrders(material, 2, 1, 3) : new MaterialPrice(material);
 
         var view = DraftView.of(draft, settings(5, 100), prices);
 

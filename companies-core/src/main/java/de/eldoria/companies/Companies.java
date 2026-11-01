@@ -58,6 +58,7 @@ import de.eldoria.companies.data.repository.ANodeData;
 import de.eldoria.companies.data.repository.ANodeMessageData;
 import de.eldoria.companies.data.repository.AOfferData;
 import de.eldoria.companies.data.repository.AOrderData;
+import de.eldoria.companies.data.repository.APriceData;
 import de.eldoria.companies.data.repository.AServerEventData;
 import de.eldoria.companies.data.repository.EconomyData;
 import de.eldoria.companies.data.repository.InformationData;
@@ -75,6 +76,7 @@ import de.eldoria.companies.data.repository.impl.mariadb.MariaDbNodeData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbNodeMessageData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbOfferData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbOrderData;
+import de.eldoria.companies.data.repository.impl.mariadb.MariaDbPriceData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbSavedItemData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbSeriesData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbServerEventData;
@@ -93,6 +95,7 @@ import de.eldoria.companies.data.repository.impl.postgres.PostgresNodeData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresNodeMessageData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresOfferData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresOrderData;
+import de.eldoria.companies.data.repository.impl.postgres.PostgresPriceData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresSavedItemData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresSeriesData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresServerEventData;
@@ -111,6 +114,7 @@ import de.eldoria.companies.data.repository.impl.sqlite.SqLiteNodeData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteNodeMessageData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteOfferData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteOrderData;
+import de.eldoria.companies.data.repository.impl.sqlite.SqLitePriceData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteSavedItemData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteSeriesData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteServerEventData;
@@ -169,6 +173,8 @@ import de.eldoria.companies.orders.system.GuessedOutcomes;
 import de.eldoria.companies.orders.system.SystemFunding;
 import de.eldoria.companies.orders.system.SystemOrderService;
 import de.eldoria.companies.placeholders.Placeholders;
+import de.eldoria.companies.prices.PriceHooks;
+import de.eldoria.companies.prices.ShopPrices;
 import de.eldoria.companies.services.AdminCompanyService;
 import de.eldoria.companies.services.AdminGrantService;
 import de.eldoria.companies.services.AdminOrderLookup;
@@ -276,6 +282,8 @@ public class Companies extends EldoPlugin {
     private AJobData jobData;
     private AAreaData areaData;
     private AHomeData homeData;
+    private APriceData priceData;
+    private volatile @Nullable ShopPrices shopPrices;
     private volatile @Nullable HomeTeleports homes;
     private volatile @Nullable AreaSync areaSyncing;
     private volatile @Nullable JobServices jobs;
@@ -357,12 +365,17 @@ public class Companies extends EldoPlugin {
                         serverEventData,
                         areaData,
                         homeData,
-                        jobData),
+                        jobData,
+                        priceData),
                 Threading.VIRTUAL);
         api.register(this);
         api.areaProviders().settings(configuration::areaSettings);
         AreaHooks.load(this, api.areaProviders(), name -> configuration.hooks().land(name));
         getServer().getPluginManager().registerEvents(api.areaProviders(), this);
+        api.priceSources().settings(configuration::priceSettings);
+        getServer().getPluginManager().registerEvents(api.priceSources(), this);
+        PriceHooks.load(this, api.priceSources());
+        orderData.minOrders(() -> configuration.orderSetting().market().minOrders());
     }
 
     /**
@@ -749,9 +762,21 @@ public class Companies extends EldoPlugin {
         var alertNotices = new AlertNotices(notificationService::send, economy::format);
         var alertCompanies = AlertCompanies.of(companyData, orderData);
         Jobs.schedule(jobServices, configuration.nodeSettings().nodeType() == NodeType.PRIMARY, workerPool, this);
+        var prices = new ShopPrices(
+                api.priceSources(),
+                api.tradeLog(),
+                priceData,
+                configuration::priceSettings,
+                configuration.nodeSettings().nodeUid(),
+                Times::now,
+                Threading.mainThread(this),
+                Threading.VIRTUAL,
+                getLogger());
+        prices.schedule(workerPool);
+        shopPrices = prices;
         if (configuration.nodeSettings().nodeType() == NodeType.PRIMARY) {
             expiringService.start(workerPool);
-            RefreshService.start(orderData, workerPool, () -> {
+            RefreshService.start(orderData, workerPool, prices::refreshBaselines, () -> {
                 if (nodeConnection != null) nodeConnection.pricesRefreshed();
             });
             membershipService.start(workerPool);
@@ -1369,6 +1394,8 @@ public class Companies extends EldoPlugin {
         }
         var runningAreaSync = areaSyncing;
         if (runningAreaSync != null) runningAreaSync.stop();
+        var runningPrices = shopPrices;
+        if (runningPrices != null) runningPrices.flush();
         if (dashboard != null) dashboard.stop();
         if (api != null) api.unregister(this);
         if (commands != null) {
@@ -1473,6 +1500,7 @@ public class Companies extends EldoPlugin {
                 jobData = new SqLiteJobData();
                 areaData = new SqLiteAreaData();
                 homeData = new SqLiteHomeData();
+                priceData = new SqLitePriceData();
                 information = new InformationData(
                         new SqLiteInboxData(Threading.VIRTUAL),
                         new SqLiteStatsData(Threading.VIRTUAL),
@@ -1495,6 +1523,7 @@ public class Companies extends EldoPlugin {
                 jobData = new MariaDbJobData();
                 areaData = new MariaDbAreaData();
                 homeData = new MariaDbHomeData();
+                priceData = new MariaDbPriceData();
                 information = new InformationData(
                         new MariaDbInboxData(Threading.VIRTUAL),
                         new MariaDbStatsData(Threading.VIRTUAL),
@@ -1517,6 +1546,7 @@ public class Companies extends EldoPlugin {
                 jobData = new PostgresJobData();
                 areaData = new PostgresAreaData();
                 homeData = new PostgresHomeData();
+                priceData = new PostgresPriceData();
                 information = new InformationData(
                         new PostgresInboxData(Threading.VIRTUAL),
                         new PostgresStatsData(Threading.VIRTUAL),

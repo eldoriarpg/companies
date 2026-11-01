@@ -288,7 +288,7 @@ public final class OrderBuilderController {
     private static double average(MaterialPrice price) {
         return OrderBuilder.offeredMarketPrice(false, price)
                 .orElseThrow(OrderBuilderController::noMarketPrice)
-                .avgPrice();
+                .price();
     }
 
     private static CommandFailure noMarketPrice() {

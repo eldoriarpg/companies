@@ -86,6 +86,13 @@ public interface CompaniesApi {
     AreaApi areas();
 
     /**
+     * Access to the shop plugins Companies reads prices from.
+     *
+     * @return price API
+     */
+    PriceApi prices();
+
+    /**
      * Access to jobs: reading them and posting new ones.
      *
      * @return job API

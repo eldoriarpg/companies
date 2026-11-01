@@ -50,7 +50,7 @@ Commands for players who place orders. Read [Orders](../players/orders.md) and [
 | `/order draft remove <line>` | `companies.orders.create` | Removes a line. |
 | `/order draft amount <line> <amount>` | `companies.orders.create` | Changes the amount of a line. |
 | `/order draft price <line> <unitPrice>` | `companies.orders.create` | Changes the price per item of a line. |
-| `/order draft price <line> market` | `companies.orders.create` | Uses the market average as the price per item. |
+| `/order draft price <line> market` | `companies.orders.create` | Uses the market price as the price per item: the average of delivered orders, or the shop price while there are few. |
 | `/order draft repeat daily\|weekly <count>` | `companies.orders.create` and `companies.orders.repeat` | Repeats the order daily or weekly, `count` times. |
 | `/order draft repeat daily\|weekly until <date>` | `companies.orders.create` and `companies.orders.repeat` | Repeats the order until a date, written as `yyyy-MM-dd`. |
 | `/order draft repeat off` | `companies.orders.create` | Makes the draft a one-time order again. |

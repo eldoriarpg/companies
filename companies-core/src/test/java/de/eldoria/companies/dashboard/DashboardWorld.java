@@ -63,6 +63,7 @@ import de.eldoria.companies.data.repository.impl.sqlite.SqLiteMembershipData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteNodeData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteOfferData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteOrderData;
+import de.eldoria.companies.data.repository.impl.sqlite.SqLitePriceData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteSavedItemData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteSeriesData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteServerEventData;
@@ -253,7 +254,15 @@ public final class DashboardWorld implements AutoCloseable {
         var alerts = new SqLiteAlertData(SqLiteTestDatabase.mapper(), executor);
         api = new CompaniesApiImpl(
                 new CompaniesApiImpl.Repositories(
-                        companies, orders, stats, treasury, serverEvents, areas, homes, new SqLiteJobData()),
+                        companies,
+                        orders,
+                        stats,
+                        treasury,
+                        serverEvents,
+                        areas,
+                        homes,
+                        new SqLiteJobData(),
+                        new SqLitePriceData()),
                 new CompaniesApiImpl.Server(
                         server::getOfflinePlayer, failure -> Component.text(failure.localeKey()), Times::now),
                 executor);

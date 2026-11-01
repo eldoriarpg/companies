@@ -61,7 +61,7 @@ You can do everything with commands too. Line numbers start at 1.
 | `/order draft add criteria <amount> <unit price> <criteria>` | Add a [criteria line](#criteria-lines) |
 | `/order draft amount <line> <amount>` | Change the amount. `0` removes the line. |
 | `/order draft price <line> <unit price>` | Change the price for one item |
-| `/order draft price <line> market` | Use the market average as the price |
+| `/order draft price <line> market` | Use the market price as the price |
 | `/order draft remove <line>` | Remove a line |
 | `/order draft name <name>` | Rename the order |
 | `/order draft done` | Place the order and pay |
@@ -145,13 +145,15 @@ sum of its lines.
 
 The price is what companies earn. A good price gets your order claimed faster.
 
-### The market average
+### The market price
 
 For material lines the builder shows what others paid. Hover over a line in chat to see the average, the lowest and
-the highest price per item. Click `[Market avg]` or type `/order draft price <line> market` to use the average.
+the highest price per item. Click `[Market price]` or type `/order draft price <line> market` to use it.
 
-The market prices come from the last delivered orders of that material. They are updated about once an hour. A
-material nobody ordered yet has no market price. Exact lines never offer one.
+The market prices come from the last delivered orders of that material. They are updated about once an hour. While a
+material has only a few delivered orders, the builder offers what the server's shops charge for it instead; the hover
+then says the price comes from the shops. A material neither ordered nor sold in a shop has no market price. Exact
+lines never offer one.
 
 ### Fees
 

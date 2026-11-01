@@ -95,12 +95,12 @@ final class MariaDbMarket implements MarketSeeder.Store {
     public void refreshPrices() {
         run(connection -> {
             try (var statement = connection.prepareStatement("""
-                    INSERT INTO material_price(material, avg_price, min_price, max_price)
-                    SELECT material, ROUND(AVG(avg_price), 2), MIN(min_price), MAX(max_price)
+                    INSERT INTO material_price(material, avg_price, min_price, max_price, orders)
+                    SELECT material, ROUND(AVG(avg_price), 2), MIN(min_price), MAX(max_price), LEAST(SUM(orders), 99)
                     FROM market_history
                     GROUP BY material
                     ON DUPLICATE KEY UPDATE avg_price = VALUES(avg_price), min_price = VALUES(min_price),
-                                            max_price = VALUES(max_price)""")) {
+                                            max_price = VALUES(max_price), orders = VALUES(orders)""")) {
                 statement.executeUpdate();
             }
         });

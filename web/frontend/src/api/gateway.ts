@@ -975,6 +975,7 @@ export type SettingsFileName =
   | 'events.yml'
   | 'jobs.yml'
   | 'areas.yml'
+  | 'prices.yml'
 
 /** How a shared setting is entered. */
 export type SettingType = 'FLAG' | 'WHOLE' | 'DECIMAL' | 'TEXT' | 'CHOICE' | 'CHOICES' | 'TEXT_LIST' | 'FLAG_MAP' | 'SECRET'

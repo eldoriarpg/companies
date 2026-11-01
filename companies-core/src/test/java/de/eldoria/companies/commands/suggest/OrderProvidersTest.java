@@ -52,14 +52,15 @@ class OrderProvidersTest {
 
     @Test
     void theMarketAverageIsSuggestedAsTypeableNumber() {
-        assertEquals(Optional.of("2.5"), OrderProviders.unitPrice(false, new MaterialPrice("stone", 2.5, 1, 3)));
-        assertEquals(Optional.of("0.33"), OrderProviders.unitPrice(false, new MaterialPrice("stone", 1.0 / 3, 0, 1)));
-        assertEquals(Optional.of("12"), OrderProviders.unitPrice(false, new MaterialPrice("stone", 12.0, 0, 20)));
+        assertEquals(Optional.of("2.5"), OrderProviders.unitPrice(false, MaterialPrice.ofOrders("stone", 2.5, 1, 3)));
+        assertEquals(
+                Optional.of("0.33"), OrderProviders.unitPrice(false, MaterialPrice.ofOrders("stone", 1.0 / 3, 0, 1)));
+        assertEquals(Optional.of("12"), OrderProviders.unitPrice(false, MaterialPrice.ofOrders("stone", 12.0, 0, 20)));
     }
 
     @Test
     void exactItemsAndMaterialsWithoutDataGetNoMarketAverage() {
-        assertEquals(Optional.empty(), OrderProviders.unitPrice(true, new MaterialPrice("stone", 2.5, 1, 3)));
+        assertEquals(Optional.empty(), OrderProviders.unitPrice(true, MaterialPrice.ofOrders("stone", 2.5, 1, 3)));
         assertEquals(Optional.empty(), OrderProviders.unitPrice(false, new MaterialPrice("stone")));
     }
 }

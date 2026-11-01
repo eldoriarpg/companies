@@ -302,9 +302,7 @@ public final class SystemOrderService {
                 if (item == null) return OptionalDouble.empty();
                 var price =
                         orderData.retrieveMaterialPrice(item.name()).asFuture().join();
-                return price != null && price.avgPrice() > 0
-                        ? OptionalDouble.of(price.avgPrice())
-                        : OptionalDouble.empty();
+                return price != null && price.price() > 0 ? OptionalDouble.of(price.price()) : OptionalDouble.empty();
             }
 
             @Override

@@ -52,6 +52,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.function.IntConsumer;
+import java.util.function.IntSupplier;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
 
@@ -66,6 +67,7 @@ public abstract class AOrderData {
             CacheBuilder.newBuilder().expireAfterAccess(1L, TimeUnit.HOURS).build();
     private final ObjectMapper mapper;
     private volatile IntConsumer fullOrderChanged = id -> {};
+    private volatile IntSupplier minOrders = () -> 1;
 
     public AOrderData(ObjectMapper mapper) {
         this.mapper = mapper;
@@ -954,6 +956,17 @@ public abstract class AOrderData {
 
     protected abstract List<FullOrder> getOrdersByQuery(SearchQuery searchQuery, OrderState min, OrderState max);
 
+    /**
+     * @param minOrders the fewest delivered lines of a material whose average is gone by while the shops know it
+     */
+    public void minOrders(IntSupplier minOrders) {
+        this.minOrders = minOrders;
+    }
+
+    private int minOrders() {
+        return Math.max(1, minOrders.getAsInt());
+    }
+
     public FutureResult<Void> submitMaterialPriceRefresh() {
         return CompletableBukkitFuture.runAsync(this::refreshMaterialPrices, VIRTUAL);
     }
@@ -972,7 +985,7 @@ public abstract class AOrderData {
      */
     public MaterialPrice getMaterialPrice(String material) {
         var price = materialPriceCache.getIfPresent(material);
-        if (price != null) return price;
+        if (price != null) return price.withMinOrders(minOrders());
         retrieveMaterialPrice(material);
         return new MaterialPrice(material);
     }
@@ -986,14 +999,21 @@ public abstract class AOrderData {
     public FutureResult<MaterialPrice> retrieveMaterialPrice(String material) {
         return CompletableBukkitFuture.supplyAsync(
                 () -> {
-                    var price = findMaterialPrice(material).orElse(new MaterialPrice(material));
+                    var price = findMaterialPrice(material, minOrders());
                     materialPriceCache.put(material, price);
                     return price;
                 },
                 VIRTUAL);
     }
 
-    protected abstract Optional<MaterialPrice> findMaterialPrice(String material);
+    /**
+     * Reads the prices of a material from the latest delivered lines and the baseline of the shops.
+     *
+     * @param material  name of the material, in any case
+     * @param minOrders the fewest delivered lines whose average is gone by while the shops know the material
+     * @return the prices, without data when neither knows the material
+     */
+    protected abstract MaterialPrice findMaterialPrice(String material, int minOrders);
 
     public void invalidateMaterialPriceCache() {
         materialPriceCache.invalidateAll();

@@ -284,7 +284,7 @@ api.companies().setHome(new HomeRequest(companyId, player.getLocation(), player.
 | `byCompany(int company, OrderState min, OrderState max)` | `CompletableFuture<List<? extends IFullOrder>>` | Orders the company claimed, with a state from `min` to `max` |
 | `byOwner(UUID owner, OrderState min, OrderState max)` | same                                             | Orders the player placed, with a state from `min` to `max` |
 | `bySoloWorker(UUID worker, OrderState min, OrderState max)` | same                                       | Orders the player took to work on alone, with a state from `min` to `max` |
-| `materialPrice(Material material)`                    | `CompletableFuture<? extends IMaterialPrice>`    | Average, lowest and highest price paid for the material. All 0 if it was never ordered |
+| `materialPrice(Material material)`                    | `CompletableFuture<? extends IMaterialPrice>`    | Average, lowest and highest price paid for the material, all 0 if it was never ordered, and its shop baseline. `price()` is the one Companies goes by |
 | `create(OrderRequest request)`                        | `CompletableFuture<CreateOrderResult>`           | **Write.** Creates an order                          |
 
 The order states are, in this order: `UNCLAIMED`, `CLAIMED`, `DELIVERED` and `RECEIVED`. To get every active order
@@ -594,6 +594,47 @@ api.areas().offer(request).thenAccept(result -> {
 });
 ```
 
+## Prices: `prices()`
+
+Companies reads what items cost in the server's shops and works out a baseline price per material from it, which
+order prices fall back to while a material has few delivered orders (see [prices.yml](../admin/configuration/prices-yml.md)).
+The prices come from price sources, one per shop plugin; your plugin can register one for its own shops. New in 2.1.
+
+| Method                                        | Returns        | What it does                                               |
+|-----------------------------------------------|----------------|------------------------------------------------------------|
+| `register(Plugin plugin, PriceSource source)` | `void`         | Registers a source; it is dropped when your plugin is disabled |
+| `unregister(String id)`                       | `void`         | Removes the source with that id                            |
+| `sources()`                                   | `List<String>` | The ids of the sources in use                              |
+
+A `PriceSource` has an `id()` and a `name()` and gives prices in one or both ways:
+
+- `quotes()` returns what the shops offer right now as `ShopQuote`s. Companies calls it on the main thread every
+  `sampleMinutes`, so the source needs no index of its own.
+- `record(PriceRecorder recorder)` is called once on registration. Hand each trade to `recorder.trade(ShopTrade)` as
+  it happens, usually from your plugin's transaction event. The recorder may be called from any thread.
+
+`ShopQuote` and `ShopTrade` both carry the item, the amount, the price of all those items, the `ShopSide` (`BUY`:
+the player pays the shop, `SELL`: the shop pays the player) and the `ShopOrigin` (`PLAYER`, `ADMIN` for admin shops in
+the world, `SERVER` for prices the server configures). Give prices in the server's main currency only, and leave out
+trades of a player with their own shop. Companies drops items that are not plain and prices or amounts of zero.
+
+```java
+public final class MyShops implements PriceSource {
+    @Override public String id() { return "myshops"; }
+    @Override public String name() { return "MyShops"; }
+    @Override public Collection<ShopQuote> quotes() {
+        return MyPlugin.shops().stream()
+                .map(shop -> new ShopQuote(shop.item(), shop.amount(), shop.price(), ShopSide.BUY, ShopOrigin.PLAYER))
+                .toList();
+    }
+}
+
+api.prices().register(this, new MyShops());
+```
+
+`orders().materialPrice(material)` gives the result: `baseline()` and `basis()` (`TRADES`, `LISTINGS` or `SERVER`)
+next to the prices of past orders, `fromOrders()` and `price()`, the price Companies goes by.
+
 ## Data types
 
 The methods and events hand you these types. They are in `de.eldoria.companies.components` and its subpackages.
@@ -614,7 +655,7 @@ The methods and events hand you these types. They are in `de.eldoria.companies.c
 | `IDeliveredStack` | Items one worker delivered to a line: the worker, the item and the amount |
 | `IContentPart` | How many items one worker delivered to a line, from `IOrderContent.parts()` |
 | `IOrderDraft`, `IDraftLine` | An order before it is created, as `PreOrderCreateEvent.draft()` hands it to you |
-| `IMaterialPrice` | Average, lowest and highest price paid for a material |
+| `IMaterialPrice` | Average, lowest and highest price paid for a material, its shop baseline and the price Companies goes by |
 | `IJob`, `IJobArea` | A job: owner, kind, state, title, price and fee, the company working on it, its block box and times, and whether it was charged |
 | `JobBox`, `BuildBlock` | A block box for a job request, corners in any order, and one block of a build job's blueprint |
 | `IAreaOffer` | An area the server offers: provider, reference, world, server, `OfferKind`, price, rent period and keeper |

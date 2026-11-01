@@ -15,11 +15,14 @@ import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.repository.AHomeData;
 import de.eldoria.companies.data.repository.AJobData;
 import de.eldoria.companies.data.repository.AOrderData;
+import de.eldoria.companies.data.repository.APriceData;
 import de.eldoria.companies.data.repository.AServerEventData;
 import de.eldoria.companies.data.repository.AStatsData;
 import de.eldoria.companies.data.repository.ATreasuryData;
 import de.eldoria.companies.jobs.JobServices;
 import de.eldoria.companies.orders.OrderCreationService;
+import de.eldoria.companies.prices.PriceSources;
+import de.eldoria.companies.prices.TradeLog;
 import de.eldoria.companies.services.CompanyService;
 import de.eldoria.companies.services.ItemReturnService;
 import de.eldoria.companies.services.MembershipService;
@@ -55,6 +58,9 @@ public final class CompaniesApiImpl implements CompaniesApi {
     private final JobApi jobs;
     private final AreaProviders areas = new AreaProviders(Logger.getLogger("Companies"));
     private final AreaApi areaApi;
+    private final TradeLog tradeLog;
+    private final PriceSources priceSources;
+    private final PriceApi priceApi;
 
     /**
      * @param repositories the repositories the API reads from
@@ -79,6 +85,10 @@ public final class CompaniesApiImpl implements CompaniesApi {
         events = new ServerEventApiImpl(repositories.serverEvents(), writes, server.clock(), executor);
         jobs = new JobApiImpl(repositories.jobs(), writes, server.players(), executor);
         areaApi = new AreaApiImpl(areas, repositories.areas(), writes, Logger.getLogger("Companies"), executor);
+        tradeLog = new TradeLog(
+                repositories.prices(), () -> server.clock().get().toLocalDate(), Logger.getLogger("Companies"));
+        priceSources = new PriceSources(tradeLog, Logger.getLogger("Companies"));
+        priceApi = new PriceApiImpl(priceSources);
     }
 
     /**
@@ -161,11 +171,30 @@ public final class CompaniesApiImpl implements CompaniesApi {
         return jobs;
     }
 
+    @Override
+    public PriceApi prices() {
+        return priceApi;
+    }
+
     /**
      * @return the area providers, as the plugin itself uses them
      */
     public AreaProviders areaProviders() {
         return areas;
+    }
+
+    /**
+     * @return the price sources, as the plugin itself uses them
+     */
+    public PriceSources priceSources() {
+        return priceSources;
+    }
+
+    /**
+     * @return the trades the price sources noted and not stored yet
+     */
+    public TradeLog tradeLog() {
+        return tradeLog;
     }
 
     /**
@@ -179,6 +208,7 @@ public final class CompaniesApiImpl implements CompaniesApi {
      * @param areas        the areas of companies
      * @param homes        the homes of companies
      * @param jobs         job repository
+     * @param prices       the prices read from shop plugins
      */
     public record Repositories(
             ACompanyData companies,
@@ -188,7 +218,8 @@ public final class CompaniesApiImpl implements CompaniesApi {
             AServerEventData serverEvents,
             AAreaData areas,
             AHomeData homes,
-            AJobData jobs) {}
+            AJobData jobs,
+            APriceData prices) {}
 
     /**
      * What the API needs from the server.

@@ -131,7 +131,7 @@ or in work. The order is placed only when its price fits the budget of the day, 
   together stay within `mintedDailyCap`. A price raised by a plugin beyond the budget or the cap removes the
   order again. Minted money that is not spent goes nowhere.
 
-With `AVERAGE`, a material that nobody delivered lately has no market average, and the rule waits until it has one.
+With `AVERAGE`, a material with few delivered orders is priced by its [shop price](./prices-yml.md). One that neither orders nor shops price has no market average, and the rule waits until it has one.
 
 No fee is charged on system orders. Players see them like any order, with the rule's name as the order name, unless
 `markSystemOrders` marks them.
@@ -197,8 +197,9 @@ gaps and never compete with players.
      below `minPrice`, the material is not guessed.
      An order whose price the cap already holds down is not repriced, since a higher step could not pay more; its
      material rests instead.
-3. **Price** is the market average times `factor`, moved by `jitter`, within `minPrice` and `maxPrice`. A material
-   without a market average is not guessed.
+3. **Price** is the market average times `factor`, moved by `jitter`, within `minPrice` and `maxPrice`. While a
+   material has fewer than `market.minOrders` delivered orders, its [shop price](./prices-yml.md) stands in for the
+   market average. A material with neither is not guessed.
 4. **Size** is `sizeShare` of the items a delivered order of the material usually has, in whole stacks, at most
    `maxItems`.
 5. **Repricing:** an order nobody took within `repriceAfterHours` is replaced by one paying `repriceStep` more of the
