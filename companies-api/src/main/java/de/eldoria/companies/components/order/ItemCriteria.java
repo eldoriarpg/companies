@@ -5,13 +5,17 @@
  */
 package de.eldoria.companies.components.order;
 
+import io.papermc.paper.registry.RegistryAccess;
+import io.papermc.paper.registry.RegistryKey;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Tag;
+import org.bukkit.enchantments.Enchantment;
 import org.bukkit.inventory.ItemStack;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -26,9 +30,14 @@ import java.util.Set;
  * The amount of the line is filled by any mix of matching items, so 64 of {@code #minecraft:logs} may be 40 oak and
  * 24 birch logs. Enchanted books count their stored enchantments.
  * <p>
- * Entries are normalized: a material is its upper case name such as {@code OAK_LOG}, a tag is {@code #} followed by
- * its lower case key such as {@code #minecraft:logs}. The minimum enchantment count is at least the number of required
- * enchantments.
+ * Build criteria from materials, item tags and enchantments with {@link #ofMaterials(Material...)},
+ * {@link #ofTags(Tag[])}, {@link #withTag(Tag)} and {@link #withEnchantment(Enchantment, int)}, so only what the
+ * server knows can be named: they refuse a material that is no item, a tag that is no item tag of the server, and an
+ * enchantment level above its maximum. The criteria are kept as text, as orders store them: a material is its upper
+ * case name such as {@code OAK_LOG}, a tag is {@code #} followed by its lower case key such as
+ * {@code #minecraft:logs}. The text forms ({@link #of(String...)}, {@link #withEnchantment(String, int)}) take any
+ * name; creating an order refuses criteria that name something the server does not know. The minimum enchantment
+ * count is at least the number of required enchantments.
  *
  * @param items           materials and item tags, at least one
  * @param minEnchantments the fewest enchantments an item must carry, 0 for no condition
@@ -61,11 +70,76 @@ public record ItemCriteria(List<String> items, int minEnchantments, List<Require
     /**
      * Criteria accepting any of the given items, without enchantment conditions.
      *
-     * @param items materials and item tags
+     * @param items names of materials and item tags, such as {@code OAK_LOG} or {@code #minecraft:logs}
      * @return the criteria
      */
     public static ItemCriteria of(String... items) {
         return new ItemCriteria(List.of(items), 0, List.of());
+    }
+
+    /**
+     * Criteria accepting any of the given materials, without enchantment conditions.
+     *
+     * @param materials the materials, at least one, each an item and not air
+     * @return the criteria
+     * @throws IllegalArgumentException when a material is no item or air
+     */
+    public static ItemCriteria ofMaterials(Material... materials) {
+        return new ItemCriteria(
+                Arrays.stream(materials).map(ItemCriteria::entry).toList(), 0, List.of());
+    }
+
+    /**
+     * Criteria accepting any item of the given item tags, without enchantment conditions.
+     *
+     * @param tags the item tags of the server, at least one, such as {@link Tag#ITEMS_LOGS}; a block tag counts only
+     *             where the item tag of the same key has the same members, and a block-only tag such as
+     *             {@link Tag#MINEABLE_AXE} is refused
+     * @return the criteria
+     * @throws IllegalArgumentException when a tag is no item tag of the server
+     */
+    @SafeVarargs
+    public static ItemCriteria ofTags(Tag<Material>... tags) {
+        return new ItemCriteria(Arrays.stream(tags).map(ItemCriteria::entry).toList(), 0, List.of());
+    }
+
+    /**
+     * Criteria like these that also accept a material.
+     *
+     * @param material the material, an item and not air
+     * @return a copy that also accepts the material
+     * @throws IllegalArgumentException when the material is no item or air
+     */
+    public ItemCriteria withMaterial(Material material) {
+        var accepted = new ArrayList<>(items);
+        accepted.add(entry(material));
+        return new ItemCriteria(accepted, minEnchantments, enchantments);
+    }
+
+    /**
+     * Criteria like these that also accept the items of an item tag.
+     *
+     * @param tag an item tag of the server, such as {@link Tag#ITEMS_LOGS}
+     * @return a copy that also accepts the tag
+     * @throws IllegalArgumentException when the tag is no item tag of the server
+     */
+    public ItemCriteria withTag(Tag<Material> tag) {
+        var accepted = new ArrayList<>(items);
+        accepted.add(entry(tag));
+        return new ItemCriteria(accepted, minEnchantments, enchantments);
+    }
+
+    /**
+     * The item tags among the entries, in the order they are named, leaving out those the server does not know.
+     *
+     * @return the tags
+     */
+    public List<Tag<Material>> tags() {
+        return items.stream()
+                .filter(ItemCriteria::isTag)
+                .map(ItemCriteria::tag)
+                .flatMap(Optional::stream)
+                .toList();
     }
 
     /**
@@ -86,8 +160,24 @@ public record ItemCriteria(List<String> items, int minEnchantments, List<Require
      * @return a copy that also requires the enchantment
      */
     public ItemCriteria withEnchantment(String enchantment, int minLevel) {
+        return with(new Required(enchantment, minLevel));
+    }
+
+    /**
+     * Criteria like these that also require an enchantment.
+     *
+     * @param enchantment the enchantment
+     * @param minLevel    the lowest level accepted, from 1 to the enchantment's maximum
+     * @return a copy that also requires the enchantment
+     * @throws IllegalArgumentException when the level is out of range or the enchantment is required already
+     */
+    public ItemCriteria withEnchantment(Enchantment enchantment, int minLevel) {
+        return with(Required.of(enchantment, minLevel));
+    }
+
+    private ItemCriteria with(Required enchantment) {
         var required = new ArrayList<>(enchantments);
-        required.add(new Required(enchantment, minLevel));
+        required.add(enchantment);
         return new ItemCriteria(items, minEnchantments, required);
     }
 
@@ -172,6 +262,21 @@ public record ItemCriteria(List<String> items, int minEnchantments, List<Require
         return Optional.ofNullable(Bukkit.getTag(Tag.REGISTRY_ITEMS, key, Material.class));
     }
 
+    private static String entry(Material material) {
+        Objects.requireNonNull(material, "material");
+        if (material.isAir() || !material.isItem()) throw new IllegalArgumentException(material + " is no item");
+        return material.name();
+    }
+
+    private static String entry(Tag<Material> tag) {
+        Objects.requireNonNull(tag, "tag");
+        var item = Bukkit.getTag(Tag.REGISTRY_ITEMS, tag.getKey(), Material.class);
+        if (item == null || !item.getValues().equals(tag.getValues())) {
+            throw new IllegalArgumentException(tag.getKey() + " is no item tag");
+        }
+        return "#" + tag.getKey();
+    }
+
     private static String normalize(String item) {
         Objects.requireNonNull(item, "item");
         var trimmed = item.trim();
@@ -203,6 +308,36 @@ public record ItemCriteria(List<String> items, int minEnchantments, List<Require
             if (enchantment.isBlank()) throw new IllegalArgumentException("The enchantment must not be blank");
             if (minLevel < 1) throw new IllegalArgumentException("The level must be at least 1, was " + minLevel);
             enchantment = key(enchantment);
+        }
+
+        /**
+         * A condition on an enchantment of the server.
+         *
+         * @param enchantment the enchantment
+         * @param minLevel    the lowest level accepted, from 1 to the enchantment's maximum
+         * @return the condition
+         * @throws IllegalArgumentException when the level is out of range
+         */
+        public static Required of(Enchantment enchantment, int minLevel) {
+            Objects.requireNonNull(enchantment, "enchantment");
+            if (minLevel > enchantment.getMaxLevel()) {
+                throw new IllegalArgumentException("The level of " + enchantment.getKey() + " is at most "
+                        + enchantment.getMaxLevel() + ", was " + minLevel);
+            }
+            return new Required(enchantment.getKey().toString(), minLevel);
+        }
+
+        /**
+         * The enchantment the condition names, looked up in the server's enchantment registry. Needs a running server.
+         *
+         * @return the enchantment, empty when the server does not know it
+         */
+        public Optional<Enchantment> lookup() {
+            var key = NamespacedKey.fromString(enchantment);
+            if (key == null) return Optional.empty();
+            return Optional.ofNullable(RegistryAccess.registryAccess()
+                    .getRegistry(RegistryKey.ENCHANTMENT)
+                    .get(key));
         }
     }
 }

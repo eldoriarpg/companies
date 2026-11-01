@@ -11,6 +11,8 @@ import de.eldoria.companies.data.repository.impl.sqlite.SqLiteTestDatabase;
 import de.eldoria.companies.data.wrapper.history.HistorySnapshot;
 import de.eldoria.companies.data.wrapper.series.SeriesLine;
 import org.bukkit.Material;
+import org.bukkit.Tag;
+import org.bukkit.enchantments.Enchantment;
 import org.bukkit.inventory.ItemStack;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -46,6 +48,55 @@ class CriteriaTest {
         assertEquals(List.of("OAK_LOG", "BIRCH_LOG", "#minecraft:logs", "#minecraft:planks"), criteria.items());
         assertEquals("minecraft:sharpness", criteria.enchantments().getFirst().enchantment());
         assertEquals(1, criteria.minEnchantments());
+    }
+
+    @Test
+    void typedCriteriaKeepTheirEntriesAsText() {
+        var criteria = ItemCriteria.ofMaterials(Material.BAMBOO_BLOCK)
+                .withTag(Tag.ITEMS_LOGS)
+                .withMaterial(Material.BAMBOO_BLOCK)
+                .withEnchantment(Enchantment.UNBREAKING, 2);
+
+        assertEquals(List.of("BAMBOO_BLOCK", "#minecraft:logs"), criteria.items());
+        assertEquals("minecraft:unbreaking", criteria.enchantments().getFirst().enchantment());
+        assertTrue(criteria.accepts(Material.OAK_LOG));
+    }
+
+    @Test
+    void theTagsAndEnchantmentsAreLookedUpOnTheServer() {
+        var criteria = ItemCriteria.ofTags(Tag.ITEMS_LOGS, Tag.ITEMS_PLANKS).withEnchantment(Enchantment.UNBREAKING, 2);
+
+        assertEquals(
+                List.of(Tag.ITEMS_LOGS.getKey(), Tag.ITEMS_PLANKS.getKey()),
+                criteria.tags().stream().map(Tag::getKey).toList());
+        assertEquals(Tag.ITEMS_LOGS.getValues(), criteria.tags().getFirst().getValues());
+        assertEquals(
+                Enchantment.UNBREAKING,
+                criteria.enchantments().getFirst().lookup().orElseThrow());
+        assertTrue(new ItemCriteria.Required("minecraft:no_such_enchantment", 1)
+                .lookup()
+                .isEmpty());
+        assertTrue(ItemCriteria.of("#minecraft:no_such_tag").tags().isEmpty());
+    }
+
+    @Test
+    void typedCriteriaPassTheRulesOfOrders() {
+        var sharpSwords = ItemCriteria.ofMaterials(Material.DIAMOND_SWORD).withEnchantment(Enchantment.SHARPNESS, 3);
+        var unbreakableLogs = ItemCriteria.ofTags(Tag.ITEMS_LOGS).withEnchantment(Enchantment.UNBREAKING, 2);
+
+        assertTrue(CriteriaRules.problem(sharpSwords).isEmpty());
+        assertFalse(CriteriaRules.problem(unbreakableLogs).isEmpty());
+    }
+
+    @Test
+    void typedInputsTheServerCanNotOrderAreRefused() {
+        assertThrows(IllegalArgumentException.class, () -> ItemCriteria.ofMaterials(Material.WATER));
+        assertThrows(IllegalArgumentException.class, () -> ItemCriteria.ofMaterials(Material.AIR));
+        assertThrows(IllegalArgumentException.class, () -> ItemCriteria.ofTags(Tag.MINEABLE_AXE));
+        assertEquals(List.of("#minecraft:logs"), ItemCriteria.ofTags(Tag.LOGS).items());
+        assertThrows(NullPointerException.class, () -> ItemCriteria.ofMaterials(Material.STONE, null));
+        assertThrows(IllegalArgumentException.class, () -> ItemCriteria.ofMaterials(Material.DIAMOND_SWORD)
+                .withEnchantment(Enchantment.SHARPNESS, Enchantment.SHARPNESS.getMaxLevel() + 1));
     }
 
     @Test

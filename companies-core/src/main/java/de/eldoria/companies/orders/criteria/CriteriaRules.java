@@ -7,7 +7,6 @@ package de.eldoria.companies.orders.criteria;
 
 import de.eldoria.companies.commands.support.CommandFailure;
 import de.eldoria.companies.components.order.ItemCriteria;
-import de.eldoria.companies.orders.definition.ItemDefinitions;
 import de.eldoria.eldoutilities.messages.Replacement;
 import io.papermc.paper.registry.RegistryAccess;
 import io.papermc.paper.registry.RegistryKey;
@@ -56,7 +55,7 @@ public final class CriteriaRules {
         if (materials.isEmpty()) return refused("order.criteria.error.empty", String.join(", ", criteria.items()));
         List<Enchantment> required = new ArrayList<>();
         for (var entry : criteria.enchantments()) {
-            var enchantment = ItemDefinitions.lookup(RegistryKey.ENCHANTMENT, entry.enchantment());
+            var enchantment = entry.lookup();
             if (enchantment.isEmpty()) return refused("order.criteria.error.unknownEnchantment", entry.enchantment());
             if (entry.minLevel() > enchantment.get().getMaxLevel()) {
                 return refused("order.criteria.error.enchantmentLevel", entry.enchantment());

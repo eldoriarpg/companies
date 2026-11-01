@@ -311,7 +311,7 @@ or empty. See [Working alone](../players/working-alone.md) and the [solo order e
 OrderRequest request = OrderRequest.builder(owner, "Castle stone")
         .line(OrderLineRequest.material(Material.STONE_BRICKS, 512, 2.5))
         .line(OrderLineRequest.exact(enchantedPickaxe, 1, 500))
-        .line(OrderLineRequest.criteria(ItemCriteria.of("#minecraft:logs"), 256, 1.5))
+        .line(OrderLineRequest.criteria(ItemCriteria.ofTags(Tag.ITEMS_LOGS), 256, 1.5))
         .charge(false)
         .respectLimits(false)
         .build();
@@ -345,14 +345,22 @@ api.orders().create(request).thenAccept(result -> {
 `ItemCriteria` names materials and item tags, and may add enchantment conditions:
 
 ```java
-ItemCriteria swords = ItemCriteria.of("DIAMOND_SWORD", "NETHERITE_SWORD")
+ItemCriteria swords = ItemCriteria.ofMaterials(Material.DIAMOND_SWORD, Material.NETHERITE_SWORD)
         .withMinEnchantments(2)
-        .withEnchantment("minecraft:sharpness", 3);
+        .withEnchantment(Enchantment.SHARPNESS, 3);
 ```
 
 This accepts diamond and netherite swords with at least two enchantments, one of them Sharpness III or higher.
-Materials are written as their name, tags with a leading `#`. Enchanted books count their stored enchantments. Other
-data of an item does not matter.
+`ofTags(Tag...)` and `withTag(Tag)` add item tags such as `Tag.ITEMS_LOGS`, `withMaterial(Material)` another material.
+These refuse with an `IllegalArgumentException` what the server can not order: a material that is no item, a tag the
+server does not register for items (a block tag such as `Tag.MINEABLE_AXE`; a block tag whose item tag of the same key
+has other members), and an enchantment level above its maximum. Prefer the `Tag.ITEMS_*` constants.
+The criteria keep their entries as text, as orders store them: `items()` lists material names and tags with a leading
+`#`, `tags()` the tags among them the server knows, and `Required.lookup()` finds an enchantment in the server's
+registry. `of(String...)` and `withEnchantment(String, int)` take those texts directly, for entries read from a
+config; `create` rejects an order whose criteria name something the server does not know, an enchantment that does
+not fit the items, or two that conflict. Enchanted books count their stored enchantments. Other data of an item does
+not matter.
 
 The amount must be at least 1. The unit price must be a finite number and not negative. The item must be an item,
 not air. A line that breaks one of these rules throws an `IllegalArgumentException` when you create it.
