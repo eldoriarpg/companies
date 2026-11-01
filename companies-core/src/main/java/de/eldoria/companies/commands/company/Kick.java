@@ -93,18 +93,14 @@ public final class Kick {
                                     player,
                                     "company.kick.kicked",
                                     Replacement.unparsed(
-                                            "name",
-                                            done.value().member().player().getName()));
+                                            "name", done.value().member().name()));
             }
         });
     }
 
     private void requestConfirmation(MenuService menus, Player player, CompanyMember target) {
         var question = MenuText.create()
-                .locale(
-                        "company.kick.confirm",
-                        Values.text(
-                                "member_name", String.valueOf(target.player().getName())));
+                .locale("company.kick.confirm", Values.text("member_name", String.valueOf(target.name())));
         kicks.ask(menus, player, target.uuid(), question);
     }
 

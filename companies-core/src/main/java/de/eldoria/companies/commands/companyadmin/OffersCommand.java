@@ -33,6 +33,7 @@ import de.eldoria.companies.orders.system.SystemOrderService;
 import de.eldoria.companies.services.events.EventTimes;
 import de.eldoria.companies.services.events.GoalRewards;
 import de.eldoria.companies.util.Permission.Admin;
+import de.eldoria.companies.util.PlayerNames;
 import de.eldoria.companies.util.Threading;
 import de.eldoria.companies.util.Times;
 import net.kyori.adventure.text.event.ClickEvent;
@@ -1300,7 +1301,7 @@ public final class OffersCommand {
         var items = Values.number("items", contributor.delivered());
         var chunks = Values.number("chunks", contributor.chunks());
         if (worker != null) {
-            var player = deps.plugin().getServer().getOfflinePlayer(worker).getName();
+            var player = PlayerNames.of(worker);
             return MenuText.create()
                     .locale(
                             PREFIX + "info.contributorAlone",

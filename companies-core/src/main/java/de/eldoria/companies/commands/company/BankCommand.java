@@ -21,6 +21,7 @@ import de.eldoria.companies.menus.company.TreasuryMenu;
 import de.eldoria.companies.services.TreasuryService;
 import de.eldoria.companies.services.TreasuryService.Result;
 import de.eldoria.companies.util.Money;
+import de.eldoria.companies.util.PlayerNames;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import net.strokkur.commands.Executes;
 import net.strokkur.commands.Subcommand;
@@ -247,14 +248,8 @@ public final class BankCommand {
         Map<UUID, String> names = new HashMap<>();
         for (var entry : entries) {
             entry.actorId()
-                    .ifPresent(id -> names.computeIfAbsent(
-                            id,
-                            uuid -> Objects.requireNonNullElse(
-                                    deps.plugin()
-                                            .getServer()
-                                            .getOfflinePlayer(uuid)
-                                            .getName(),
-                                    "?")));
+                    .ifPresent(id ->
+                            names.computeIfAbsent(id, uuid -> Objects.requireNonNullElse(PlayerNames.of(uuid), "?")));
         }
         return names;
     }

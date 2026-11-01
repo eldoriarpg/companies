@@ -14,6 +14,7 @@ import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.company.SimpleCompany;
 import de.eldoria.companies.orders.OrderDraftService;
+import de.eldoria.companies.util.PlayerNames;
 import de.eldoria.eldoutilities.localization.ILocalizer;
 import org.bukkit.Bukkit;
 
@@ -198,7 +199,7 @@ public final class SuggestionSources {
 
     private static List<String> memberNames(CompanyProfile profile) {
         return profile.members().stream()
-                .map(member -> member.player().getName())
+                .map(member -> PlayerNames.of(member.player()))
                 .filter(Objects::nonNull)
                 .toList();
     }

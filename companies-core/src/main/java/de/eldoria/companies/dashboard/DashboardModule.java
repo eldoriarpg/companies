@@ -92,6 +92,7 @@ import de.eldoria.companies.services.events.ServerEventService;
 import de.eldoria.companies.services.notifications.Inbox;
 import de.eldoria.companies.services.notifications.NotificationRenderer;
 import de.eldoria.companies.util.AdminLog;
+import de.eldoria.companies.util.PlayerNames;
 import de.eldoria.companies.util.Threading;
 import de.eldoria.companies.util.Times;
 import de.eldoria.companies.web.api.Features;
@@ -166,8 +167,7 @@ public final class DashboardModule {
         var userAgent = "Companies/" + version;
         var messages = MessageSender.getPluginMessageSender(plugin);
         var localizer = ILocalizer.getPluginLocalizer(plugin);
-        Function<UUID, String> names =
-                uuid -> SystemOwner.name(uuid, id -> Bukkit.getOfflinePlayer(id).getName());
+        Function<UUID, String> names = uuid -> SystemOwner.name(uuid, PlayerNames::of);
         Function<String, String> refusal =
                 key -> PlainText.of(CommandFailure.of(key).render(null, messages));
 
@@ -319,9 +319,7 @@ public final class DashboardModule {
                                         Threading.mainThread(plugin))
                                 .join(),
                         data.admin().companyByName(),
-                        uuid -> SystemOwner.name(
-                                uuid,
-                                id -> plugin.getServer().getOfflinePlayer(id).getName()),
+                        uuid -> SystemOwner.name(uuid, PlayerNames::of),
                         views,
                         data.admin().log(),
                         failure -> PlainText.of(failure.render(null, messages)))),
@@ -334,9 +332,7 @@ public final class DashboardModule {
                                         Threading.mainThread(plugin))
                                 .join(),
                         Bukkit::getOfflinePlayer,
-                        uuid -> SystemOwner.name(
-                                uuid,
-                                id -> plugin.getServer().getOfflinePlayer(id).getName()),
+                        uuid -> SystemOwner.name(uuid, PlayerNames::of),
                         data.admin().companies(),
                         data.admin().companyData(),
                         data.items().orders(),
