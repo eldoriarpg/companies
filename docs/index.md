@@ -12,7 +12,7 @@ order and pays for it up front. A company takes the order, its members deliver t
 for what they brought. Companies grow, level up and compete in rankings.
 
 New here? Start with [Installation](./getting-started/installation.md) and the short tour in
-[First steps](./getting-started/first-steps.md).
+[First steps](./getting-started/first-steps.md). Or [try it](./getting-started/try-it.md) on the demo server first.
 
 ## Features
 
