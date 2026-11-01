@@ -1020,6 +1020,7 @@ export default {
                     sources: 'Plugins de boutique dont les prix peuvent être lus',
                     adminOnly: 'Plugins de boutique dont les boutiques de joueurs ne comptent pas',
                     zshopEconomies: 'Économies zShop payant dans la monnaie principale (vide : toutes)',
+                    zauctionhouseEconomies: 'Économies zAuctionHouse payant dans la monnaie principale (vide : toutes)',
                     shopkeepersCurrencyValue: 'Valeur d\'un objet monnaie de Shopkeepers (0 : Shopkeepers n\'est pas lu)',
                     sampleMinutes: 'Minutes entre deux relevés des offres des boutiques',
                     days: 'Jours de ventes et d\'offres des boutiques qui comptent',

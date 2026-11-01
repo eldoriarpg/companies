@@ -13,11 +13,12 @@ import java.util.logging.Level;
 // TODO: register a source again when its shop plugin is enabled again after Companies started
 /**
  * Registers Companies' own price sources for the shop plugins it ships hooks for: EconomyShopGUI (free and Premium),
- * ShopGUI+, zShop, ChestShop and Shopkeepers. A source class is compiled against its plugin, so it is only loaded by
- * name and only when that plugin is enabled; a missing plugin can not cause a {@link NoClassDefFoundError}. A source
- * that fails to load, for example because the plugin's API changed, is skipped with a warning. A source is registered
- * in the name of its plugin, so it is dropped when that plugin is disabled, and is switched off with {@code sources}
- * in {@code prices.yml}. A source class has a constructor taking the {@link PriceHookContext}.
+ * ShopGUI+, zShop, ChestShop, Shopkeepers and zAuctionHouse. A source class is compiled against its plugin, so it is
+ * only loaded by name and only when that plugin is enabled; a missing plugin can not cause a
+ * {@link NoClassDefFoundError}. A source that fails to load, for example because the plugin's API changed, is skipped
+ * with a warning. A source is registered in the name of its plugin, so it is dropped when that plugin is disabled, and
+ * is switched off with {@code sources} in {@code prices.yml}. A source class has a constructor taking the
+ * {@link PriceHookContext}.
  */
 public final class PriceHooks {
     static final Map<String, String> KNOWN = Map.of(
@@ -26,7 +27,8 @@ public final class PriceHooks {
             "ShopGUIPlus", "de.eldoria.companies.hooks.shopguiplus.ShopGuiPlusPrices",
             "zShop", "de.eldoria.companies.hooks.zshop.ZShopPrices",
             "ChestShop", "de.eldoria.companies.hooks.chestshop.ChestShopPrices",
-            "Shopkeepers", "de.eldoria.companies.hooks.shopkeepers.ShopkeepersPrices");
+            "Shopkeepers", "de.eldoria.companies.hooks.shopkeepers.ShopkeepersPrices",
+            "zAuctionHouse", "de.eldoria.companies.hooks.zauctionhouse.ZAuctionHousePrices");
 
     private PriceHooks() {}
 

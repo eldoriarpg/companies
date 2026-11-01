@@ -375,7 +375,12 @@ public class Companies extends EldoPlugin {
         getServer().getPluginManager().registerEvents(api.areaProviders(), this);
         api.priceSources().settings(configuration::priceSettings);
         getServer().getPluginManager().registerEvents(api.priceSources(), this);
-        PriceHooks.load(new PriceHookContext(this, configuration::priceSettings), api.priceSources());
+        PriceHooks.load(
+                new PriceHookContext(
+                        this,
+                        configuration::priceSettings,
+                        configuration.nodeSettings().nodeType() == NodeType.PRIMARY),
+                api.priceSources());
         orderData.minOrders(() -> configuration.orderSetting().market().minOrders());
     }
 

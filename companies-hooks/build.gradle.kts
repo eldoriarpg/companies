@@ -32,6 +32,7 @@ repositories {
         content {
             includeGroup("fr.maxlego08.shop")
             includeGroup("fr.maxlego08.menu")
+            includeGroup("fr.maxlego08.zauctionhouse")
         }
     }
 }
@@ -77,6 +78,9 @@ dependencies {
     compileOnly(libs.shopkeepers) {
         isTransitive = false
     }
+    compileOnly(libs.zauctionhouse) {
+        isTransitive = false
+    }
 
     testImplementation(project(":companies-core"))
     testImplementation(libs.economyshopgui) {
@@ -95,6 +99,9 @@ dependencies {
         isTransitive = false
     }
     testImplementation(libs.shopkeepers) {
+        isTransitive = false
+    }
+    testImplementation(libs.zauctionhouse) {
         isTransitive = false
     }
 }

@@ -171,6 +171,9 @@ class BaselinesTest {
 
         assertTrue(settings.zshopEconomy("MONEY"));
         assertFalse(settings.zshopEconomy("tokens"));
+        assertTrue(settings.zauctionhouseEconomy("tokens"));
+        settings.zauctionhouseEconomies(List.of("Money"));
+        assertFalse(settings.zauctionhouseEconomy("tokens"));
     }
 
     @Test

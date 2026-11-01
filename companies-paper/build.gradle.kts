@@ -96,6 +96,9 @@ pluginManifest {
     optional("Shopkeepers") {
         link("https://www.spigotmc.org/resources/80756/")
     }
+    optional("zAuctionHouse") {
+        link("https://www.spigotmc.org/resources/63010/")
+    }
 }
 
 tasks {
@@ -156,7 +159,8 @@ bukkit {
         "zShop",
         "zMenu",
         "ChestShop",
-        "Shopkeepers"
+        "Shopkeepers",
+        "zAuctionHouse"
     )
 
     permissions {

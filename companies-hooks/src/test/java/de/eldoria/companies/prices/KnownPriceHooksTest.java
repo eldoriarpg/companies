@@ -18,7 +18,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class KnownPriceHooksTest {
     @Test
     void everyKnownPriceSourceIsCreatedWithoutItsPlugin() throws ReflectiveOperationException {
-        var context = new PriceHookContext(null, PriceSettings::new);
+        var context = new PriceHookContext(null, PriceSettings::new, true);
         var ids = new HashSet<String>();
         for (var className : PriceHooks.KNOWN.values()) {
             var source = (PriceSource) Class.forName(className)
@@ -27,9 +27,17 @@ class KnownPriceHooksTest {
             ids.add(source.id());
         }
 
-        assertEquals(Set.of("economyshopgui", "shopguiplus", "zshop", "chestshop", "shopkeepers"), ids);
         assertEquals(
-                Set.of("EconomyShopGUI", "EconomyShopGUI-Premium", "ShopGUIPlus", "zShop", "ChestShop", "Shopkeepers"),
+                Set.of("economyshopgui", "shopguiplus", "zshop", "chestshop", "shopkeepers", "zauctionhouse"), ids);
+        assertEquals(
+                Set.of(
+                        "EconomyShopGUI",
+                        "EconomyShopGUI-Premium",
+                        "ShopGUIPlus",
+                        "zShop",
+                        "ChestShop",
+                        "Shopkeepers",
+                        "zAuctionHouse"),
                 PriceHooks.KNOWN.keySet().stream().collect(Collectors.toSet()));
     }
 }

@@ -408,6 +408,7 @@ public final class SettingsCatalogue {
         prices.add(Type.FLAG_MAP, "sources", List.of(), false);
         prices.add(Type.TEXT_LIST, "adminOnly", List.of(), false);
         prices.add(Type.TEXT_LIST, "zshopEconomies", List.of(), false);
+        prices.add(Type.TEXT_LIST, "zauctionhouseEconomies", List.of(), false);
         prices.decimal("shopkeepersCurrencyValue");
         prices.whole("sampleMinutes");
         prices.whole("days");

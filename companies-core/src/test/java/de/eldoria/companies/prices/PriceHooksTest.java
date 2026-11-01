@@ -51,7 +51,7 @@ class PriceHooksTest {
         known.put("Broken", "de.eldoria.companies.prices.Missing");
         known.put("Absent", Source.class.getName());
 
-        PriceHooks.load(new PriceHookContext(companies, PriceSettings::new), sources, known);
+        PriceHooks.load(new PriceHookContext(companies, PriceSettings::new, true), sources, known);
 
         assertEquals(List.of("source"), sources.sources());
         sources.onDisable(new PluginDisableEvent(shop));

@@ -1020,6 +1020,7 @@ export default {
                     sources: 'Shop-Plugins, aus denen Preise gelesen werden dürfen',
                     adminOnly: 'Shop-Plugins, deren Spieler-Shops nicht zählen',
                     zshopEconomies: 'zShop-Ökonomien in der Hauptwährung (leer: alle)',
+                    zauctionhouseEconomies: 'zAuctionHouse-Ökonomien in der Hauptwährung (leer: alle)',
                     shopkeepersCurrencyValue: 'Geldwert eines Shopkeepers-Währungsitems (0: Shopkeepers wird nicht gelesen)',
                     sampleMinutes: 'Minuten zwischen zwei Stichproben der Shop-Angebote',
                     days: 'Tage, aus denen Shop-Verkäufe und Angebote zählen',

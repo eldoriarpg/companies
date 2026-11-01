@@ -11,10 +11,11 @@ import org.bukkit.plugin.Plugin;
 import java.util.function.Supplier;
 
 /**
- * What Companies' own price sources get when they are loaded: the plugin to register their listeners with, and the
- * settings of shop prices, read on every use.
+ * What Companies' own price sources get when they are loaded: the plugin to register their listeners with, the
+ * settings of shop prices, read on every use, and whether this server is the primary of its network.
  *
  * @param plugin   Companies
  * @param settings the settings of shop prices
+ * @param primary  whether this server is the primary, which samples shops every server of the network shares
  */
-public record PriceHookContext(Plugin plugin, Supplier<PriceSettings> settings) {}
+public record PriceHookContext(Plugin plugin, Supplier<PriceSettings> settings, boolean primary) {}

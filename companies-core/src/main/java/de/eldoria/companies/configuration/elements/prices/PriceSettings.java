@@ -22,6 +22,7 @@ public class PriceSettings {
     private Map<String, Boolean> sources = new LinkedHashMap<>();
     private List<String> adminOnly = new ArrayList<>();
     private List<String> zshopEconomies = new ArrayList<>();
+    private List<String> zauctionhouseEconomies = new ArrayList<>();
     private double shopkeepersCurrencyValue = 0;
     private int sampleMinutes = 30;
     private int days = 14;
@@ -100,6 +101,33 @@ public class PriceSettings {
 
     public void zshopEconomies(List<String> zshopEconomies) {
         this.zshopEconomies = new ArrayList<>(zshopEconomies);
+    }
+
+    /**
+     * zAuctionHouse does not tell which currency an economy pays in either, so this names the zAuctionHouse economies
+     * that pay in the server's main currency.
+     *
+     * @param name the name of a zAuctionHouse economy
+     * @return whether its prices count, matched ignoring case; every economy counts while none is listed
+     */
+    public boolean zauctionhouseEconomy(String name) {
+        var listed = zauctionhouseEconomies();
+        return listed.isEmpty() || listed.contains(name.toLowerCase(Locale.ROOT));
+    }
+
+    /**
+     * @return the names of the zAuctionHouse economies that pay in the server's main currency, lower case; empty for
+     *     all
+     */
+    public List<String> zauctionhouseEconomies() {
+        if (zauctionhouseEconomies == null) return List.of();
+        return zauctionhouseEconomies.stream()
+                .map(name -> name.toLowerCase(Locale.ROOT))
+                .toList();
+    }
+
+    public void zauctionhouseEconomies(List<String> zauctionhouseEconomies) {
+        this.zauctionhouseEconomies = new ArrayList<>(zauctionhouseEconomies);
     }
 
     /**

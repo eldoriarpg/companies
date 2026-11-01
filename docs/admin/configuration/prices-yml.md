@@ -15,6 +15,7 @@ file is shared by every server of a network.
 sources: {}
 adminOnly: []
 zshopEconomies: []
+zauctionhouseEconomies: []
 shopkeepersCurrencyValue: 0.0
 sampleMinutes: 30
 days: 14
@@ -29,6 +30,7 @@ buyFactor: 1.0
 | `sources` | source id: true/false | empty | Switch a shop plugin off as a source of prices. A source not listed is on. | reload |
 | `adminOnly` | list of source ids | empty | Sources whose player shops do not count: only admin shops and the prices the server sets count from them. | reload |
 | `zshopEconomies` | list of zShop economy names | empty | The zShop economies that pay in the server's main currency. zShop does not tell which currency an economy uses; while the list is empty, every zShop price counts. | reload |
+| `zauctionhouseEconomies` | list of zAuctionHouse economy names | empty | The zAuctionHouse economies that pay in the server's main currency, for the same reason as `zshopEconomies`; while the list is empty, every zAuctionHouse price counts. | reload |
 | `shopkeepersCurrencyValue` | money | `0` | What one base currency item of Shopkeepers (an emerald by default) is worth in money; the high currency counts at its value in base items. Shopkeepers prices count only once this is above 0. | reload |
 | `sampleMinutes` | number (minutes) | `30` | How often each server reads the offers of its shops. At least 1. | reload |
 | `days` | number (days) | `14` | How many days of trades count, and how old a read of the offers may be. At least 1. | reload |
@@ -75,13 +77,14 @@ Companies reads these shop plugins when they are enabled; switch one off with `s
 | zShop | `zshop` | The buy and sell price of every item button, and every purchase and sale, selling a whole inventory included (one trade per item). Mob spawners are left out, and so is buying from a button that runs commands instead of giving its item. |
 | ChestShop | `chestshop` | The buy and sell price of every shop sign, for its quantity, and every transaction. Admin signs are admin prices, the others offers of players. |
 | Shopkeepers | `shopkeepers` | The offers of player shops that sell or buy items for currency, and their trades, once `shopkeepersCurrencyValue` is set; a shift-click counts as one trade. Admin shopkeepers trade item for item and are left out. |
+| zAuctionHouse | `zauctionhouse` | The items listed for sale, and every purchase at what the buyer paid, a buyer's tax included. The listings are read on the primary only, as a shared auction house shows every server all of them, so install zAuctionHouse on the primary for its listings to count; with an auction house per server, only the primary's listings count. Purchases count on every server. A listing is one price for all its items; listings of different items, rentals and bids are left out. |
 
 EconomyShopGUI, ShopGUI+ and zShop are server shops: their prices are server prices, and their trades are trades at the
-server's prices. ChestShop and Shopkeepers are shops of players: their offers are listings, and only trades with someone
-else's shop count. Only prices in the server's main currency count: EconomyShopGUI and ShopGUI+ items paid in Vault (on
-the shop or as ShopGUI+'s default economy), and the zShop economies `zshopEconomies` names. zShop makes its items for a
-player only: each server reads it while someone is online, and while nobody has been online since the server started it
-keeps the offers it stored before.
+server's prices. ChestShop, Shopkeepers and zAuctionHouse are shops of players: their offers are listings, and only
+trades with someone else's shop count. Only prices in the server's main currency count: EconomyShopGUI and ShopGUI+
+items paid in Vault (on the shop or as ShopGUI+'s default economy), and the zShop and zAuctionHouse economies
+`zshopEconomies` and `zauctionhouseEconomies` name. zShop makes its items for a player only: each server reads it while
+someone is online, and while nobody has been online since the server started it keeps the offers it stored before.
 
 ChestShop keeps no list of its shops, so Companies finds the signs where chunks are loaded and remembers them while
 their chunks are unloaded and forgets them with their world; after a restart, the shops of a chunk count again once it
