@@ -12,6 +12,12 @@ Orders are anonymous. You see the items, the price and the time left, but never 
 
 ## Find orders
 
+The **Order book** of the [dashboard](../players/dashboard.md#order-book) lists every open order with what it asks
+for, what it pays per item against the market average, and the payout. Search it, filter it and sort it, and open an
+order to see its lines.
+
+### The order search in game
+
 `/company order search` opens the order search. Fill in what you are looking for and run the search.
 
 | Filter | What it does |
@@ -29,8 +35,8 @@ Orders are anonymous. You see the items, the price and the time left, but never 
 **In the dialog**, the search is one form with a `Search` button. Leave prices and sizes empty for no limit.
 
 **In chat**, choices are buttons that change the search at once. Names, materials, prices and sizes are typed as
-`/company order search query …` commands, which the buttons put into your chat line. `/company order search query execute` runs the search, and
-`/company order search query clear` resets it.
+`/company order search query …` commands, which the buttons put into your chat line.
+`/company order search query execute` runs the search, and `/company order search query clear` resets it.
 
 The results show only orders your company could claim. Orders of your own members are hidden, unless your server
 allows them. Orders larger than your level allows are hidden too.
@@ -47,7 +53,8 @@ Other ways to find orders:
 
 ## Claim an order
 
-You need the `manage_orders` permission. Click `[Accept]` next to an order in the results, or type
+You need the `manage_orders` permission. Open the order in the dashboard's order book and press
+**Accept for my company**. In game, click `[Accept]` next to an order in the results, or type
 `/company order accept <id>`.
 
 Now the order belongs to your company. Nobody else can claim it, and the clock starts. Your company has 48 hours by
@@ -57,12 +64,9 @@ The player who placed the order is told that a company claimed it, without your 
 
 ## Your orders
 
-| Command | What it does |
-|---|---|
-| `/company order` | List the orders your company works on |
-| `/company order info <id>` | Show one order: its lines, what is delivered, the price after tax and the time left |
-
-Every member can open these and deliver.
+The orders your company works on are its **Positions**, in the dashboard's portfolio, with what is delivered and the
+time left. In game, `/company order` lists them and `/company order info <id>` shows one with its lines, what is
+delivered, the price after tax and the time left. Every member can open these and deliver.
 
 :::tip
 When an order is close to its deadline, members see a reminder when they join. By default this starts 12 hours before
@@ -71,7 +75,13 @@ the deadline.
 
 ## Deliver items
 
-Put the items into your inventory and open the order with `/company order info <id>`.
+Put the items into your inventory. Delivering takes them from it, so it works only while you are online on the
+server.
+
+On the dashboard, open the order in **Positions**: **Deliver what I carry** delivers every matching item you carry,
+to every line, and each line has a button that delivers to it alone.
+
+In game, open the order with `/company order info <id>`:
 
 - **Deliver all.** The `[Deliver all]` button delivers every matching item you carry, to every line. The command is
   `/company order deliver <id> all`.
@@ -115,8 +125,8 @@ A completed order counts towards your company level and the [rankings](./ranking
 
 ## Give an order back
 
-Sometimes an order is too much. A member with `manage_orders` can give it back with `/company order abort <id>`.
-Confirm with the button or `/company order abort confirm`.
+Sometimes an order is too much. A member with `manage_orders` can give it back with **Give back** in **Positions**, or
+with `/company order abort <id>` in game. Either asks you to confirm.
 
 - The order is open again for every company.
 - Items that were already delivered go back to the members who delivered them.
@@ -147,5 +157,5 @@ Your company level decides:
 - how much extra time you get for deliveries,
 - how much tax is taken from payouts.
 
-`/company` shows the limits of your level and what the next level needs. Server owners set them up, see
-[Levels](../admin/levels.md).
+The dashboard's company page shows your level and the progress to the next one; `/company` shows the limits of your
+level and what the next level needs. Server owners set them up, see [Levels](../admin/levels.md).

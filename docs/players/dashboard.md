@@ -192,7 +192,7 @@ game. When the server refuses, the dashboard shows its reason. Each action has i
 | Company | Accept or deny an application, take back an invite (needs *invite*) |
 | Company | Edit description, tag and colour, change how players join (needs *edit profile*) |
 | Company | Rename the company, paid by you or from the treasury; the dashboard shows the price first (owner only) |
-| Company | Pay into the treasury, take money out, set the share of payouts it keeps (needs *treasury*) |
+| Company | Pay into the treasury; take money out and set the share of payouts it keeps (needs *treasury*) |
 | Events | Let your company join a contest or leave it (needs *manage orders*) |
 | Jobs | Post a contract; its price and the fee are taken at once |
 | Jobs | Describe or cancel your waiting job, approve, reject or dispute work, withdraw your dispute, end your harvest |

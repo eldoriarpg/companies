@@ -10,25 +10,20 @@ small share of every payout there. Use it to save for a rename, to reward your m
 
 ## Open the treasury
 
-`/company bank` shows the balance, the payout share, the latest transactions and the actions you may use. Every member
-can open it.
+The treasury of your company shows on the [dashboard](../players/dashboard.md)'s portfolio and company page: the
+balance, the payout share and the latest movements, with a chart over time. Every member can **Pay in**; members with
+the `treasury` permission can **Take out** money and set the share of payouts it keeps.
 
-| Command | Who | What it does |
-|---|---|---|
-| `/company bank deposit <amount>` | every member | Pay money into the treasury |
-| `/company bank withdraw <amount>` | `treasury` permission | Take money out |
-| `/company bank share <percent>` | `treasury` permission | Set the payout share |
-| `/company bank log [page]` | every member | Show the transactions |
-
-In the dialog you type the amount into a field and set the share with a slider. In chat, the buttons put the command
-into your chat line.
+In game, `/company bank` shows the same, with `/company bank deposit <amount>`, `withdraw <amount>`,
+`share <percent>` and `log [page]`. In the dialog you type the amount into a field and set the share with a slider;
+in chat, the buttons put the command into your chat line.
 
 Amounts have at most two decimals. The smallest deposit or withdrawal is 1 by default. You can only withdraw what the
 treasury holds.
 
 :::note
-If your server turned the treasury off, the bank commands are missing. Balances are kept, and the treasury comes back
-when the server turns it on again.
+If your server turned the treasury off, the treasury and the bank commands are missing. Balances are kept, and the
+treasury comes back when the server turns it on again.
 :::
 
 ## The payout share
@@ -49,9 +44,9 @@ The share is taken after tax. Say a member earns 100, the tax is 10 % and the sh
 The treasury part is rounded down to whole cents. The member keeps the rest. The payment message shows each member
 what went to the treasury.
 
-Set the share with `/company bank share <percent>`. It can be 0 to the highest share your server allows, 25 % by
-default. Every member gets a message when the share changes. If the server lowers its highest share, your company keeps at
-most the new highest share from then on.
+Set the share on the dashboard's company page or with `/company bank share <percent>`. It can be 0 to the highest share
+your server allows, 25 % by default. Every member gets a message when the share changes. If the server lowers its
+highest share, your company keeps at most the new highest share from then on.
 
 ## The log
 
@@ -75,7 +70,7 @@ Log entries are kept for 365 days by default.
 
 ## Pay a rename from the treasury
 
-When the owner renames the company and the treasury holds enough, the confirmation offers `Pay from the treasury`.
+When the owner renames the company and the treasury holds enough, the rename offers to pay from the treasury.
 See [Profile](./profile.md#rename-the-company).
 
 ## When the company is disbanded

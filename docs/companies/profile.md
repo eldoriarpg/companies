@@ -10,12 +10,9 @@ description, a short tag and a colour, so players recognise your company at a gl
 
 ## View a profile
 
-| Command | Shows |
-|---|---|
-| `/company` or `/company profile` | The profile of your own company |
-| `/company profile name <name>` | The profile of a company by its name |
-| `/company profile id <id>` | The profile of a company by its id |
-| `/company profile player <player>` | The profile of the company of an online player |
+The [dashboard](../players/dashboard.md)'s company page shows your own company's profile with its level, rank,
+orders and members. In game, `/company` shows your own profile, and `/company profile name <name>`, `id <id>` or
+`player <player>` shows the profile of another company.
 
 Every profile shows the tag and name in the company colour, the description, the join mode, the level, the founding
 date, the owner and the members.
@@ -38,32 +35,24 @@ Tags are always stored in upper case, so `ore` becomes `ORE`. Some tags are rese
 
 Members with the `edit_profile` permission can change the profile. The owner always can.
 
-Click `[Edit]` on your own profile, or type `/company profile edit`. In the dialog you change all fields in one form
-and click `Save`. In chat, every field has a `[Change]` and a `[Clear]` button, and you pick the colour by clicking it.
-
-You can also use commands:
-
-| Command | What it does |
-|---|---|
-| `/company profile edit description <text>` | Set the description |
-| `/company profile edit description` | Remove the description |
-| `/company profile edit tag <tag>` | Set the tag |
-| `/company profile edit tag clear` | Remove the tag |
-| `/company profile edit color <colour>` | Set the colour. Tab completion suggests the colours. |
-| `/company profile edit color clear` | Remove the colour |
+On the dashboard, **Edit profile** on the company page changes description, tag and colour in one form, and
+**Save profile** applies them. In game, click `[Edit]` on your own profile or type `/company profile edit`: in the
+dialog you change all fields in one form and click `Save`; in chat, every field has a `[Change]` and a `[Clear]`
+button, and you pick the colour by clicking it. The [Commands](../reference/commands.md) page lists the
+`/company profile edit` commands for each field.
 
 The other members get a message when the profile changes.
 
-The join mode is part of the profile too. It is changed with `/company joinmode`, see
+The join mode is part of the profile too, see
 [Founding and joining](./founding-and-joining.md#how-players-join).
 
 ## Rename the company
 
 Only the owner can rename the company.
 
-1. Type `/company rename <new name>`. The name can have up to 31 characters and must not be taken.
-2. Companies shows the price. The default is 10,000.
-3. Confirm with the button or `/company rename confirm`.
+On the dashboard, **Rename** on the company page takes the new name and shows the price, 10,000 by default. Pay it
+yourself, or from the [treasury](./treasury.md) when your server allows it and the treasury holds enough money.
 
-The price is taken from your balance. If your server allows it and the [treasury](./treasury.md) holds enough money,
-the confirmation also offers `Pay from the treasury`. Typing `/company rename confirm treasury` does the same.
+In game, type `/company rename <new name>`, see the price, and confirm with the button or `/company rename confirm`;
+`Pay from the treasury` in the confirmation, or `/company rename confirm treasury`, pays from the treasury. The name
+can have up to 31 characters and must not be taken.

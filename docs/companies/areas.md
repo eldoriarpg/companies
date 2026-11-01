@@ -9,6 +9,9 @@ A company can use plots and regions as its areas. Members with the `build` permi
 `containers` open the chests, barrels, furnaces and other containers there. How many areas a company may have depends
 on its level (`maxAreas` in [company.yml](../admin/configuration/company-yml.md), 1 by default).
 
+Areas are linked, bought and rented in game, where you stand on them. The [dashboard](../players/dashboard.md)'s
+company page lists them, with how the company got each and until when a rent is paid.
+
 | Command | Who | What it does |
 |---|---|---|
 | `/company area` | every member | Lists the areas of the company. |
@@ -34,8 +37,8 @@ belongs to one company at a time.
 ## Buying and renting
 
 Admins offer plots and regions with `/companyadmin area offer`. `/company area market` lists them with their price; a
-rent is paid per period, for example per 7 days. `/company area buy <offer>` pays the price, or the first period, from the
-[treasury](./treasury.md). The area then belongs to the owner of the company and follows a new owner. Only members
+rent is paid per period, for example per 7 days. `/company area buy <offer>` pays the price, or the first period, from
+the [treasury](./treasury.md). The area then belongs to the owner of the company and follows a new owner. Only members
 with `build` build there: everybody else who could build there before is taken off.
 
 The treasury pays every next period of a rent when the last one is over. The members who manage areas are told a day

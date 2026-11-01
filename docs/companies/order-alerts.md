@@ -8,6 +8,9 @@ sidebar_position: 6
 Your company mines iron? Then you want to hear about every new iron order right away. An order alert is a saved order
 search. When a new order matches it, the members who manage orders get a message.
 
+Alerts are set up in game, from the in-game order search. The messages they send also land in the
+[inbox](../players/inbox.md), on the dashboard too.
+
 ## Create an alert
 
 You need the `manage_orders` permission.
