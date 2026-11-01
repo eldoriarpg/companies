@@ -109,6 +109,8 @@ permission plugin, look at [Permissions](../reference/permissions.md) for the fu
 
 ## Next steps
 
+- Connect the [web dashboard](../admin/dashboard.md) with its key; its guided **Setup** takes you through the most
+  important settings. The [quick start](./quick-start.md) lists them in order.
 - Take the [first steps](./first-steps.md) to see how orders and companies work.
 - Read [Economy](../admin/economy.md) to set prices, fees and taxes.
 - Read [Levels](../admin/levels.md) to shape how companies grow.
