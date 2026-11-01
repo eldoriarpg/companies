@@ -65,7 +65,9 @@ public final class ReadRelay {
             Actions.ORDERS_CATALOGUE,
             Actions.ORDERS_ITEMS,
             Actions.EVENTS_LIST,
-            Actions.EVENTS_INFO);
+            Actions.EVENTS_INFO,
+            Actions.JOBS_LIST,
+            Actions.JOBS_INFO);
 
     /**
      * The actions that change something and may be forwarded. They are never cached, and a write drops every cached
@@ -161,7 +163,24 @@ public final class ReadRelay {
             Actions.ADMIN_EVENTS_END,
             Actions.ADMIN_EVENTS_CANCEL,
             Actions.ADMIN_EVENTS_EXTEND,
-            Actions.ADMIN_EVENTS_BUDGET);
+            Actions.ADMIN_EVENTS_BUDGET,
+            Actions.JOBS_CONTRACT,
+            Actions.JOBS_DESCRIBE,
+            Actions.JOBS_APPROVE,
+            Actions.JOBS_REJECT,
+            Actions.JOBS_DISPUTE,
+            Actions.JOBS_WITHDRAW,
+            Actions.JOBS_CANCEL,
+            Actions.JOBS_END,
+            Actions.JOBS_TAKE,
+            Actions.JOBS_GIVE_BACK,
+            Actions.JOBS_DONE,
+            Actions.JOBS_EXTEND,
+            Actions.JOBS_EXTENSION_ASK,
+            Actions.JOBS_EXTENSION_GRANT,
+            Actions.JOBS_EXTENSION_REFUSE,
+            Actions.ADMIN_JOBS_DISPUTES,
+            Actions.ADMIN_JOBS_SETTLE);
 
     /**
      * The admin actions on what each node keeps for itself, its board signs and NPC links. They go to the node named
