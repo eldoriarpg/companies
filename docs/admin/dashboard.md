@@ -41,15 +41,11 @@ the server connects again by itself when the gateway restarts or the connection 
    server folder. Typed in game, it may stay in your client's chat history. The environment variable keeps the key out
    of both.
    :::
-3. Switch the dashboard on in `config.yml`:
+3. Check the connection with `/companyadmin dashboard status`.
 
-   ```yaml
-   dashboard:
-     enabled: true
-   ```
-
-4. Run `/companyadmin reload`.
-5. Check the connection with `/companyadmin dashboard status`.
+The dashboard is on from the first start. Until a key is stored, the primary server's console and every admin with
+`companies.admin.dashboard` who joins are reminded to enter one. A `config.yml` that already says `enabled: false`
+keeps it; set it to `true` and run `/companyadmin reload`.
 
 Players log in with `/company dashboard`, which shows the link and the code in a dialog, or in chat where
 [menus](./configuration/config-yml.md#menus) are shown in chat. Geyser shows the dialog to Bedrock players as a form;
@@ -88,7 +84,7 @@ The `dashboard` section of `config.yml`:
 
 ```yaml
 dashboard:
-  enabled: false
+  enabled: true
   gateway: wss://companies.eldoria.de/api/v1/servers/connect
   sessionIdleMinutes: 60
   sessionMaxHours: 24
@@ -117,7 +113,7 @@ dashboard:
 
 | Setting | What it does |
 |---|---|
-| `enabled` | Whether the servers connect and players can open the dashboard. Off by default. |
+| `enabled` | Whether the servers connect and players can open the dashboard. On by default. |
 | `gateway` | The gateway to connect to. Change it only for a [self-hosted gateway](#self-hosted-gateway). |
 | `sessionIdleMinutes` | A login ends after this many minutes without use. |
 | `sessionMaxHours` | A login ends after this many hours in any case. |

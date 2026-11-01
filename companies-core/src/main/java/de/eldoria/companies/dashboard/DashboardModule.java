@@ -497,7 +497,7 @@ public final class DashboardModule {
                 logger));
         link.use(dashboard);
         started.set(dashboard);
-        var listener = new DashboardListener(dashboard, () -> messages, presence);
+        var listener = new DashboardListener(plugin, dashboard, () -> messages, presence);
         plugin.getServer().getPluginManager().registerEvents(new FeedListener(feed), plugin);
         plugin.getServer().getPluginManager().registerEvents(listener, plugin);
         plugin.getServer()

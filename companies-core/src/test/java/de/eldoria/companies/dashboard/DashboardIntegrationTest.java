@@ -15,8 +15,10 @@ import de.eldoria.companies.dashboard.gateway.GatewayStatus;
 import de.eldoria.companies.dashboard.gateway.Handshake;
 import de.eldoria.companies.dashboard.keys.DashboardKeys;
 import de.eldoria.companies.dashboard.sessions.DashboardSessions;
+import de.eldoria.companies.data.repository.impl.sqlite.SqLiteDashboardData;
 import de.eldoria.companies.data.wrapper.area.CompanyArea;
 import de.eldoria.companies.data.wrapper.area.CompanyHome;
+import de.eldoria.companies.data.wrapper.dashboard.StoredKey;
 import de.eldoria.companies.web.api.Actions;
 import de.eldoria.companies.web.api.Protocol;
 import de.eldoria.companies.web.api.action.ActionRequest;
@@ -71,6 +73,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Supplier;
 import java.util.logging.Logger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -98,6 +101,7 @@ class DashboardIntegrationTest {
     private DashboardWorld world;
     private FakeGateway gateway;
     private Dashboard dashboard;
+    private Dashboard.Parts parts;
     private ScheduledExecutorService timer;
     private UUID wren;
     private Handshake handshake;
@@ -154,7 +158,7 @@ class DashboardIntegrationTest {
                 () -> {},
                 world.executor,
                 logger));
-        dashboard = new Dashboard(new Dashboard.Parts(
+        parts = new Dashboard.Parts(
                 () -> settings,
                 () -> TOKEN,
                 keys,
@@ -170,7 +174,8 @@ class DashboardIntegrationTest {
                 "Companies/2.1.0-test",
                 world.executor,
                 clock,
-                logger));
+                logger);
+        dashboard = new Dashboard(parts);
         link.use(dashboard);
         dashboard.start(timer);
     }
@@ -226,6 +231,48 @@ class DashboardIntegrationTest {
         var created = assertInstanceOf(Dashboard.Opening.Created.class, opening.get(5, TimeUnit.SECONDS));
         assertEquals("KPMWQR", created.session().code());
         return created.session().session();
+    }
+
+    @Test
+    void theKeyIsMissingOnlyWhileTheDashboardIsOnWithoutAKey() throws Exception {
+        keys.seed(Optional.of(TOKEN));
+        assertFalse(dashboard.keyMissing().get(5, TimeUnit.SECONDS));
+        var emptyKeys = new DashboardKeys(
+                new SqLiteDashboardData() {
+                    @Override
+                    public Optional<StoredKey> key() {
+                        return Optional.empty();
+                    }
+                },
+                key -> {
+                    throw new IOException("Lyna is not asked in this test");
+                },
+                Clock.systemUTC(),
+                Logger.getAnonymousLogger(),
+                true);
+        assertTrue(withKeys(parts.settings(), emptyKeys).keyMissing().get(5, TimeUnit.SECONDS));
+        var off = new DashboardSettings(false, gateway.uri().toString());
+        assertFalse(withKeys(() -> off, emptyKeys).keyMissing().get(5, TimeUnit.SECONDS));
+    }
+
+    private Dashboard withKeys(Supplier<DashboardSettings> settings, DashboardKeys keys) {
+        return new Dashboard(new Dashboard.Parts(
+                settings,
+                parts.configuredKey(),
+                keys,
+                parts.sessions(),
+                parts.status(),
+                parts.handshake(),
+                parts.feed(),
+                parts.marketHistory(),
+                parts.inbound(),
+                parts.keyChanged(),
+                parts.node(),
+                parts.primary(),
+                parts.userAgent(),
+                parts.work(),
+                parts.clock(),
+                parts.logger()));
     }
 
     @Test
