@@ -232,6 +232,15 @@ test.describe('admin', () => {
         await record.getByTestId('admin-offer-pause').click()
         await expect(record.getByText('#41 Bridge logs · Goal · Paused')).toBeVisible()
         await expect(record.getByTestId('admin-offer-resume')).toBeVisible()
+        await record.getByLabel('Budget').fill('5000')
+        await record.getByTestId('admin-offer-budget').click()
+        await expect(record.getByText(/spent 6000 already/)).toBeVisible()
+        await record.getByLabel('Budget').fill('12000')
+        await record.getByTestId('admin-offer-budget').click()
+        await expect(record.getByText(/12,000/).first()).toBeVisible()
+        await record.getByLabel('Ends in hours from now (0: now)').fill('24')
+        await record.getByTestId('admin-offer-end').click()
+        await expect(record.getByLabel('Ends in hours from now (0: now)')).toHaveValue('')
 
         await offers.getByRole('button', {name: /#42 Log race/}).click()
         const prizes = page.getByTestId('admin-offer-prizes')
@@ -256,6 +265,21 @@ test.describe('admin', () => {
         await form.getByTestId('admin-offer-create').click()
         await expect(page.getByTestId('admin-offer-record').getByText('#43 Harbour stone · Goal · Running')).toBeVisible()
         await expect(page.getByTestId('admin-offers').getByRole('listitem')).toHaveCount(3)
+    })
+
+    test('creates a goal of a saved item', async ({page}, info) => {
+        await openDashboard(page, 'ADMN01')
+        await openAdmin(page, info)
+        await page.getByRole('tab', {name: 'Event offers'}).click()
+        await page.getByTestId('admin-offer-new').click()
+
+        const form = page.getByTestId('admin-offer-form')
+        await form.getByLabel('Name').fill('Royal blades')
+        await form.getByLabel('Ordered as').selectOption('saved')
+        await form.getByLabel('Saved item').selectOption({label: 'blade · Diamond Sword'})
+        await form.getByTestId('admin-offer-create').click()
+
+        await expect(page.getByTestId('admin-offer-record').getByText('#43 Royal blades · Goal · Running')).toBeVisible()
     })
 
     test('shows a server event with its offers, extends it and ends it', async ({page}, info) => {

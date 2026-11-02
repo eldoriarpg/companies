@@ -138,6 +138,18 @@ const SERVER_ORDER = 12
 
 /** The order of the book that is a chunk of the goal {@link GOAL}, while the session's server offers events. */
 const CHUNK_ORDER = 10
+/** The wheat order of the book, which Harvest week boosts. */
+const BOOSTED_ORDER = 4
+
+/**
+ * What Harvest week does to the wheat order of the order book.
+ *
+ * @returns its mark and its payout with the event
+ */
+function boost() {
+    const ends = new Date(Date.now() + 30 * 3_600_000).toISOString()
+    return {event: {multiplier: 1.5, taxPoints: 0, feePercent: 0, ends}, payout: {net: 1458, until: ends}}
+}
 
 /** The event offers of the mock: a goal for oak logs and a contest. */
 const GOAL = 41
@@ -290,7 +302,7 @@ function createOffer(state, args) {
     const prizes = args.prizes ?? []
     const budget = args.budget ?? args.amount * args.price + prizes.reduce((sum, prize) => sum + prize, 0)
     offers[id] = {
-        id, kind: args.kind, name: args.name, item: {name: args.material ?? args.criteria, icon: args.material ?? null}, line: args.material ? 'material' : 'criteria',
+        id, kind: args.kind, name: args.name, item: {name: args.saved ? 'Diamond Sword' : args.material ?? args.criteria, icon: args.material ?? null}, line: args.saved ? 'item' : args.material ? 'material' : 'criteria',
         state: args.start > 0 ? 'scheduled' : 'active', amount: args.amount, delivered: 0, percent: 0, unitPrice: args.price,
         chunkSize: args.chunk ?? null, openChunks: args.open ?? null, waiting: 0, taken: 0, source: args.money === 'minted' ? 'minted' : 'account',
         account: args.money === 'minted' ? null : args.money, budget, spent: 0, left: budget, prizeMoney: prizes, prizeTotal: prizes.reduce((sum, prize) => sum + prize, 0),
@@ -841,7 +853,7 @@ function action(name, args, state, story = {}) {
         case 'admin.nodes.prices':
             return done({sources: [{id: 'chestshop', here: true, enabled: true, adminOnly: false, servers: 1, offers: 12, offeredItems: 4, trades: 30, tradedItems: 3, baselines: 5}]})
         case 'events.list':
-            return done({offers: [{...eventRow(state, GOAL), event: 7}, eventRow(state, CONTEST)], serverEvents: [playerServerEvent()], member: true, canManage: true})
+            return done({offers: [{...eventRow(state, GOAL), event: 7}, eventRow(state, CONTEST)], serverEvents: [playerServerEvent()], results: [eventDetails(state, CLOSED_CONTEST).offer], member: true, canManage: true})
         case 'events.info':
             return [GOAL, CONTEST, CLOSED_CONTEST, JOINED_ELSEWHERE].includes(args.offer) ? done(eventDetails(state, args.offer)) : refused('This event offer does not exist, or it does not run right now.')
         case 'events.join':
@@ -905,6 +917,16 @@ function action(name, args, state, story = {}) {
         case 'admin.offers.open': {
             const offer = adminOffers(state)[args.offer]
             offer.openChunks = args.count
+            return done(offer)
+        }
+        case 'admin.offers.edit': {
+            const offer = adminOffers(state)[args.offer]
+            if (args.budget !== undefined) {
+                if (args.budget < offer.spent) return refused(`The offer #${offer.id} spent ${offer.spent} already, prizes included; its budget can not go below that.`)
+                offer.budget = args.budget
+                offer.left = Math.max(0, args.budget - offer.spent)
+            }
+            if (args.end !== undefined) offer.ends = args.end
             return done(offer)
         }
         case 'admin.offers.prize': {
@@ -1091,6 +1113,7 @@ function action(name, args, state, story = {}) {
             const orders = BOOK
                 .map(order => (marks && order.id === SERVER_ORDER ? {...order, server: true} : order))
                 .map(order => (events && order.id === CHUNK_ORDER ? {...order, offer} : order))
+                .map(order => (events && order.id === BOOSTED_ORDER ? {...order, ...boost()} : order))
                 .filter(order => args.offers !== 'only' || order.offer)
                 .filter(order => args.offer === undefined || order.offer?.id === args.offer)
                 .filter(order => args.serverOrders !== 'only' || order.server)
@@ -1104,6 +1127,7 @@ function action(name, args, state, story = {}) {
             const found = BOOK.find(order => order.id === args.order)
             const events = (story.features ?? FEATURES).includes('events')
             const offer = {id: GOAL, name: 'Bridge logs', ends: new Date(Date.now() + 48 * 3_600_000).toISOString(), state: 'active'}
+            if (events && found?.id === BOOSTED_ORDER) return done({...found, payout: boost().payout})
             return done(events && found?.id === CHUNK_ORDER ? {...found, offer} : found)
         }
         case 'market.top':

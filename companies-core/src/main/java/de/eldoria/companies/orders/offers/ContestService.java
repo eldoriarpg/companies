@@ -65,6 +65,7 @@ public final class ContestService {
     private final ToIntFunction<CompanyProfile> maxOrders;
     private final Clock clock;
     private final Logger logger;
+    private final OfferApiEvents events;
 
     /**
      * @param offers    offer repository
@@ -81,12 +82,33 @@ public final class ContestService {
             ToIntFunction<CompanyProfile> maxOrders,
             Clock clock,
             Logger logger) {
+        this(offers, orders, payments, maxOrders, clock, logger, OfferApiEvents.NONE);
+    }
+
+    /**
+     * @param offers    offer repository
+     * @param orders    order repository, counting the order slots of companies
+     * @param payments  pays the workers, the collector and the treasuries
+     * @param maxOrders the order slots the level of a company allows
+     * @param clock     clock giving the current time in UTC
+     * @param logger    reports payments that failed
+     * @param events    fires the API events of joining, leaving and delivering
+     */
+    public ContestService(
+            AOfferData offers,
+            AOrderData orders,
+            Payments payments,
+            ToIntFunction<CompanyProfile> maxOrders,
+            Clock clock,
+            Logger logger,
+            OfferApiEvents events) {
         this.offers = offers;
         this.orders = orders;
         this.payments = payments;
         this.maxOrders = maxOrders;
         this.clock = clock;
         this.logger = logger;
+        this.events = events;
     }
 
     /**
@@ -99,6 +121,7 @@ public final class ContestService {
      * @param economy       economy paying the workers
      * @param configuration configuration of the plugin
      * @param treasuries    the company treasuries
+     * @param events        fires the API events of joining, leaving and delivering
      * @return the service
      */
     public static ContestService create(
@@ -107,7 +130,8 @@ public final class ContestService {
             AOrderData orders,
             Economy economy,
             Configuration configuration,
-            TreasuryService treasuries) {
+            TreasuryService treasuries,
+            OfferApiEvents events) {
         var collector = new Collector(plugin, economy, configuration);
         var payments = new Payments() {
             @Override
@@ -146,7 +170,8 @@ public final class ContestService {
                         .levelSettings(company.level())
                         .maxOrders(),
                 Times.UTC,
-                plugin.getLogger());
+                plugin.getLogger(),
+                events);
     }
 
     /**
@@ -176,6 +201,7 @@ public final class ContestService {
      * @param member  the member joining for it
      * @param offer   id of the contest
      * @return what came of it
+     * @throws CommandFailure when a listener of the API event refused it
      */
     public Joining join(CompanyProfile company, UUID member, int offer) {
         if (!mayManage(company, member)) return Joining.NO_PERMISSION;
@@ -187,6 +213,8 @@ public final class ContestService {
         if (contest.started() == null) return Joining.NOT_STARTED;
         var used = orders.retrieveCompanySlotCount(company).join();
         if (used != null && used >= maxOrders.applyAsInt(company)) return Joining.LIMIT;
+        var refused = events.allows(true, contest, company, member);
+        if (refused.isPresent()) throw refused.get();
         return offers.join(offer, company.id(), now()) ? Joining.JOINED : Joining.ALREADY;
     }
 
@@ -197,10 +225,16 @@ public final class ContestService {
      * @param member  the member leaving for it
      * @param offer   id of the contest
      * @return what came of it
+     * @throws CommandFailure when a listener of the API event refused it
      */
     public Joining leave(CompanyProfile company, UUID member, int offer) {
         if (!mayManage(company, member)) return Joining.NO_PERMISSION;
-        if (contest(offer) == null) return Joining.UNKNOWN;
+        var contest = contest(offer);
+        if (contest == null) return Joining.UNKNOWN;
+        var entry = offers.entry(offer, company.id());
+        if (entry.isEmpty() || !entry.get().active()) return Joining.NOT_JOINED;
+        var refused = events.allows(false, contest, company, member);
+        if (refused.isPresent()) throw refused.get();
         return offers.leave(offer, company.id(), now()) ? Joining.LEFT : Joining.NOT_JOINED;
     }
 
@@ -231,6 +265,18 @@ public final class ContestService {
                     "Could not pay " + delivery.gross() + " for the delivery of " + worker + " into contest " + offer
                             + "; the items were taken.",
                     e);
+        }
+        try {
+            events.delivered(
+                    offers,
+                    offer,
+                    company,
+                    worker,
+                    delivery.items(),
+                    delivery.gross(),
+                    delivery.state().closed());
+        } catch (RuntimeException e) {
+            logger.log(Level.WARNING, "Could not fire the delivery event of contest " + offer, e);
         }
         return new Paid(delivery, payout);
     }

@@ -18,7 +18,7 @@ reaches a higher level. It uses a Discord webhook, so you need no bot.
    discord:
      enabled: true
      url: ''
-     events: [ORDER_CREATED, ORDER_COMPLETED, LEVEL_UP, OFFER_STARTED, GOAL_PROGRESS, CONTEST_RESULT, EVENT_STARTED, EVENT_ENDED]
+     events: [ORDER_CREATED, ORDER_COMPLETED, LEVEL_UP, OFFER_STARTED, GOAL_PROGRESS, CONTEST_PROGRESS, CONTEST_RESULT, EVENT_STARTED, EVENT_ENDED]
      username: Companies
      avatarUrl: ''
      maxPerMinute: 20
@@ -60,8 +60,8 @@ If something is wrong, the webhook does not start and the console tells you why,
 
 ## Events
 
-`events` picks what is posted. A `config.yml` from before server events keeps its own list, so add `EVENT_STARTED`
-and `EVENT_ENDED` to it to have server events posted:
+`events` picks what is posted. A `config.yml` written before keeps its own list: add `CONTEST_PROGRESS` to it to have
+the progress of contests posted, and `EVENT_STARTED` and `EVENT_ENDED` for server events:
 
 | Event | Posted when | The message shows |
 |---|---|---|
@@ -70,6 +70,7 @@ and `EVENT_ENDED` to it to have server events posted:
 | `LEVEL_UP` | A company reaches a higher level | Company name, new level |
 | `OFFER_STARTED` | An [event offer](./admin-commands.md#event-offers), goal or contest, starts | Name, kind, items asked for, price per item, end |
 | `GOAL_PROGRESS` | A goal passes 25, 50, 75 or 100 % (100 % is posted as "Goal reached") | Name, progress, items delivered |
+| `CONTEST_PROGRESS` | A running contest passes 25, 50 or 75 % of its time; its end is posted as its result | Name, time passed, the first three companies with the items they delivered |
 | `CONTEST_RESULT` | A contest closes, or is cancelled | Name, the first 10 places with their items and paid prizes |
 | `EVENT_STARTED` | A [server event](./admin-commands.md#server-events) starts | Name, effect, which orders it applies to, end, the budget left of a reward multiplier |
 | `EVENT_ENDED` | A server event ends at its end or early, runs out of money, or is cancelled after it started | Name, and whether it ended, ran out of money or was cancelled |

@@ -50,6 +50,8 @@ import de.eldoria.companies.dashboard.actions.OrderCreateWrites;
 import de.eldoria.companies.dashboard.market.MarketHistory;
 import de.eldoria.companies.dashboard.views.DashboardReads;
 import de.eldoria.companies.dashboard.views.OrderCatalogue;
+import de.eldoria.companies.dashboard.views.OrderEventPreviews;
+import de.eldoria.companies.dashboard.views.PlainText;
 import de.eldoria.companies.dashboard.views.Views;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteAdapter;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteAlertData;
@@ -104,6 +106,7 @@ import de.eldoria.companies.orders.OwnerOrderService;
 import de.eldoria.companies.orders.SavedItemService;
 import de.eldoria.companies.orders.SystemOwner;
 import de.eldoria.companies.orders.offers.ContestService;
+import de.eldoria.companies.orders.offers.EventOfferService;
 import de.eldoria.companies.orders.system.SystemOrderService;
 import de.eldoria.companies.services.AdminCompanyService;
 import de.eldoria.companies.services.AdminGrantService;
@@ -119,6 +122,7 @@ import de.eldoria.companies.services.MembershipService;
 import de.eldoria.companies.services.ProfileService;
 import de.eldoria.companies.services.SeriesService;
 import de.eldoria.companies.services.TreasuryService;
+import de.eldoria.companies.services.events.ActiveEvents;
 import de.eldoria.companies.services.events.ServerEventService;
 import de.eldoria.companies.services.notifications.Inbox;
 import de.eldoria.companies.services.notifications.NotificationService;
@@ -233,6 +237,8 @@ public final class DashboardWorld implements AutoCloseable {
     public final ServerEventService eventService;
     public final ContestService contests;
     public final AtomicInteger offerChecks = new AtomicInteger();
+    public final List<Integer> endedOffers = new CopyOnWriteArrayList<>();
+    public volatile int closedDays = 7;
     public final Map<String, Double> accounts = new ConcurrentHashMap<>();
     public volatile int contestSlots = 5;
 
@@ -300,7 +306,8 @@ public final class DashboardWorld implements AutoCloseable {
         Function<ItemStack, Optional<OrderDraftService.RequestedItem>> requests =
                 item -> item.getType() == Material.BEDROCK
                         ? Optional.empty()
-                        : Optional.of(new OrderDraftService.RequestedItem(item.asOne(), item.hasItemMeta()));
+                        : Optional.of(new OrderDraftService.RequestedItem(
+                                item.asOne(), !item.asOne().isSimilar(new ItemStack(item.getType()))));
         savedItems = new SavedItemService(
                 new SqLiteSavedItemData(SqLiteTestDatabase.mapper(), executor), requests, orderSettings::savedItems);
         catalogue = new OrderCatalogue(requests, savedItems, history);
@@ -350,6 +357,12 @@ public final class DashboardWorld implements AutoCloseable {
                         entry -> entry.type().name(),
                         key -> "text of " + key,
                         this::name,
+                        OrderEventPreviews.of(
+                                new ActiveEvents(serverEvents, Clock.systemUTC()),
+                                () -> companySettings,
+                                () -> orderSettings.solo().taxPercent(),
+                                () -> 3.0,
+                                Clock.systemUTC()),
                         Clock.systemUTC()));
         var plugin = MockBukkit.createMockPlugin();
         this.plugin = plugin;
@@ -701,6 +714,7 @@ public final class DashboardWorld implements AutoCloseable {
                                 .asFuture(),
                         views::instant,
                         Times::now,
+                        () -> closedDays,
                         failure -> "text of " + failure.localeKey())),
                 new AdminOfferWrites(new AdminOfferWrites.Sources(
                         offers,
@@ -717,6 +731,18 @@ public final class DashboardWorld implements AutoCloseable {
                             }
                         },
                         offerChecks::incrementAndGet,
+                        new EventOfferService.Announcer() {
+                            @Override
+                            public void reached(EventOffer offer) {}
+
+                            @Override
+                            public void ended(@Nullable EventOffer offer) {
+                                if (offer != null) endedOffers.add(offer.id());
+                            }
+                        },
+                        catalogue::saved,
+                        requests,
+                        stack -> PlainText.materialName(stack.getType()),
                         this::name,
                         views::instant,
                         Times::now,

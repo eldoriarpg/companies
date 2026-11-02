@@ -18,14 +18,20 @@ import de.eldoria.companies.web.api.Actions;
 import de.eldoria.companies.web.api.Protocol;
 import de.eldoria.companies.web.api.action.ActionRequest;
 import de.eldoria.companies.web.api.action.ActionResult;
+import org.bukkit.Material;
+import org.bukkit.enchantments.Enchantment;
+import org.bukkit.inventory.ItemStack;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Path;
+import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -85,6 +91,60 @@ class AdminOfferWritesTest {
         assertEquals(1, world.offerChecks.get());
         assertTrue(world.adminActions.stream()
                 .anyMatch(line -> line.contains("Ada@dashboard") && line.contains("offer goal create")));
+    }
+
+    @Test
+    void aGoalOrdersASavedItemOfTheAdminExactly() {
+        var sword = new ItemStack(Material.DIAMOND_SWORD);
+        sword.addUnsafeEnchantment(Enchantment.SHARPNESS, 3);
+        world.savedItems.save(admin, sword, Optional.of("blade")).join();
+        var ref = "saved:" + world.savedItems.items(admin).join().getFirst().id();
+        var stranger = world.player("Rook");
+        world.savedItems.save(stranger, sword, Optional.of("theirs")).join();
+        var theirs =
+                "saved:" + world.savedItems.items(stranger).join().getFirst().id();
+        var goal = "{\"kind\":\"goal\",\"name\":\"Blades\",\"money\":\"minted\",\"amount\":10,\"price\":20,"
+                + "\"chunk\":5,\"start\":0,\"hours\":24,\"saved\":\"";
+
+        var result = offers(Actions.ADMIN_OFFERS_CREATE, goal + ref + "\"}");
+        var foreign = offers(Actions.ADMIN_OFFERS_CREATE, goal + theirs + "\"}");
+        var earlier = offers(Actions.ADMIN_OFFERS_CREATE, goal + "earlier:1:0\"}");
+        var malformed = offers(Actions.ADMIN_OFFERS_CREATE, goal + "saved:x\"}");
+        var blank = offers(Actions.ADMIN_OFFERS_CREATE, goal + "\"}");
+
+        assertTrue(result.ok(), result.message());
+        var stored = world.offers.offer(result.data().path("id").asInt()).orElseThrow();
+        assertEquals("item", result.data().path("line").asString());
+        assertEquals(3, stored.line().item().getEnchantmentLevel(Enchantment.SHARPNESS));
+        assertEquals(1, stored.line().item().getAmount());
+        assertEquals("Diamond Sword", stored.line().label());
+        assertEquals("dashboard.item.unknownItem", foreign.reason());
+        assertEquals("dashboard.item.unknownItem", earlier.reason());
+        assertEquals("dashboard.item.unknownItem", malformed.reason());
+        assertEquals("dashboard.item.unknownItem", blank.reason());
+    }
+
+    @Test
+    void aPlainSavedItemIsOfferedAsItsMaterial() {
+        world.savedItems
+                .save(admin, new ItemStack(Material.OAK_LOG), Optional.of("logs"))
+                .join();
+        var ref = "saved:" + world.savedItems.items(admin).join().getFirst().id();
+
+        var result = offers(
+                Actions.ADMIN_OFFERS_CREATE,
+                "{\"kind\":\"goal\",\"name\":\"Logs\",\"money\":\"minted\",\"amount\":10,\"price\":2,"
+                        + "\"chunk\":5,\"start\":0,\"hours\":24,\"saved\":\"" + ref + "\"}");
+
+        assertTrue(result.ok(), result.message());
+        assertEquals("material", result.data().path("line").asString());
+        assertEquals(
+                "OAK_LOG",
+                world.offers
+                        .offer(result.data().path("id").asInt())
+                        .orElseThrow()
+                        .line()
+                        .material());
     }
 
     @Test
@@ -183,6 +243,7 @@ class AdminOfferWritesTest {
         assertEquals("companyadmin.offers.error.pause", twice.reason());
         assertTrue(resumed.ok());
         assertEquals("cancelled", cancelled.data().path("state").asString());
+        assertEquals(List.of(goal), world.endedOffers);
         assertEquals("companyadmin.offers.error.cancel", again.reason());
         assertEquals(
                 OfferState.CANCELLED, world.offers.offer(goal).orElseThrow().state());
@@ -205,6 +266,31 @@ class AdminOfferWritesTest {
         assertEquals("companyadmin.offers.error.notGoal", notGoal.reason());
         assertEquals("companyadmin.offers.error.numbers", tooMany.reason());
         assertTrue(world.adminActions.stream().anyMatch(line -> line.contains("offer open")));
+    }
+
+    @Test
+    void theEndOrTheBudgetChangesOnePerCall() {
+        var goal = world.goal("Bridge logs", 0, true);
+        var end = Times.now().plusDays(5).truncatedTo(ChronoUnit.SECONDS);
+
+        var moved = offers(
+                Actions.ADMIN_OFFERS_EDIT,
+                "{\"offer\":" + goal + ",\"end\":\"" + end.toInstant(ZoneOffset.UTC) + "\"}");
+        var budgeted = offers(Actions.ADMIN_OFFERS_EDIT, "{\"offer\":" + goal + ",\"budget\":12345}");
+        var both = offers(Actions.ADMIN_OFFERS_EDIT, "{\"offer\":" + goal + ",\"budget\":1,\"end\":\"x\"}");
+        var neither = offers(Actions.ADMIN_OFFERS_EDIT, "{\"offer\":" + goal + "}");
+        var unreadable = offers(Actions.ADMIN_OFFERS_EDIT, "{\"offer\":" + goal + ",\"end\":\"soon\"}");
+        var tooLow = offers(Actions.ADMIN_OFFERS_EDIT, "{\"offer\":" + goal + ",\"budget\":0}");
+
+        assertTrue(moved.ok(), moved.reason());
+        assertEquals(end, world.offers.offer(goal).orElseThrow().ends());
+        assertEquals(12345.0, budgeted.data().path("budget").asDouble());
+        assertEquals("dashboard.invalid", both.reason());
+        assertEquals("dashboard.invalid", neither.reason());
+        assertEquals("dashboard.invalid", unreadable.reason());
+        assertEquals("companyadmin.offers.error.budgetPositive", tooLow.reason());
+        assertTrue(world.adminActions.stream().anyMatch(line -> line.contains("offer end")));
+        assertTrue(world.adminActions.stream().anyMatch(line -> line.contains("offer budget")));
     }
 
     @Test

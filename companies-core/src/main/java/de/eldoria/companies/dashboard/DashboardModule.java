@@ -41,6 +41,7 @@ import de.eldoria.companies.dashboard.market.MarketHistory;
 import de.eldoria.companies.dashboard.sessions.DashboardSessions;
 import de.eldoria.companies.dashboard.views.DashboardReads;
 import de.eldoria.companies.dashboard.views.OrderCatalogue;
+import de.eldoria.companies.dashboard.views.OrderEventPreviews;
 import de.eldoria.companies.dashboard.views.PlainText;
 import de.eldoria.companies.dashboard.views.Views;
 import de.eldoria.companies.data.repository.AAlertData;
@@ -73,6 +74,7 @@ import de.eldoria.companies.orders.OwnerOrderService;
 import de.eldoria.companies.orders.SavedItemService;
 import de.eldoria.companies.orders.SystemOwner;
 import de.eldoria.companies.orders.offers.ContestService;
+import de.eldoria.companies.orders.offers.EventOfferService;
 import de.eldoria.companies.orders.system.SystemOrderService;
 import de.eldoria.companies.prices.ShopPrices;
 import de.eldoria.companies.services.AdminCompanyService;
@@ -88,6 +90,7 @@ import de.eldoria.companies.services.MembershipService;
 import de.eldoria.companies.services.ProfileService;
 import de.eldoria.companies.services.SeriesService;
 import de.eldoria.companies.services.TreasuryService;
+import de.eldoria.companies.services.events.ActiveEvents;
 import de.eldoria.companies.services.events.ServerEventService;
 import de.eldoria.companies.services.notifications.Inbox;
 import de.eldoria.companies.services.notifications.NotificationRenderer;
@@ -231,6 +234,12 @@ public final class DashboardModule {
                         entry -> inboxText(renderer, messages, entry),
                         refusal,
                         names,
+                        OrderEventPreviews.of(
+                                data.offers().active(),
+                                configuration::companySettings,
+                                () -> configuration.orderSetting().solo().taxPercent(),
+                                () -> configuration.eventSettings().maxMultiplier(),
+                                Times.UTC),
                         clock));
         Supplier<DashboardSettings> settings = configuration::dashboardSettings;
         var handshake = new Handshake(
@@ -404,11 +413,16 @@ public final class DashboardModule {
                         data.companyOf(),
                         views::instant,
                         Times::now,
+                        () -> configuration.eventSettings().closedDays(),
                         failure -> PlainText.of(failure.render(null, messages)))),
                 new AdminOfferWrites(new AdminOfferWrites.Sources(
                         data.offers().data(),
                         data.offers().funding(),
                         data.offers().checkSoon(),
+                        data.offers().announcer(),
+                        catalogue::saved,
+                        data.orders().requests(),
+                        stack -> PlainText.of(stack.effectiveName()),
                         names,
                         views::instant,
                         Times::now,
@@ -591,18 +605,22 @@ public final class DashboardModule {
      * @param contests     lets companies join and leave contests
      * @param funding      gives a failed prize back to the account that paid it
      * @param checkSoon    asks the primary to place and withdraw the chunks of goals soon
+     * @param announcer    told when an admin closed an offer
      * @param events       the server event repository
      * @param eventService creates and changes server events as {@code /companyadmin event} does
      * @param collector    the collector account an event paid from an account uses when none is named
+     * @param active       the server events of this node
      */
     public record OfferServices(
             AOfferData data,
             ContestService contests,
             SystemOrderService.Funding funding,
             Runnable checkSoon,
+            EventOfferService.Announcer announcer,
             AServerEventData events,
             ServerEventService eventService,
-            Supplier<String> collector) {}
+            Supplier<String> collector,
+            ActiveEvents active) {}
 
     /**
      * The services behind the dashboard's admin tools.

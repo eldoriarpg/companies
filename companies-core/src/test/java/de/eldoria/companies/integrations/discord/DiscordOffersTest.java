@@ -64,6 +64,24 @@ class DiscordOffersTest {
     }
 
     @Test
+    void aContestsProgressNamesTheTimePassedAndItsFirstPlaces() {
+        var offers = offers("events: [CONTEST_PROGRESS]");
+        var leading = List.of(
+                new ContestEntry(1, 7, "Iron Works", 300, 300, NOW, null, NOW),
+                new ContestEntry(1, 8, null, 120, 120, NOW, null, NOW));
+
+        offers.contestProgress(goal(), 50, leading);
+        offers("events: [CONTEST_RESULT]").contestProgress(goal(), 75, leading);
+
+        assertEquals(1, posted.size());
+        assertEquals("discord.contestProgress", posted.getFirst().title());
+        assertEquals("50 %", posted.getFirst().fields().getFirst().value());
+        assertEquals(
+                "1. Iron Works: 300×\n2. \\#8: 120×",
+                posted.getFirst().fields().get(1).value());
+    }
+
+    @Test
     void aContestResultListsThePlacesWithTheirPaidPrizes() {
         var offers = offers("events: [CONTEST_RESULT]");
         var ranking = List.of(

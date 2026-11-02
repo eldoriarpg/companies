@@ -138,6 +138,8 @@ See [Event offers](../players/event-offers.md) for what players see. The same to
 | `/companyadmin offers list` | Lists the 20 newest offers with their state, progress and end |
 | `/companyadmin offers info <id>` | Shows who created an offer and when, what it orders, where its money comes from, its budget, what it spent and what is left and its progress. For a goal also the items in open chunks and the top contributors; for a contest the money its account paid in, the prizes, the ranking with what each company was paid, and after the close who got which prize |
 | `/companyadmin offers open <id> <count>` | Changes how many chunks of a goal wait to be taken at once, 1 to 100. Only while the goal runs, is scheduled or paused |
+| `/companyadmin offers end <id> <when>` | Moves the end of an offer that is not closed: hours from now (`12`, `2d`, `1d12h`) or a date (`2026-12-24 18:00`, server time zone). An end in the past closes the offer within a minute; an offer that has not started can not end before its start, cancel it instead. Offers on a server event follow the event; change the event instead |
+| `/companyadmin offers budget <id> <budget>` | Changes the budget of an offer that is not closed. It never goes below what the offer spent, for a contest plus its prizes. A contest paid from an account that has started takes a raise from the account at once (refused when the account can not pay) and gives a cut back at once. A depleted offer is closed and can not be raised; create a new one |
 | `/companyadmin offers pause <id>` | Pauses a running or scheduled offer |
 | `/companyadmin offers resume <id>` | Resumes a paused offer |
 | `/companyadmin offers cancel <id>` | Closes an offer for good |

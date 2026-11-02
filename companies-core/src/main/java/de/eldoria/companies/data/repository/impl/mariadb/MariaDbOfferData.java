@@ -56,6 +56,7 @@ import static de.chojo.sadu.queries.converter.StandardValueConverter.UUID_BYTES;
 public class MariaDbOfferData extends AOfferData {
     private static final int MARKS_PER_QUERY = 500;
     private static final int DELIVERY_ATTEMPTS = 8;
+    private static final double BUDGET_ROUNDING = 0.01;
 
     @Language("mariadb")
     private static final String OFFER = """
@@ -223,6 +224,32 @@ public class MariaDbOfferData extends AOfferData {
     }
 
     @Override
+    public boolean budget(int offer, double from, double heldFrom, double to, double heldTo, double maxSpent) {
+        @Language("mariadb")
+        var update = """
+                UPDATE event_offers
+                SET budget = ?,
+                    held   = ?
+                WHERE id = ?
+                  AND budget = ?
+                  AND held = ?
+                  AND spent <= ?
+                  AND state IN (?, ?, ?)""";
+        return query(update)
+                .single(call().bind(to)
+                        .bind(heldTo)
+                        .bind(offer)
+                        .bind(from)
+                        .bind(heldFrom)
+                        .bind(maxSpent)
+                        .bind(OfferState.SCHEDULED.name())
+                        .bind(OfferState.ACTIVE.name())
+                        .bind(OfferState.PAUSED.name()))
+                .update()
+                .changed();
+    }
+
+    @Override
     public Optional<GoalReward> reward(int offer) {
         @Language("mariadb")
         var select = """
@@ -333,9 +360,14 @@ public class MariaDbOfferData extends AOfferData {
                 UPDATE orders SET offer_id = ? WHERE id = ?""";
         @Language("mariadb")
         var spend = """
-                UPDATE event_offers SET spent = spent + ? WHERE id = ?""";
+                UPDATE event_offers SET spent = spent + ? WHERE id = ? AND spent + ? <= budget + ?""";
         var conf = QueryConfiguration.getDefault().withSingleTransaction();
         try (conf) {
+            var paidFor = conf.query(spend)
+                    .single(call().bind(paid).bind(offer).bind(paid).bind(BUDGET_ROUNDING))
+                    .update()
+                    .changed();
+            if (!paidFor) return false;
             conf.query(insert)
                     .single(call().bind(order)
                             .bind(offer)
@@ -346,7 +378,6 @@ public class MariaDbOfferData extends AOfferData {
                             .bind(at, time()))
                     .insert();
             conf.query(mark).single(call().bind(offer).bind(order)).update();
-            conf.query(spend).single(call().bind(paid).bind(offer)).update();
         }
         return conf.context().exceptions().isEmpty();
     }
@@ -654,6 +685,23 @@ public class MariaDbOfferData extends AOfferData {
     }
 
     @Override
+    public List<EventOffer> closedContests(LocalDateTime since) {
+        return query(OFFER + """
+                        WHERE kind = ?
+                          AND state IN (?, ?, ?)
+                          AND started IS NOT NULL
+                          AND closed >= ?
+                        ORDER BY closed DESC, id DESC""")
+                .single(call().bind(OfferKind.CONTEST.name())
+                        .bind(OfferState.REACHED.name())
+                        .bind(OfferState.ENDED.name())
+                        .bind(OfferState.DEPLETED.name())
+                        .bind(since, time()))
+                .map(this::parseOffer)
+                .all();
+    }
+
+    @Override
     public boolean join(int offer, int company, LocalDateTime at) {
         var found = offer(offer);
         if (found.isEmpty()
@@ -781,7 +829,8 @@ public class MariaDbOfferData extends AOfferData {
                     closed    = ?
                 WHERE id = ?
                   AND state = ?
-                  AND delivered = ?""";
+                  AND delivered = ?
+                  AND budget = ?""";
         @Language("mariadb")
         var credit = """
                 UPDATE contest_entries
@@ -842,7 +891,8 @@ public class MariaDbOfferData extends AOfferData {
                                 .bind(next.closed() ? at : null, time())
                                 .bind(offer)
                                 .bind(OfferState.ACTIVE.name())
-                                .bind(now.delivered()))
+                                .bind(now.delivered())
+                                .bind(now.budget()))
                         .update()
                         .changed();
                 if (taken) {
@@ -880,13 +930,16 @@ public class MariaDbOfferData extends AOfferData {
                     started = ?
                 WHERE id = ?
                   AND state = ?
-                  AND started IS NULL""";
+                  AND started IS NULL
+                  AND (? = 0 OR budget = ?)""";
         return query(update)
                 .single(call().bind(OfferState.ACTIVE.name())
                         .bind(held)
                         .bind(at, time())
                         .bind(offer)
-                        .bind(OfferState.SCHEDULED.name()))
+                        .bind(OfferState.SCHEDULED.name())
+                        .bind(held)
+                        .bind(held))
                 .update()
                 .changed();
     }

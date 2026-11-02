@@ -20,6 +20,7 @@ import MutedText from '@/components/typography/MutedText.vue'
 import RowTitle from '@/components/typography/RowTitle.vue'
 import SectionHeader from '@/components/typography/SectionHeader.vue'
 import EventDetail from './eventsview/EventDetail.vue'
+import EventResults from './eventsview/EventResults.vue'
 import {orderIdOf} from '~/composables/useSelection'
 import {count, money} from '~/util/format'
 import {offerMaterial, offerTime} from '~/util/events'
@@ -50,6 +51,7 @@ const sheetOpen = computed({
   },
 })
 const offers = computed(() => events.list.value?.offers ?? [])
+const results = computed(() => events.list.value?.results ?? [])
 const serverEvents = computed(() => events.list.value?.serverEvents ?? [])
 const eventNames = computed(() => new Map(serverEvents.value.map(event => [event.id, event.name])))
 
@@ -118,6 +120,7 @@ function scopeOf(event: {materials: string[], levels: number[]}): string {
             </RowButton>
           </li>
         </PlainList>
+        <EventResults :results="results" :member="events.list.value?.member" :selected="selection.id.value" @open="selection.open"/>
       </PanelBox>
       <EventDetail
           v-if="wide && events.detail.value"

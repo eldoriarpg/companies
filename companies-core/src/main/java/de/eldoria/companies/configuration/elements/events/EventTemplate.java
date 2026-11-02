@@ -16,7 +16,8 @@ import java.util.Objects;
 /**
  * One template of {@code events.yml}: an event the primary creates again and again, every week at a day and time
  * ({@code every: SATURDAY 18:00}), at fixed dates ({@code dates: ["2026-12-24 18:00"]}), or both, each time running
- * for {@code duration}. Times are in the server's time zone.
+ * for {@code duration}. Times are in the server's time zone. Its {@code offers}, goals and contests, are created with
+ * each event and start, end and are cancelled with it.
  */
 @SuppressWarnings({"FieldMayBeFinal", "FieldCanBeLocal", "RedundantNoArgConstructor"})
 public class EventTemplate {
@@ -38,6 +39,7 @@ public class EventTemplate {
     private MoneySource.@Nullable SourceType funding = null;
     private String account = "";
     private double budget = 0.0;
+    private List<OfferTemplate> offers = new ArrayList<>();
 
     public EventTemplate() {}
 
@@ -190,5 +192,18 @@ public class EventTemplate {
 
     public void budget(double budget) {
         this.budget = budget;
+    }
+
+    /**
+     * @return the goals and contests created with each event and run with it
+     */
+    public List<OfferTemplate> offers() {
+        return offers == null
+                ? List.of()
+                : offers.stream().filter(Objects::nonNull).toList();
+    }
+
+    public void offers(List<OfferTemplate> offers) {
+        this.offers = new ArrayList<>(offers);
     }
 }

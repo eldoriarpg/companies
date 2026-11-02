@@ -44,6 +44,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
+import java.util.function.IntSupplier;
 import java.util.function.Supplier;
 
 /**
@@ -121,7 +122,20 @@ public final class EventWrites {
                 .stream()
                 .map(this::serverEvent)
                 .toList();
-        return new EventList(rows, events, company.isPresent(), canManage(company, player));
+        var days = sources.closedDays().getAsInt();
+        var results = days <= 0
+                ? List.<EventRow>of()
+                : data.closedContests(sources.now().get().minusDays(days)).stream()
+                        .map(offer -> row(
+                                offer,
+                                company.isPresent()
+                                        ? place(
+                                                data.ranking(offer.id()),
+                                                company.get().id())
+                                        : null,
+                                false))
+                        .toList();
+        return new EventList(rows, events, results, company.isPresent(), canManage(company, player));
     }
 
     private ActionResult info(ActionRequest request, Optional<CompanyProfile> company, UUID player, int id) {
@@ -221,7 +235,12 @@ public final class EventWrites {
         if (company.isEmpty()) return answers.refused(request, "error.noMember");
         if (id <= 0) return answers.refused(request, PREFIX + "error.unknown");
         var contests = sources.contests();
-        var result = join ? contests.join(company.get(), player, id) : contests.leave(company.get(), player, id);
+        ContestService.Joining result;
+        try {
+            result = join ? contests.join(company.get(), player, id) : contests.leave(company.get(), player, id);
+        } catch (CommandFailure failure) {
+            return answers.refused(request, failure);
+        }
         var number = Values.number("id", id);
         return switch (result) {
             case JOINED, LEFT -> {
@@ -330,7 +349,8 @@ public final class EventWrites {
      * @param contests  joins and leaves contests
      * @param companyOf the company of a player
      * @param instant   turns stored times into instants
-     * @param now       the current time as stored
+     * @param now        the current time as stored
+     * @param closedDays how many days closed contests stay among the results
      * @param render    renders a refusal as plain text
      */
     public record Sources(
@@ -340,6 +360,7 @@ public final class EventWrites {
             Function<UUID, CompletableFuture<Optional<CompanyProfile>>> companyOf,
             Function<LocalDateTime, Instant> instant,
             Supplier<LocalDateTime> now,
+            IntSupplier closedDays,
             Function<CommandFailure, String> render) {}
 
     /**
@@ -420,11 +441,17 @@ public final class EventWrites {
      *
      * @param offers       the offers, the soonest end first
      * @param serverEvents the server events running or starting within a day, the soonest start first
+     * @param results      the contests that closed lately, other than cancelled ones, the newest first, with the
+     *                     place of the player's company
      * @param member       whether the player is part of a company
      * @param canManage    whether the player may let the company join or leave contests
      */
     public record EventList(
-            List<EventRow> offers, List<ServerEventView> serverEvents, boolean member, boolean canManage) {}
+            List<EventRow> offers,
+            List<ServerEventView> serverEvents,
+            List<EventRow> results,
+            boolean member,
+            boolean canManage) {}
 
     /**
      * Who delivered to a goal.

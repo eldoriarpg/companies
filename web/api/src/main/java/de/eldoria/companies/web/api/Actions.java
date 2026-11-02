@@ -535,6 +535,11 @@ public final class Actions {
     public static final String ADMIN_OFFERS_PRIZE = "admin.offers.prize";
 
     /**
+     * Moves the end or changes the budget of an event offer that still runs.
+     */
+    public static final String ADMIN_OFFERS_EDIT = "admin.offers.edit";
+
+    /**
      * Lists the newest server events with their effect, scope, times, money and offers.
      */
     public static final String ADMIN_EVENTS_LIST = "admin.events.list";
@@ -766,6 +771,7 @@ public final class Actions {
             ADMIN_OFFERS_CANCEL,
             ADMIN_OFFERS_OPEN,
             ADMIN_OFFERS_PRIZE,
+            ADMIN_OFFERS_EDIT,
             ADMIN_EVENTS_LIST,
             ADMIN_EVENTS_CREATE,
             ADMIN_EVENTS_END,

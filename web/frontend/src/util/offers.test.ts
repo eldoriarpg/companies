@@ -29,6 +29,8 @@ describe('the offer form', () => {
             kind: 'goal', name: 'Bridge logs', money: 'minted', material: 'oak_log', amount: 500, price: 2, chunk: 50, open: 4,
             start: 0, hours: 48,
         })
+        expect(draftOf({...form(), itemKind: 'saved', item: 'saved:3'})).toMatchObject({saved: 'saved:3'})
+        expect(draftOf({...form(), itemKind: 'saved', item: 'saved:3'})).not.toHaveProperty('material')
     })
 
     it('sends a contest with its prizes and criteria and no chunks', () => {
@@ -46,8 +48,8 @@ describe('the offer form', () => {
     })
 
     it('offers the changes the plugin allows in each state', () => {
-        expect(offerActions('active', 'goal')).toEqual({pause: true, resume: false, cancel: true, open: true})
-        expect(offerActions('paused', 'contest')).toEqual({pause: false, resume: true, cancel: true, open: false})
-        expect(offerActions('ended', 'goal')).toEqual({pause: false, resume: false, cancel: false, open: false})
+        expect(offerActions('active', 'goal')).toEqual({pause: true, resume: false, cancel: true, open: true, edit: true})
+        expect(offerActions('paused', 'contest')).toEqual({pause: false, resume: true, cancel: true, open: false, edit: true})
+        expect(offerActions('ended', 'goal')).toEqual({pause: false, resume: false, cancel: false, open: false, edit: false})
     })
 })

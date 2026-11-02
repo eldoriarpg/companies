@@ -15,7 +15,7 @@ event starts at once and pays extra on the orders completed while it runs.
 The **Events** page of the [dashboard](./dashboard.md#events) lists the goals and contests that run, are paused or
 start within a day, with their progress and time left, and for a contest your company's place. A goal's
 **Show its orders** opens its chunks in the order book, and a contest's page lets members who manage orders join or
-leave it. In game, `/company events` lists the same, and `[Open]` shows a goal's chunks in the order search (in the
+leave it. In game, `/company events` lists the same, and **Open** shows a goal's chunks in the order search (in the
 search of orders to work on alone when you have no company), or a contest.
 The server tells everyone when an offer starts, when a goal is reached and how a contest ended. Order boards with
 `event` on their sign show the chunks of all goals.
@@ -47,7 +47,8 @@ once, per item, and the companies that delivered most may win prizes when it clo
 
 - **Find them** on the dashboard's **Events** page or with `/company contest`: what each contest takes, its price per
   item, how much is delivered and how long it runs. A contest's page, or `/company contest info <id>`, shows what is
-  still missing, the prizes, your company's part and place, and the ranking.
+  still missing, the prizes, your company's part and place, and the ranking. In game both are menus, dialogs on servers
+  that use them, with buttons to show a contest, join it, leave it and deliver everything you carry.
 - **Join** on the contest's page or with `/company contest join <id>` once the contest started. You need the company
   permission `manage_orders`, like for accepting orders. Taking part uses one of your company's order slots until you
   leave, on the contest's page or with `/company contest leave <id>`, or the contest closes. A company that leaves keeps

@@ -248,15 +248,15 @@ See [Order boards](../players/order-boards.md) for a guide.
 
 | Command | Permission | Company permission | What it does |
 |---|---|---|---|
-| `/company events` | none | none | Lists the [server events](../players/server-events.md) that run or start within a day, with their effect, time left and, for a reward multiplier, the budget left as a bar, and the event offers, goals and contests, that run, are paused or start within a day: progress, time left and, for a contest, your company's place. The offers of a server event are listed under it. |
-| `/company events open <id>` | none | none | Opens an offer: the order search with only the chunks of a goal (the search of orders to work on alone when you have no company and may work alone), or the info of a contest. The `[Open]` button of the list runs it. |
+| `/company events` | none | none | Lists the [server events](../players/server-events.md) that run or start within a day, with their effect, time left and, for a reward multiplier, the budget left as a bar, and the event offers, goals and contests, that run, are paused or start within a day: progress, time left and, for a contest, your company's place. The offers of a server event are listed under it. Each offer has an **Open** button. |
+| `/company events open <id>` | none | none | Opens an offer: the order search with only the chunks of a goal (the search of orders to work on alone when you have no company and may work alone), or the info of a contest. The **Open** button of the list does the same. |
 
 ### Contests
 
 | Command | Permission | Company permission | What it does |
 |---|---|---|---|
-| `/company contest` | none | none | Lists the contests that have not closed, with what they take, their progress and time left. |
-| `/company contest info <id>` | none | none | Shows what a contest still misses, its price per item, its prizes, your company's part and place, and the ranking. |
+| `/company contest` | none | none | Lists the contests that have not closed, with what they take, their progress and time left, and buttons to show a contest and to join it. |
+| `/company contest info <id>` | none | none | Shows what a contest still misses, its price per item, its prizes, your company's part and place, and the ranking, with buttons to deliver everything you carry, to join or leave (with `manage_orders`) and back to the contests. |
 | `/company contest join <id>` | none | `manage_orders` | Lets your company take part, once the contest started. It uses one of the company's order slots. |
 | `/company contest leave <id>` | none | `manage_orders` | Lets your company stop taking part. It keeps its items and place, and the slot is free again. |
 | `/company contest deliver <id> <amount>` | none | member | Delivers up to `amount` matching items; you are paid at once. |
@@ -409,6 +409,8 @@ The confirm commands take no id. They confirm the last request you made.
 | `/companyadmin offers list` | `companies.admin.offers` | yes | Lists the newest offers with state, progress and end. |
 | `/companyadmin offers info <id>` | `companies.admin.offers` | yes | Shows who created an offer, its money and budget, its progress and top contributors, or for a contest its ranking, payouts and prizes. |
 | `/companyadmin offers open <id> <count>` | `companies.admin.offers` | yes | Changes how many chunks of a goal wait to be taken at once, while the goal is not closed. |
+| `/companyadmin offers end <id> <when>` | `companies.admin.offers` | yes | Moves the end of an offer that is not closed and not on a server event, to hours from now or a date. |
+| `/companyadmin offers budget <id> <budget>` | `companies.admin.offers` | yes | Changes the budget of an offer that is not closed, never below what it spent and its prizes. |
 | `/companyadmin offers pause <id>` | `companies.admin.offers` | yes | Pauses an offer and withdraws its waiting chunks. |
 | `/companyadmin offers resume <id>` | `companies.admin.offers` | yes | Resumes a paused offer. |
 | `/companyadmin offers cancel <id>` | `companies.admin.offers` | yes | Closes an offer and withdraws its waiting chunks; a cancelled contest pays no prizes. |

@@ -221,6 +221,44 @@ public record EventOffer(
     }
 
     /**
+     * This offer, not stored yet, put on a server event and given its times.
+     *
+     * @param event  id of the server event
+     * @param starts the start of the event
+     * @param ends   the end of the event
+     * @return the offer
+     */
+    public EventOffer onEvent(int event, LocalDateTime starts, LocalDateTime ends) {
+        return new EventOffer(
+                id,
+                kind,
+                name,
+                event,
+                line,
+                amount,
+                unitPrice,
+                chunkSize,
+                openChunks,
+                source,
+                account,
+                budget,
+                spent,
+                delivered,
+                starts,
+                ends,
+                state,
+                createdBy,
+                created,
+                closed,
+                prizes,
+                held,
+                started,
+                settled,
+                refund,
+                refunded);
+    }
+
+    /**
      * @return the money of all prizes
      */
     public double prizeTotal() {

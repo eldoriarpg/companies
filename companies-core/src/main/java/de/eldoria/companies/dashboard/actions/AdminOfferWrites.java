@@ -14,26 +14,36 @@ import de.eldoria.companies.data.wrapper.offer.EventOffer;
 import de.eldoria.companies.data.wrapper.offer.OfferKind;
 import de.eldoria.companies.data.wrapper.offer.OfferLine;
 import de.eldoria.companies.data.wrapper.offer.OfferState;
+import de.eldoria.companies.data.wrapper.saved.SavedItem;
 import de.eldoria.companies.menus.Values;
+import de.eldoria.companies.orders.OrderDraftService;
+import de.eldoria.companies.orders.offers.EventOfferService;
 import de.eldoria.companies.orders.offers.GoalDraft;
+import de.eldoria.companies.orders.offers.OfferEdits;
 import de.eldoria.companies.orders.system.SystemOrderService;
 import de.eldoria.companies.util.AdminLog;
 import de.eldoria.companies.util.Permission;
+import de.eldoria.companies.util.Times;
 import de.eldoria.companies.web.api.Actions;
 import de.eldoria.companies.web.api.action.ActionRequest;
 import de.eldoria.companies.web.api.action.ActionResult;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
+import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.Nullable;
 import tools.jackson.databind.JsonNode;
 
 import java.math.BigDecimal;
+import java.time.DateTimeException;
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.logging.Level;
@@ -61,7 +71,8 @@ public final class AdminOfferWrites {
             Actions.ADMIN_OFFERS_RESUME,
             Actions.ADMIN_OFFERS_CANCEL,
             Actions.ADMIN_OFFERS_OPEN,
-            Actions.ADMIN_OFFERS_PRIZE);
+            Actions.ADMIN_OFFERS_PRIZE,
+            Actions.ADMIN_OFFERS_EDIT);
 
     /**
      * The most offers listed, the newest first.
@@ -124,6 +135,7 @@ public final class AdminOfferWrites {
             case Actions.ADMIN_OFFERS_OPEN ->
                 open(request, admin, id, args.path("count").asInt(0));
             case Actions.ADMIN_OFFERS_PRIZE -> prize(request, admin, id, args);
+            case Actions.ADMIN_OFFERS_EDIT -> edit(request, admin, id, args);
             default -> answers.refused(request, "dashboard.unsupported");
         };
     }
@@ -163,7 +175,7 @@ public final class AdminOfferWrites {
         var open = args.path("open").asInt(GoalDraft.OPEN_CHUNKS);
         EventOffer offer;
         try {
-            var line = line(args);
+            var line = line(session.player(), args);
             var name = args.path("name").asString("");
             var money = args.path("money").asString("");
             var amount = args.path("amount").asInt(0);
@@ -221,10 +233,24 @@ public final class AdminOfferWrites {
     }
 
     /**
-     * What a new offer orders: {@code material} names a material, {@code criteria} holds criteria in the text form
-     * players type.
+     * What a new offer orders: {@code saved} is the ref of an item the admin saved, such as {@code saved:12}, ordered
+     * as {@code goal hand} orders a held item: exactly when it has data, otherwise any item of its material;
+     * {@code material} names a material, {@code criteria} holds criteria in the text form players type.
      */
-    private static OfferLine line(JsonNode args) {
+    private OfferLine line(UUID admin, JsonNode args) {
+        if (args.has("saved")) {
+            var item = sources.savedItem()
+                    .apply(admin, args.path("saved").asString("").trim())
+                    .join()
+                    .orElseThrow(() -> CommandFailure.of("dashboard.item.unknownItem"));
+            var requested = sources.requests()
+                    .apply(item.stack())
+                    .orElseThrow(() -> CommandFailure.of("order.draft.error.notOrderable"));
+            var template = requested.template();
+            return requested.exact()
+                    ? OfferLine.item(template, sources.label().apply(template))
+                    : OfferLine.material(template.getType().name());
+        }
         var criteria = args.path("criteria").asString("");
         if (!criteria.isBlank()) return GoalDraft.criteria(criteria);
         var material = args.path("material").asString("").trim();
@@ -250,7 +276,7 @@ public final class AdminOfferWrites {
     private ActionResult change(
             ActionRequest request, String admin, int id, String action, List<OfferState> from, OfferState to) {
         if (id <= 0) return unknown(request, id);
-        var result = OffersCommand.transition(sources.offers(), id, from, to);
+        var result = OffersCommand.transition(sources.offers(), id, from, to, sources.announcer());
         return switch (result) {
             case UNKNOWN -> unknown(request, id);
             case REFUSED, WRONG_KIND, EARLY ->
@@ -283,6 +309,56 @@ public final class AdminOfferWrites {
                 yield detailsOf(request, id);
             }
         };
+    }
+
+    /**
+     * Moves the end of an offer, {@code end} as an instant, or changes its budget, {@code budget}; one of them per
+     * call, so a refused change never leaves the other done.
+     */
+    private ActionResult edit(ActionRequest request, String admin, int id, JsonNode args) {
+        if (id <= 0) return unknown(request, id);
+        var end = args.path("end");
+        var budget = args.path("budget");
+        var hasEnd = !end.isMissingNode() && !end.isNull();
+        var hasBudget = !budget.isMissingNode() && !budget.isNull();
+        if (hasEnd == hasBudget || (hasBudget && !budget.isNumber())) {
+            return answers.refused(request, "dashboard.invalid");
+        }
+        LocalDateTime ends = null;
+        if (hasEnd) {
+            try {
+                ends = LocalDateTime.ofInstant(Instant.parse(end.asString("")), ZoneOffset.UTC);
+            } catch (DateTimeException e) {
+                return answers.refused(request, "dashboard.invalid");
+            }
+        }
+        if (hasBudget) {
+            var from = sources.offers().offer(id).map(EventOffer::budget).orElse(0.0);
+            var result = OfferEdits.budget(sources.offers(), sources.funding(), id, budget.asDouble());
+            if (result != OfferEdits.Outcome.DONE) {
+                return answers.refused(request, OfferEdits.budgetFailure(result, sources.offers(), id));
+            }
+            sources.log()
+                    .entry(admin, "offer budget")
+                    .with("id", id)
+                    .with("from", from)
+                    .with("budget", budget.asDouble())
+                    .write();
+        }
+        if (ends != null) {
+            var now = Times.now();
+            var result = OfferEdits.end(sources.offers(), id, ends, now);
+            if (result != OfferEdits.Outcome.DONE) {
+                return answers.refused(request, OfferEdits.endFailure(result, id));
+            }
+            sources.log()
+                    .entry(admin, "offer end")
+                    .with("id", id)
+                    .with("ends", OfferEdits.stored(ends, now).toString())
+                    .write();
+        }
+        checkSoon();
+        return detailsOf(request, id);
     }
 
     private ActionResult prize(ActionRequest request, String admin, int id, JsonNode args) {
@@ -436,6 +512,10 @@ public final class AdminOfferWrites {
      * @param offers    the offer repository
      * @param funding   gives a failed prize back to the account that paid it
      * @param checkSoon asks the primary to place and withdraw chunks soon
+     * @param announcer told when an admin closed an offer
+     * @param savedItem an item a player saved, by its ref such as {@code saved:12}
+     * @param requests  turns an item into the template of an order line, empty when it can not be ordered
+     * @param label     the name of an exact item as players see it
      * @param names     a player's name by id, for players who delivered to a goal alone
      * @param instant   turns stored times into instants
      * @param now       the current time as stored
@@ -447,6 +527,10 @@ public final class AdminOfferWrites {
             AOfferData offers,
             SystemOrderService.Funding funding,
             Runnable checkSoon,
+            EventOfferService.Announcer announcer,
+            BiFunction<UUID, String, CompletableFuture<Optional<SavedItem>>> savedItem,
+            Function<ItemStack, Optional<OrderDraftService.RequestedItem>> requests,
+            Function<ItemStack, String> label,
             Function<UUID, String> names,
             Function<LocalDateTime, Instant> instant,
             Supplier<LocalDateTime> now,

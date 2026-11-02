@@ -28,6 +28,7 @@ import de.eldoria.companies.data.wrapper.offer.OfferMark;
 import de.eldoria.companies.orders.SystemOwner;
 import de.eldoria.companies.orders.criteria.CriteriaText;
 import de.eldoria.companies.orders.offers.OfferMarks;
+import de.eldoria.companies.services.events.EventPreviews;
 import de.eldoria.companies.web.api.Protocol;
 import de.eldoria.companies.web.api.snapshot.AlertView;
 import de.eldoria.companies.web.api.snapshot.AreaSourceView;
@@ -43,6 +44,7 @@ import de.eldoria.companies.web.api.snapshot.LevelView;
 import de.eldoria.companies.web.api.snapshot.MemberPermission;
 import de.eldoria.companies.web.api.snapshot.MemberStatsView;
 import de.eldoria.companies.web.api.snapshot.MemberView;
+import de.eldoria.companies.web.api.snapshot.OfferBadgeView;
 import de.eldoria.companies.web.api.snapshot.OrderLineView;
 import de.eldoria.companies.web.api.snapshot.OrderState;
 import de.eldoria.companies.web.api.snapshot.OwnOrderView;
@@ -253,7 +255,7 @@ public final class Views {
                 level(company),
                 members,
                 treasury(company, viewer).orElse(null),
-                claimed.stream().map(this::claimed).toList(),
+                claimed(claimed),
                 alerts(company.id()),
                 company.color().orElse(null),
                 palette(),
@@ -429,6 +431,17 @@ public final class Views {
      * @return the view
      */
     public ClaimedOrderView claimed(IFullOrder order) {
+        return claimed(order, offerMarks(List.of(order)).get(order.id()));
+    }
+
+    private List<ClaimedOrderView> claimed(List<IFullOrder> orders) {
+        var marks = offerMarks(orders);
+        return orders.stream()
+                .map(order -> claimed(order, marks.get(order.id())))
+                .toList();
+    }
+
+    private ClaimedOrderView claimed(IFullOrder order, @Nullable OfferMark mark) {
         var claimed = order.claimed() == null ? order.created() : order.claimed();
         return new ClaimedOrderView(
                 order.id(),
@@ -436,7 +449,25 @@ public final class Views {
                 state(order),
                 lines(order),
                 instant(claimed),
-                deadline(order).orElse(null));
+                deadline(order).orElse(null),
+                mark == null
+                        ? null
+                        : new OfferBadgeView(
+                                mark.offer(),
+                                mark.name(),
+                                instant(mark.ends()),
+                                mark.state().name().toLowerCase(Locale.ROOT)));
+    }
+
+    /**
+     * The event offers that system orders among the orders are chunks of.
+     */
+    private Map<Integer, OfferMark> offerMarks(List<? extends IFullOrder> orders) {
+        var system = orders.stream()
+                .filter(order -> SystemOwner.is(order.owner()))
+                .map(IFullOrder::id)
+                .toList();
+        return system.isEmpty() ? Map.of() : sources.offers().marks(system);
     }
 
     private List<AlertView> alerts(int company) {
@@ -538,7 +569,34 @@ public final class Views {
                                 mark.offer(),
                                 mark.name(),
                                 instant(mark.ends()),
-                                mark.state().name().toLowerCase(Locale.ROOT)));
+                                mark.state().name().toLowerCase(Locale.ROOT)),
+                null,
+                null);
+    }
+
+    /**
+     * What the server events do to an order, as the dashboard shows it.
+     *
+     * @param mark the mark of the order search, null when no event boosts it
+     * @return the badge, null without a mark
+     */
+    public Payloads.@Nullable EventBadge eventBadge(EventPreviews.@Nullable EventMark mark) {
+        if (mark == null) return null;
+        var ends = mark.ends();
+        return new Payloads.EventBadge(
+                mark.multiplier(), mark.taxPoints(), mark.feePercent(), ends == null ? null : instant(ends));
+    }
+
+    /**
+     * What an order pays with the server events, as the dashboard shows it.
+     *
+     * @param preview the preview, null when no event changes the payout
+     * @return the payout, null without a preview
+     */
+    public Payloads.@Nullable PayoutPreview payout(EventPreviews.@Nullable Preview preview) {
+        if (preview == null) return null;
+        var ends = preview.ends();
+        return new Payloads.PayoutPreview(preview.net(), ends == null ? null : instant(ends));
     }
 
     /**

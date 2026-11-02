@@ -45,6 +45,10 @@ public final class Payloads {
      * @param server  whether the server placed it, only shown while the server marks its orders and never for the chunk
      *                of an event offer, which carries its offer instead
      * @param offer   the event offer it is a chunk of, null for any other order
+     * @param event   what the server events running now do to it for the viewer, null when none boosts it; only in
+     *                the order search
+     * @param payout  what the whole order pays its workers with the server events running now, null when no event
+     *                changes it; only in the order search and the order's details
      */
     public record OrderSummary(
             int id,
@@ -59,7 +63,42 @@ public final class Payloads {
             @Nullable Instant claimed,
             @Nullable List<ItemView> waiting,
             boolean server,
-            @Nullable OfferBadge offer) {}
+            @Nullable OfferBadge offer,
+            @Nullable EventBadge event,
+            @Nullable PayoutPreview payout) {
+        /**
+         * @param event  what the server events do to the order
+         * @param payout what the order pays with them
+         * @return this summary with the server events
+         */
+        public OrderSummary withEvents(@Nullable EventBadge event, @Nullable PayoutPreview payout) {
+            return new OrderSummary(
+                    id, name, state, lines, created, deadline, expires, price, amount, claimed, waiting, server, offer,
+                    event, payout);
+        }
+    }
+
+    /**
+     * What the server events running now do to an order.
+     *
+     * @param multiplier the highest factor on one of its lines, 1 for none
+     * @param taxPoints  the percentage points taken off the tax
+     * @param feePercent the percent taken off the fee
+     * @param ends       when the soonest of these events ends
+     */
+    public record EventBadge(
+            double multiplier,
+            double taxPoints,
+            double feePercent,
+            @Nullable Instant ends) {}
+
+    /**
+     * What an order pays its workers in all with the server events running now.
+     *
+     * @param net   the payout after tax, with the extra of reward multipliers
+     * @param until when the soonest of these events ends, after which it no longer holds
+     */
+    public record PayoutPreview(double net, @Nullable Instant until) {}
 
     /**
      * The event offer an order is a chunk of, shown as its Event badge.

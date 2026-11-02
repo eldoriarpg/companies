@@ -30,6 +30,10 @@ public enum WebhookEvent {
      */
     GOAL_PROGRESS,
     /**
+     * The time of a running contest passed 25, 50 or 75 %, with its first places.
+     */
+    CONTEST_PROGRESS,
+    /**
      * A contest closed with its ranking, or was cancelled.
      */
     CONTEST_RESULT,

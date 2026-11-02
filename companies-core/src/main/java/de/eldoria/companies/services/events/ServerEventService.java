@@ -18,10 +18,12 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -69,6 +71,8 @@ public final class ServerEventService {
     private final Logger logger;
     private final Schedule schedule;
     private final AtomicBoolean pending = new AtomicBoolean();
+    private volatile Consumer<ServerEvent> templated = event -> {};
+    private final Set<Integer> templatedIds = new HashSet<>();
     private final AtomicReference<@Nullable ScheduledFuture<?>> next = new AtomicReference<>();
     private volatile @Nullable ScheduledExecutorService executor;
     private volatile boolean stopped;
@@ -200,18 +204,23 @@ public final class ServerEventService {
      * Starts the scheduled events whose start passed and ends the events whose end passed. An end is conditional on
      * the end that was read, so an event extended meanwhile keeps running. A scheduled event whose whole time passed
      * ends without starting and is signalled as {@link ServerEventChanged#MISSED}.
+     * <p>
+     * Every event of a template still live after the check is handed to {@link #onTemplated} once while this node
+     * runs, so offers the template should have created and did not, because the primary stopped or the database
+     * failed, are made up.
      *
      * @return what the check did
      */
     public synchronized Run run() {
         var now = now();
         createDue(now);
+        var live = events.live();
         var started = new ArrayList<Integer>();
         var ended = new ArrayList<Integer>();
         var missed = new ArrayList<Integer>();
         var withdrawn = new ArrayList<Integer>();
         @Nullable LocalDateTime due = null;
-        for (var event : events.live()) {
+        for (var event : live) {
             var id = event.id();
             var scheduled = event.state() == EventState.SCHEDULED;
             if (scheduled && !keeps(event)) {
@@ -239,6 +248,10 @@ public final class ServerEventService {
                 due = earlier(due, scheduled ? event.starts() : event.ends());
             }
         }
+        var closed = new HashSet<Integer>(ended);
+        closed.addAll(missed);
+        closed.addAll(withdrawn);
+        templated(live.stream().filter(event -> !closed.contains(event.id())).toList());
         return new Run(started, ended, missed, withdrawn, due);
     }
 
@@ -439,6 +452,30 @@ public final class ServerEventService {
             var created = create(draft);
             if (!created.stored()) schedule.refused(draft, Objects.requireNonNull(created.problem()));
         }
+    }
+
+    private void templated(List<ServerEvent> live) {
+        templatedIds.retainAll(live.stream().map(ServerEvent::id).toList());
+        for (var event : live) {
+            if (event.template() == null || templatedIds.contains(event.id())) continue;
+            try {
+                templated.accept(event);
+                templatedIds.add(event.id());
+            } catch (RuntimeException e) {
+                logger.log(Level.SEVERE, "Could not create the offers of server event " + event.id(), e);
+            }
+        }
+    }
+
+    /**
+     * Sets what happens with an event a template of {@code events.yml} created, such as creating the offers of the
+     * template. It gets every live event of a template once while this node runs, and again after it threw, so it
+     * must skip an event it already handled.
+     *
+     * @param templated takes the stored event
+     */
+    public void onTemplated(Consumer<ServerEvent> templated) {
+        this.templated = templated;
     }
 
     private boolean move(int id, EventState from, EventState to, @Nullable String by, LocalDateTime at) {

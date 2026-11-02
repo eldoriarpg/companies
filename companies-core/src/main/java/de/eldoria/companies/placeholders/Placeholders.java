@@ -203,7 +203,7 @@ public final class Placeholders {
      * @return the listener keeping the caches current
      */
     public Listener events() {
-        return new PlaceholderEvents(players, companies);
+        return new PlaceholderEvents(players, companies, offers);
     }
 
     private void refresh() {

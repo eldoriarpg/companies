@@ -22,6 +22,7 @@ import de.eldoria.companies.data.repository.ATreasuryData;
 import de.eldoria.companies.data.wrapper.dashboard.MarketRow;
 import de.eldoria.companies.data.wrapper.dashboard.StoredSession;
 import de.eldoria.companies.data.wrapper.inbox.InboxEntry;
+import de.eldoria.companies.data.wrapper.order.FullOrder;
 import de.eldoria.companies.data.wrapper.price.Baseline;
 import de.eldoria.companies.services.notifications.NotificationCategory;
 import de.eldoria.companies.web.api.Actions;
@@ -224,9 +225,16 @@ public final class DashboardReads {
         }
         var page = page(args);
         var size = size(args);
-        var shown = Payloads.slice(orders, page, size).stream()
+        var company = views.companyOf(player);
+        var slice = Payloads.slice(orders, page, size);
+        var marks = sources.events().marks(slice, company);
+        var shown = slice.stream()
                 .map(order -> views.summary(
-                        order, false, false, results.offer(order.id()).orElse(null)))
+                                order, false, false, results.offer(order.id()).orElse(null))
+                        .withEvents(
+                                views.eventBadge(marks.get(order.id())),
+                                views.payout(
+                                        sources.events().preview(order, company).orElse(null))))
                 .toList();
         return new Payloads.SearchPage(
                 page,
@@ -246,19 +254,28 @@ public final class DashboardReads {
     }
 
     /**
-     * The details of an order as the player may see them: the owner sees the items waiting to be received, the
-     * company working on it when it was claimed, and anyone an unclaimed order. Every other order is unknown to the
-     * player. No answer names the owner, the company or a worker.
+     * The details of an order as the player may see them: the owner sees the items waiting to be received, the company
+     * working on it when it was claimed, and anyone an unclaimed order. An order the player could take, and one the
+     * player's company works on, shows what it pays with the server events running now. Every other order is unknown to
+     * the player. No answer names the owner, the company or a worker.
      */
     private ActionResult details(ActionRequest request, UUID player, int id) {
         var order = views.order(id);
         if (order.isEmpty()) return refused(request, "dashboard.orderUnknown");
         var found = order.get();
         var owner = found.owner().equals(player);
-        var company = views.companyOf(player).map(ICompanyProfile::id).orElse(0);
+        var viewer = views.companyOf(player);
+        var company = viewer.map(ICompanyProfile::id).orElse(0);
         var working = company > 0 && found.company() == company;
         if (owner || working || found.state() == OrderState.UNCLAIMED) {
-            return data(request, views.summary(found, owner, working));
+            var summary = views.summary(found, owner, working);
+            var takes = found.state() == OrderState.UNCLAIMED && !owner;
+            var works = working && found.state() == OrderState.CLAIMED;
+            if ((takes || works) && found instanceof FullOrder full) {
+                var preview = sources.events().preview(full, viewer);
+                summary = summary.withEvents(null, views.payout(preview.orElse(null)));
+            }
+            return data(request, summary);
         }
         return refused(request, "dashboard.orderUnknown");
     }
@@ -541,6 +558,7 @@ public final class DashboardReads {
      * @param inboxText      renders an inbox entry as plain text
      * @param refusal        renders the message of a refusal key as plain text
      * @param names          a player's name by id
+     * @param events         what the server events running now do to orders
      * @param clock          the current time
      */
     public record Sources(
@@ -559,5 +577,6 @@ public final class DashboardReads {
             Function<InboxEntry, String> inboxText,
             Function<String, String> refusal,
             Function<UUID, String> names,
+            OrderEventPreviews events,
             Clock clock) {}
 }

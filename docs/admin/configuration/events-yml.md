@@ -21,6 +21,7 @@ maxMultiplier: 3.0
 broadcast: true
 joinMessage: true
 createAheadHours: 24
+closedDays: 7
 goalRewardFunding: MINTED
 goalRewardAccount: ''
 goalRewardBudget: 1000.0
@@ -34,6 +35,7 @@ templates: []
 | `broadcast` | true/false | `true` | Whether every server tells its players in chat when an event starts, ends, runs out of money or is cancelled after it started. | reload |
 | `joinMessage` | true/false | `true` | Whether a player who joins while events run is told about them in chat, see [Announcements](#announcements). | reload |
 | `createAheadHours` | number (hours) | `24` | How long before its start the primary creates the next event of a template, so it can be seen coming. | reload |
+| `closedDays` | number (days) | `7` | How long a closed contest stays under **Results** on the dashboard's Events page. `0` shows no results. | reload |
 | `goalRewardFunding` | `ACCOUNT` or `MINTED` | `MINTED` | Where the money of a [goal reward](../admin-commands.md#event-offers) comes from when `/companyadmin offers reward` names none. | reload |
 | `goalRewardAccount` | text | empty | The account paying goal rewards funded from an account that name none. Empty for `economy.collectorAccount`. | reload |
 | `goalRewardBudget` | number | `1000.0` | What a goal reward may pay when it names no budget. `0` means none, which `MINTED` does not allow. | reload |
@@ -75,6 +77,7 @@ templates:
 | `funding` | `ACCOUNT` or `MINTED` | none | Where the money of a reward multiplier comes from. Needed for multipliers. |
 | `account` | text | empty | The account paying a multiplier funded from an account. Empty for `economy.collectorAccount` of [config.yml](./config-yml.md#economy); while that is not set either, the template creates nothing, so name an account or use `MINTED`. |
 | `budget` | number | `0.0` | What each event of a multiplier may pay. `0` means no budget, which `MINTED` does not allow. |
+| `offers` | list | empty | Goals and contests created with each event, see [Offers of a template](#offers-of-a-template). |
 
 Weekly starts and dates are times of the server's time zone, `generalSettings.timezone` of
 [config.yml](./config-yml.md#generalsettings): `SATURDAY 18:00` is 18:00 on the server's clock in summer and in
@@ -106,11 +109,67 @@ The `id` is what makes a template the same template:
   of the date before it is also named once in the server log.
 - While `events.yml` cannot be read, templates create nothing and nothing is cancelled.
 
-Templates create events only; they carry no goals or contests. Put an offer on an event of a template with
+Besides the template's own [offers](#offers-of-a-template), you can put more offers on an event of a template with
 `/companyadmin offers event <id> <event>` once the event shows up in `/companyadmin event list`.
 
 A template with a problem, such as a weekly start that cannot be read or a value that does not fit its kind, creates
 nothing. The server log names the problem once.
+
+### Offers of a template
+
+A template can bring its own [event offers](../admin-commands.md#event-offers). They are created together with each of
+its events, take the event's start and end, and end or are cancelled with it, as offers put on an event with
+`/companyadmin offers event` do:
+
+```yaml
+templates:
+  - id: harvest
+    name: "Harvest week"
+    kind: REWARD_MULTIPLIER
+    value: 1.5
+    materials: [WHEAT]
+    every: "SATURDAY 18:00"
+    duration: 48h
+    funding: MINTED
+    budget: 5000.0
+    offers:
+      - kind: GOAL
+        material: wheat
+        amount: 5000
+        price: 2.0
+        chunk: 250
+        open: 3
+      - kind: CONTEST
+        name: "Wheat race"
+        money: Treasury
+        criteria: "wheat hay_block"
+        amount: 2000
+        price: 1.5
+        prizes: "500+250+100"
+```
+
+| Key | Type | Default | Meaning |
+|---|---|---|---|
+| `kind` | `GOAL` or `CONTEST` | `GOAL` | A shared goal placed in chunks, or a contest companies join. |
+| `name` | text | the event's name, cut to 31 characters | The name of the offer, at most 31 characters. |
+| `money` | text | `minted` | `minted`, or the economy account that pays the offer. |
+| `material` | text | none | The material ordered, such as `wheat`. Give `material` or `criteria`. |
+| `criteria` | text | none | The items ordered as [criteria](../../players/orders.md#criteria-lines), as players type them. |
+| `amount` | number | `0` | The items asked for in all. |
+| `price` | number | `0.0` | The price per item. |
+| `chunk` | number | `64` | For a goal: the items per chunk. |
+| `open` | number | `3` | For a goal: the chunks waiting to be taken at once. |
+| `prizes` | text | none | For a contest: the money of the first places, such as `500+250+100`. |
+| `budget` | number | `0.0` | What the whole offer may spend. `0` for what it costs, prizes included. |
+
+The offers are checked like `/companyadmin offers goal` and `contest` check them. One that is refused, such as one
+naming no item, is left out and named in the server log with each event; the event and the other offers are created
+anyway. Offers missing from an event, because the primary stopped right after creating it, are created when the primary
+checks the events again. An offer an event already has, the same name asking for the same items, is not created again.
+Offers added to a template reach its waiting and running events only after the primary restarts, and an offer whose
+name or items were edited is added as a further offer next to the old one; an event that ended or was cancelled gets
+none. Exact items cannot be written in the file: offer them with `goal hand` or `contest hand`, or
+from the dashboard.
 
 ## Announcements
 

@@ -10,8 +10,8 @@ export interface OfferForm {
     kind: OfferKind
     name: string
     money: string
-    itemKind: 'material' | 'criteria'
-    /** The material or the criteria. */
+    itemKind: 'material' | 'criteria' | 'saved'
+    /** The material, the criteria, or the ref of a saved item such as `saved:12`. */
     item: string
     amount: number | undefined
     price: number | undefined
@@ -55,6 +55,7 @@ export function draftOf(form: OfferForm): AdminOfferDraft {
         hours: form.hours ?? 0,
     }
     if (form.itemKind === 'criteria') draft.criteria = form.item.trim()
+    else if (form.itemKind === 'saved') draft.saved = form.item
     else draft.material = form.item.trim()
     if (form.kind === 'goal') {
         draft.chunk = form.chunk ?? 0
@@ -71,14 +72,15 @@ export function draftOf(form: OfferForm): AdminOfferDraft {
  *
  * @param state the offer's state
  * @param kind the offer's kind
- * @returns whether it can be paused, resumed, cancelled and have its waiting chunks changed
+ * @returns whether it can be paused, resumed, cancelled, have its waiting chunks changed and its end and budget changed
  */
-export function offerActions(state: string, kind: OfferKind): {pause: boolean, resume: boolean, cancel: boolean, open: boolean} {
+export function offerActions(state: string, kind: OfferKind): {pause: boolean, resume: boolean, cancel: boolean, open: boolean, edit: boolean} {
     const running = state === 'scheduled' || state === 'active' || state === 'paused'
     return {
         pause: state === 'scheduled' || state === 'active',
         resume: state === 'paused',
         cancel: running,
         open: running && kind === 'goal',
+        edit: running,
     }
 }

@@ -64,6 +64,8 @@ class ContestJobTest {
     private final List<List<Integer>> rankings = new ArrayList<>();
     private final List<Integer> cancelled = new ArrayList<>();
     private final List<Integer> contestsStarted = new ArrayList<>();
+    private final List<OfferState> ended = new ArrayList<>();
+    private final List<String> progressed = new ArrayList<>();
     private final List<List<String>> paidPrizes = new ArrayList<>();
     private Integer failingWinner;
     private boolean failOutcome;
@@ -72,6 +74,7 @@ class ContestJobTest {
     private int iron;
     private int stone;
     private int wood;
+    private int clay;
     private SqLiteOfferData offers;
     private EventOfferService service;
 
@@ -103,6 +106,7 @@ class ContestJobTest {
         iron = company("Iron Works");
         stone = company("Stone Cutters");
         wood = company("Wood Works");
+        clay = company("Clay Pits");
         var logger = Logger.getAnonymousLogger();
         logger.setUseParentHandlers(false);
         service = new EventOfferService(
@@ -137,6 +141,17 @@ class ContestJobTest {
                     @Override
                     public void contestCancelled(EventOffer offer) {
                         cancelled.add(offer.id());
+                    }
+
+                    @Override
+                    public void ended(@Nullable EventOffer offer) {
+                        if (offer != null) ended.add(offer.state());
+                    }
+
+                    @Override
+                    public void contestProgress(EventOffer offer, int threshold, List<ContestEntry> leading) {
+                        progressed.add(threshold + ":"
+                                + leading.stream().map(ContestEntry::company).toList());
                     }
                 },
                 clock,
@@ -185,6 +200,48 @@ class ContestJobTest {
     }
 
     @Test
+    void aRunningContestAnnouncesEachQuarterOfItsTimeOnceWithItsLeaders() {
+        var id = contest(100, 1.0, List.of(), 200.0, SourceType.MINTED, null, 0);
+        service.run();
+        for (var company : List.of(iron, stone, wood, clay)) offers.join(id, company, LocalDateTime.now(clock));
+        offers.deliver(id, stone, UUID.randomUUID(), 30, LocalDateTime.now(clock));
+        offers.deliver(id, iron, UUID.randomUUID(), 10, LocalDateTime.now(clock));
+        offers.deliver(id, wood, UUID.randomUUID(), 5, LocalDateTime.now(clock));
+        offers.deliver(id, clay, UUID.randomUUID(), 1, LocalDateTime.now(clock));
+
+        clock.advance(Duration.ofHours(7));
+        service.run();
+        service.run();
+        clock.advance(Duration.ofHours(12));
+        service.run();
+        clock.advance(Duration.ofHours(6));
+        service.run();
+
+        assertEquals(List.of("25:" + List.of(stone, iron, wood), "75:" + List.of(stone, iron, wood)), progressed);
+    }
+
+    @Test
+    void aContestThatBeganLateCountsItsTimeFromThenAndPostsNothingWhilePaused() {
+        balances.put(BANK, 0.0);
+        var id = contest(100, 1.0, List.of(), 200.0, SourceType.ACCOUNT, BANK, 0);
+        service.run();
+        clock.advance(Duration.ofHours(13));
+        balances.put(BANK, 1000.0);
+        service.run();
+        assertEquals(OfferState.ACTIVE, offers.offer(id).orElseThrow().state());
+        assertTrue(progressed.isEmpty());
+
+        offers.state(id, OfferState.ACTIVE, OfferState.PAUSED, LocalDateTime.now(clock));
+        clock.advance(Duration.ofHours(4));
+        service.run();
+        assertTrue(progressed.isEmpty());
+        offers.state(id, OfferState.PAUSED, OfferState.ACTIVE, LocalDateTime.now(clock));
+        service.run();
+
+        assertEquals(List.of("25:" + List.of()), progressed);
+    }
+
+    @Test
     void anEndedContestPaysItsPrizesOnceAndGivesTheRestBack() {
         balances.put(BANK, 1000.0);
         var id = contest(100, 1.0, List.of(50.0, 30.0, 20.0), 200.0, SourceType.ACCOUNT, BANK, 0);
@@ -197,6 +254,7 @@ class ContestJobTest {
         var run = service.run();
 
         assertEquals(OfferState.ENDED, run.changed().get(id));
+        assertEquals(List.of(OfferState.ENDED), ended);
         assertEquals(List.of(id), run.settled());
         assertEquals(List.of(stone + ":50.0", iron + ":30.0"), prizesPaid);
         var settled = offers.offer(id).orElseThrow();
@@ -230,6 +288,7 @@ class ContestJobTest {
         assertEquals(List.of(id), run.settled());
         assertEquals(List.of(iron + ":25.0"), prizesPaid);
         assertEquals(75.0, offers.offer(id).orElseThrow().spent());
+        assertTrue(ended.isEmpty());
     }
 
     @Test

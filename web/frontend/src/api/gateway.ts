@@ -166,8 +166,28 @@ export interface OrderListing {
     server?: boolean
     /** The event offer it is a chunk of, which it is marked with; none for any other order. */
     offer?: OfferBadge | null
+    /** What the server events running now do to it for the viewer; only in the order search. */
+    event?: EventBadge | null
+    /** What the whole order pays its workers with the server events running now; in the order search and details. */
+    payout?: PayoutPreview | null
     /** Items delivered and waiting for the owner, for the owner of a delivered order. */
     waiting?: ItemView[] | null
+}
+
+/** What the server events running now do to an order: a factor on its payout, tax points off, percent off its fee. */
+export interface EventBadge {
+    multiplier: number
+    taxPoints: number
+    feePercent: number
+    /** When the soonest of these events ends. */
+    ends?: string | null
+}
+
+/** What an order pays its workers in all with the server events running now. */
+export interface PayoutPreview {
+    net: number
+    /** When the soonest of these events ends, after which it no longer holds. */
+    until?: string | null
 }
 
 /** The event offer an order is a chunk of. */
@@ -737,6 +757,8 @@ export interface EventList {
     offers: EventRow[]
     /** The server events running or starting within a day, the soonest start first. */
     serverEvents: ServerEventView[]
+    /** The contests that closed lately, newest first; missing from servers before results. */
+    results?: EventRow[]
     /** Whether the player is part of a company. */
     member: boolean
     /** Whether the player may let the company join or leave contests. */
@@ -951,6 +973,8 @@ export interface AdminOfferDraft {
     material?: string
     /** Criteria in the text form players type. */
     criteria?: string
+    /** The ref of an item the admin saved, such as `saved:12`, ordered exactly. */
+    saved?: string
     amount: number
     price: number
     /** Items per chunk of a goal. */
@@ -1356,6 +1380,7 @@ export interface WriteActions {
     'admin.offers.resume': {args: OfferRef, result: AdminOffer}
     'admin.offers.cancel': {args: OfferRef, result: AdminOffer}
     'admin.offers.open': {args: OfferRef & {count: number}, result: AdminOffer}
+    'admin.offers.edit': {args: OfferRef & ({end: string} | {budget: number}), result: AdminOffer}
     'admin.offers.prize': {args: OfferRef & {place: number, outcome: 'paid' | 'failed'}, result: AdminOffer}
     'admin.events.list': {args: Record<string, never>, result: {events: AdminEventRow[]}}
     'admin.events.create': {args: AdminEventDraft, result: AdminEventRow}

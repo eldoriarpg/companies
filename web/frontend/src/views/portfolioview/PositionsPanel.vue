@@ -6,6 +6,7 @@
 <script lang="ts" setup>
 import {useNow} from '@vueuse/core'
 import {Feature, MemberPermission, type ClaimedOrderView} from '~/api/generated/protocol'
+import PrimaryBadge from '@/components/badge/PrimaryBadge.vue'
 import PanelBox from '@/components/container/PanelBox.vue'
 import PlainList from '@/components/container/PlainList.vue'
 import ProgressBar from '@/components/display/ProgressBar.vue'
@@ -69,7 +70,10 @@ const rows = computed(() => found.value.map(order => ({
     <PlainList v-else data-testid="positions">
       <li v-for="row in rows" :key="row.order.id" class="flex flex-col gap-2 border-b border-line-soft px-3 py-3 last:border-b-0 md:grid md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_7rem_5rem] md:items-center md:gap-4 md:px-4">
         <div class="flex min-w-0 justify-between gap-2 md:flex-col md:justify-start md:gap-0.5">
-          <span class="truncate text-sm font-semibold">{{ row.order.name }}</span>
+          <span class="flex min-w-0 items-center gap-1.5">
+            <span class="truncate text-sm font-semibold">{{ row.order.name }}</span>
+            <PrimaryBadge v-if="row.order.offer" :title="row.order.offer.name" data-testid="position-event-badge">{{ t('orders.eventBadge') }}</PrimaryBadge>
+          </span>
           <span class="tabular text-sm md:hidden">{{ money(row.totals.payout, locale) }}</span>
           <span class="hidden truncate text-xs text-ink-muted md:block">{{ row.items }}</span>
         </div>

@@ -7,6 +7,7 @@
 import {Feature} from '~/api/generated/protocol'
 import InfoBadge from '@/components/badge/InfoBadge.vue'
 import PrimaryBadge from '@/components/badge/PrimaryBadge.vue'
+import SuccessBadge from '@/components/badge/SuccessBadge.vue'
 import type {OrderListing} from '~/api/gateway'
 import RowButton from '@/components/button/RowButton.vue'
 import PanelBox from '@/components/container/PanelBox.vue'
@@ -15,8 +16,8 @@ import ItemMark from '@/components/display/ItemMark.vue'
 import TrendText from '@/components/display/TrendText.vue'
 import EmptyState from '@/components/feedback/EmptyState.vue'
 import CapsLabel from '@/components/typography/CapsLabel.vue'
-import {count, money, trendOf} from '~/util/format'
-import {lineName, totalsOf, versusAverage} from '~/util/orders'
+import {count, decimal, money, trendOf} from '~/util/format'
+import {boostParts, lineName, totalsOf, versusAverage} from '~/util/orders'
 
 /**
  * The orders of the book's page as rows of a ticker: the item, the amount, the payout, the price per item and how it
@@ -37,6 +38,11 @@ const {t, locale} = useI18n()
 const conditions = useConditionTexts()
 const COLUMNS = 'md:grid md:grid-cols-[minmax(0,2fr)_minmax(0,1.5fr)_5rem_5rem_5rem_6rem] md:gap-3'
 
+const boostTexts = {
+  multiplier: (factor: string) => t('orders.boost.multiplier', {factor}),
+  tax: (points: string) => t('orders.boost.tax', {points}),
+  fee: (percent: string) => t('orders.boost.fee', {percent}),
+}
 const rows = computed(() => props.orders.map(order => {
   const totals = totalsOf(order.lines)
   const versus = versusAverage(order.lines, props.averages)
@@ -49,6 +55,7 @@ const rows = computed(() => props.orders.map(order => {
       ? t('orders.lines', {count: order.lines.length})
       : first ? lineName(first, conditions) : '',
     versus: versus === null ? null : {trend: trendOf(versus), text: `${{up: '+', down: '−', flat: ''}[trendOf(versus)]}${Math.abs(versus).toFixed(1)}%`},
+    boost: order.event ? boostParts(order.event, boostTexts, value => decimal(value, locale.value)) : [],
   }
 }))
 const {supports} = useDashboard()
@@ -76,6 +83,7 @@ const marks = computed(() => supports(Feature['orders.servermarks']))
                 <span class="truncate text-sm font-semibold">{{ row.order.name }}</span>
                 <PrimaryBadge v-if="row.order.offer" :title="row.order.offer.name" data-testid="event-badge">{{ t('orders.eventBadge') }}</PrimaryBadge>
                 <InfoBadge v-else-if="row.order.server && marks" data-testid="server-badge">{{ t('orders.serverBadge') }}</InfoBadge>
+                <SuccessBadge v-if="row.boost.length > 0" role="img" :aria-label="t('orders.boost.label', {effects: row.boost.join(', ')})" data-testid="boost-badge">{{ row.boost.join(' · ') }}</SuccessBadge>
               </span>
               <span class="tabular truncate text-[0.6875rem] text-ink-muted md:hidden">{{ row.items }} ×{{ count(row.totals.amount, locale) }} · {{ money(row.totals.payout, locale) }}</span>
             </span>

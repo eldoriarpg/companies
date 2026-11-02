@@ -156,9 +156,14 @@ events and offers also lead the ticker at the top; a click opens the Events page
   permission join or leave the contest for the company there. Delivering stays in game with
   `/company contest deliver <id>`, as it takes the items from your inventory.
 
+Below the offers, **Results** lists the contests that closed lately, how they ended and your company's place; open
+one for its ranking and prizes. Cancelled contests are not listed.
+
 In the order book, chunks of goals carry an **Event** badge, and the order's details name the goal with a link to its
-page. The **Event offers** filter shows only chunks, and **Offer ends** sorts them by the end of their goal, as the
-in-game search does.
+page. Your company's positions show the same badge on the chunks it works on. An order a server event boosts carries
+what the event does to it, such as `×1.5`, and its details show what the whole order pays with the events running now,
+as long as it is done before the soonest of them ends. The **Event offers** filter shows only chunks, and **Offer ends**
+sorts them by the end of their goal, as the in-game search does.
 
 ## What you see
 

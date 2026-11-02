@@ -234,6 +234,55 @@ class EventWritesTest {
     }
 
     @Test
+    void contestsClosedLatelyAreTheResultsWithThePlaceOfTheCompany() {
+        var now = Times.now();
+        var ended = world.contest("Log race", 0, true);
+        var cancelled = world.contest("Stone race", 0, true);
+        var running = world.contest("Sand race", 0, true);
+        world.offers.join(ended, company, now);
+        world.offers.deliver(ended, company, manager, 5, now);
+        world.offers.state(ended, OfferState.ACTIVE, OfferState.ENDED, now);
+        world.offers.state(cancelled, OfferState.ACTIVE, OfferState.CANCELLED, now);
+
+        var result = perform(manager, Actions.EVENTS_LIST, "{}");
+
+        var results = list(result.data().path("results"));
+        assertEquals(
+                List.of(ended),
+                results.stream().map(row -> row.path("id").asInt()).toList());
+        assertEquals("ended", results.getFirst().path("state").asString());
+        assertEquals(1, results.getFirst().path("place").asInt());
+        assertTrue(list(result.data().path("offers")).stream()
+                .anyMatch(row -> row.path("id").asInt() == running));
+    }
+
+    @Test
+    void contestsThatNeverRanOrClosedLongAgoAreNoResults() {
+        var now = Times.now();
+        var waiting = world.contest("Clay race", 2, false);
+        var old = world.contest("Iron race", 0, true);
+        world.offers.state(waiting, OfferState.SCHEDULED, OfferState.ENDED, now);
+        world.offers.state(old, OfferState.ACTIVE, OfferState.ENDED, now.minusDays(8));
+
+        assertTrue(list(perform(manager, Actions.EVENTS_LIST, "{}").data().path("results"))
+                .isEmpty());
+
+        var recent = world.contest("Wool race", 0, true);
+        world.offers.state(recent, OfferState.ACTIVE, OfferState.REACHED, now);
+
+        assertEquals(
+                List.of(recent),
+                list(perform(manager, Actions.EVENTS_LIST, "{}").data().path("results")).stream()
+                        .map(row -> row.path("id").asInt())
+                        .toList());
+
+        world.closedDays = 0;
+
+        assertTrue(list(perform(manager, Actions.EVENTS_LIST, "{}").data().path("results"))
+                .isEmpty());
+    }
+
+    @Test
     void theListShowsTheServerEventsRunningOrStartingWithinADay() {
         var now = Times.now();
         var running = world.eventService

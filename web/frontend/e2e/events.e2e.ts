@@ -117,6 +117,26 @@ test.describe('event offers', () => {
         await expect(details.getByTestId('order-offer').getByText('Bridge logs')).toBeVisible()
     })
 
+    test('mark the orders a server event boosts with what they pay', async ({page}, info) => {
+        await openDashboard(page, 'EVNT01')
+        await openSection(page, info, 'Order book')
+        const book = page.getByTestId('order-book')
+        const wheat = book.getByRole('listitem').filter({hasText: 'Farm restock'})
+        await expect(wheat.getByTestId('boost-badge')).toHaveText('×1.5')
+
+        await wheat.click()
+        const details = onPhone(info) ? page.getByRole('dialog') : page.getByRole('complementary', {name: 'Order details'})
+        await expect(details.getByTestId('order-payout-events')).toContainText('1,458.00')
+    })
+
+    test('list the contests that closed lately with the place of the company', async ({page}, info) => {
+        await openDashboard(page, 'EVNT01')
+        await openEvents(page, info)
+        const results = page.getByTestId('event-results')
+        await expect(results.getByText('Harvest race')).toBeVisible()
+        await expect(results.getByText('Place 2')).toBeVisible()
+    })
+
     test('are not offered where the server has no Events page', async ({page}, info) => {
         await openDashboard(page, 'CALM01')
         await openSection(page, info, 'Order book')

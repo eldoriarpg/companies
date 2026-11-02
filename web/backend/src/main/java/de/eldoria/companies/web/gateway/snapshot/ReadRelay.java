@@ -158,6 +158,7 @@ public final class ReadRelay {
             Actions.ADMIN_OFFERS_CANCEL,
             Actions.ADMIN_OFFERS_OPEN,
             Actions.ADMIN_OFFERS_PRIZE,
+            Actions.ADMIN_OFFERS_EDIT,
             Actions.ADMIN_EVENTS_LIST,
             Actions.ADMIN_EVENTS_CREATE,
             Actions.ADMIN_EVENTS_END,
