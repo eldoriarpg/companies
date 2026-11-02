@@ -65,7 +65,7 @@ public final class TerraformCheck {
      * @param target a target
      * @return the material of its surface, null for any solid block or a name no block has
      */
-    static @Nullable Material surface(JobTarget target) {
+    public static @Nullable Material surface(JobTarget target) {
         var name = target.surface();
         return name == null ? null : block(name);
     }

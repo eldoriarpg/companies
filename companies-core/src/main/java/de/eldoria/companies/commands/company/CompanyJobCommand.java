@@ -187,69 +187,38 @@ public final class CompanyJobCommand {
     @Executes("done")
     public void done(CommandSender sender, @IntArg(min = 0) int id) {
         var player = Senders.player(sender);
-        run(
-                player,
-                () -> {
-                    var company = company(player);
-                    var may = jobs().service().mayFinish(company, player.getUniqueId(), id);
-                    if (may == JobService.Change.HARVEST) {
-                        jobs().access().flush(id);
-                        var ended = jobs().service().endAsCompany(company, player.getUniqueId(), id);
-                        return ended == JobService.Change.DONE
-                                ? new JobService.Finished.Ended()
-                                : new JobService.Finished.Refused(ended);
-                    }
-                    if (may == JobService.Change.CONTRACT) {
-                        var marked = jobs().service().markDone(company, player.getUniqueId(), id);
-                        if (marked != JobService.Change.DONE) return new JobService.Finished.Refused(marked);
-                        var approveIn = deps.configuration().jobSettings().approveHours();
-                        return new JobService.Finished.Waiting(Times.now().plusHours(approveIn));
-                    }
-                    if (may != JobService.Change.DONE) return new JobService.Finished.Refused(may);
-                    var job = jobs().data().job(id).orElseThrow(() -> unknown(id));
-                    if (!job.node().equals(jobs().node())) {
-                        throw CommandFailure.of(PREFIX + "error.otherServer", Values.number("id", id));
-                    }
-                    jobs().access().flush(id);
-                    var progress = progress(job, true)
-                            .orElseThrow(() -> CommandFailure.of(PREFIX + "error.world", Values.number("id", id)));
-                    return jobs().service().finish(company, player.getUniqueId(), id, progress);
-                },
-                finished -> {
-                    switch (finished) {
-                        case JobService.Finished.Paid paid -> {
-                            jobs().access().checkSoon();
-                            deps.messages()
-                                    .sendMessage(
-                                            player,
-                                            PREFIX + "paid",
-                                            Values.number("id", id),
-                                            Values.money("paid", deps.services().economy(), paid.paid()));
-                        }
-                        case JobService.Finished.Ended ended -> {
-                            jobs().access().checkSoon();
-                            deps.messages().sendMessage(player, PREFIX + "ended", Values.number("id", id));
-                        }
-                        case JobService.Finished.Waiting waiting ->
-                            deps.messages()
-                                    .sendMessage(
-                                            player,
-                                            PREFIX + "marked",
-                                            Values.number("id", id),
-                                            Values.text("time", left(waiting.approveAt())));
-                        case JobService.Finished.NotDone notDone ->
-                            deps.messages()
-                                    .sendError(
-                                            player,
-                                            PREFIX + "notDone",
-                                            Values.number(
-                                                    "percent",
-                                                    notDone.progress().percent()),
-                                            Values.text(
-                                                    "block", notDone.progress().leftText()));
-                        case JobService.Finished.Refused refused -> refused(player, id, refused.change());
-                    }
-                });
+        run(player, () -> jobs().finish(company(player), player.getUniqueId(), id), finished -> {
+            switch (finished) {
+                case JobService.Finished.Paid paid -> {
+                    jobs().access().checkSoon();
+                    deps.messages()
+                            .sendMessage(
+                                    player,
+                                    PREFIX + "paid",
+                                    Values.number("id", id),
+                                    Values.money("paid", deps.services().economy(), paid.paid()));
+                }
+                case JobService.Finished.Ended ended -> {
+                    jobs().access().checkSoon();
+                    deps.messages().sendMessage(player, PREFIX + "ended", Values.number("id", id));
+                }
+                case JobService.Finished.Waiting waiting ->
+                    deps.messages()
+                            .sendMessage(
+                                    player,
+                                    PREFIX + "marked",
+                                    Values.number("id", id),
+                                    Values.text("time", left(waiting.approveAt())));
+                case JobService.Finished.NotDone notDone ->
+                    deps.messages()
+                            .sendError(
+                                    player,
+                                    PREFIX + "notDone",
+                                    Values.number("percent", notDone.progress().percent()),
+                                    Values.text("block", notDone.progress().leftText()));
+                case JobService.Finished.Refused refused -> refused(player, id, refused.change());
+            }
+        });
     }
 
     /**
@@ -631,6 +600,9 @@ public final class CompanyJobCommand {
                     case HOURS -> "error.extensionHours";
                     case ASKED -> "error.extensionAsked";
                     case REQUESTS -> "error.extensionRequests";
+                    case OTHER_SERVER -> "error.otherServer";
+                    case WORLD -> "error.world";
+                    case REFUSED -> "error.refused";
                     case DONE, TAKEN, TOO_LONG, AREA, CONTRACT, NOT_DONE, NO_COMPANY, NO_REQUEST -> "error.closed";
                 };
         var job = change == JobService.Change.HOURS || change == JobService.Change.REQUESTS

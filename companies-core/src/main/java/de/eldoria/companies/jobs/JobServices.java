@@ -6,9 +6,13 @@
 package de.eldoria.companies.jobs;
 
 import de.eldoria.companies.data.repository.AJobData;
+import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.jobs.hooks.JobHooks;
 
+import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.TimeUnit;
 
 /**
  * What the commands of jobs work with.
@@ -30,4 +34,47 @@ public record JobServices(
         JobProgress progress,
         UUID node,
         Blueprints blueprints,
-        BuildGhosts ghosts) {}
+        BuildGhosts ghosts) {
+    /**
+     * Finishes a job for a member's company: a harvest job ends, a contract is said to be done and waits for its owner,
+     * and a dig, terraform or build job has its area checked on this server and is paid when it is done. Blocks; call
+     * it off the main thread.
+     *
+     * @param company the company
+     * @param member  the member finishing it
+     * @param id      id of the job
+     * @return what came of it; {@link JobService.Change#OTHER_SERVER} for an area on another server and
+     *     {@link JobService.Change#WORLD} for one whose world is not loaded or whose check took too long
+     */
+    public JobService.Finished finish(CompanyProfile company, UUID member, int id) {
+        var may = service.mayFinish(company, member, id);
+        if (may == JobService.Change.HARVEST) {
+            access.flush(id);
+            var ended = service.endAsCompany(company, member, id);
+            return ended == JobService.Change.DONE
+                    ? new JobService.Finished.Ended()
+                    : new JobService.Finished.Refused(ended);
+        }
+        if (may == JobService.Change.CONTRACT) {
+            var marked = service.markDone(company, member, id);
+            if (marked != JobService.Change.DONE) return new JobService.Finished.Refused(marked);
+            return new JobService.Finished.Waiting(service.approveAt());
+        }
+        if (may != JobService.Change.DONE) return new JobService.Finished.Refused(may);
+        var job = data.job(id).orElse(null);
+        if (job == null) return new JobService.Finished.Refused(JobService.Change.UNKNOWN);
+        if (!job.node().equals(node)) return new JobService.Finished.Refused(JobService.Change.OTHER_SERVER);
+        access.flush(id);
+        Optional<DigCheck.Progress> scanned;
+        try {
+            scanned = progress.of(job, true)
+                    .copy()
+                    .orTimeout(JobAccess.MAIN_THREAD_SECONDS * 3L, TimeUnit.SECONDS)
+                    .join();
+        } catch (CompletionException e) {
+            scanned = Optional.empty();
+        }
+        if (scanned.isEmpty()) return new JobService.Finished.Refused(JobService.Change.WORLD);
+        return service.finish(company, member, id, scanned.get());
+    }
+}

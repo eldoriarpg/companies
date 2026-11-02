@@ -43,11 +43,12 @@ There are three kinds:
 - **Either.** The event is asynchronous when it is fired off the main thread and synchronous on the main thread. The
   tables say where it usually happens. Check `event.isAsynchronous()` when it matters to you.
 
-The base classes `CompanyEvent`, `OrderEvent`, `OfferEvent` and `ContestMembershipEvent` have no handler list. Listen to the events below, not to the bases.
+The base classes `CompanyEvent`, `OrderEvent`, `OfferEvent`, `ContestMembershipEvent`, `JobEvent` and
+`CancellableJobEvent` have no handler list. Listen to the events below, not to the bases.
 
 ## Pre-events and cancel reasons
 
-Six events fire **before** an action and can stop it:
+Eight events fire **before** an action and can stop it:
 
 - `PreCompanyCreateEvent`: a player is about to found a company. It fires only while the founder is online on that
   server; a company founded on the dashboard by a player who is not online skips it.
@@ -55,8 +56,10 @@ Six events fire **before** an action and can stop it:
 - `PreOrderAcceptEvent`: a member is about to claim an order for their company.
 - `PreSoloOrderAcceptEvent`: a player is about to take an order to work on it alone.
 - `ContestJoinEvent` and `ContestLeaveEvent`: a company is about to join or leave a contest.
+- `JobPostEvent` and `JobTakeEvent`: a job is about to be posted or taken.
 
-They implement `CancellableWithReason`. Cancel them in one of two ways:
+All but the job events implement `CancellableWithReason`; the job events are plain `Cancellable`, and the player sees
+"Another plugin prevented this." Cancel the others in one of two ways:
 
 - `event.cancel(Component reason)` stops the action. The player who triggered it gets your reason as a chat message,
   exactly as you built it.
@@ -255,6 +258,33 @@ first, each with the prize money that reached it (0 when its place has no prize 
 | `ENDED`                | Its end passed                                                   |
 | `BUDGET_SPENT`         | Its budget could not pay what was still missing                  |
 | `CANCELLED`            | An admin cancelled it, or it was cancelled with its server event |
+
+## Job events
+
+[Jobs](../players/jobs.md) fire these events in `de.eldoria.companies.events.job`. `job()` is an `IJob`.
+
+| Event            | When                                                                                     | Thread | Cancellable | Key methods |
+|------------------|------------------------------------------------------------------------------------------|--------|-------------|-------------|
+| `JobPostEvent`   | A job is about to be posted, after every check and before any money is taken; its id is 0. It may still fail when the owner can not pay | Either, usually off main | Yes | `job()`, `player()` |
+| `JobTakeEvent`   | A company is about to take an open job                                                   | Either, usually off main | Yes | `job()`, `company()`, `player()` |
+| `JobExtendEvent` | The owner gave a taken job more time                                                     | Either, usually off main | No  | `job()`, `hours()` |
+| `JobDoneEvent`   | The company said a contract is done; it waits for its owner                              | Either, usually off main | No  | `job()` |
+| `JobFinishEvent` | An area job checked out and its company was paid                                         | Either, usually off main | No  | `job()`, `paid()` |
+| `JobEndEvent`    | A job ended, for good or for its company                                                 | Either, usually off main | No  | `job()`, `reason()` |
+
+Each fires once in the whole network, on the server where it happens: where the player acted, the primary server for
+jobs that expire, run out of time or are approved without an answer, and the server holding the area when its land
+changes hands. `JobEndEvent` carries the job as it was before it ended.
+
+| `JobEndEvent.Reason` | Meaning                                                                   |
+|----------------------|---------------------------------------------------------------------------|
+| `PAID`               | Its company was paid: an area job checked out, a contract was approved, or a harvest ended |
+| `SETTLED`            | An admin settled its dispute                                              |
+| `CANCELLED`          | The owner cancelled it while it was open                                  |
+| `EXPIRED`            | Nobody took it in time                                                    |
+| `GIVEN_BACK`         | Its company gave it back or was disbanded; it is open again               |
+| `OVERDUE`            | Its company ran out of time; it is open again                             |
+| `LAND_LOST`          | Its land changed hands                                                    |
 
 ## Solo order events
 

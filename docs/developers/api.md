@@ -169,7 +169,8 @@ These are the write operations:
 - `orders().create(...)`
 - `players().grantItems(...)`
 - `events().create(...)`, `events().end(...)`, `events().cancel(...)`
-- `jobs().post(...)`
+- `jobs().post(...)`, `jobs().take(...)`, `jobs().giveBack(...)`, `jobs().cancel(...)`, `jobs().finish(...)`,
+  `jobs().approve(...)`, `jobs().reject(...)`
 - `areas().offer(...)`, `areas().withdraw(...)`
 
 `ApiNotReadyException` extends `IllegalStateException`. Depending on the write it arrives wrapped in a
@@ -532,7 +533,14 @@ the economy is set up, like the other writes.
 | `open(int limit)` | `CompletableFuture<List<? extends IJob>>` | Jobs waiting for a company, newest first |
 | `ofOwner(UUID owner, int limit)` | `CompletableFuture<List<? extends IJob>>` | The player's jobs in any state, newest first |
 | `ofCompany(int company)` | `CompletableFuture<List<? extends IJob>>` | The jobs a company holds: worked on, waiting for approval or disputed |
+| `blueprint(int id)` | `CompletableFuture<Optional<List<BuildBlock>>>` | The blocks a build job asks for, from the lowest corner of its area |
 | `post(JobRequest request)` | `CompletableFuture<PostJobResult>` | **Write.** Posts a job |
+| `take(int id, UUID member)` | `CompletableFuture<JobChange>` | **Write.** Takes an open job for the member's company |
+| `giveBack(int id, UUID member)` | `CompletableFuture<JobChange>` | **Write.** Gives a job back; it is open again |
+| `cancel(int id, UUID owner)` | `CompletableFuture<JobChange>` | **Write.** Cancels the owner's open job |
+| `finish(int id, UUID member)` | `CompletableFuture<JobChange>` | **Write.** Finishes a job of the member's company |
+| `approve(int id, UUID owner)` | `CompletableFuture<JobChange>` | **Write.** Pays the company of a held job in full, as it stands |
+| `reject(int id, UUID owner, String reason)` | `CompletableFuture<JobChange>` | **Write.** Sends such a contract back to work |
 
 `post` checks like `/order job`: the area lies on this server and within the world's height, on land the owner owns
 (or on unowned land where `jobs.yml` allows jobs in that world), and within the size and count limits. Start a
@@ -543,7 +551,7 @@ With `charge(false)` the owner pays nothing: the job takes no fee, its company i
 and nothing goes back to the owner when it ends unfinished. `IJob.charged()` tells the two apart.
 
 The future completes with `PostJobResult.Posted` and the `IJob`, or `PostJobResult.Rejected` with a `JobProblem`, such
-as `FOREIGN_LAND`, `VOLUME` or `FUNDS`. Nothing was charged for a rejected job, except `STRANDED`: a build job taken
+as `FOREIGN_LAND`, `VOLUME`, `FUNDS`, or `REFUSED` when a listener cancelled the `JobPostEvent`. Nothing was charged for a rejected job, except `STRANDED`: a build job taken
 before its blueprint was saved, whose money stays held until an admin settles it.
 
 ```java
@@ -553,7 +561,24 @@ api.jobs().post(request).thenAccept(result -> {
 });
 ```
 
-Taking, finishing and ending jobs happen in game and on the dashboard; the API has no events for jobs yet.
+Besides its area, an `IJob` shows `extension()` (hours the owner added, an open request of its company), `target()`
+(the height and surface block of a terraform job), `harvest()` (price per item and what was paid of a harvest job) and
+`review()` (when a contract was said to be done, the last rejection, a dispute and its settlement).
+
+The other writes act as the commands do, for a player who need not be online. `take`, `giveBack` and `finish` act for
+the member's company and need its `manage_orders` permission; `cancel`, `approve` and `reject` act for the owner.
+`finish` checks a dig, terraform or build job's area on this server and pays the company when it is done; for a
+harvest job it ends the harvest, for a contract it says the work is done and waits for the owner. The area check runs
+on the main thread, so never wait for the future of `finish` there. `approve` pays a contract its company said is
+done, and also any dig, terraform or build job a company holds, in full and as it stands. The future
+completes with a `JobChange`: `DONE`, or why not, such as `NO_COMPANY`, `NOT_YOURS`, `LIMIT`, `NOT_DONE`,
+`OTHER_SERVER`, `NOT_LOADED` or `REFUSED` when a listener cancelled the change. See [Job events](./events.md#job-events).
+
+```java
+api.jobs().take(jobId, member.getUniqueId()).thenAccept(change -> {
+    if (change != JobChange.DONE) getLogger().info("Could not take job " + jobId + ": " + change);
+});
+```
 
 ## Areas: `areas()`
 

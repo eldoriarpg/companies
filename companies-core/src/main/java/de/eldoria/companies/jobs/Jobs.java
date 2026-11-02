@@ -307,6 +307,8 @@ public final class Jobs {
                         .maxOrders(),
                 Times.UTC,
                 plugin.getLogger());
+        service.events(new JobApiEvents(
+                plugin.getServer().getPluginManager()::callEvent, plugin.getServer()::getOfflinePlayer));
         var node = configuration.nodeSettings().nodeUid();
         var blueprints = new Blueprints(jobs, plugin.getLogger());
         var progress = new JobProgress(

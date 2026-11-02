@@ -139,6 +139,22 @@ public final class Blueprint {
     }
 
     /**
+     * @return every position that asks for a block, at offsets from the lowest corner of the area
+     */
+    public List<Cell> cells() {
+        List<Cell> found = new ArrayList<>();
+        for (var y = 0; y < height; y++) {
+            for (var z = 0; z < length; z++) {
+                for (var x = 0; x < width; x++) {
+                    var id = cells[(y * length + z) * width + x];
+                    if (id > 0) found.add(new Cell(x, y, z, palette.get(id - 1)));
+                }
+            }
+        }
+        return found;
+    }
+
+    /**
      * @return how many positions ask for a block
      */
     public int blocks() {

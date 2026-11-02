@@ -363,6 +363,7 @@ public final class JobWrites {
                     case HOURS -> "error.extensionHours";
                     case ASKED -> "error.extensionAsked";
                     case REQUESTS -> "error.extensionRequests";
+                    case REFUSED -> "error.refused";
                     default -> "error.closed";
                 };
         return answers.refused(

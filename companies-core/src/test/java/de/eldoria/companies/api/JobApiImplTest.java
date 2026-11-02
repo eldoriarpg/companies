@@ -5,17 +5,22 @@
  */
 package de.eldoria.companies.api;
 
+import de.eldoria.companies.api.write.JobChange;
 import de.eldoria.companies.api.write.JobProblem;
 import de.eldoria.companies.api.write.JobRequest;
 import de.eldoria.companies.api.write.PostJobResult;
 import de.eldoria.companies.components.job.BuildBlock;
 import de.eldoria.companies.components.job.JobBox;
 import de.eldoria.companies.components.job.JobKind;
+import de.eldoria.companies.components.job.JobState;
 import de.eldoria.companies.configuration.elements.jobs.JobSettings;
+import de.eldoria.companies.data.repository.impl.sqlite.SqLiteCompanyData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteJobData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteTestDatabase;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.job.Job;
+import de.eldoria.companies.jobs.Blueprints;
+import de.eldoria.companies.jobs.JobAccess;
 import de.eldoria.companies.jobs.JobService;
 import de.eldoria.companies.jobs.JobServices;
 import de.eldoria.companies.jobs.hooks.JobHooks;
@@ -36,7 +41,9 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -46,6 +53,7 @@ import java.util.logging.Logger;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -65,6 +73,7 @@ class JobApiImplTest {
     private ServerMock server;
     private ExecutorService executor;
     private SqLiteJobData jobs;
+    private SqLiteCompanyData companies;
     private JobApiImpl api;
     private UUID owner;
 
@@ -75,6 +84,7 @@ class JobApiImplTest {
         SqLiteTestDatabase.create(directory);
         executor = Executors.newFixedThreadPool(2);
         jobs = new SqLiteJobData();
+        companies = new SqLiteCompanyData(executor);
         owner = UUID.randomUUID();
         balances.put(owner, 1000.0);
         settings.unownedWorlds(List.of("world"));
@@ -100,10 +110,28 @@ class JobApiImplTest {
                 null,
                 null,
                 null,
-                new JobServices(jobs, service, hooks, null, null, NODE, null, null),
+                new JobServices(
+                        jobs,
+                        service,
+                        hooks,
+                        new JobAccess(
+                                jobs,
+                                company -> Set.of(),
+                                hooks,
+                                NODE,
+                                Runnable::run,
+                                job -> {},
+                                job -> CompletableFuture.completedFuture(null),
+                                (job, company, worker, items) -> {},
+                                new Blueprints(jobs, Logger.getAnonymousLogger()),
+                                Logger.getAnonymousLogger()),
+                        null,
+                        NODE,
+                        null,
+                        null),
                 () -> settings,
                 Runnable::run));
-        api = new JobApiImpl(jobs, writes, server::getOfflinePlayer, executor);
+        api = new JobApiImpl(jobs, companies, writes, server::getOfflinePlayer, executor);
     }
 
     @AfterEach
@@ -188,6 +216,63 @@ class JobApiImplTest {
         assertEquals(
                 JobProblem.NO_WORLD,
                 problem(JobRequest.contract(owner, "Advice", 50, 12, null, new JobBox("nowhere", 0, 60, 0, 0, 60, 0))));
+    }
+
+    @Test
+    void readsTheBlocksABuildJobAsksFor() throws Exception {
+        var build = new JobRequest.Build(
+                "world",
+                10,
+                64,
+                10,
+                List.of(new BuildBlock(0, 0, 0, Material.STONE), new BuildBlock(2, 1, 0, Material.OAK_PLANKS)));
+        var job = assertInstanceOf(PostJobResult.Posted.class, post(JobRequest.build(owner, "Hut", 300, 48, build)))
+                .job();
+        var dig = assertInstanceOf(PostJobResult.Posted.class, post(JobRequest.dig(owner, "Cellar", 200, 24, CELLAR)))
+                .job();
+
+        assertEquals(
+                List.of(new BuildBlock(0, 0, 0, Material.STONE), new BuildBlock(2, 1, 0, Material.OAK_PLANKS)),
+                api.blueprint(job.id()).get(5, TimeUnit.SECONDS).orElseThrow());
+        assertTrue(api.blueprint(dig.id()).get(5, TimeUnit.SECONDS).isEmpty());
+        assertTrue(api.blueprint(999).get(5, TimeUnit.SECONDS).isEmpty());
+    }
+
+    @Test
+    void anOwnerCancelsAnOpenJobAndAPlayerWithoutCompanyTakesNothing() throws Exception {
+        var job = assertInstanceOf(PostJobResult.Posted.class, post(JobRequest.dig(owner, "Cellar", 200, 24, CELLAR)))
+                .job();
+
+        assertEquals(JobChange.UNKNOWN, api.approve(job.id(), UUID.randomUUID()).get(5, TimeUnit.SECONDS));
+        assertEquals(JobChange.NO_COMPANY, api.take(job.id(), UUID.randomUUID()).get(5, TimeUnit.SECONDS));
+        assertEquals(JobChange.UNKNOWN, api.cancel(job.id(), UUID.randomUUID()).get(5, TimeUnit.SECONDS));
+        assertEquals(JobChange.DONE, api.cancel(job.id(), owner).get(5, TimeUnit.SECONDS));
+        assertEquals(JobState.CANCELLED, jobs.job(job.id()).orElseThrow().state());
+        assertEquals(JobChange.CLOSED, api.cancel(job.id(), owner).get(5, TimeUnit.SECONDS));
+    }
+
+    @Test
+    void everyChangeOfTheServiceHasAnAnswer() {
+        for (var change : JobService.Change.values()) assertNotNull(JobApiImpl.change(change));
+        assertEquals(JobChange.REFUSED, JobApiImpl.change(JobService.Change.REFUSED));
+        assertEquals(JobChange.WRONG_KIND, JobApiImpl.change(JobService.Change.CONTRACT));
+    }
+
+    @Test
+    void theJobShowsItsTargetHarvestExtensionAndReview() throws Exception {
+        var floor = assertInstanceOf(
+                        PostJobResult.Posted.class,
+                        post(JobRequest.terraform(owner, "Floor", 200, 24, CELLAR, 61, Material.GRASS_BLOCK)))
+                .job();
+
+        var target = floor.target().orElseThrow();
+        assertEquals(61, target.y());
+        assertEquals(Material.GRASS_BLOCK, target.surface().orElseThrow());
+        assertTrue(floor.harvest().isEmpty());
+        assertEquals(0, floor.extension().extendedHours());
+        assertTrue(floor.extension().askedHours().isEmpty());
+        assertTrue(floor.review().doneAt().isEmpty());
+        assertTrue(floor.review().settledPercent().isEmpty());
     }
 
     @Test

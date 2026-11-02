@@ -21,6 +21,7 @@ import de.eldoria.companies.data.wrapper.job.JobArea;
 import de.eldoria.companies.data.wrapper.job.JobExtension;
 import de.eldoria.companies.data.wrapper.job.JobLand;
 import de.eldoria.companies.data.wrapper.job.JobTarget;
+import de.eldoria.companies.events.job.JobEndEvent;
 import de.eldoria.companies.orders.OrderTable;
 import de.eldoria.companies.util.TestExecutors;
 import org.bukkit.Material;
@@ -486,6 +487,110 @@ class JobServiceTest {
         assertEquals(86.4, balances.get(worker), 0.001);
         assertTrue(notices.contains("company LAND_LOST " + job.id() + " 60% 200 120.0"), notices.toString());
         assertEquals(List.of(), penalties);
+    }
+
+    @Test
+    void aListenerStopsAPostOrATakeBeforeAnythingChanges() {
+        var job = posted(200);
+        service.events(new JobService.Events() {
+            @Override
+            public boolean allowsPost(Job draft) {
+                return false;
+            }
+
+            @Override
+            public boolean allowsTake(Job job, CompanyProfile company, UUID member) {
+                return false;
+            }
+        });
+        var before = balances.get(owner);
+
+        assertEquals(JobService.Refusal.REFUSED, refusal(post(200, 24, new JobArea("world", 20, 60, 20, 22, 62, 22))));
+        assertEquals(before, balances.get(owner));
+        assertEquals(JobService.Change.REFUSED, service.take(company, manager, job.id()));
+        assertEquals(JobState.OPEN, jobs.job(job.id()).orElseThrow().state());
+    }
+
+    @Test
+    void theLifeOfAJobIsHeardWhereItsChangeIsWon() {
+        List<String> heard = new ArrayList<>();
+        service.events(new JobService.Events() {
+            @Override
+            public void finished(Job job, double paid) {
+                heard.add("finished " + job.id() + " " + paid);
+            }
+
+            @Override
+            public void ended(Job job, JobEndEvent.Reason reason) {
+                heard.add(reason + " " + job.id());
+            }
+
+            @Override
+            public void markedDone(Job job) {
+                heard.add("done " + job.id());
+            }
+        });
+        var dig = posted(200);
+        service.take(company, manager, dig.id());
+        service.giveBack(company, manager, dig.id());
+        service.take(company, manager, dig.id());
+        jobs.work(dig.id(), company.id(), worker, 10);
+        service.finish(company, manager, dig.id(), DONE);
+        var open = post(100, 24, POINT);
+        var cancelled = ((JobService.Posted.Done) open).job();
+        service.cancel(owner, "owner", cancelled.id());
+
+        assertEquals(
+                List.of(
+                        "GIVEN_BACK " + dig.id(),
+                        "finished " + dig.id() + " 144.0",
+                        "PAID " + dig.id(),
+                        "CANCELLED " + cancelled.id()),
+                heard);
+    }
+
+    @Test
+    void aListenerThatFailsNeitherStopsAJobNorItsMoney() {
+        service.events(new JobService.Events() {
+            @Override
+            public boolean allowsPost(Job draft) {
+                throw new IllegalStateException("listener");
+            }
+
+            @Override
+            public void ended(Job job, JobEndEvent.Reason reason) {
+                throw new IllegalStateException("listener");
+            }
+        });
+        var job = posted(200);
+        service.take(company, manager, job.id());
+        jobs.work(job.id(), company.id(), worker, 10);
+
+        var finished = service.finish(company, manager, job.id(), DONE);
+
+        assertEquals(
+                144.0,
+                assertInstanceOf(JobService.Finished.Paid.class, finished).paid(),
+                0.001);
+        assertEquals(JobState.PAID, jobs.job(job.id()).orElseThrow().state());
+        assertEquals(144.0, balances.get(worker), 0.001);
+    }
+
+    @Test
+    void anExpiredJobIsHeard() {
+        var job = posted(200);
+        clock = Clock.offset(clock, Duration.ofDays(8));
+        service();
+        List<String> heard = new ArrayList<>();
+        service.events(new JobService.Events() {
+            @Override
+            public void ended(Job job, JobEndEvent.Reason reason) {
+                heard.add(reason + " " + job.id());
+            }
+        });
+
+        assertEquals(List.of(job.id()), service.check().expired());
+        assertEquals(List.of("EXPIRED " + job.id()), heard);
     }
 
     @Test
