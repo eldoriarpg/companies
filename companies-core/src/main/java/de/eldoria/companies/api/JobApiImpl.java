@@ -27,6 +27,7 @@ import de.eldoria.companies.jobs.hooks.JobHooks;
 import de.eldoria.companies.util.Times;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
+import org.bukkit.block.data.BlockData;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
@@ -108,7 +109,7 @@ final class JobApiImpl implements JobApi {
                         .filter(job -> job.kind() == JobKind.BUILD)
                         .flatMap(job -> jobs.blueprint(id))
                         .map(data -> Blueprint.decode(data).cells().stream()
-                                .map(cell -> new BuildBlock(cell.x(), cell.y(), cell.z(), cell.type()))
+                                .map(cell -> new BuildBlock(cell.x(), cell.y(), cell.z(), cell.type(), blockData(cell)))
                                 .toList()),
                 executor);
     }
@@ -263,8 +264,22 @@ final class JobApiImpl implements JobApi {
         var build = request.build();
         if (build == null) return null;
         return Blueprint.of(build.blocks().stream()
-                .map(block -> new Blueprint.Cell(block.x(), block.y(), block.z(), block.type()))
+                .map(block -> {
+                    var data = block.data();
+                    return data == null
+                            ? new Blueprint.Cell(block.x(), block.y(), block.z(), block.type())
+                            : new Blueprint.Cell(block.x(), block.y(), block.z(), block.type(), data.getAsString());
+                })
                 .toList());
+    }
+
+    private static @Nullable BlockData blockData(Blueprint.Cell cell) {
+        if (cell.data().indexOf('[') < 0) return null;
+        try {
+            return Bukkit.createBlockData(cell.data());
+        } catch (RuntimeException e) {
+            return null;
+        }
     }
 
     private static JobArea area(JobRequest request, @Nullable Blueprint blueprint) {

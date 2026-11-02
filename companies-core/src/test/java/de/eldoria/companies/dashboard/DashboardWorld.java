@@ -90,6 +90,7 @@ import de.eldoria.companies.jobs.JobAccess;
 import de.eldoria.companies.jobs.JobProgress;
 import de.eldoria.companies.jobs.JobService;
 import de.eldoria.companies.jobs.JobServices;
+import de.eldoria.companies.jobs.MaterialCosts;
 import de.eldoria.companies.jobs.hooks.JobHooks;
 import de.eldoria.companies.orders.CompanyOrderService;
 import de.eldoria.companies.orders.DeliveryResult;
@@ -879,7 +880,8 @@ public final class DashboardWorld implements AutoCloseable {
                 new JobProgress(plugin, node, blueprints, () -> 95),
                 node,
                 blueprints,
-                new BuildGhosts(plugin));
+                new BuildGhosts(plugin),
+                new MaterialCosts(blueprints, type -> 0));
     }
 
     private AdminServerWrites adminServers(SqLiteOrderData orders) {

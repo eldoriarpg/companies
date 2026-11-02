@@ -55,20 +55,35 @@ While a company works on your job, only its members may place blocks or pour buc
 ## Build jobs
 
 A **build job** asks a company to build a schematic. The server's schematics are listed by `/order job schematics`;
-an admin puts them into the plugin's `schematics` folder. Stand where the schematic's origin should be and look at its
-outline with `/order job blueprint <schematic> <rotation>`, where `rotation` turns it clockwise by 0, 90, 180 or 270
-degrees. When it fits, post it from the same spot: `/order job build <schematic> <rotation> <price> <hours> <title>`.
-The area is the box the schematic covers there, and it must lie on your land like any other job.
+an admin puts them into the plugin's `schematics` folder. Stand where the schematic's origin should be and preview it
+with `/order job blueprint <schematic> <rotation>`, where `rotation` turns it clockwise by 0, 90, 180 or 270 degrees:
+its outline and small glowing copies of its blocks show where it would stand for 30 seconds, only for you, and the
+chat says what its blocks cost at the server's prices. A preview can be shown every 10 seconds; a large schematic
+shows its lowest 4096 blocks.
+
+When it fits, post it from the same spot: `/order job build <schematic> <rotation> <price> <hours> <title>` previews
+it once more and asks you to confirm with the button or `/order job build confirm`. If the price is below what the
+blocks cost, the question says so, as companies may pass such a job by; you can still post it. The area is the box the
+schematic covers there, and it must lie on your land like any other job. The cost of its blocks is shown on the job in
+game and on the dashboard too.
 
 The job is done when enough of the schematic's blocks are in place: `buildMatchPercent` (95 % by default) in
-[jobs.yml](../admin/configuration/jobs-yml.md). Only block types count, not which way a stair faces or how a fence
-connects. Where the schematic has air, anything goes, so terrain and furniture never hold the job up.
+[jobs.yml](../admin/configuration/jobs-yml.md). A block counts when its type is right and it is turned as the schematic
+has it: which way it faces, its top or bottom half, its axis, a door's hinge, a slab's half. How a fence or wall connects
+and the corner shape of a stair are left to the neighbours and never count. Where the schematic has air, anything goes,
+so terrain and furniture never hold the job up.
+
+While the company builds, its members may place only the block the schematic asks for at a spot, plus the blocks of
+`buildWhitelist` (scaffolding by default) anywhere to build up; anything else is refused with what the spot asks for.
+A block of the right type placed turned another way is turned as the schematic has it. Blocks of two parts, such as
+doors and beds, joined chests and slabs that are or should be double are not turned and must be placed the right way.
 
 Members of the company see what is missing with `/company job ghosts <id>`: small glowing copies of the missing and
 wrong blocks of one layer, only for them, starting with the lowest layer that is not done.
 `/company job ghosts next <id>` and `/company job ghosts previous <id>` move a layer up or down,
-`/company job ghosts off` hides them. Placing a block the schematic asks for counts as work, once for each spot, and so
-does taking out a wrong block.
+`/company job ghosts off` hides them. A ghost goes away as its block is placed the right way and comes back when the
+block is broken; they all go when the job is no longer worked on. Placing a block the schematic asks for counts as
+work, once for each spot, and so does taking out a wrong block.
 
 ## Harvest jobs
 
@@ -155,8 +170,9 @@ for what happens only in game:
 | Command | What it does |
 |---|---|
 | `/order job schematics` | Lists the schematics build jobs may use. |
-| `/order job blueprint <schematic> <rotation>` | Outlines a schematic placed where you stand for ten seconds. |
-| `/order job build <schematic> <rotation> <price> <hours> <title>` | Posts a build job of a schematic placed where you stand. |
+| `/order job blueprint <schematic> <rotation>` | Previews a schematic placed where you stand and tells what its blocks cost. |
+| `/order job build <schematic> <rotation> <price> <hours> <title>` | Previews a build job of a schematic placed where you stand and asks to confirm it. |
+| `/order job build confirm` | Posts the build job you were asked to confirm. |
 | `/order job harvest <price per item> <budget> <hours> <title>` | Posts a harvest job on the field you selected with WorldEdit. |
 | `/order job stock <id>` | Lists the stock of a harvest job. |
 | `/order job collect <id>` | Takes the stock of a harvest job into your inventory. |

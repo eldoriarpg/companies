@@ -46,6 +46,7 @@ import de.eldoria.companies.configuration.elements.NodeType;
 import de.eldoria.companies.dashboard.Dashboard;
 import de.eldoria.companies.dashboard.DashboardModule;
 import de.eldoria.companies.dashboard.KeyCommandFilter;
+import de.eldoria.companies.dashboard.views.PlainText;
 import de.eldoria.companies.data.DataSourceFactory;
 import de.eldoria.companies.data.migration.UtcMigration;
 import de.eldoria.companies.data.repository.AAreaData;
@@ -226,6 +227,7 @@ import de.eldoria.eldoutilities.debug.DebugDataProvider;
 import de.eldoria.eldoutilities.localization.ILocalizer;
 import de.eldoria.eldoutilities.localization.Localizer;
 import de.eldoria.eldoutilities.messages.MessageSender;
+import de.eldoria.eldoutilities.messages.Replacement;
 import de.eldoria.eldoutilities.plugin.EldoPlugin;
 import de.eldoria.messageblocker.MessageBlockerAPI;
 import de.eldoria.messageblocker.blocker.MessageBlocker;
@@ -655,6 +657,25 @@ public class Companies extends EldoPlugin {
                 feeReductions,
                 api.areaProviders());
         jobs = jobServices;
+        var jobMessages = MessageSender.getPluginMessageSender(this);
+        jobServices.access().building(() -> configuration.jobSettings().buildWhitelist(), (player, want) -> {
+            if (want != null) {
+                jobMessages.sendErrorActionBar(
+                        player,
+                        "company.job.error.blueprintBlock",
+                        Replacement.create(
+                                "block", PlainText.keyName(want.type().getKey())));
+                return;
+            }
+            var blocks = configuration.jobSettings().buildWhitelist().stream()
+                    .map(type -> PlainText.keyName(type.getKey()))
+                    .sorted()
+                    .toList();
+            jobMessages.sendErrorActionBar(
+                    player,
+                    "company.job.error.blueprintNone",
+                    Replacement.create("blocks", blocks.isEmpty() ? "-" : String.join(", ", blocks)));
+        });
         var homeTeleports = homeTeleports(economy, treasuryService);
         homes = homeTeleports;
         var areaSync = new AreaSync(

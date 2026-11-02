@@ -1239,6 +1239,16 @@ export interface JobDetails {
     requestsLeft?: number
     /** The company's open request for more time, none without one. */
     request?: ExtensionRequest | null
+    /** What the blocks of a build job's blueprint cost; missing for other kinds and from older plugins. */
+    materialCost?: MaterialCost | null
+}
+
+/** What the blocks of a build job's blueprint cost. */
+export interface MaterialCost {
+    /** The cost of the blocks with a known price. */
+    total: number
+    /** How many block types have no known price and are left out. */
+    unpriced: number
 }
 
 /** The open request of the company working on a job for more time. */

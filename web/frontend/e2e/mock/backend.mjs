@@ -662,6 +662,7 @@ function jobDetails(job) {
         hoursLeft: job.state === 'taken' ? 312 - (job.extendedHours ?? 0) : 0,
         requestsLeft: job.state === 'taken' ? (job.requestsLeft ?? 3) : 0,
         request: job.state === 'taken' ? (job.request ?? null) : null,
+        materialCost: job.kind === 'build' ? {total: 1840, unpriced: 0} : null,
     }
 }
 

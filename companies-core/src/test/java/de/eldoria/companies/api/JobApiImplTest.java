@@ -26,6 +26,7 @@ import de.eldoria.companies.jobs.JobServices;
 import de.eldoria.companies.jobs.hooks.JobHooks;
 import de.eldoria.companies.orders.OrderTable;
 import de.eldoria.companies.util.TestExecutors;
+import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.jetbrains.annotations.Nullable;
 import org.junit.jupiter.api.AfterEach;
@@ -128,6 +129,7 @@ class JobApiImplTest {
                         null,
                         NODE,
                         null,
+                        null,
                         null),
                 () -> settings,
                 Runnable::run));
@@ -216,6 +218,14 @@ class JobApiImplTest {
         assertEquals(
                 JobProblem.NO_WORLD,
                 problem(JobRequest.contract(owner, "Advice", 50, 12, null, new JobBox("nowhere", 0, 60, 0, 0, 60, 0))));
+    }
+
+    @Test
+    void aBuildBlockTakesOnlyDataOfItsOwnType() {
+        var stone = Bukkit.createBlockData(Material.STONE);
+
+        assertEquals(Material.STONE, new BuildBlock(0, 0, 0, stone).type());
+        assertThrows(IllegalArgumentException.class, () -> new BuildBlock(0, 0, 0, Material.DIRT, stone));
     }
 
     @Test

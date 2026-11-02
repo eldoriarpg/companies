@@ -31,6 +31,7 @@ import de.eldoria.companies.util.Texts;
 import de.eldoria.companies.util.Threading;
 import de.eldoria.companies.util.Times;
 import net.milkbowl.vault.economy.Economy;
+import org.bukkit.Material;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.plugin.Plugin;
@@ -57,6 +58,8 @@ public final class Jobs {
      * How often the primary expires jobs and opens overdue ones again, in minutes.
      */
     public static final int CHECK_MINUTES = 1;
+
+    private static final long GHOST_PRUNE_TICKS = 100;
 
     private Jobs() {}
 
@@ -335,11 +338,22 @@ public final class Jobs {
         plugin.getServer().getPluginManager().registerEvents(new Disbands(service, access, plugin), plugin);
         var ghosts = new BuildGhosts(plugin);
         plugin.getServer().getPluginManager().registerEvents(ghosts, plugin);
-        return new JobServices(jobs, service, hooks, access, progress, node, blueprints, ghosts);
+        var costs = new MaterialCosts(blueprints, type -> price(orders, type, plugin));
+        return new JobServices(jobs, service, hooks, access, progress, node, blueprints, ghosts, costs);
+    }
+
+    private static double price(AOrderData orders, Material type, Plugin plugin) {
+        try {
+            return orders.retrieveMaterialPrice(type.name()).asFuture().join().price();
+        } catch (RuntimeException e) {
+            plugin.getLogger().log(Level.WARNING, "Could not read the price of " + type, e);
+            return 0;
+        }
     }
 
     /**
-     * Schedules the access of this server's areas and, on the primary, the check that expires jobs.
+     * Schedules the access of this server's areas, the removal of ghost blocks of jobs that ended and, on the primary,
+     * the check that expires jobs.
      *
      * @param services the jobs
      * @param primary  whether this server is the primary
@@ -349,6 +363,13 @@ public final class Jobs {
     public static void schedule(
             JobServices services, boolean primary, ScheduledExecutorService executor, Plugin plugin) {
         services.access().schedule(executor);
+        plugin.getServer()
+                .getScheduler()
+                .runTaskTimer(
+                        plugin,
+                        () -> services.ghosts().prune(services.access()::working),
+                        GHOST_PRUNE_TICKS,
+                        GHOST_PRUNE_TICKS);
         if (!primary) return;
         executor.scheduleWithFixedDelay(
                 () -> {

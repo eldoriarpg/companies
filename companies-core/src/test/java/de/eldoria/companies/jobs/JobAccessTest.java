@@ -18,6 +18,7 @@ import de.eldoria.companies.data.wrapper.job.JobTarget;
 import de.eldoria.companies.jobs.hooks.Claim;
 import de.eldoria.companies.jobs.hooks.JobHooks;
 import de.eldoria.companies.jobs.hooks.JobLandHook;
+import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.block.Block;
@@ -568,6 +569,75 @@ class JobAccessTest {
         var undo = new BlockBreakEvent(world.getBlockAt(0, 60, 0), owner);
         sync.onHold(undo);
         assertTrue(undo.isCancelled());
+    }
+
+    @Test
+    void membersPlaceOnlyWhatTheBlueprintAsksForOrTheWhitelist() {
+        var worker = server.addPlayer();
+        var id = buildJob(Blueprint.of(
+                List.of(new Blueprint.Cell(0, 0, 0, Material.STONE), new Blueprint.Cell(1, 0, 0, Material.STONE))));
+        List<Material> told = new ArrayList<>();
+        sync.building(() -> Set.of(Material.SCAFFOLDING), (player, want) -> told.add(want.type()));
+        members.put(3, Set.of(worker.getUniqueId()));
+        sync.check();
+
+        var glass = placing(worker, world.getBlockAt(0, 60, 0), Material.GLASS);
+        var stone = placing(worker, world.getBlockAt(0, 60, 0), Material.STONE);
+        var scaffolding = placing(worker, world.getBlockAt(1, 60, 0), Material.SCAFFOLDING);
+
+        assertTrue(glass.isCancelled());
+        assertFalse(stone.isCancelled());
+        assertFalse(scaffolding.isCancelled());
+        assertEquals(List.of(Material.STONE), told);
+        assertTrue(jobs.job(id).isPresent());
+    }
+
+    @Test
+    void aBlockPlacedTurnedAnotherWayIsTurnedAndCounts() {
+        var worker = server.addPlayer();
+        var asked = "minecraft:oak_stairs[facing=north,half=bottom,shape=straight,waterlogged=false]";
+        var id = buildJob(Blueprint.of(List.of(
+                new Blueprint.Cell(0, 0, 0, Material.OAK_STAIRS, asked), new Blueprint.Cell(1, 0, 0, Material.STONE))));
+        members.put(3, Set.of(worker.getUniqueId()));
+        sync.check();
+        var block = world.getBlockAt(0, 60, 0);
+
+        block.setBlockData(Bukkit.createBlockData(asked.replace("north", "east")));
+        sync.onPlaced(new BlockPlaceEvent(
+                block, block.getState(), block, new ItemStack(Material.OAK_STAIRS), worker, true, EquipmentSlot.HAND));
+        sync.flush();
+
+        assertEquals(
+                "north", Blueprint.states(block.getBlockData().getAsString()).get("facing"));
+        assertEquals(Map.of(worker.getUniqueId(), 1), jobs.workOf(id));
+    }
+
+    private int buildJob(Blueprint blueprint) {
+        var id = jobs.create(Job.draft(
+                        UUID.randomUUID(),
+                        JobKind.BUILD,
+                        "Wall",
+                        100,
+                        5,
+                        NODE,
+                        new JobArea("world", 0, 60, 0, 1, 60, 0),
+                        JobLand.AREA,
+                        "plotsquared:plots|1;1",
+                        24,
+                        NOW,
+                        NOW.plusDays(7)))
+                .orElseThrow();
+        jobs.blueprint(id, blueprint.encode());
+        jobs.take(id, 3, NOW, NOW.plusDays(1));
+        return id;
+    }
+
+    private BlockPlaceEvent placing(Player player, Block block, Material type) {
+        block.setType(type);
+        var event = new BlockPlaceEvent(
+                block, block.getState(), block, new ItemStack(type), player, true, EquipmentSlot.HAND);
+        sync.onPlace(event);
+        return event;
     }
 
     private int harvestJob() {

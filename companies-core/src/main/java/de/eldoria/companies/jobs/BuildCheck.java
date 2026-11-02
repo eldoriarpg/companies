@@ -11,14 +11,14 @@ import org.bukkit.World;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * Checks a build job: the share of its blueprint's blocks whose type matches must reach the match percent. Positions the
- * blueprint leaves as air do not count either way.
+ * Checks a build job: the share of its blueprint's blocks that match, by type and the states the blueprint fixes, must
+ * reach the match percent. Positions the blueprint leaves as air do not count either way.
  */
 public final class BuildCheck {
     private BuildCheck() {}
 
     /**
-     * Reads a block type of a world.
+     * Reads the blocks of a world.
      */
     @FunctionalInterface
     public interface Types {
@@ -29,6 +29,29 @@ public final class BuildCheck {
          * @return its type
          */
         Material at(int x, int y, int z);
+
+        /**
+         * @param x x of the block
+         * @param y y of the block
+         * @param z z of the block
+         * @return its block data as text; the type alone unless the reader knows more
+         */
+        default String data(int x, int y, int z) {
+            return Blueprint.key(at(x, y, z));
+        }
+
+        /**
+         * @param want what a blueprint asks for at a position
+         * @param x    x of the block
+         * @param y    y of the block
+         * @param z    z of the block
+         * @return whether the block there is as asked, its block data read only when the blueprint fixes states
+         */
+        default boolean matches(Blueprint.Want want, int x, int y, int z) {
+            var type = at(x, y, z);
+            if (type != want.type()) return false;
+            return want.fixed().isEmpty() || want.matches(type, data(x, y, z));
+        }
     }
 
     /**
@@ -47,10 +70,10 @@ public final class BuildCheck {
         for (var y = area.maxY(); y >= area.minY(); y--) {
             for (var x = area.minX(); x <= area.maxX(); x++) {
                 for (var z = area.minZ(); z <= area.maxZ(); z++) {
-                    var wanted = blueprint.at(area, x, y, z);
+                    var wanted = blueprint.want(area, x, y, z);
                     if (wanted == null) continue;
                     total++;
-                    if (types.at(x, y, z) == wanted) {
+                    if (types.matches(wanted, x, y, z)) {
                         matched++;
                     } else if (left == null) {
                         left = new int[] {x, y, z};
@@ -67,6 +90,16 @@ public final class BuildCheck {
      * @return a reader of its block types
      */
     public static Types of(World world) {
-        return (x, y, z) -> world.getBlockAt(x, y, z).getType();
+        return new Types() {
+            @Override
+            public Material at(int x, int y, int z) {
+                return world.getBlockAt(x, y, z).getType();
+            }
+
+            @Override
+            public String data(int x, int y, int z) {
+                return world.getBlockAt(x, y, z).getBlockData().getAsString();
+            }
+        };
     }
 }

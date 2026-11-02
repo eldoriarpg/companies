@@ -5,6 +5,7 @@
  */
 package de.eldoria.companies.commands.order;
 
+import com.google.common.cache.CacheBuilder;
 import de.eldoria.companies.commands.CommandDependencies;
 import de.eldoria.companies.commands.support.CommandFailure;
 import de.eldoria.companies.commands.support.PlayerOnly;
@@ -22,9 +23,12 @@ import de.eldoria.companies.jobs.Blueprint;
 import de.eldoria.companies.jobs.DigCheck;
 import de.eldoria.companies.jobs.JobService;
 import de.eldoria.companies.jobs.JobServices;
+import de.eldoria.companies.jobs.MaterialCosts;
 import de.eldoria.companies.jobs.TerraformCheck;
 import de.eldoria.companies.jobs.hooks.JobHooks;
+import de.eldoria.companies.menus.ConfirmFlow;
 import de.eldoria.companies.menus.MenuComponents;
+import de.eldoria.companies.menus.MenuMode;
 import de.eldoria.companies.menus.MenuText;
 import de.eldoria.companies.menus.Values;
 import de.eldoria.companies.util.Permission;
@@ -58,7 +62,10 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.logging.Level;
@@ -78,8 +85,9 @@ import java.util.logging.Level;
  *     WorldEdit; {@code stock <id>} lists what was harvested, {@code collect <id>} hands it over, {@code end <id>}
  *     ends the harvest early;</li>
  *     <li>{@code schematics} lists the schematics of the plugin's {@code schematics} folder; {@code blueprint <schematic>
- *     <rotation>} outlines one placed where the player stands; {@code build <schematic> <rotation> <price> <hours>
- *     <title>} posts a build job of it there;</li>
+ *     <rotation>} previews one placed where the player stands, with what its blocks cost; {@code build <schematic>
+ *     <rotation> <price> <hours> <title>} previews it there and asks to confirm, warning when the price is below the
+ *     cost of its blocks, and {@code build confirm} or the confirm button posts the build job;</li>
  *     <li>{@code contract <price> <hours> <title>} posts a contract: work described in words, at the place the
  *     player stands;</li>
  *     <li>{@code describe <id> <text>} describes a job while it waits for a company;</li>
@@ -99,14 +107,22 @@ public final class JobCommand {
     static final String PREFIX = "order.job.";
     private static final int LISTED = 20;
     private static final int MAX_DEPTH = 384;
+    private static final long LOOK_TICKS = 60;
+    private static final long ASKED_SECONDS = 60;
 
     private final CommandDependencies deps;
+    private final ConfirmFlow<PendingBuild> builds;
+    private final Map<UUID, PendingBuild> asked = CacheBuilder.newBuilder()
+            .expireAfterWrite(ASKED_SECONDS, TimeUnit.SECONDS)
+            .<UUID, PendingBuild>build()
+            .asMap();
 
     /**
      * @param deps what the commands need
      */
     public JobCommand(CommandDependencies deps) {
         this.deps = deps;
+        this.builds = ConfirmFlow.create(deps.plugin(), this::buildConfirmed);
     }
 
     /**
@@ -137,7 +153,13 @@ public final class JobCommand {
     @Executes("info")
     public void info(CommandSender sender, @IntArg(min = 0) int id) {
         var player = Senders.player(sender);
-        run(player, () -> own(player, id), job -> show(player, job, progress(job)));
+        run(
+                player,
+                () -> {
+                    var job = own(player, id);
+                    return new Info(job, cost(job));
+                },
+                info -> show(player, info.job(), progress(info.job()), info.cost()));
     }
 
     /**
@@ -263,7 +285,8 @@ public final class JobCommand {
     }
 
     /**
-     * Shows the outline a schematic covers when placed where the player stands, turned, for a few seconds.
+     * Previews a schematic placed where the player stands, turned: its outline and its blocks for a few seconds, and
+     * what its blocks cost.
      *
      * @param sender    sender of the command
      * @param schematic name of the schematic
@@ -274,9 +297,10 @@ public final class JobCommand {
             CommandSender sender, @StringArg(StringArgType.STRING) String schematic, @IntArg int rotation) {
         var player = Senders.player(sender);
         var at = player.getLocation().getBlock();
-        blueprintOf(player, schematic, rotation, blueprint -> {
+        blueprintOf(player, schematic, rotation, (blueprint, cost) -> {
             var area = blueprint.area(at.getWorld().getName(), at.getX(), at.getY(), at.getZ());
             outline(player, area);
+            preview(player, area, blueprint);
             deps.messages()
                     .sendMessage(
                             player,
@@ -286,11 +310,15 @@ public final class JobCommand {
                             Values.number("height", area.maxY() - area.minY() + 1),
                             Values.number("length", area.maxZ() - area.minZ() + 1),
                             Values.number("blocks", blueprint.blocks()));
+            sendCost(player, cost);
         });
     }
 
     /**
-     * Posts a build job: a schematic placed where the player stands, turned, to be built by a company.
+     * Asks to post a build job: a schematic placed where the player stands, turned, to be built by a company. The
+     * blueprint is previewed there and the player confirms, warned when the price is below what its blocks cost; a
+     * dialog covering the screen is opened only after a few seconds, so the preview can be looked at first. Only the
+     * latest build the player asked for can be confirmed.
      *
      * @param sender    sender of the command
      * @param schematic name of the schematic
@@ -309,21 +337,124 @@ public final class JobCommand {
             @StringArg(StringArgType.GREEDY) String title) {
         var player = Senders.player(sender);
         var at = player.getLocation().getBlock();
-        blueprintOf(player, schematic, rotation, blueprint -> {
+        blueprintOf(player, schematic, rotation, (blueprint, cost) -> {
             var area = blueprint.area(at.getWorld().getName(), at.getX(), at.getY(), at.getZ());
-            post(player, JobKind.BUILD, area, price, hours, title, JobService.Details.build(blueprint));
+            outline(player, area);
+            preview(player, area, blueprint);
+            var economy = deps.services().economy();
+            var question = MenuText.create()
+                    .locale(
+                            PREFIX + (cost.above(price) ? "confirmBuildBelow" : "confirmBuild"),
+                            Values.text("job_title", title),
+                            Values.money("price", economy, price),
+                            Values.money("cost", economy, cost.total()),
+                            Values.number("unpriced", cost.unpriced().size()));
+            var pending = new PendingBuild(area, price, hours, title, blueprint);
+            asked.put(player.getUniqueId(), pending);
+            var menus = deps.services().menus();
+            var look = menus.mode(player, true) == MenuMode.DIALOG ? LOOK_TICKS : 0;
+            deps.plugin()
+                    .getServer()
+                    .getScheduler()
+                    .runTaskLater(
+                            deps.plugin(),
+                            () -> {
+                                if (player.isOnline()) builds.ask(menus, player, pending, question);
+                            },
+                            look);
         });
     }
 
     /**
-     * Reads a schematic off the main thread and hands its blueprint on to the main thread.
+     * Posts the build job the sender was asked to confirm.
+     *
+     * @param sender sender of the command
+     */
+    @Executes("build confirm")
+    public void confirmBuild(CommandSender sender) {
+        builds.confirm(Senders.player(sender));
+    }
+
+    private void buildConfirmed(Player player, PendingBuild pending) {
+        if (!asked.remove(player.getUniqueId(), pending)) {
+            deps.messages().sendErrorActionBar(player, "error.confirmationExpired");
+            return;
+        }
+        jobs().ghosts().hidePreview(player.getUniqueId());
+        post(
+                player,
+                JobKind.BUILD,
+                pending.area(),
+                pending.price(),
+                pending.hours(),
+                pending.title(),
+                JobService.Details.build(pending.blueprint()));
+    }
+
+    /**
+     * Shows a player the blocks of a blueprint where it would stand, or how long to wait for the next preview.
+     *
+     * @param player    the player
+     * @param area      the area the blueprint covers
+     * @param blueprint the blueprint
+     */
+    private void preview(Player player, JobArea area, Blueprint blueprint) {
+        var ghosts = jobs().ghosts();
+        if (ghosts.previewing(player, area, blueprint)) return;
+        var wait = ghosts.cooldown(player);
+        if (wait.isPresent()) {
+            deps.messages()
+                    .sendErrorActionBar(
+                            player, PREFIX + "error.previewCooldown", Values.number("seconds", wait.getAsLong()));
+            return;
+        }
+        ghosts.preview(player, area, blueprint).ifPresent(shown -> {
+            if (shown < blueprint.blocks()) {
+                deps.messages()
+                        .sendMessage(
+                                player,
+                                PREFIX + "previewPartial",
+                                Values.number("shown", shown),
+                                Values.number("blocks", blueprint.blocks()));
+            }
+        });
+    }
+
+    private void sendCost(Player player, MaterialCosts.Cost cost) {
+        var economy = deps.services().economy();
+        if (cost.unpriced().isEmpty()) {
+            deps.messages().sendMessage(player, PREFIX + "cost", Values.money("cost", economy, cost.total()));
+            return;
+        }
+        deps.messages()
+                .sendMessage(
+                        player,
+                        PREFIX + "costUnpriced",
+                        Values.money("cost", economy, cost.total()),
+                        Values.number("unpriced", cost.unpriced().size()));
+    }
+
+    /**
+     * A build job the player is asked to confirm.
+     *
+     * @param area      its area
+     * @param price     what the company is paid
+     * @param hours     how long a company has to finish
+     * @param title     title shown to companies
+     * @param blueprint its blueprint
+     */
+    private record PendingBuild(JobArea area, double price, int hours, String title, Blueprint blueprint) {}
+
+    /**
+     * Reads a schematic and what its blocks cost off the main thread and hands both on to the main thread.
      *
      * @param player    the player asking
      * @param schematic name of the schematic
      * @param rotation  degrees to turn it clockwise
-     * @param then      gets the blueprint on the main thread
+     * @param then      gets the blueprint and its cost on the main thread
      */
-    private void blueprintOf(Player player, String schematic, int rotation, Consumer<Blueprint> then) {
+    private void blueprintOf(
+            Player player, String schematic, int rotation, BiConsumer<Blueprint, MaterialCosts.Cost> then) {
         if (!jobs().hooks().selects()) {
             deps.messages().sendError(player, PREFIX + "error.noWorldEdit");
             return;
@@ -337,12 +468,16 @@ public final class JobCommand {
                 player,
                 () -> schematicFile(schematic)
                         .flatMap(file -> jobs().hooks().schematic(file, rotation, maxVolume))
+                        .map(blueprint -> new Priced(blueprint, jobs().costs().of(blueprint)))
                         .orElseThrow(() -> CommandFailure.of(
                                 PREFIX + "error.schematic",
                                 Values.text("schematic", schematic),
                                 Values.number("max", maxVolume))),
-                blueprint -> Threading.mainThread(deps.plugin()).execute(() -> then.accept(blueprint)));
+                priced -> Threading.mainThread(deps.plugin())
+                        .execute(() -> then.accept(priced.blueprint(), priced.cost())));
     }
+
+    private record Priced(Blueprint blueprint, MaterialCosts.Cost cost) {}
 
     /**
      * @return the names of the schematics in the plugin's {@code schematics} folder, without their file endings
@@ -1020,7 +1155,17 @@ public final class JobCommand {
         return jobs().progress().of(job, false).join();
     }
 
-    private void show(Player player, Job job, Optional<DigCheck.Progress> progress) {
+    /**
+     * @param job a job
+     * @return what the blocks of a build job's blueprint cost, empty for other kinds; blocks
+     */
+    private Optional<MaterialCosts.Cost> cost(Job job) {
+        return job.kind() == JobKind.BUILD ? jobs().costs().of(job.id()) : Optional.empty();
+    }
+
+    private record Info(Job job, Optional<MaterialCosts.Cost> cost) {}
+
+    private void show(Player player, Job job, Optional<DigCheck.Progress> progress, Optional<MaterialCosts.Cost> cost) {
         var economy = deps.services().economy();
         var messages = deps.messages();
         messages.sendMessage(
@@ -1053,6 +1198,7 @@ public final class JobCommand {
                 PREFIX + "info.money",
                 Values.money("price", economy, job.price()),
                 Values.money("fee", economy, job.fee()));
+        cost.ifPresent(found -> sendCost(player, found));
         var harvest = job.harvest();
         if (harvest != null) {
             messages.sendMessage(

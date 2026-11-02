@@ -461,7 +461,14 @@ public final class JobWrites {
                         : new ExtensionRequest(
                                 asked,
                                 Objects.requireNonNullElse(extension.reason(), ""),
-                                instant(extension.askedAt())));
+                                instant(extension.askedAt())),
+                job.kind() == JobKind.BUILD
+                        ? jobs.costs()
+                                .of(job.id())
+                                .map(cost -> new MaterialCost(
+                                        cost.total(), cost.unpriced().size()))
+                                .orElse(null)
+                        : null);
     }
 
     private @Nullable Instant instant(@Nullable LocalDateTime time) {
@@ -584,6 +591,11 @@ public final class JobWrites {
      * @param stock          the stock of the player's harvest job, as amounts by material name
      * @param canManage      whether the player may take and finish jobs for their company
      * @param takeable       whether the player's company may take the job: it is open and owned by nobody of the company
+     * @param extendedHours  the hours the owner added for the company working on it
+     * @param hoursLeft      the hours it may still get, 0 when it may get none
+     * @param requestsLeft   how often the company working on it may still ask for more time
+     * @param request        the company's open request for more time, null without one
+     * @param materialCost   what the blocks of a build job's blueprint cost, null for other kinds
      */
     public record JobDetails(
             JobRow job,
@@ -601,7 +613,16 @@ public final class JobWrites {
             int extendedHours,
             int hoursLeft,
             int requestsLeft,
-            @Nullable ExtensionRequest request) {}
+            @Nullable ExtensionRequest request,
+            @Nullable MaterialCost materialCost) {}
+
+    /**
+     * What the blocks of a build job's blueprint cost.
+     *
+     * @param total    the cost of the blocks with a known price
+     * @param unpriced how many block types have no known price and are left out
+     */
+    public record MaterialCost(double total, int unpriced) {}
 
     /**
      * The open request of the company working on a job for more time.

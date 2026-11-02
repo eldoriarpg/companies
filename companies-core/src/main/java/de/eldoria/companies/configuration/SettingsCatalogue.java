@@ -384,6 +384,7 @@ public final class SettingsCatalogue {
         jobs.whole("harvestMaxVolume");
         jobs.whole("buildMaxVolume");
         jobs.whole("buildMatchPercent");
+        jobs.add(Type.TEXT_LIST, "buildWhitelist", List.of(), false);
         jobs.whole("maxChunks");
         jobs.whole("maxOpenPerOwner");
         jobs.whole("maxDueHours");

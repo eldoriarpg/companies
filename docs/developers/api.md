@@ -545,7 +545,10 @@ the economy is set up, like the other writes.
 `post` checks like `/order job`: the area lies on this server and within the world's height, on land the owner owns
 (or on unowned land where `jobs.yml` allows jobs in that world), and within the size and count limits. Start a
 request from the factory of its kind: `JobRequest.dig`, `terraform`, `harvest`, `build` or `contract`. A build job
-takes its blueprint as `BuildBlock`s relative to the point it is placed at, so your plugin needs no WorldEdit.
+takes its blueprint as `BuildBlock`s relative to the point it is placed at, so your plugin needs no WorldEdit. A
+`BuildBlock` made from `BlockData` fixes how the block is turned (facing, half, axis, rotation, hinge, attached face, a
+slab's half); one made from a `Material` asks for the type alone. `BuildBlock` has five components since it carries
+the data, so a record pattern needs all five; the constructor from a position and a `Material` still works.
 
 With `charge(false)` the owner pays nothing: the job takes no fee, its company is still paid when the work checks out,
 and nothing goes back to the owner when it ends unfinished. `IJob.charged()` tells the two apart.

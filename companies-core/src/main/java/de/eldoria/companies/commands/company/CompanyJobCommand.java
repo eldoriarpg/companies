@@ -20,6 +20,7 @@ import de.eldoria.companies.jobs.BuildGhosts;
 import de.eldoria.companies.jobs.DigCheck;
 import de.eldoria.companies.jobs.JobService;
 import de.eldoria.companies.jobs.JobServices;
+import de.eldoria.companies.jobs.MaterialCosts;
 import de.eldoria.companies.menus.MenuComponents;
 import de.eldoria.companies.menus.MenuText;
 import de.eldoria.companies.menus.Values;
@@ -126,7 +127,10 @@ public final class CompanyJobCommand {
                     if (job.state() != JobState.OPEN && !ours) throw unknown(id);
                     var checked =
                             ours && job.state() == JobState.TAKEN && job.kind().area();
-                    return new Shown(job, checked ? progress(job, false) : Optional.empty());
+                    var cost = job.kind() == JobKind.BUILD
+                            ? jobs().costs().of(job.id())
+                            : Optional.<MaterialCosts.Cost>empty();
+                    return new Shown(job, checked ? progress(job, false) : Optional.empty(), cost);
                 },
                 shown -> show(player, shown));
     }
@@ -486,6 +490,12 @@ public final class CompanyJobCommand {
                 PREFIX + "info.money",
                 Values.money("price", deps.services().economy(), job.price()),
                 Values.number("hours", job.dueHours()));
+        shown.cost()
+                .ifPresent(cost -> messages.sendMessage(
+                        player,
+                        PREFIX + (cost.unpriced().isEmpty() ? "info.cost" : "info.costUnpriced"),
+                        Values.money("cost", deps.services().economy(), cost.total()),
+                        Values.number("unpriced", cost.unpriced().size())));
         var harvest = job.harvest();
         if (harvest != null) {
             messages.sendMessage(
@@ -683,5 +693,5 @@ public final class CompanyJobCommand {
      * @param job      the job
      * @param progress the progress
      */
-    private record Shown(Job job, Optional<DigCheck.Progress> progress) {}
+    private record Shown(Job job, Optional<DigCheck.Progress> progress, Optional<MaterialCosts.Cost> cost) {}
 }

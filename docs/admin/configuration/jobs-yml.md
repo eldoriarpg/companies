@@ -18,6 +18,8 @@ terraformMaxVolume: 32768
 harvestMaxVolume: 16384
 buildMaxVolume: 32768
 buildMatchPercent: 95
+buildWhitelist:
+  - scaffolding
 maxChunks: 64
 maxOpenPerOwner: 5
 maxDueHours: 168
@@ -36,7 +38,8 @@ approveHours: 72
 | `terraformMaxVolume` | number (blocks) | `32768` | The most blocks the area of a terraform job may hold, checked like a dig job's. | reload |
 | `harvestMaxVolume` | number (blocks) | `16384` | The most blocks the field of a harvest job may hold. | reload |
 | `buildMaxVolume` | number (blocks) | `32768` | The most blocks the area of a build job may hold. | reload |
-| `buildMatchPercent` | number (percent) | `95` | The share of a blueprint's blocks that must match for a build job to be done. Only block types are compared. | reload |
+| `buildMatchPercent` | number (percent) | `95` | The share of a blueprint's blocks that must match for a build job to be done. A block matches by its type and how it is turned (facing, half, axis, hinge, a slab's half); connections and stair shapes never count. | reload |
+| `buildWhitelist` | list of blocks | `[scaffolding]` | The blocks the working company may place anywhere in a build job's area to build up. Every other block may only go where the blueprint asks for it. | reload |
 | `maxChunks` | number (chunks) | `64` | The most chunks the area of a job may touch, so a long thin area can not make the server load many chunks for each check. | reload |
 | `maxOpenPerOwner` | number | `5` | The most jobs a player may have waiting for a company at once. | reload |
 | `maxDueHours` | number (hours) | `168` | The most hours an owner may give a company to finish a job. | reload |
