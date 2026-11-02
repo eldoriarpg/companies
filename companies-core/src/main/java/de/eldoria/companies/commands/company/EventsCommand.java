@@ -17,14 +17,9 @@ import de.eldoria.companies.data.wrapper.offer.ContestEntry;
 import de.eldoria.companies.data.wrapper.offer.EventOffer;
 import de.eldoria.companies.data.wrapper.offer.OfferKind;
 import de.eldoria.companies.data.wrapper.offer.OfferState;
-import de.eldoria.companies.menus.MenuComponents;
-import de.eldoria.companies.menus.MenuText;
-import de.eldoria.companies.menus.Values;
-import de.eldoria.companies.menus.order.EventTexts;
-import de.eldoria.companies.util.Texts;
+import de.eldoria.companies.menus.company.EventsMenu;
 import de.eldoria.companies.util.Threading;
 import de.eldoria.companies.util.Times;
-import net.kyori.adventure.text.event.ClickEvent;
 import net.strokkur.commands.Executes;
 import net.strokkur.commands.Subcommand;
 import net.strokkur.commands.arguments.IntArg;
@@ -39,7 +34,6 @@ import java.util.Map;
 import java.util.OptionalInt;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BooleanSupplier;
-import java.util.function.DoubleFunction;
 import java.util.logging.Level;
 
 /**
@@ -51,9 +45,9 @@ import java.util.logging.Level;
  * standalone offers after the events.
  * <p>
  * Each shows its kind, name, what it asks for, its progress, its time left or the time until its start, and for a
- * contest the place of the player's company. {@code open <id>} opens an offer: the order search showing only the chunks
- * of a goal, the search of orders to work on alone for a player without a company who may work alone, or the info of
- * a contest.
+ * contest the place of the player's company. The list is an {@link EventsMenu}, a dialog where the client shows one.
+ * {@code open <id>} opens an offer: the order search showing only the chunks of a goal, the search of orders to work on
+ * alone for a player without a company who may work alone, or the info of a contest.
  */
 @Subcommand("events")
 @PlayerOnly
@@ -97,31 +91,20 @@ public final class EventsCommand {
                         deps.messages().sendMessage(player, PREFIX + "none");
                         return;
                     }
-                    deps.messages()
-                            .sendMessage(
-                                    player, MenuText.create().text("<heading>").locale(PREFIX + "title"));
-                    var economy = deps.services().economy();
-                    for (var event : listing.events()) {
-                        deps.messages().sendMessage(player, eventLine(player, event, economy::format));
-                        for (var offer : grouped(listing.offers(), event.id())) {
-                            deps.messages()
-                                    .sendMessage(
-                                            player,
-                                            MenuText.create()
-                                                    .text("  ")
-                                                    .append(line(
-                                                            offer,
-                                                            listing.places().get(offer.id()))));
-                        }
-                    }
-                    var shownEvents =
-                            listing.events().stream().map(ServerEvent::id).toList();
-                    for (var offer : listing.offers()) {
-                        if (offer.event() != null && shownEvents.contains(offer.event())) continue;
-                        deps.messages()
-                                .sendMessage(
-                                        player, line(offer, listing.places().get(offer.id())));
-                    }
+                    var menu = new EventsMenu(
+                            deps.messages(),
+                            deps.services().economy()::format,
+                            (clicker, offer) -> open(clicker, offer.id()));
+                    deps.services()
+                            .menus()
+                            .show(
+                                    player,
+                                    menu,
+                                    new EventsMenu.Model(
+                                            listing.events(),
+                                            listing.offers(),
+                                            listing.places(),
+                                            LocalDateTime.now(Times.UTC)));
                 })
                 .exceptionally(err -> {
                     deps.plugin().getLogger().log(Level.SEVERE, "Could not list the event offers", err);
@@ -138,7 +121,10 @@ public final class EventsCommand {
      */
     @Executes("open")
     public void open(CommandSender sender, @IntArg(min = 0) int id) {
-        var player = Senders.player(sender);
+        open(Senders.player(sender), id);
+    }
+
+    private void open(Player player, int id) {
         deps.requireReady();
         var offers = deps.services().offerData();
         CompletableFuture.supplyAsync(() -> offers.offer(id), Threading.VIRTUAL)
@@ -223,46 +209,6 @@ public final class EventsCommand {
     }
 
     /**
-     * @param offers the offers shown
-     * @param event  id of a server event
-     * @return the offers of the event, in the order shown
-     */
-    public static List<EventOffer> grouped(List<EventOffer> offers, int event) {
-        return offers.stream()
-                .filter(offer -> Integer.valueOf(event).equals(offer.event()))
-                .toList();
-    }
-
-    private MenuText eventLine(Player player, ServerEvent event, DoubleFunction<String> money) {
-        var texts = new MenuComponents(deps.messages(), player);
-        var now = LocalDateTime.now(Times.UTC);
-        var text = MenuText.create()
-                .text("<neutral>[<i18n:" + PREFIX + "serverEvent>]</neutral> ")
-                .locale(
-                        PREFIX + "eventEntry",
-                        Values.text("event_name", event.name()),
-                        Values.component("effect", texts.of(EventTexts.effect(event))),
-                        Values.component("scope", texts.of(EventTexts.scope(event))))
-                .space();
-        if (event.activeAt(now)) {
-            text.locale(PREFIX + "timeLeft", Values.text("time", pretty(Duration.between(now, event.ends()))));
-        } else if (!event.starts().isAfter(now)) {
-            text.locale(PREFIX + "starting");
-        } else {
-            text.locale(PREFIX + "startsIn", Values.text("time", pretty(Duration.between(now, event.starts()))));
-        }
-        var budget = event.budget();
-        var left = event.remaining();
-        if (event.kind().funded() && budget != null && budget > 0 && left.isPresent()) {
-            text.space()
-                    .text(Texts.progressBar(left.getAsDouble() / budget))
-                    .space()
-                    .locale(PREFIX + "budgetLeft", Values.text("budget_left", money.apply(left.getAsDouble())));
-        }
-        return text;
-    }
-
-    /**
      * The offers a player sees: those running or paused, and those starting within {@link #UPCOMING}, the soonest end
      * first.
      *
@@ -290,40 +236,6 @@ public final class EventsCommand {
             if (entry.company() == company) return OptionalInt.of(place);
         }
         return OptionalInt.empty();
-    }
-
-    private MenuText line(EventOffer offer, OptionalInt place) {
-        var now = Times.now();
-        var kind = offer.kind() == OfferKind.CONTEST ? "offers.kind.contest" : "offers.kind.goal";
-        var text = MenuText.create()
-                .text("<neutral>[<i18n:" + kind + ">]</neutral> ")
-                .locale(
-                        PREFIX + "entry",
-                        Values.number("id", offer.id()),
-                        Values.text("offer_name", offer.name()),
-                        Values.text("item", offer.line().label()),
-                        Values.number("delivered", offer.delivered()),
-                        Values.number("amount", offer.amount()))
-                .space()
-                .text(Texts.progressBar(offer.amount() <= 0 ? 1 : (double) offer.delivered() / offer.amount()))
-                .space();
-        switch (offer.state()) {
-            case SCHEDULED ->
-                text.locale(PREFIX + "startsIn", Values.text("time", pretty(Duration.between(now, offer.starts()))));
-            case PAUSED -> text.locale(PREFIX + "paused");
-            default ->
-                text.locale(PREFIX + "timeLeft", Values.text("time", pretty(Duration.between(now, offer.ends()))));
-        }
-        if (place != null && place.isPresent()) {
-            text.space().locale(PREFIX + "place", Values.number("place", place.getAsInt()));
-        }
-        return text.text(
-                " <act_open><show>[<i18n:" + PREFIX + "open>]</act_open>",
-                Values.click("act_open", ClickEvent.runCommand("/company events open " + offer.id())));
-    }
-
-    private static String pretty(Duration duration) {
-        return Texts.prettyDuration(duration.isNegative() ? Duration.ZERO : duration);
     }
 
     /**

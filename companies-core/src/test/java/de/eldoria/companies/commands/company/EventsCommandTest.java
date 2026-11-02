@@ -12,6 +12,7 @@ import de.eldoria.companies.data.wrapper.event.ServerEvent;
 import de.eldoria.companies.data.wrapper.offer.ContestEntry;
 import de.eldoria.companies.data.wrapper.offer.EventOffer;
 import de.eldoria.companies.data.wrapper.offer.OfferLine;
+import de.eldoria.companies.menus.company.EventsMenu;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDateTime;
@@ -147,8 +148,8 @@ class EventsCommandTest {
                 offer.settled(),
                 offer.refund(),
                 offer.refunded());
-        assertEquals(List.of(onEvent), EventsCommand.grouped(List.of(offer, onEvent), 1));
-        assertEquals(List.of(), EventsCommand.grouped(List.of(offer, onEvent), 2));
+        assertEquals(List.of(onEvent), EventsMenu.grouped(List.of(offer, onEvent), 1));
+        assertEquals(List.of(), EventsMenu.grouped(List.of(offer, onEvent), 2));
     }
 
     private static ServerEvent serverEvent(int id, EventState state, LocalDateTime starts) {
