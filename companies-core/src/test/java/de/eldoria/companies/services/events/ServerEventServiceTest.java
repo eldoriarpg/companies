@@ -31,6 +31,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Logger;
 
 import static de.chojo.sadu.queries.api.call.Call.call;
@@ -431,11 +432,15 @@ class ServerEventServiceTest {
                     }
                 });
 
+        List<ServerEvent> handed = new CopyOnWriteArrayList<>();
+        job.onTemplated(handed::add);
+
         var run = job.run();
 
         assertEquals(1, run.started().size());
         var created = events.event(run.started().getFirst()).orElseThrow();
         assertEquals("weekend", created.template());
+        assertEquals(List.of(created.id()), handed.stream().map(ServerEvent::id).toList());
         assertEquals(EventState.ACTIVE, created.state());
         assertEquals(List.of(ServerEvent.Problem.VALUE), refused);
     }
@@ -462,15 +467,39 @@ class ServerEventServiceTest {
                         return false;
                     }
                 });
+        List<Integer> handed = new CopyOnWriteArrayList<>();
+        job.onTemplated(event -> handed.add(event.id()));
 
         var run = job.run();
 
         assertEquals(List.of(waiting), run.withdrawn());
+        assertEquals(List.of(running), handed);
         var withdrawn = events.event(waiting).orElseThrow();
         assertEquals(EventState.CANCELLED, withdrawn.state());
         assertEquals(ServerEvent.TEMPLATE_BY, withdrawn.closedBy());
         assertTrue(signals.contains(new ServerEventChanged(waiting, ServerEventChanged.WITHDRAWN)));
         assertEquals(EventState.ACTIVE, state(running));
+    }
+
+    @Test
+    void everyLiveEventOfATemplateIsHandedOverOnceAndAgainAfterItFailed() {
+        var running = create(templated("weekend", NOW));
+        var failing = create(templated("harvest", NOW.plusHours(1)));
+        create(tax(NOW.plusHours(1), NOW.plusHours(2)));
+        List<Integer> handed = new CopyOnWriteArrayList<>();
+        var failures = new AtomicInteger(1);
+        service.onTemplated(event -> {
+            handed.add(event.id());
+            if (event.id() == failing && failures.getAndDecrement() > 0) throw new IllegalStateException("down");
+        });
+
+        var first = service.run();
+        service.run();
+        service.run();
+
+        assertEquals(List.of(running), first.started());
+        assertEquals(
+                List.of(running, failing, failing), handed.stream().sorted().toList());
     }
 
     private static ServerEvent templated(String template, LocalDateTime starts) {

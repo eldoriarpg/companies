@@ -169,6 +169,7 @@ import de.eldoria.companies.orders.offers.EventOfferService;
 import de.eldoria.companies.orders.offers.NetworkAnnouncer;
 import de.eldoria.companies.orders.offers.OfferAnnouncer;
 import de.eldoria.companies.orders.offers.OfferApiEvents;
+import de.eldoria.companies.orders.offers.TemplateOffers;
 import de.eldoria.companies.orders.system.GuessedLimit;
 import de.eldoria.companies.orders.system.GuessedOutcomes;
 import de.eldoria.companies.orders.system.SystemFunding;
@@ -606,6 +607,8 @@ public class Companies extends EldoPlugin {
                         Times.UTC,
                         getLogger()));
         eventOfferService = eventOffers;
+        serverEventService.onTemplated(new TemplateOffers(
+                configuration::eventSettings, offerData, eventOffers::checkSoon, Times.UTC, getLogger()));
 
         var seriesService = SeriesService.create(
                 this,
