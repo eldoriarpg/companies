@@ -76,6 +76,7 @@ import de.eldoria.companies.data.repository.impl.sqlite.SqLiteTreasuryData;
 import de.eldoria.companies.data.wrapper.company.CompanyMember;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.job.Job;
+import de.eldoria.companies.data.wrapper.job.JobArea;
 import de.eldoria.companies.data.wrapper.offer.EventOffer;
 import de.eldoria.companies.data.wrapper.offer.OfferLine;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
@@ -132,6 +133,7 @@ import de.eldoria.companies.util.StyledMessageSender;
 import de.eldoria.companies.util.TestExecutors;
 import de.eldoria.companies.util.Threading;
 import de.eldoria.companies.util.Times;
+import de.eldoria.companies.web.api.Features;
 import de.eldoria.companies.web.api.session.PlayerRef;
 import de.eldoria.eldoutilities.localization.ILocalizer;
 import dev.chojo.ocular.key.Key;
@@ -179,6 +181,16 @@ import static de.chojo.sadu.queries.converter.StandardValueConverter.UUID_BYTES;
  * A server with a SQLite database, companies, orders and the dashboard's views on top, for dashboard tests.
  */
 public final class DashboardWorld implements AutoCloseable {
+    /**
+     * The items the dashboard put into item returns, by player.
+     */
+    public final Map<UUID, Map<String, Integer>> returned = new HashMap<>();
+
+    /**
+     * Whether putting items into item returns fails, so they are all handed back.
+     */
+    public boolean returnsFail;
+
     public final ServerMock server;
     public final Plugin plugin;
     public final ItemReturnService itemReturns;
@@ -228,6 +240,12 @@ public final class DashboardWorld implements AutoCloseable {
     public final Map<UUID, Double> wallets = new ConcurrentHashMap<>();
     public final JobSettings jobSettings = new JobSettings();
     public SqLiteJobData jobs;
+
+    /**
+     * The order slots of every company.
+     */
+    public int companySlots = 5;
+
     public JobServices jobServices;
     public final List<Integer> changedOrders = new CopyOnWriteArrayList<>();
     public final List<UUID> changedInboxes = new CopyOnWriteArrayList<>();
@@ -692,7 +710,12 @@ public final class DashboardWorld implements AutoCloseable {
                         adminLog,
                         Logger.getAnonymousLogger(),
                         views::instant,
-                        failure -> "text of " + failure.localeKey())),
+                        failure -> "text of " + failure.localeKey(),
+                        field -> switch (field.key()) {
+                            case "dashboard.features" -> Features.ALL;
+                            case "providers" -> List.of("plotsquared");
+                            default -> List.of();
+                        })),
                 new AdminSystemOrderWrites(new AdminSystemOrderWrites.Sources(
                         orders,
                         SqLiteTestDatabase.player(SystemOwner.ID),
@@ -768,7 +791,17 @@ public final class DashboardWorld implements AutoCloseable {
                         () -> jobSettings,
                         views::instant,
                         Times::now,
-                        failure -> "text of " + failure.localeKey())),
+                        failure -> "text of " + failure.localeKey(),
+                        player -> Optional.of(new JobArea("world", 4, 64, 4, 4, 64, 4)),
+                        (player, items) -> {
+                            if (returnsFail) return items;
+                            returned.merge(player, items, (old, add) -> {
+                                Map<String, Integer> all = new HashMap<>(old);
+                                add.forEach((name, amount) -> all.merge(name, amount, Integer::sum));
+                                return all;
+                            });
+                            return Map.of();
+                        })),
                 new AdminJobWrites(new AdminJobWrites.Sources(
                         () -> jobServices,
                         this::name,
@@ -859,7 +892,7 @@ public final class DashboardWorld implements AutoCloseable {
                 this::profile,
                 () -> jobSettings,
                 price -> 0,
-                company -> 5,
+                company -> companySlots,
                 Clock.systemUTC(),
                 logger);
         var hooks = new JobHooks(name -> false, className -> new Object(), logger);

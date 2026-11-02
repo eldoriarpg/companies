@@ -24,6 +24,7 @@ export type JobStep =
     | 'askCancel'
     | 'cancelAccept'
     | 'cancelRefuse'
+    | 'collect'
 
 /** The states in which a job is over for good. */
 const CLOSED: readonly JobState[] = ['paid', 'settled', 'cancelled', 'expired']
@@ -44,7 +45,7 @@ export function closedJob(state: JobState): boolean {
  * approval and no disputes. While a company works on a job, the owner may give it more time and answers the company's
  * request for it; the company asks while it has no open request, requests left and hours the job may still get. The
  * owner may ask the company working on a job to let it be cancelled, once until it answers; the company agrees or
- * refuses.
+ * refuses. The owner of a harvest job collects its stock into their item returns.
  *
  * @param details the job
  * @returns the steps, in the order the page shows them
@@ -65,6 +66,7 @@ export function jobSteps(details: JobDetails): JobStep[] {
         }
         if (job.state === 'taken' && (details.hoursLeft ?? 0) > 0) steps.push('extend')
         if (job.state === 'taken' && !harvest && !details.cancelAsked) steps.push('askCancel')
+        if (harvest && Object.keys(details.stock ?? {}).length > 0) steps.push('collect')
         if (job.state === 'disputed') {
             steps.push('approve')
             if (details.disputeByOwner) steps.push('withdraw')

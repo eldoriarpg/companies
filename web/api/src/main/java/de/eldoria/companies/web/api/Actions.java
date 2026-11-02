@@ -665,6 +665,11 @@ public final class Actions {
     public static final String JOBS_CANCEL_REFUSE = "jobs.cancel.refuse";
 
     /**
+     * Moves the stock of the player's harvest job to their item returns.
+     */
+    public static final String JOBS_COLLECT = "jobs.collect";
+
+    /**
      * Lists the disputed jobs with both sides and the reason.
      */
     public static final String ADMIN_JOBS_DISPUTES = "admin.jobs.disputes";
@@ -807,6 +812,7 @@ public final class Actions {
             JOBS_EXTENSION_REFUSE,
             JOBS_CANCEL_ACCEPT,
             JOBS_CANCEL_REFUSE,
+            JOBS_COLLECT,
             ADMIN_JOBS_DISPUTES,
             ADMIN_JOBS_SETTLE);
 

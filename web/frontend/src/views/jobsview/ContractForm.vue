@@ -9,6 +9,7 @@ import ButtonRow from '@/components/button/ButtonRow.vue'
 import PrimaryButton from '@/components/button/PrimaryButton.vue'
 import SecondaryButton from '@/components/button/SecondaryButton.vue'
 import ActionNotice from '@/components/feedback/ActionNotice.vue'
+import CheckboxInput from '@/components/input/CheckboxInput.vue'
 import DecimalInput from '@/components/input/DecimalInput.vue'
 import NumberInput from '@/components/input/NumberInput.vue'
 import TextAreaInput from '@/components/input/TextAreaInput.vue'
@@ -31,6 +32,7 @@ const title = ref('')
 const description = ref('')
 const price = ref<number | undefined>()
 const hours = ref<number | undefined>(24)
+const place = ref(false)
 const ready = computed(() => title.value.trim().length > 0 && (price.value ?? 0) > 0 && (hours.value ?? 0) >= 1)
 
 async function post(): Promise<void> {
@@ -40,6 +42,7 @@ async function post(): Promise<void> {
     description: description.value,
     price: price.value ?? 0,
     hours: hours.value ?? 0,
+    place: place.value,
   })
   if (result) emit('posted', result)
 }
@@ -55,6 +58,7 @@ async function post(): Promise<void> {
       <DecimalInput v-model="price" :label="t('jobs.contract.price')" :min="0.01" data-testid="contract-price"/>
       <NumberInput v-model="hours" :label="t('jobs.contract.hours')" :min="1"/>
     </div>
+    <CheckboxInput v-model="place" :label="t('jobs.contract.place')" data-testid="contract-place"/>
     <MutedText tag="p">{{ t('jobs.contract.charged') }}</MutedText>
     <ActionNotice :problem="action.problem.value"/>
     <ButtonRow>

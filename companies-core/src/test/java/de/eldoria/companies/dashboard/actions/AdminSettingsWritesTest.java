@@ -131,6 +131,23 @@ class AdminSettingsWritesTest {
     }
 
     @Test
+    void switchesOfferTheNamesTheServerKnowsAndTheOnesStored() {
+        world.nodeData.publishSettings(
+                "areas.yml", copy(Configuration.AREAS) + "\nproviders:\n  towny: false\n", "Ada");
+        world.nodeData.publishSettings("config.yml", copy(Configuration.CONFIG_YML), "Ada");
+
+        var areas = read(Actions.ADMIN_SETTINGS_GET, "{\"file\":\"areas.yml\"}");
+        var config = read(Actions.ADMIN_SETTINGS_GET, "{\"file\":\"config.yml\"}");
+
+        assertTrue(areas.ok(), areas.reason());
+        var providers = setting(areas, "providers").path("choices").toString();
+        assertTrue(providers.contains("plotsquared") && providers.contains("towny"), providers);
+        assertFalse(providers.contains("orders.browse"), providers);
+        assertTrue(
+                setting(config, "dashboard.features").path("choices").toString().contains("orders.browse"));
+    }
+
+    @Test
     void theHistoryListsRevisionsNewestFirst() {
         var content = copy(Configuration.COMPANY_SETTINGS);
         world.nodeData.publishSettings("company.yml", content, "startup");

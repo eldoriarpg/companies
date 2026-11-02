@@ -45,6 +45,11 @@ describe('jobSteps', () => {
             .toEqual(['approve', 'dispute', 'refuse', 'extend', 'askCancel'])
     })
 
+    it('lets the owner of a harvest collect its stock while it has one', () => {
+        expect(jobSteps(details({mine: true, kind: 'harvest', state: 'paid'}, {stock: {WHEAT: 3}}))).toEqual(['collect'])
+        expect(jobSteps(details({mine: true, kind: 'harvest', state: 'paid'}, {stock: {}}))).toEqual([])
+    })
+
     it('lets the owner ask to cancel a taken job once and the company answer', () => {
         expect(jobSteps(details({mine: true, state: 'taken'}, {hoursLeft: 0, cancelAsked: true}))).toEqual(['approve', 'dispute'])
         expect(jobSteps(details({ours: true, state: 'taken'}, {canManage: true, hoursLeft: 0, cancelAsked: true})))

@@ -29,6 +29,7 @@ import tools.jackson.databind.JsonNode;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -37,6 +38,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -72,7 +74,8 @@ public final class JobWrites {
             Actions.JOBS_EXTENSION_GRANT,
             Actions.JOBS_EXTENSION_REFUSE,
             Actions.JOBS_CANCEL_ACCEPT,
-            Actions.JOBS_CANCEL_REFUSE);
+            Actions.JOBS_CANCEL_REFUSE,
+            Actions.JOBS_COLLECT);
 
     /**
      * The most jobs of each list.
@@ -80,6 +83,7 @@ public final class JobWrites {
     static final int LISTED = 50;
 
     private static final String OWNER = "order.job.";
+    private static final JobArea NOWHERE = new JobArea("", 0, 0, 0, 0, 0, 0);
     private static final String COMPANY = "company.job.";
 
     private final Sources sources;
@@ -163,6 +167,7 @@ public final class JobWrites {
                                 args.path("reason").asString("")));
             case Actions.JOBS_CANCEL ->
                 owner(request, jobs, player, company, id, service.cancel(player, session.playerName(), id));
+            case Actions.JOBS_COLLECT -> collect(request, jobs, player, company, id);
             case Actions.JOBS_CANCEL_ACCEPT ->
                 forCompany(
                         request,
@@ -261,6 +266,12 @@ public final class JobWrites {
             return answers.refused(
                     request, CommandFailure.of(OWNER + "error.description", Values.number("max", Job.MAX_DESCRIPTION)));
         }
+        var place = NOWHERE;
+        if (args.path("place").asBoolean(false)) {
+            var last = sources.lastPlace().apply(session.player());
+            if (last.isEmpty()) return answers.refused(request, OWNER + "error.noPlace");
+            place = last.get();
+        }
         var posted = jobs.service()
                 .post(
                         session.player(),
@@ -269,7 +280,7 @@ public final class JobWrites {
                         args.path("price").asDouble(0),
                         args.path("hours").asInt(0),
                         jobs.node(),
-                        new JobArea("", 0, 0, 0, 0, 0, 0),
+                        place,
                         JobLand.NONE,
                         null,
                         JobService.Details.contract(description));
@@ -287,6 +298,38 @@ public final class JobWrites {
                                                 refused.refusal(),
                                                 sources.settings().get()))));
         };
+    }
+
+    /**
+     * Moves the stock of the player's harvest job to their item returns, where they take it in game like a delivered
+     * order. What can not be stored goes back into the stock.
+     */
+    private ActionResult collect(
+            ActionRequest request, JobServices jobs, UUID player, Optional<CompanyProfile> company, int id) {
+        var job = jobs.data()
+                .job(id)
+                .filter(found -> found.owner().equals(player))
+                .orElse(null);
+        if (job == null || job.kind() != JobKind.HARVEST) {
+            return answers.refused(request, CommandFailure.of(OWNER + "error.unknown", number(id)));
+        }
+        Map<String, Integer> taken = new LinkedHashMap<>();
+        jobs.data().stock(id).forEach((material, amount) -> {
+            if (jobs.data().takeStock(id, material, amount)) taken.put(material, amount);
+        });
+        if (taken.isEmpty()) return answers.refused(request, CommandFailure.of(OWNER + "stock.empty", number(id)));
+        Map<String, Integer> left;
+        try {
+            left = sources.returns().apply(player, taken);
+        } catch (RuntimeException e) {
+            left = taken;
+        }
+        if (!left.isEmpty()) {
+            jobs.data().stock(id, left);
+            var key = left.size() < taken.size() ? "error.collectPartial" : "error.failed";
+            return answers.refused(request, CommandFailure.of(OWNER + key, number(id)));
+        }
+        return answers.data(request, details(jobs, job, player, company));
     }
 
     private ActionResult owner(
@@ -434,8 +477,8 @@ public final class JobWrites {
                 instant(job.due()),
                 instant(job.expires()),
                 job.kind().area() ? area.volume() : 0,
-                job.kind().area() ? area.world() : null,
-                job.kind().area() ? area.center() : null,
+                area.world().isEmpty() ? null : area.world(),
+                area.world().isEmpty() ? null : area.center(),
                 harvest == null ? null : harvest.unitPrice(),
                 harvest == null ? null : harvest.paid(),
                 job.owner().equals(player),
@@ -472,7 +515,8 @@ public final class JobWrites {
                 job.state() == JobState.OPEN
                         && !mine
                         && company.map(found -> found.member(job.owner()).isEmpty())
-                                .orElse(false),
+                                .orElse(false)
+                        && company.map(jobs.service()::hasFreeSlot).orElse(false),
                 extension.extendedHours(),
                 extendable ? jobs.service().hoursLeft(job) : 0,
                 extendable ? Math.max(0, settings.maxExtensionRequests() - extension.requests()) : 0,
@@ -553,6 +597,9 @@ public final class JobWrites {
      * @param instant   turns a stored time into an instant
      * @param now       the current time
      * @param render    renders a refusal as plain text
+     * @param lastPlace where a player was last seen, as a block; empty when it is not known
+     * @param returns   puts items into a player's item returns, as amounts by material name, and answers what could
+     *                  not be stored
      */
     public record Sources(
             Supplier<@Nullable JobServices> jobs,
@@ -560,7 +607,9 @@ public final class JobWrites {
             Supplier<JobSettings> settings,
             Function<LocalDateTime, Instant> instant,
             Supplier<LocalDateTime> now,
-            Function<CommandFailure, String> render) {}
+            Function<CommandFailure, String> render,
+            Function<UUID, Optional<JobArea>> lastPlace,
+            BiFunction<UUID, Map<String, Integer>, Map<String, Integer>> returns) {}
 
     /**
      * A job as listed.
@@ -630,7 +679,8 @@ public final class JobWrites {
      * @param surface        the surface block of a terraform job
      * @param stock          the stock of the player's harvest job, as amounts by material name
      * @param canManage      whether the player may take and finish jobs for their company
-     * @param takeable       whether the player's company may take the job: it is open and owned by nobody of the company
+     * @param takeable       whether the player's company may take the job: it is open, owned by nobody of the company,
+     *                       and the company has an order slot free
      * @param extendedHours  the hours the owner added for the company working on it
      * @param hoursLeft      the hours it may still get, 0 when it may get none
      * @param requestsLeft   how often the company working on it may still ask for more time

@@ -327,6 +327,7 @@ There is no treasury share. Cancel the event and the player is neither paid nor 
 | `DELIVERY_OVERFLOW`         | Items could not be handed over: the owner's inventory was full, or the worker went offline before the surplus of a delivery was given back |
 | `ADMIN_GRANT`               | An admin granted the items with a command                                                        |
 | `API`                       | A plugin granted the items with `players().grantItems(...)`                                      |
+| `JOB_STOCK`                 | The owner of a harvest job collected its stock on the dashboard                                  |
 
 ## Several servers
 

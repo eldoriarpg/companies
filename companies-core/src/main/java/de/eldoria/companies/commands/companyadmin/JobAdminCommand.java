@@ -97,10 +97,11 @@ public final class JobAdminCommand {
         run(admin, () -> jobs().service().settle(admin.getName(), id, percent), change -> {
             var values = Values.number("id", id);
             if (change == JobService.Change.DONE) {
-                deps.plugin()
-                        .getLogger()
-                        .info("%s settled the dispute about job %d with %d %% to the company"
-                                .formatted(admin.getName(), id, percent));
+                deps.adminLog()
+                        .entry(admin, "job settle")
+                        .with("id", id)
+                        .with("percent", percent)
+                        .write();
                 jobs().access().checkSoon();
                 deps.messages().sendMessage(admin, PREFIX + "settled", values, Values.number("percent", percent));
                 return;

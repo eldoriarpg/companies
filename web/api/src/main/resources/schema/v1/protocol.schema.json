@@ -1713,6 +1713,9 @@
     "jobs.cancel.refuse" : {
       "feature" : "jobs"
     },
+    "jobs.collect" : {
+      "feature" : "jobs"
+    },
     "admin.jobs.disputes" : {
       "feature" : "admin.jobs"
     },

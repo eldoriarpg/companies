@@ -412,7 +412,7 @@ Every admin action writes one line to the server log. It names the admin and wha
 [admin] Steve order cancel id=42 refund=true owner=Alex company="Iron Works"
 ```
 
-This covers the order, player, grant, treasury, company, level, board, node and offer commands, as well as `reload`,
+This covers the order, player, grant, treasury, company, level, board, node and offer commands, `job settle`, as well as `reload`,
 `syncconfiguration` and `calclevel`. Looking things up is logged too: `order info`, `order search` and `player`.
 
 Use the log to check what your staff did. Search your `latest.log` for `[admin]`.

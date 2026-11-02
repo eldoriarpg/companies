@@ -1389,7 +1389,7 @@ export interface WriteActions {
     'admin.nodes.remove': {args: {uid: string}, result: {nodes: AdminNode[]}}
     'admin.nodes.prices': {args: Record<string, never>, result: {sources: AdminPriceSource[]}}
     'events.join': {args: OfferRef, result: EventDetails}
-    'jobs.contract': {args: {title: string, description: string, price: number, hours: number}, result: JobDetails}
+    'jobs.contract': {args: {title: string, description: string, price: number, hours: number, place?: boolean}, result: JobDetails}
     'jobs.describe': {args: JobRef & {text: string}, result: JobDetails}
     'jobs.approve': {args: JobRef, result: JobDetails}
     'jobs.reject': {args: JobRef & {reason: string}, result: JobDetails}
@@ -1406,6 +1406,7 @@ export interface WriteActions {
     'jobs.extension.refuse': {args: JobRef & {reason: string}, result: JobDetails}
     'jobs.cancel.accept': {args: JobRef, result: JobDetails}
     'jobs.cancel.refuse': {args: JobRef, result: JobDetails}
+    'jobs.collect': {args: JobRef, result: JobDetails}
     'admin.jobs.disputes': {args: Record<string, never>, result: {disputes: DisputeRow[]}}
     'admin.jobs.settle': {args: JobRef & {percent: number}, result: {disputes: DisputeRow[]}}
     'events.leave': {args: OfferRef, result: EventDetails}

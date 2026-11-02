@@ -1323,7 +1323,8 @@ public class Companies extends EldoPlugin {
                                 commands.services().activeEvents()),
                         () -> jobs,
                         priceData,
-                        api.priceSources()::registered),
+                        api.priceSources()::registered,
+                        api.areaProviders()::providers),
                 () -> bus.publish(new NodeMessage.CacheInvalidate(NodeCaches.DASHBOARD, NodeCaches.DASHBOARD_KEY)),
                 workerPool);
         var started = dashboard;

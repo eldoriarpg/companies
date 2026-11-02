@@ -118,7 +118,8 @@ While the company works on it, its members can only harvest in the field:
   crops but not place other blocks or pour buckets there, and what they placed is no harvest.
 
 Nothing drops: the harvest goes into the job's **stock**. List it with `/order job stock <id>` and take it with
-`/order job collect <id>`; what does not fit into your inventory stays in the stock. The stock waits for you after the
+`/order job collect <id>`, or collect it on the dashboard into your item returns (`/order returns`); what does not fit
+into your inventory stays in the stock. The stock waits for you after the
 job ended.
 
 The job ends when its time or budget runs out, when the company ends it, or when you end it with `/order job end <id>`.

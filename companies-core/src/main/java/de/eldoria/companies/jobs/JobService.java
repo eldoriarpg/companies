@@ -429,6 +429,15 @@ public final class JobService {
     }
 
     /**
+     * @param company a company
+     * @return whether it has an order slot free to take a job; blocks
+     */
+    public boolean hasFreeSlot(CompanyProfile company) {
+        var used = orders.retrieveCompanySlotCount(company).join();
+        return used != null && used < maxOrders.applyAsInt(company);
+    }
+
+    /**
      * Gives a job the member's company works on back; it is open again for every company.
      *
      * @param company the company

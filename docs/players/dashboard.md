@@ -136,9 +136,11 @@ price; the shop price is then shown in bold.
 The **Jobs** page lists the jobs your company holds, the open [jobs](jobs.md) companies may take, and your own jobs.
 Open one to see its price, place, time and what happened to it, and to take the steps you may take, as the commands
 allow them. You can post a **contract** here: a title, a description, a price and the hours
-a company gets to finish it. Jobs in an area (dig, terraform, harvest, build) need a selection in the world and are
-posted in game; dig, terraform and build jobs are also finished in game, where their area is checked. The owner of a job
-is never named to companies, and the company working on your job is never named to you.
+a company gets to finish it; tick the box to place it where you were last in game, which every company then sees. Jobs in an area (dig,
+terraform, harvest, build) need a selection in the world and are posted in game; dig, terraform and build jobs are also
+finished in game, where their area is checked. **Take** shows only while your company has an order slot free. The
+stock of your harvest job is collected here into your item returns, which you take in game with `/order returns`. The
+owner of a job is never named to companies, and the company working on your job is never named to you.
 
 ### Events
 

@@ -655,7 +655,7 @@ function jobDetails(job) {
         disputeByOwner: job.disputeByOwner ?? false,
         settled: null,
         approveAt: job.state === 'done' ? '2026-11-05T12:00:00Z' : null,
-        stock: {},
+        stock: job.mine && job.stock ? job.stock : {},
         canManage: true,
         takeable: job.state === 'open' && !job.mine,
         extendedHours: job.extendedHours ?? 0,
@@ -930,6 +930,12 @@ function action(name, args, state, story = {}) {
         case 'jobs.cancel.accept':
         case 'jobs.cancel.refuse':
             return cancelAnswer(state, name, args, done, refused)
+        case 'jobs.collect': {
+            const job = jobsOf(state)[args.job]
+            if (!job?.mine || job.kind !== 'harvest' || !job.stock) return refused(`The stock of job #${args.job} is empty.`)
+            job.stock = undefined
+            return done(jobDetails(job))
+        }
         case 'jobs.extend':
         case 'jobs.extension.grant':
         case 'jobs.extension.refuse':

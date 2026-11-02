@@ -6,9 +6,14 @@
 package de.eldoria.companies.dashboard.actions;
 
 import de.eldoria.companies.components.company.CompanyPermission;
+import de.eldoria.companies.components.job.JobKind;
 import de.eldoria.companies.components.job.JobState;
 import de.eldoria.companies.dashboard.DashboardWorld;
 import de.eldoria.companies.data.wrapper.dashboard.StoredSession;
+import de.eldoria.companies.data.wrapper.job.Job;
+import de.eldoria.companies.data.wrapper.job.JobArea;
+import de.eldoria.companies.data.wrapper.job.JobHarvest;
+import de.eldoria.companies.data.wrapper.job.JobLand;
 import de.eldoria.companies.util.Permission;
 import de.eldoria.companies.util.Times;
 import de.eldoria.companies.web.api.Actions;
@@ -198,6 +203,96 @@ class JobWritesTest {
         assertEquals(JobState.SETTLED, world.jobs.job(id).orElseThrow().state());
         assertEquals(40.0, world.wallets.getOrDefault(manager, 0.0) + world.wallets.getOrDefault(worker, 0.0), 0.001);
         assertEquals(960.0, world.wallets.get(owner), 0.001);
+    }
+
+    @Test
+    void aContractMayBePlacedWhereItsOwnerWasLastSeen() {
+        var placed = perform(
+                owner,
+                Actions.JOBS_CONTRACT,
+                "{\"title\":\"Barn\",\"price\":100,\"hours\":24,\"place\":true}",
+                Set.of(Permission.Orders.JOBS));
+        var nowhere = perform(owner, Actions.JOBS_CONTRACT, contract(), Set.of(Permission.Orders.JOBS));
+
+        assertEquals("world", placed.data().path("job").path("world").asString());
+        assertEquals("4 64 4", placed.data().path("job").path("center").asString());
+        assertTrue(nowhere.data().path("job").path("world").asString("").isEmpty());
+    }
+
+    @Test
+    void takingIsOfferedOnlyWithAFreeOrderSlot() {
+        var id = posted();
+        assertTrue(perform(manager, Actions.JOBS_INFO, job(id), Set.of())
+                .data()
+                .path("takeable")
+                .asBoolean());
+
+        world.companySlots = 0;
+
+        assertFalse(perform(manager, Actions.JOBS_INFO, job(id), Set.of())
+                .data()
+                .path("takeable")
+                .asBoolean());
+    }
+
+    @Test
+    void theOwnerCollectsAHarvestStockIntoTheirItemReturns() {
+        var id = world.jobs
+                .create(Job.draft(
+                                owner,
+                                JobKind.HARVEST,
+                                "Field",
+                                50,
+                                5,
+                                NODE,
+                                new JobArea("world", 0, 60, 0, 4, 61, 4),
+                                JobLand.REGION,
+                                "home",
+                                24,
+                                Times.now(),
+                                Times.now().plusDays(7))
+                        .withHarvest(new JobHarvest(1, 0)))
+                .orElseThrow();
+        world.jobs.stock(id, Map.of("WHEAT", 12));
+
+        assertFalse(perform(manager, Actions.JOBS_COLLECT, job(id), Set.of()).ok());
+        var collected = perform(owner, Actions.JOBS_COLLECT, job(id), Set.of());
+
+        assertTrue(collected.ok(), collected.message());
+        assertEquals(Map.of("WHEAT", 12), world.returned.get(owner));
+        assertEquals(Map.of(), world.jobs.stock(id));
+        assertFalse(perform(owner, Actions.JOBS_COLLECT, job(id), Set.of()).ok());
+    }
+
+    @Test
+    void aStockThatCanNotBeStoredStaysAndOtherJobsHaveNone() {
+        var id = world.jobs
+                .create(Job.draft(
+                                owner,
+                                JobKind.HARVEST,
+                                "Field",
+                                50,
+                                5,
+                                NODE,
+                                new JobArea("world", 0, 60, 0, 4, 61, 4),
+                                JobLand.REGION,
+                                "home",
+                                24,
+                                Times.now(),
+                                Times.now().plusDays(7))
+                        .withHarvest(new JobHarvest(1, 0)))
+                .orElseThrow();
+        world.jobs.stock(id, Map.of("WHEAT", 12));
+        world.returnsFail = true;
+
+        var failed = perform(owner, Actions.JOBS_COLLECT, job(id), Set.of());
+        var contract = perform(owner, Actions.JOBS_COLLECT, job(posted()), Set.of());
+
+        assertFalse(failed.ok());
+        assertEquals("order.job.error.failed", failed.reason());
+        assertEquals(Map.of("WHEAT", 12), world.jobs.stock(id));
+        assertFalse(contract.ok());
+        assertEquals("order.job.error.unknown", contract.reason());
     }
 
     private int posted() {

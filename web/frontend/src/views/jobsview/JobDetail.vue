@@ -101,6 +101,8 @@ function send(step: JobStep, id: number, written: string): Promise<JobDetails | 
       return action.run('jobs.cancel.accept', {job: id})
     case 'cancelRefuse':
       return action.run('jobs.cancel.refuse', {job: id})
+    case 'collect':
+      return action.run('jobs.collect', {job: id})
   }
 }
 
@@ -162,7 +164,7 @@ async function take(step: JobStep): Promise<void> {
           <span class="tabular">{{ count(amount, locale) }}</span>
         </li>
       </ul>
-      <MutedText tag="p">{{ t('jobs.collectInGame', {id: job.id}) }}</MutedText>
+      <MutedText tag="p">{{ t('jobs.collectInGame', {id: job.id}) }} {{ t('jobs.collectNote') }}</MutedText>
     </section>
     <MutedText v-if="finishInGame" tag="p">{{ t('jobs.finishInGame', {id: job.id}) }}</MutedText>
     <ActionNotice :problem="action.problem.value"/>
