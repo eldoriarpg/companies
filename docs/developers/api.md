@@ -66,9 +66,9 @@ compile against it. The jar comes with sources and Javadoc, so your IDE shows th
 
 You can also read the Javadoc online at [docs.eldoria.de/companies/javadoc](pathname:///companies/javadoc/).
 
-## Declare Companies in your plugin.yml
+## Declare Companies as a dependency
 
-The plugin is called `Companies`. Declare it so that your plugin enables after it:
+The plugin is called `Companies`. Declare it so that your plugin enables after it. In a `plugin.yml`:
 
 ```yaml
 depend: [Companies]
@@ -79,6 +79,20 @@ If your plugin also works without Companies, use a soft dependency:
 ```yaml
 softdepend: [Companies]
 ```
+
+Companies is a Paper plugin. A Paper plugin of your own declares it in its `paper-plugin.yml` and joins its class path,
+so it sees the API classes:
+
+```yaml
+dependencies:
+  server:
+    Companies:
+      load: BEFORE
+      required: true
+      join-classpath: true
+```
+
+Set `required: false` if your plugin also works without Companies.
 
 ## Get the API
 
@@ -96,7 +110,7 @@ CompaniesApi api = getServer().getServicesManager().load(CompaniesApi.class);
 ```
 
 `CompaniesApi.get()` throws an `IllegalStateException` when Companies is not enabled. The services manager returns
-`null` instead. With `softdepend`, check that Companies is enabled first:
+`null` instead. With `softdepend` (or `required: false`), check that Companies is enabled first:
 
 ```java
 if (getServer().getPluginManager().isPluginEnabled("Companies")) {

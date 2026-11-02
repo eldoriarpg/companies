@@ -48,8 +48,9 @@ Download Companies from [Lyna](https://lyna.eldoria.de/products/2). That is the 
 3. Make sure Vault and an economy plugin are in the `plugins` folder too.
 4. Start the server.
 
-On the first start, Paper downloads the database drivers Companies needs. The server needs internet access for this
-once.
+On the first start, Paper downloads the libraries Companies needs, such as the database drivers, from Maven Central and
+from EldoNexus (`eldonexus.de`). The server needs internet access for this once; the libraries are kept in the
+server's `libraries` folder.
 
 ## The first start
 
