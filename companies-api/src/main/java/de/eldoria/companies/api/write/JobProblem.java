@@ -86,5 +86,9 @@ public enum JobProblem {
      * A build job was stored and taken by a company before its blueprint could be saved. Its money stays held until an
      * admin settles the job; nothing was refunded.
      */
-    STRANDED
+    STRANDED,
+    /**
+     * A listener cancelled the posting with {@link de.eldoria.companies.events.job.JobPostEvent}.
+     */
+    REFUSED
 }

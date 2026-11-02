@@ -20,7 +20,9 @@ import de.eldoria.companies.data.wrapper.job.Job;
 import de.eldoria.companies.data.wrapper.job.JobArea;
 import de.eldoria.companies.data.wrapper.job.JobExtension;
 import de.eldoria.companies.data.wrapper.job.JobLand;
+import de.eldoria.companies.data.wrapper.job.JobReviewEntry;
 import de.eldoria.companies.data.wrapper.job.JobTarget;
+import de.eldoria.companies.events.job.JobEndEvent;
 import de.eldoria.companies.orders.OrderTable;
 import de.eldoria.companies.util.TestExecutors;
 import org.bukkit.Material;
@@ -39,6 +41,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -50,6 +53,7 @@ import java.util.logging.Logger;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -259,6 +263,42 @@ class JobServiceTest {
     }
 
     @Test
+    void anUnchargedJobCancelledWithItsCompanyRefundsNothing() {
+        var job = uncharged(JobKind.DIG, AREA, JobService.Details.NONE);
+        service.take(company, manager, job.id());
+        var before = balances.get(owner);
+
+        assertEquals(JobService.Change.CANCEL_ASKED, service.cancel(owner, "Ola", job.id()));
+        assertEquals(JobService.Change.DONE, service.answerCancel(company, manager, "Mia", job.id(), true));
+
+        assertEquals(before, balances.get(owner), 0.001);
+        assertEquals(JobState.CANCELLED, jobs.job(job.id()).orElseThrow().state());
+        assertEquals("Mia", jobs.job(job.id()).orElseThrow().closedBy());
+    }
+
+    @Test
+    void aTakenHarvestIsEndedNotAskedAbout() {
+        var job = harvested(10, 1);
+        service.take(company, manager, job.id());
+
+        assertEquals(JobService.Change.HARVEST, service.cancel(owner, "Ola", job.id()));
+        assertNull(jobs.job(job.id()).orElseThrow().review().cancelAsked());
+    }
+
+    @Test
+    void aRequestEndsWhenTheCompanySaysTheWorkIsDone() {
+        var job = contract(200);
+        service.take(company, manager, job.id());
+        service.cancel(owner, "Ola", job.id());
+
+        service.markDone(company, manager, job.id());
+
+        assertNull(jobs.job(job.id()).orElseThrow().review().cancelAsked());
+        assertEquals(JobService.Change.NOT_YOURS, service.answerCancel(company, manager, "Mia", job.id(), true));
+        assertEquals(JobState.DONE, jobs.job(job.id()).orElseThrow().state());
+    }
+
+    @Test
     void anUnchargedJobTakesNothingAndRefundsNothing() {
         var posted = service.post(
                 owner,
@@ -356,11 +396,30 @@ class JobServiceTest {
     }
 
     @Test
-    void aTakenJobCanNotBeCancelled() {
+    void aTakenJobIsCancelledOnlyWhenItsCompanyAgrees() {
         var job = posted(200);
         service.take(company, manager, job.id());
 
-        assertEquals(JobService.Change.TAKEN, service.cancel(owner, "Ola", job.id()));
+        assertEquals(JobService.Change.CANCEL_ASKED, service.cancel(owner, "Ola", job.id()));
+        assertEquals(JobService.Change.ASKED, service.cancel(owner, "Ola", job.id()));
+        assertTrue(notices.contains("company CANCEL_ASKED " + job.id()));
+        assertEquals(JobState.TAKEN, jobs.job(job.id()).orElseThrow().state());
+        assertEquals(JobService.Change.NO_PERMISSION, service.answerCancel(company, worker, "Mia", job.id(), true));
+
+        assertEquals(JobService.Change.DONE, service.answerCancel(company, manager, "Mia", job.id(), false));
+        assertTrue(notices.contains("owner CANCEL_REFUSED " + job.id()));
+        assertNull(jobs.job(job.id()).orElseThrow().review().cancelAsked());
+        assertEquals(JobService.Change.NO_REQUEST, service.answerCancel(company, manager, "Mia", job.id(), true));
+
+        var before = balances.get(owner);
+        assertEquals(JobService.Change.CANCEL_ASKED, service.cancel(owner, "Ola", job.id()));
+        assertEquals(JobService.Change.DONE, service.answerCancel(company, manager, "Mia", job.id(), true));
+
+        assertEquals(JobState.CANCELLED, jobs.job(job.id()).orElseThrow().state());
+        assertEquals(before + 200, balances.get(owner), 0.001);
+        assertTrue(notices.contains("owner CANCEL_ACCEPTED " + job.id()));
+        assertTrue(notices.contains("owner CANCEL_ACCEPTED " + job.id() + " 200.0"), notices.toString());
+        assertEquals(List.of(), penalties);
     }
 
     @Test
@@ -484,8 +543,138 @@ class JobServiceTest {
         assertEquals(JobState.CANCELLED, jobs.job(job.id()).orElseThrow().state());
         assertEquals(790.0 + 80.0, balances.get(owner), 0.001);
         assertEquals(86.4, balances.get(worker), 0.001);
-        assertTrue(notices.contains("company LAND_LOST " + job.id()));
+        assertTrue(notices.contains("company LAND_LOST " + job.id() + " 60% 200 120.0"), notices.toString());
         assertEquals(List.of(), penalties);
+    }
+
+    @Test
+    void aListenerStopsAPostOrATakeBeforeAnythingChanges() {
+        var job = posted(200);
+        service.events(new JobService.Events() {
+            @Override
+            public boolean allowsPost(Job draft) {
+                return false;
+            }
+
+            @Override
+            public boolean allowsTake(Job job, CompanyProfile company, UUID member) {
+                return false;
+            }
+        });
+        var before = balances.get(owner);
+
+        assertEquals(JobService.Refusal.REFUSED, refusal(post(200, 24, new JobArea("world", 20, 60, 20, 22, 62, 22))));
+        assertEquals(before, balances.get(owner));
+        assertEquals(JobService.Change.REFUSED, service.take(company, manager, job.id()));
+        assertEquals(JobState.OPEN, jobs.job(job.id()).orElseThrow().state());
+    }
+
+    @Test
+    void theLifeOfAJobIsHeardWhereItsChangeIsWon() {
+        List<String> heard = new ArrayList<>();
+        service.events(new JobService.Events() {
+            @Override
+            public void finished(Job job, double paid) {
+                heard.add("finished " + job.id() + " " + paid);
+            }
+
+            @Override
+            public void ended(Job job, JobEndEvent.Reason reason) {
+                heard.add(reason + " " + job.id());
+            }
+
+            @Override
+            public void markedDone(Job job) {
+                heard.add("done " + job.id());
+            }
+        });
+        var dig = posted(200);
+        service.take(company, manager, dig.id());
+        service.giveBack(company, manager, dig.id());
+        service.take(company, manager, dig.id());
+        jobs.work(dig.id(), company.id(), worker, 10);
+        service.finish(company, manager, dig.id(), DONE);
+        var open = post(100, 24, POINT);
+        var cancelled = ((JobService.Posted.Done) open).job();
+        service.cancel(owner, "owner", cancelled.id());
+
+        assertEquals(
+                List.of(
+                        "GIVEN_BACK " + dig.id(),
+                        "finished " + dig.id() + " 144.0",
+                        "PAID " + dig.id(),
+                        "CANCELLED " + cancelled.id()),
+                heard);
+    }
+
+    @Test
+    void aListenerThatFailsNeitherStopsAJobNorItsMoney() {
+        service.events(new JobService.Events() {
+            @Override
+            public boolean allowsPost(Job draft) {
+                throw new IllegalStateException("listener");
+            }
+
+            @Override
+            public void ended(Job job, JobEndEvent.Reason reason) {
+                throw new IllegalStateException("listener");
+            }
+        });
+        var job = posted(200);
+        service.take(company, manager, job.id());
+        jobs.work(job.id(), company.id(), worker, 10);
+
+        var finished = service.finish(company, manager, job.id(), DONE);
+
+        assertEquals(
+                144.0,
+                assertInstanceOf(JobService.Finished.Paid.class, finished).paid(),
+                0.001);
+        assertEquals(JobState.PAID, jobs.job(job.id()).orElseThrow().state());
+        assertEquals(144.0, balances.get(worker), 0.001);
+    }
+
+    @Test
+    void anExpiredJobIsHeard() {
+        var job = posted(200);
+        clock = Clock.offset(clock, Duration.ofDays(8));
+        service();
+        List<String> heard = new ArrayList<>();
+        service.events(new JobService.Events() {
+            @Override
+            public void ended(Job job, JobEndEvent.Reason reason) {
+                heard.add(reason + " " + job.id());
+            }
+        });
+
+        assertEquals(List.of(job.id()), service.check().expired());
+        assertEquals(List.of("EXPIRED " + job.id()), heard);
+    }
+
+    @Test
+    void blocksAlreadyClearedWhenADigJobWasPostedEarnNothingWhenItsLandChangesHands() {
+        var job = posted(200);
+        jobs.airAtPost(job.id(), 100);
+        service.take(company, manager, job.id());
+        jobs.work(job.id(), company.id(), worker, 10);
+        var taken = jobs.job(job.id()).orElseThrow();
+
+        assertTrue(service.landLost(taken, new DigCheck.Progress(300, 500, new int[] {0, 64, 0})));
+
+        assertEquals(790.0 + 100.0, balances.get(owner), 0.001);
+        assertEquals(72.0, balances.get(worker), 0.001);
+        assertTrue(notices.contains("company LAND_LOST " + job.id() + " 50% 200 100.0"), notices.toString());
+    }
+
+    @Test
+    void theEarnedShareLeavesOutTheBlocksClearedBeforeAnyWork() {
+        var progress = new DigCheck.Progress(300, 500, new int[] {0, 64, 0});
+
+        assertEquals(120.0, JobService.earned(200, progress, 0), 0.001);
+        assertEquals(100.0, JobService.earned(200, progress, 100), 0.001);
+        assertEquals(0.0, JobService.earned(200, progress, 300), 0.001);
+        assertEquals(0.0, JobService.earned(200, progress, 500), 0.001);
+        assertEquals(200.0, JobService.earned(200, new DigCheck.Progress(500, 500, null), 100), 0.001);
     }
 
     @Test
@@ -702,6 +891,54 @@ class JobServiceTest {
     }
 
     @Test
+    void oneHarvestOfSeveralMembersBooksTheTreasuryOnceAndPaysThemInTurn() {
+        var job = harvested(10, 1);
+        service.take(company, manager, job.id());
+        var second = UUID.randomUUID();
+        Map<UUID, Map<String, Integer>> byWorker = new LinkedHashMap<>();
+        byWorker.put(worker, Map.of("WHEAT", 6));
+        byWorker.put(second, Map.of("CARROT", 6));
+        kept.clear();
+
+        var net = service.harvested(job.id(), company.id(), byWorker);
+
+        assertEquals(1, kept.size());
+        assertEquals(180L, kept.getFirst());
+        assertEquals(7.2, net, 0.001);
+        assertEquals(4.32, balances.get(worker), 0.001);
+        assertEquals(2.88, balances.get(second), 0.001);
+        assertEquals(10.0, jobs.job(job.id()).orElseThrow().harvest().paid(), 0.001);
+        assertEquals(JobState.PAID, jobs.job(job.id()).orElseThrow().state());
+    }
+
+    @Test
+    void aBudgetInCentsIsPaidUpWithoutRoundingErrors() {
+        var job = harvested(1.0, 0.3);
+        service.take(company, manager, job.id());
+
+        for (var flush = 0; flush < 3; flush++) {
+            assertTrue(service.harvested(job.id(), company.id(), worker, Map.of("WHEAT", 1)) > 0);
+        }
+        var ended = jobs.job(job.id()).orElseThrow();
+        assertEquals(0.9, ended.harvest().paid(), 0.0001);
+        assertEquals(JobState.PAID, ended.state());
+        assertEquals(0.0, service.harvested(job.id(), company.id(), worker, Map.of("WHEAT", 1)), 0.0001);
+        assertEquals(Map.of("WHEAT", 4), jobs.stock(job.id()));
+    }
+
+    @Test
+    void theBudgetPaysMembersInTurnInWholeCents() {
+        var first = UUID.randomUUID();
+        var second = UUID.randomUUID();
+        Map<UUID, Map<String, Integer>> byWorker = new LinkedHashMap<>();
+        byWorker.put(first, Map.of("WHEAT", 3));
+        byWorker.put(second, Map.of("WHEAT", 3));
+
+        assertEquals(Map.of(first, 99L, second, 1L), JobService.shares(byWorker, 0.33, 100));
+        assertEquals(Map.of(first, 99L, second, 99L), JobService.shares(byWorker, 0.33, 1000));
+    }
+
+    @Test
     void aHarvestWhoseTimeRunsOutEndsWithoutPenaltyAndGivesTheRestBack() {
         var job = harvested(10, 1);
         service.take(company, manager, job.id());
@@ -857,6 +1094,42 @@ class JobServiceTest {
         assertEquals(local(NOW).plusHours(34), rejected.due());
         assertEquals("Not yet", rejected.review().rejected());
         assertTrue(notices.contains("company REJECTED " + job.id() + " Not yet"));
+    }
+
+    @Test
+    void everyDoneAndRejectionIsKeptInTheReviewHistory() {
+        var job = contract(200);
+        service.take(company, manager, job.id());
+        service.markDone(company, manager, job.id());
+        service.reject(owner, job.id(), "Not yet");
+        service.markDone(company, manager, job.id());
+
+        var reviews = jobs.reviews(job.id());
+
+        assertEquals(
+                List.of(JobReviewEntry.Kind.DONE, JobReviewEntry.Kind.REJECTED, JobReviewEntry.Kind.DONE),
+                reviews.stream().map(JobReviewEntry::kind).toList());
+        assertEquals(manager, reviews.getFirst().by());
+        assertEquals(owner, reviews.get(1).by());
+        assertEquals("Not yet", reviews.get(1).reason());
+    }
+
+    @Test
+    void withOwnerApprovalADoneAreaJobWaitsForItsOwner() {
+        settings.approveAreaJobs(true);
+        var job = posted(200);
+        service.take(company, manager, job.id());
+        jobs.work(job.id(), company.id(), worker, 300);
+
+        var finished = service.finish(company, manager, job.id(), DONE);
+
+        assertInstanceOf(JobService.Finished.Waiting.class, finished);
+        assertEquals(JobState.DONE, jobs.job(job.id()).orElseThrow().state());
+        assertTrue(notices.contains("owner AWAITING " + job.id()));
+        assertNull(balances.get(worker));
+        assertEquals(JobService.Change.DONE, service.approve(owner, "Ola", job.id()));
+        assertEquals(JobState.PAID, jobs.job(job.id()).orElseThrow().state());
+        assertTrue(balances.get(worker) > 0);
     }
 
     @Test
@@ -1107,6 +1380,7 @@ class JobServiceTest {
             @Override
             public void owner(UUID owner, JobService.Notice notice, Job job, @Nullable Object detail) {
                 notices.add("owner " + notice + " " + job.id());
+                if (detail instanceof Double amount) notices.add("owner " + notice + " " + job.id() + " " + amount);
             }
 
             @Override
@@ -1120,8 +1394,9 @@ class JobServiceTest {
             }
 
             @Override
-            public void landLost(int company, Job job) {
-                notices.add("company LAND_LOST " + job.id());
+            public void landLost(int company, Job job, JobService.@Nullable Worked worked) {
+                notices.add("company LAND_LOST " + job.id()
+                        + (worked == null ? "" : " " + worked.percent() + "% " + worked.left() + " " + worked.paid()));
             }
 
             @Override
@@ -1152,6 +1427,11 @@ class JobServiceTest {
             @Override
             public void extensionRefused(int company, Job job, @Nullable String reason) {
                 notices.add("company REFUSED " + job.id() + " " + reason);
+            }
+
+            @Override
+            public void cancelAsked(int company, Job job) {
+                notices.add("company CANCEL_ASKED " + job.id());
             }
         };
         service = new JobService(

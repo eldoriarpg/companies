@@ -67,7 +67,11 @@ public final class ReadRelay {
             Actions.EVENTS_LIST,
             Actions.EVENTS_INFO,
             Actions.JOBS_LIST,
-            Actions.JOBS_INFO);
+            Actions.JOBS_INFO,
+            Actions.JOBS_SCHEMATICS_LIST,
+            Actions.JOBS_AREAS_LIST,
+            Actions.JOBS_AREAS_PREVIEW,
+            Actions.JOBS_AREAS_SCHEMATIC);
 
     /**
      * The actions that change something and may be forwarded. They are never cached, and a write drops every cached
@@ -180,19 +184,32 @@ public final class ReadRelay {
             Actions.JOBS_EXTENSION_ASK,
             Actions.JOBS_EXTENSION_GRANT,
             Actions.JOBS_EXTENSION_REFUSE,
+            Actions.JOBS_CANCEL_ACCEPT,
+            Actions.JOBS_CANCEL_REFUSE,
+            Actions.JOBS_COLLECT,
+            Actions.JOBS_SCHEMATICS_UPLOAD,
+            Actions.JOBS_SCHEMATICS_DELETE,
+            Actions.JOBS_AREAS_DELETE,
+            Actions.JOBS_AREAS_POST,
+            Actions.JOBS_AREAS_BUILD,
             Actions.ADMIN_JOBS_DISPUTES,
             Actions.ADMIN_JOBS_SETTLE);
 
     /**
-     * The admin actions on what each node keeps for itself, its board signs and NPC links. They go to the node named
-     * in {@code node}, and to the primary when none is named.
+     * The actions on what lies on one node: the admin actions on its board signs and NPC links, and posting a job on a
+     * stored area, which is checked in that node's world. They go to the node named in {@code node}, and to the
+     * primary when none is named.
      */
     public static final Set<String> NODE_ACTIONS = Set.of(
             Actions.ADMIN_BOARDS_PRESETS,
             Actions.ADMIN_BOARDS_RELOAD,
             Actions.ADMIN_BOARDS_NPC_LIST,
             Actions.ADMIN_BOARDS_NPC_LINK,
-            Actions.ADMIN_BOARDS_NPC_UNLINK);
+            Actions.ADMIN_BOARDS_NPC_UNLINK,
+            Actions.JOBS_AREAS_POST,
+            Actions.JOBS_AREAS_PREVIEW,
+            Actions.JOBS_AREAS_SCHEMATIC,
+            Actions.JOBS_AREAS_BUILD);
 
     /**
      * The admin actions only the primary performs, as they push its files to the others. Without a ready primary

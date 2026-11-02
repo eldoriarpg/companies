@@ -21,12 +21,15 @@ import RowTitle from '@/components/typography/RowTitle.vue'
 import SectionHeader from '@/components/typography/SectionHeader.vue'
 import ContractForm from './jobsview/ContractForm.vue'
 import JobDetail from './jobsview/JobDetail.vue'
+import AreasPanel from './jobsview/AreasPanel.vue'
+import SchematicsPanel from './jobsview/SchematicsPanel.vue'
 import {orderIdOf} from '~/composables/useSelection'
 import {money} from '~/util/format'
 
 /**
  * The jobs of the server, as `/company job` and `/order job` list them: the jobs the player's company holds, the open
- * jobs companies may take, and the player's own jobs, with a form to post a contract. A job's page opens beside the
+ * jobs companies may take, and the player's own jobs, with a form to post a contract and the player's uploaded
+ * schematics for build jobs. A job's page opens beside the
  * lists from tablet width and as a sheet on a phone; the address names it.
  */
 const {t, locale} = useI18n()
@@ -92,6 +95,8 @@ function posted(details: JobDetails): void {
             </li>
           </PlainList>
         </PanelBox>
+        <AreasPanel v-if="list?.canPost" @posted="posted"/>
+        <SchematicsPanel/>
       </div>
       <JobDetail
           v-if="wide && jobs.detail.value"

@@ -655,6 +655,69 @@ public final class Actions {
     public static final String JOBS_EXTENSION_REFUSE = "jobs.extension.refuse";
 
     /**
+     * Lets the owner cancel a job the player's company holds, as the owner asked.
+     */
+    public static final String JOBS_CANCEL_ACCEPT = "jobs.cancel.accept";
+
+    /**
+     * Refuses the owner's request to cancel a job the player's company holds.
+     */
+    public static final String JOBS_CANCEL_REFUSE = "jobs.cancel.refuse";
+
+    /**
+     * Moves the stock of the player's harvest job to their item returns.
+     */
+    public static final String JOBS_COLLECT = "jobs.collect";
+
+    /**
+     * Lists the schematics the player uploaded for build jobs and whether the server takes uploads.
+     */
+    public static final String JOBS_SCHEMATICS_LIST = "jobs.schematics.list";
+
+    /**
+     * Uploads a schematic for build jobs; it is cleaned of unwanted contents before it is kept.
+     */
+    public static final String JOBS_SCHEMATICS_UPLOAD = "jobs.schematics.upload";
+
+    /**
+     * Deletes a schematic the player uploaded.
+     */
+    public static final String JOBS_SCHEMATICS_DELETE = "jobs.schematics.delete";
+
+    /**
+     * Lists the areas the player stored for area jobs.
+     */
+    public static final String JOBS_AREAS_LIST = "jobs.areas.list";
+
+    /**
+     * Deletes an area the player stored.
+     */
+    public static final String JOBS_AREAS_DELETE = "jobs.areas.delete";
+
+    /**
+     * Posts a dig, terraform or harvest job on a stored area, on the server whose world holds it; its price and fee are
+     * taken at once.
+     */
+    public static final String JOBS_AREAS_POST = "jobs.areas.post";
+
+    /**
+     * Draws the top layer of a stored area and lists the schematics a build job on it may use, on the server whose
+     * world holds it.
+     */
+    public static final String JOBS_AREAS_PREVIEW = "jobs.areas.preview";
+
+    /**
+     * Reads the size and the material cost of a schematic, turned, on the server of a stored area.
+     */
+    public static final String JOBS_AREAS_SCHEMATIC = "jobs.areas.schematic";
+
+    /**
+     * Posts a build job of a schematic the owner placed and turned on a stored area, on the server whose world holds
+     * it; its price and fee are taken at once.
+     */
+    public static final String JOBS_AREAS_BUILD = "jobs.areas.build";
+
+    /**
      * Lists the disputed jobs with both sides and the reason.
      */
     public static final String ADMIN_JOBS_DISPUTES = "admin.jobs.disputes";
@@ -795,6 +858,18 @@ public final class Actions {
             JOBS_EXTENSION_ASK,
             JOBS_EXTENSION_GRANT,
             JOBS_EXTENSION_REFUSE,
+            JOBS_CANCEL_ACCEPT,
+            JOBS_CANCEL_REFUSE,
+            JOBS_COLLECT,
+            JOBS_SCHEMATICS_LIST,
+            JOBS_SCHEMATICS_UPLOAD,
+            JOBS_SCHEMATICS_DELETE,
+            JOBS_AREAS_LIST,
+            JOBS_AREAS_DELETE,
+            JOBS_AREAS_POST,
+            JOBS_AREAS_PREVIEW,
+            JOBS_AREAS_SCHEMATIC,
+            JOBS_AREAS_BUILD,
             ADMIN_JOBS_DISPUTES,
             ADMIN_JOBS_SETTLE);
 

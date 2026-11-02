@@ -28,7 +28,8 @@ public interface SelectionHook {
      * @param file      a schematic file
      * @param rotation  degrees to turn it clockwise seen from above: 0, 90, 180 or 270
      * @param maxVolume the most blocks its box may hold; a larger one is not read further
-     * @return its blocks around its origin, turned, empty when the file is no schematic, holds only air or is too large
+     * @return its blocks around its origin, turned, with the positions it leaves as air, which are dug out where they
+     *     lie below the ground once placed; empty when the file is no schematic, holds only air or is too large
      * @throws IOException when the file can not be read
      */
     Optional<Blueprint> schematic(Path file, int rotation, int maxVolume) throws IOException;

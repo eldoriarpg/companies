@@ -6,10 +6,13 @@
 package de.eldoria.companies.configuration.elements.jobs;
 
 import de.eldoria.companies.components.job.JobKind;
+import org.bukkit.Material;
 
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
 /**
  * The jobs, the file {@code jobs.yml}: whether players may post them, where they may lie, how large they may be and
@@ -25,6 +28,7 @@ public class JobSettings {
     private int harvestMaxVolume = 16384;
     private int buildMaxVolume = 32768;
     private int buildMatchPercent = 95;
+    private List<String> buildWhitelist = new ArrayList<>(List.of("scaffolding"));
     private int maxChunks = 64;
     private int maxOpenPerOwner = 5;
     private int maxDueHours = 168;
@@ -33,6 +37,10 @@ public class JobSettings {
     private int maxExtensionRequests = 3;
     private int openDays = 7;
     private int approveHours = 72;
+    private boolean approveAreaJobs = false;
+    private boolean schematicUploads = false;
+    private int maxSchematics = 10;
+    private int maxAreas = 10;
 
     public JobSettings() {}
 
@@ -140,6 +148,25 @@ public class JobSettings {
     }
 
     /**
+     * The blocks the working company may place anywhere in a build job's area to build up, besides the blocks the
+     * blueprint asks for. Names that are no block are left out.
+     *
+     * @return the blocks
+     */
+    public Set<Material> buildWhitelist() {
+        Set<Material> blocks = EnumSet.noneOf(Material.class);
+        for (var name : buildWhitelist == null ? List.<String>of() : buildWhitelist) {
+            var type = name == null ? null : Material.matchMaterial(name);
+            if (type != null && type.isBlock()) blocks.add(type);
+        }
+        return blocks;
+    }
+
+    public void buildWhitelist(List<String> buildWhitelist) {
+        this.buildWhitelist = new ArrayList<>(buildWhitelist);
+    }
+
+    /**
      * @return the most chunks the area of a job may touch, at least 1, so a long thin area can not load half a world
      */
     public int maxChunks() {
@@ -227,5 +254,51 @@ public class JobSettings {
 
     public void approveHours(int approveHours) {
         this.approveHours = approveHours;
+    }
+
+    /**
+     * @return whether a dig, terraform or build job whose check passed waits for its owner to approve it, like a
+     *     contract, instead of being paid at once
+     */
+    public boolean approveAreaJobs() {
+        return approveAreaJobs;
+    }
+
+    public void approveAreaJobs(boolean approveAreaJobs) {
+        this.approveAreaJobs = approveAreaJobs;
+    }
+
+    /**
+     * @return whether players may upload their own schematics for build jobs on the dashboard; they are cleaned with
+     *     the Schematic Sanitizer library, which needs FastAsyncWorldEdit
+     */
+    public boolean schematicUploads() {
+        return schematicUploads;
+    }
+
+    public void schematicUploads(boolean schematicUploads) {
+        this.schematicUploads = schematicUploads;
+    }
+
+    /**
+     * @return the most schematics a player may keep uploaded, at least 1
+     */
+    public int maxSchematics() {
+        return Math.max(1, maxSchematics);
+    }
+
+    public void maxSchematics(int maxSchematics) {
+        this.maxSchematics = maxSchematics;
+    }
+
+    /**
+     * @return the most areas a player may keep stored, at least 1
+     */
+    public int maxAreas() {
+        return Math.max(1, maxAreas);
+    }
+
+    public void maxAreas(int maxAreas) {
+        this.maxAreas = maxAreas;
     }
 }

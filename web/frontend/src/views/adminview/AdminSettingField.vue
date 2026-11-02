@@ -30,7 +30,21 @@ const props = defineProps<{
   disabled?: boolean
 }>()
 
-const {t} = useI18n()
+const {t, te} = useI18n()
+
+/** The names a setting of named switches offers; older plugins send none for the dashboard's parts. */
+const switchNames = computed(() => props.setting.choices.length === 0 && props.setting.key === 'dashboard.features'
+  ? Object.values(Feature)
+  : props.setting.choices)
+
+/**
+ * @param name a switch of a setting of named switches
+ * @returns its readable name for the dashboard's parts, the name as it is for area providers and price sources
+ */
+function switchLabel(name: string): string {
+  const key = `admin.settings.featureNames.${name.replaceAll('.', '_')}`
+  return props.setting.key === 'dashboard.features' && te(key) ? t(key) : name
+}
 
 const flag = computed({
   get: () => model.value === true,
@@ -103,7 +117,7 @@ function toggle(name: string, on: boolean): void {
     </fieldset>
     <fieldset v-else-if="setting.type === 'FLAG_MAP'" class="flex flex-col gap-1">
       <legend class="text-xs font-semibold text-ink-muted">{{ label }}</legend>
-      <CheckboxInput v-for="name in Object.values(Feature)" :key="name" :model-value="switches[name] !== false" :label="name" :disabled="disabled" @update:model-value="toggle(name, $event)"/>
+      <CheckboxInput v-for="name in switchNames" :key="name" :model-value="switches[name] !== false" :label="switchLabel(name)" :disabled="disabled" @update:model-value="toggle(name, $event)"/>
     </fieldset>
     <template v-else-if="setting.type === 'SECRET'">
       <TextInput

@@ -1707,6 +1707,42 @@
     "jobs.extension.refuse" : {
       "feature" : "jobs"
     },
+    "jobs.cancel.accept" : {
+      "feature" : "jobs"
+    },
+    "jobs.cancel.refuse" : {
+      "feature" : "jobs"
+    },
+    "jobs.collect" : {
+      "feature" : "jobs"
+    },
+    "jobs.schematics.list" : {
+      "feature" : "jobs"
+    },
+    "jobs.schematics.upload" : {
+      "feature" : "jobs"
+    },
+    "jobs.schematics.delete" : {
+      "feature" : "jobs"
+    },
+    "jobs.areas.list" : {
+      "feature" : "jobs"
+    },
+    "jobs.areas.delete" : {
+      "feature" : "jobs"
+    },
+    "jobs.areas.post" : {
+      "feature" : "jobs"
+    },
+    "jobs.areas.preview" : {
+      "feature" : "jobs"
+    },
+    "jobs.areas.schematic" : {
+      "feature" : "jobs"
+    },
+    "jobs.areas.build" : {
+      "feature" : "jobs"
+    },
     "admin.jobs.disputes" : {
       "feature" : "admin.jobs"
     },

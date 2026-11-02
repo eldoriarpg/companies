@@ -18,6 +18,7 @@ public final class SetupPages {
     private static final String CONFIG = "config.yml";
     private static final String COMPANY = "company.yml";
     private static final String ORDER = "order.yml";
+    private static final String JOBS = "jobs.yml";
 
     /**
      * Every page, in the order the setup walks through them.
@@ -50,6 +51,7 @@ public final class SetupPages {
                             field(CONFIG, "generalSettings.hooks.worldguard"),
                             field(CONFIG, "generalSettings.hooks.plotsquared"),
                             field(CONFIG, "generalSettings.hooks.worldedit"),
+                            field(JOBS, "schematicUploads"),
                             field(CONFIG, "boards.enabled"),
                             field(CONFIG, "discord.enabled"),
                             field(CONFIG, "discord.url"),

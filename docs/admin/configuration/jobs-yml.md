@@ -18,6 +18,8 @@ terraformMaxVolume: 32768
 harvestMaxVolume: 16384
 buildMaxVolume: 32768
 buildMatchPercent: 95
+buildWhitelist:
+  - scaffolding
 maxChunks: 64
 maxOpenPerOwner: 5
 maxDueHours: 168
@@ -26,6 +28,10 @@ maxTotalHours: 336
 maxExtensionRequests: 3
 openDays: 7
 approveHours: 72
+approveAreaJobs: false
+schematicUploads: false
+maxSchematics: 10
+maxAreas: 10
 ```
 
 | Key | Values | Default | Description | Takes effect |
@@ -36,7 +42,8 @@ approveHours: 72
 | `terraformMaxVolume` | number (blocks) | `32768` | The most blocks the area of a terraform job may hold, checked like a dig job's. | reload |
 | `harvestMaxVolume` | number (blocks) | `16384` | The most blocks the field of a harvest job may hold. | reload |
 | `buildMaxVolume` | number (blocks) | `32768` | The most blocks the area of a build job may hold. | reload |
-| `buildMatchPercent` | number (percent) | `95` | The share of a blueprint's blocks that must match for a build job to be done. Only block types are compared. | reload |
+| `buildMatchPercent` | number (percent) | `95` | The share of a blueprint's blocks that must match for a build job to be done. A block matches by its type and how it is turned (facing, half, axis, hinge, a slab's half); connections and stair shapes never count. | reload |
+| `buildWhitelist` | list of blocks | `[scaffolding]` | The blocks the working company may place anywhere in a build job's area to build up. Every other block may only go where the blueprint asks for it. | reload |
 | `maxChunks` | number (chunks) | `64` | The most chunks the area of a job may touch, so a long thin area can not make the server load many chunks for each check. | reload |
 | `maxOpenPerOwner` | number | `5` | The most jobs a player may have waiting for a company at once. | reload |
 | `maxDueHours` | number (hours) | `168` | The most hours an owner may give a company to finish a job. | reload |
@@ -45,6 +52,10 @@ approveHours: 72
 | `maxExtensionRequests` | number | `3` | How often a company may ask for more time per job; refused requests count. | reload |
 | `openDays` | number (days) | `7` | How long a job waits for a company. Nobody took it by then: it expires and price and fee go back to its owner. | reload |
 | `approveHours` | number (hours) | `72` | How long a job the company says is done waits for its owner to approve or reject it. Without an answer by then it is approved and paid. | reload |
+| `approveAreaJobs` | true/false | `false` | Dig, terraform and build jobs whose check passed wait for their owner to approve them, like contracts, instead of being paid at once. | reload |
+| `schematicUploads` | true/false | `false` | Players may upload their own schematics for build jobs on the dashboard. Each upload is cleaned of the contents of containers, command blocks, creatures and other unwanted contents before it is kept. Uploads are at most 512 KB and must fit `buildMaxVolume`. Needs FastAsyncWorldEdit. Switched off, kept uploads can still be used for build jobs. Also on the integrations page of the setup. | reload |
+| `maxSchematics` | number | `10` | The most schematics a player may keep uploaded. | reload |
+| `maxAreas` | number | `10` | The most areas a player may keep stored for jobs (`/order job area`). | reload |
 
 The fee of a job is the order fee of [order.yml](./order-yml.md), lowered by the fee reductions of server events. A
 company's order slots count its jobs; giving one back or running out of time costs the order penalties of
@@ -74,11 +85,14 @@ Jobs need a land plugin to know whose land an area is, and give the working comp
 
 Switch each hook with `generalSettings.hooks.worldguard`, `plotsquared` and `worldedit` in
 [config.yml](./config-yml.md#generalsettings); `providers` in [areas.yml](./areas-yml.md) switches an area provider off
-for jobs as well. The server that holds a job's world gives and takes the access; it checks
-every 30 seconds, so members who join or leave the company are added or removed, and access of jobs that ended while
-the server was off is taken back when it starts. Access that can not be taken back yet, such as while the world is not
-loaded, is tried again. The same check cancels a job whose land changed hands, such as a plot that was sold or a region
-that lost its owner or was removed: a waiting job gives its price back; a job a company works on pays the company for
-the share of the area it cleared and gives the rest back. While a company works on a job, only its members may place
-blocks or empty buckets in the area, so nobody fills it up again. The primary server expires jobs and opens jobs whose
-time ran out again, every minute.
+for jobs as well. for jobs as well. The server that holds a job's world gives and takes the access; it checks every 30
+seconds, so members who join or leave the company are added or removed, and access of jobs that ended while the server
+was off is taken back when it starts. Access that can not be taken back yet, such as while the world is not loaded, is
+tried again. The same check cancels a job whose land changed hands, such as a plot that was sold or a region that lost
+its owner or was removed: a waiting job gives its price back; a job a company works on pays the company for the share of
+the area it cleared and gives the rest back. Blocks of a dig job's area that were already clear when it was posted earn
+nothing in that share; the server measures them while the job waits, and a job taken before that gives its company
+access only once they are measured. Both sides are told the share done and how many blocks were left. Blocks placed and
+positions filled while a job runs are stored, so after a restart a position never counts twice. While a company works on
+a job, only its members may place blocks or empty buckets in the area, so nobody fills it up again. The primary server
+expires jobs and opens jobs whose time ran out again, every minute.

@@ -18,19 +18,25 @@ import de.eldoria.companies.data.wrapper.job.JobArea;
 import de.eldoria.companies.data.wrapper.job.JobExtension;
 import de.eldoria.companies.data.wrapper.job.JobHarvest;
 import de.eldoria.companies.data.wrapper.job.JobLand;
+import de.eldoria.companies.data.wrapper.job.JobMark;
 import de.eldoria.companies.data.wrapper.job.JobReview;
+import de.eldoria.companies.data.wrapper.job.JobReviewEntry;
 import de.eldoria.companies.data.wrapper.job.JobTarget;
+import de.eldoria.companies.data.wrapper.job.StoredArea;
 import org.intellij.lang.annotations.Language;
 import org.jetbrains.annotations.Nullable;
 
 import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.OptionalLong;
 import java.util.Set;
 import java.util.UUID;
 
@@ -47,8 +53,8 @@ public class MariaDbJobData extends AJobData {
             SELECT id, owner_uuid, kind, title, description, price, fee, state, company_id, node, world, min_x, min_y,
                    min_z, max_x, max_y, max_z, land, land_ref, due_hours, created, expires, taken, due, closed,
                    closed_by, granted, done_at, done_by, rejected, dispute_by, dispute, disputed_at, settled,
-                   target_y, target_block, unit_price, paid, extended_hours, extension_requests, extension_hours,
-                   extension_reason, extension_asked, charged
+                   target_y, target_block, unit_price, paid_cents, extended_hours, extension_requests, extension_hours,
+                   extension_reason, extension_asked, charged, cancel_asked
             FROM jobs
             """;
 
@@ -189,7 +195,8 @@ public class MariaDbJobData extends AJobData {
                     extension_requests = 0,
                     extension_hours    = NULL,
                     extension_reason   = NULL,
-                    extension_asked    = NULL
+                    extension_asked    = NULL,
+                    cancel_asked       = NULL
                 WHERE id = ?
                   AND state IN (?, ?)
                   AND company_id = ?""";
@@ -237,7 +244,8 @@ public class MariaDbJobData extends AJobData {
                     done_by = ?,
                     extension_hours  = NULL,
                     extension_reason = NULL,
-                    extension_asked  = NULL
+                    extension_asked  = NULL,
+                    cancel_asked     = NULL
                 WHERE id = ?
                   AND state = ?
                   AND company_id = ?""";
@@ -275,6 +283,99 @@ public class MariaDbJobData extends AJobData {
     }
 
     @Override
+    public boolean askCancel(int job, int company, LocalDateTime at) {
+        @Language("mariadb")
+        var update = """
+                UPDATE jobs
+                SET cancel_asked = ?
+                WHERE id = ?
+                  AND state = ?
+                  AND company_id = ?
+                  AND cancel_asked IS NULL""";
+        return query(update)
+                .single(call().bind(at, time())
+                        .bind(job)
+                        .bind(JobState.TAKEN.name())
+                        .bind(company))
+                .update()
+                .changed();
+    }
+
+    @Override
+    public boolean acceptCancel(int job, int company, @Nullable String by, LocalDateTime at) {
+        @Language("mariadb")
+        var update = """
+                UPDATE jobs
+                SET state        = ?,
+                    closed       = ?,
+                    closed_by    = ?,
+                    cancel_asked = NULL
+                WHERE id = ?
+                  AND state = ?
+                  AND company_id = ?
+                  AND cancel_asked IS NOT NULL""";
+        return query(update)
+                .single(call().bind(JobState.CANCELLED.name())
+                        .bind(at, time())
+                        .bind(by)
+                        .bind(job)
+                        .bind(JobState.TAKEN.name())
+                        .bind(company))
+                .update()
+                .changed();
+    }
+
+    @Override
+    public boolean refuseCancel(int job, int company) {
+        @Language("mariadb")
+        var update = """
+                UPDATE jobs
+                SET cancel_asked = NULL
+                WHERE id = ?
+                  AND state = ?
+                  AND company_id = ?
+                  AND cancel_asked IS NOT NULL""";
+        return query(update)
+                .single(call().bind(job).bind(JobState.TAKEN.name()).bind(company))
+                .update()
+                .changed();
+    }
+
+    @Override
+    public void review(JobReviewEntry entry) {
+        @Language("mariadb")
+        var insert = """
+                INSERT INTO job_reviews(job_id, kind, by_uuid, reason, reviewed_at)
+                VALUES (?, ?, ?, ?, ?)""";
+        query(insert)
+                .single(call().bind(entry.job())
+                        .bind(entry.kind().code())
+                        .bind(entry.by(), UUID_BYTES)
+                        .bind(entry.reason())
+                        .bind(entry.at(), time()))
+                .insert();
+    }
+
+    @Override
+    public List<JobReviewEntry> reviews(int job) {
+        @Language("mariadb")
+        var select = """
+                SELECT job_id, kind, by_uuid, reason, reviewed_at
+                FROM job_reviews
+                WHERE job_id = ?
+                ORDER BY reviewed_at, id""";
+        return query(select)
+                .single(call().bind(job))
+                .map(row -> new JobReviewEntry(
+                        row.getInt("job_id"),
+                        JobReviewEntry.Kind.of(row.getInt("kind")),
+                        Objects.requireNonNull(row.get("by_uuid", UUID_BYTES)),
+                        row.getString("reason"),
+                        Objects.requireNonNull(readTime(row, "reviewed_at"))))
+                .all();
+    }
+
+    @Override
     public boolean dispute(int job, int company, JobState from, UUID by, String reason, LocalDateTime at) {
         @Language("mariadb")
         var update = """
@@ -285,7 +386,8 @@ public class MariaDbJobData extends AJobData {
                     disputed_at = ?,
                     extension_hours  = NULL,
                     extension_reason = NULL,
-                    extension_asked  = NULL
+                    extension_asked  = NULL,
+                    cancel_asked     = NULL
                 WHERE id = ?
                   AND state = ?
                   AND company_id = ?""";
@@ -523,6 +625,100 @@ public class MariaDbJobData extends AJobData {
     }
 
     @Override
+    public Map<JobMark.Kind, Set<Long>> marks(int job, int company) {
+        Map<JobMark.Kind, Set<Long>> marks = new EnumMap<>(JobMark.Kind.class);
+        for (var kind : JobMark.Kind.values()) marks.put(kind, new HashSet<>());
+        query("SELECT kind, pos FROM job_marks WHERE job_id = ? AND company_id = ?")
+                .single(call().bind(job).bind(company))
+                .map(row -> new JobMark(job, company, JobMark.Kind.of(row.getInt("kind")), row.getLong("pos")))
+                .all()
+                .forEach(mark -> marks.get(mark.kind()).add(mark.pos()));
+        return marks;
+    }
+
+    @Override
+    public boolean marks(Map<JobMark, Boolean> changes) {
+        if (changes.isEmpty()) return true;
+        @Language("mariadb")
+        var insert = """
+                INSERT INTO job_marks(job_id, company_id, kind, pos)
+                SELECT id, company_id, ?, ?
+                FROM jobs
+                WHERE id = ?
+                  AND company_id = ?
+                  AND state IN (?, ?)""";
+        var errors = new ArrayList<SQLException>();
+        var conf = Transactions.open(errors);
+        try (conf) {
+            conf.query("DELETE FROM job_marks WHERE job_id = ? AND kind = ? AND pos = ?")
+                    .batch(changes.keySet().stream().map(mark -> call().bind(mark.job())
+                            .bind(mark.kind().code())
+                            .bind(mark.pos())))
+                    .delete();
+            var added = changes.entrySet().stream()
+                    .filter(Map.Entry::getValue)
+                    .map(Map.Entry::getKey)
+                    .toList();
+            if (!added.isEmpty()) {
+                conf.query(insert)
+                        .batch(added.stream()
+                                .map(mark -> call().bind(mark.kind().code())
+                                        .bind(mark.pos())
+                                        .bind(mark.job())
+                                        .bind(mark.company())
+                                        .bind(JobState.TAKEN.name())
+                                        .bind(JobState.DISPUTED.name())))
+                        .insert();
+            }
+            if (!errors.isEmpty()) {
+                Transactions.rollback(conf, errors);
+                return false;
+            }
+        }
+        return true;
+    }
+
+    @Override
+    public void clearMarks(int job) {
+        query("DELETE FROM job_marks WHERE job_id = ?").single(call().bind(job)).delete();
+    }
+
+    @Override
+    public void pruneMarks() {
+        @Language("mariadb")
+        var prune = """
+                DELETE FROM job_marks
+                WHERE NOT EXISTS (SELECT 1
+                                  FROM jobs
+                                  WHERE jobs.id = job_marks.job_id
+                                    AND jobs.company_id = job_marks.company_id
+                                    AND jobs.state IN (?, ?, ?))""";
+        query(prune)
+                .single(call().bind(JobState.TAKEN.name())
+                        .bind(JobState.DONE.name())
+                        .bind(JobState.DISPUTED.name()))
+                .delete();
+    }
+
+    @Override
+    public OptionalLong airAtPost(int job) {
+        return query("SELECT air_at_post FROM jobs WHERE id = ? AND air_at_post IS NOT NULL")
+                .single(call().bind(job))
+                .map(row -> row.getLong("air_at_post"))
+                .first()
+                .map(OptionalLong::of)
+                .orElse(OptionalLong.empty());
+    }
+
+    @Override
+    public boolean airAtPost(int job, long blocks) {
+        return query("UPDATE jobs SET air_at_post = ? WHERE id = ? AND air_at_post IS NULL")
+                .single(call().bind(blocks).bind(job))
+                .update()
+                .changed();
+    }
+
+    @Override
     public List<Job> overlapping(JobArea area) {
         @Language("mariadb")
         var where = """
@@ -562,24 +758,24 @@ public class MariaDbJobData extends AJobData {
     }
 
     @Override
-    public boolean harvested(int job, int company, Map<String, Integer> items, double pay) {
+    public boolean harvested(int job, int company, Map<String, Integer> items, long cents) {
         @Language("mariadb")
         var update = """
                 UPDATE jobs
-                SET paid = paid + ?
+                SET paid_cents = paid_cents + ?
                 WHERE id = ?
                   AND state = ?
                   AND company_id = ?
-                  AND paid + ? <= price + 0.001""";
+                  AND paid_cents + ? <= ROUND(price * 100)""";
         var errors = new ArrayList<SQLException>();
         var conf = Transactions.open(errors);
         try (conf) {
             var paid = conf.query(update)
-                    .single(call().bind(pay)
+                    .single(call().bind(cents)
                             .bind(job)
                             .bind(JobState.TAKEN.name())
                             .bind(company)
-                            .bind(pay))
+                            .bind(cents))
                     .update()
                     .changed();
             if (!paid || !errors.isEmpty()) {
@@ -774,13 +970,14 @@ public class MariaDbJobData extends AJobData {
                         row.get("dispute_by", UUID_BYTES),
                         row.getString("dispute"),
                         readTime(row, "disputed_at"),
-                        row.getObject("settled") == null ? null : row.getInt("settled")),
+                        row.getObject("settled") == null ? null : row.getInt("settled"),
+                        readTime(row, "cancel_asked")),
                 row.getObject("target_y") == null
                         ? null
                         : new JobTarget(row.getInt("target_y"), row.getString("target_block")),
                 row.getObject("unit_price") == null
                         ? null
-                        : new JobHarvest(row.getDouble("unit_price"), row.getDouble("paid")),
+                        : new JobHarvest(row.getDouble("unit_price"), row.getLong("paid_cents") / 100.0),
                 new JobExtension(
                         row.getInt("extended_hours"),
                         row.getInt("extension_requests"),
@@ -788,5 +985,130 @@ public class MariaDbJobData extends AJobData {
                         row.getString("extension_reason"),
                         readTime(row, "extension_asked")),
                 row.getBoolean("charged"));
+    }
+
+    @Override
+    public void saveSchematic(UUID owner, String name, String data, LocalDateTime at) {
+        var stored = query(schematicUpsert())
+                .single(call().bind(owner, UUID_BYTES).bind(name).bind(data).bind(at, time()))
+                .insert()
+                .changed();
+        if (!stored) throw new IllegalStateException("Could not store the schematic " + name);
+    }
+
+    /**
+     * The upsert that keeps a schematic, replacing one of the same owner and name.
+     *
+     * @return statement with the parameters owner, name, data and time
+     */
+    protected String schematicUpsert() {
+        @Language("mariadb")
+        var query = """
+                INSERT INTO job_schematics(owner_uuid, name, data, created)
+                VALUES (?, ?, ?, ?)
+                ON DUPLICATE KEY UPDATE data = VALUES(data), created = VALUES(created)""";
+        return query;
+    }
+
+    @Override
+    public List<String> schematicNames(UUID owner) {
+        return query("SELECT name FROM job_schematics WHERE owner_uuid = ? ORDER BY name")
+                .single(call().bind(owner, UUID_BYTES))
+                .map(row -> row.getString("name"))
+                .all();
+    }
+
+    @Override
+    public Optional<String> schematic(UUID owner, String name) {
+        return query("SELECT data FROM job_schematics WHERE owner_uuid = ? AND name = ?")
+                .single(call().bind(owner, UUID_BYTES).bind(name))
+                .map(row -> row.getString("data"))
+                .first();
+    }
+
+    @Override
+    public boolean deleteSchematic(UUID owner, String name) {
+        return query("DELETE FROM job_schematics WHERE owner_uuid = ? AND name = ?")
+                .single(call().bind(owner, UUID_BYTES).bind(name))
+                .delete()
+                .changed();
+    }
+
+    @Override
+    public void saveArea(UUID owner, StoredArea area, LocalDateTime at) {
+        var box = area.area();
+        var stored = query(areaUpsert())
+                .single(call().bind(owner, UUID_BYTES)
+                        .bind(area.name())
+                        .bind(area.node(), UUID_BYTES)
+                        .bind(box.world())
+                        .bind(box.minX())
+                        .bind(box.minY())
+                        .bind(box.minZ())
+                        .bind(box.maxX())
+                        .bind(box.maxY())
+                        .bind(box.maxZ())
+                        .bind(at, time()))
+                .insert()
+                .changed();
+        if (!stored) throw new IllegalStateException("Could not store the area " + area.name());
+    }
+
+    /**
+     * The upsert that keeps a stored area, replacing one of the same owner and name.
+     *
+     * @return statement with the parameters owner, name, node, world, the six bounds and time
+     */
+    protected String areaUpsert() {
+        @Language("mariadb")
+        var query = """
+                INSERT INTO job_areas(owner_uuid, name, node, world, min_x, min_y, min_z, max_x, max_y, max_z, created)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON DUPLICATE KEY UPDATE node = VALUES(node), world = VALUES(world), min_x = VALUES(min_x),
+                    min_y = VALUES(min_y), min_z = VALUES(min_z), max_x = VALUES(max_x), max_y = VALUES(max_y),
+                    max_z = VALUES(max_z), created = VALUES(created)""";
+        return query;
+    }
+
+    @Override
+    public List<StoredArea> areas(UUID owner) {
+        return query("""
+                        SELECT name, node, world, min_x, min_y, min_z, max_x, max_y, max_z
+                        FROM job_areas WHERE owner_uuid = ? ORDER BY name""")
+                .single(call().bind(owner, UUID_BYTES))
+                .map(this::storedArea)
+                .all();
+    }
+
+    @Override
+    public Optional<StoredArea> area(UUID owner, String name) {
+        return query("""
+                        SELECT name, node, world, min_x, min_y, min_z, max_x, max_y, max_z
+                        FROM job_areas WHERE owner_uuid = ? AND name = ?""")
+                .single(call().bind(owner, UUID_BYTES).bind(name))
+                .map(this::storedArea)
+                .first();
+    }
+
+    @Override
+    public boolean deleteArea(UUID owner, String name) {
+        return query("DELETE FROM job_areas WHERE owner_uuid = ? AND name = ?")
+                .single(call().bind(owner, UUID_BYTES).bind(name))
+                .delete()
+                .changed();
+    }
+
+    private StoredArea storedArea(Row row) throws SQLException {
+        return new StoredArea(
+                row.getString("name"),
+                row.get("node", UUID_BYTES),
+                new JobArea(
+                        row.getString("world"),
+                        row.getInt("min_x"),
+                        row.getInt("min_y"),
+                        row.getInt("min_z"),
+                        row.getInt("max_x"),
+                        row.getInt("max_y"),
+                        row.getInt("max_z")));
     }
 }

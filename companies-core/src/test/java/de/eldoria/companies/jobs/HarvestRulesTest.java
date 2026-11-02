@@ -16,6 +16,8 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * What a harvest job lets members break and what goes into the stock.
@@ -39,6 +41,28 @@ class HarvestRulesTest {
         assertEquals(HarvestRules.Crop.FRUIT, HarvestRules.crop(Material.PUMPKIN));
         assertEquals(HarvestRules.Crop.NONE, HarvestRules.crop(Material.MELON_STEM));
         assertEquals(HarvestRules.Crop.NONE, HarvestRules.crop(Material.FARMLAND));
+        assertEquals(HarvestRules.Crop.STACKED, HarvestRules.crop(Material.KELP));
+        assertEquals(HarvestRules.Crop.STACKED, HarvestRules.crop(Material.KELP_PLANT));
+        assertEquals(HarvestRules.Crop.PICKED, HarvestRules.crop(Material.SWEET_BERRY_BUSH));
+        assertEquals(HarvestRules.Crop.PICKED, HarvestRules.crop(Material.CAVE_VINES_PLANT));
+    }
+
+    @Test
+    void kelpStacksWithItsStemAndLeavesWaterBehind() {
+        assertTrue(HarvestRules.sameStack(Material.KELP, Material.KELP_PLANT));
+        assertFalse(HarvestRules.sameStack(Material.KELP, Material.SUGAR_CANE));
+        assertEquals(Material.KELP, HarvestRules.item(Material.KELP_PLANT));
+        assertEquals(Material.WATER, HarvestRules.emptied(Material.KELP_PLANT));
+        assertEquals(Material.AIR, HarvestRules.emptied(Material.BAMBOO));
+    }
+
+    @Test
+    void berriesArePickedOnlyWhenThePlantCarriesThem() {
+        assertEquals(Map.of(), HarvestRules.picked(Material.SWEET_BERRY_BUSH, 1, false, true));
+        assertEquals(Map.of("SWEET_BERRIES", 1), HarvestRules.picked(Material.SWEET_BERRY_BUSH, 2, false, false));
+        assertEquals(Map.of("SWEET_BERRIES", 3), HarvestRules.picked(Material.SWEET_BERRY_BUSH, 3, false, true));
+        assertEquals(Map.of("GLOW_BERRIES", 1), HarvestRules.picked(Material.CAVE_VINES, 0, true, false));
+        assertEquals(Map.of(), HarvestRules.picked(Material.CAVE_VINES_PLANT, 0, false, true));
     }
 
     @Test

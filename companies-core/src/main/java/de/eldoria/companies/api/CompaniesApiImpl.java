@@ -83,7 +83,7 @@ public final class CompaniesApiImpl implements CompaniesApi {
         players = new PlayerApiImpl(repositories.orders(), writes, executor);
         ranking = new RankingApiImpl(repositories.stats(), server.clock(), executor);
         events = new ServerEventApiImpl(repositories.serverEvents(), writes, server.clock(), executor);
-        jobs = new JobApiImpl(repositories.jobs(), writes, server.players(), executor);
+        jobs = new JobApiImpl(repositories.jobs(), repositories.companies(), writes, server.players(), executor);
         areaApi = new AreaApiImpl(areas, repositories.areas(), writes, Logger.getLogger("Companies"), executor);
         tradeLog = new TradeLog(
                 repositories.prices(), () -> server.clock().get().toLocalDate(), Logger.getLogger("Companies"));

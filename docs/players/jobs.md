@@ -15,6 +15,30 @@ ones. Post a contract there, and open a job to take every step you may take: des
 more time, cancel. Jobs in an area need a selection in the world, so they are posted in game, and dig, terraform and
 build jobs are finished in game too, where their area is checked.
 
+In game, `/order job` and `/company job` open the same kind of menu: a list of jobs, each opening the job with buttons
+for what you may do now, as a chat menu or as a dialog where the server shows dialogs. Steps that change a job for
+good ask before they run, and steps that need a reason or hours take it in the menu.
+
+While you stand in the area of a dig, terraform or build job your company works on, a bar at the top of the screen
+shows how far the work is; it goes when you leave the area. The dashboard shows the last check of a job's area too
+when you are on the server of its area.
+
+## Areas
+
+Dig, terraform and harvest jobs need an area. Mark its two opposite corners without any other plugin:
+
+- `/order job area corner 1` and `/order job area corner 2` mark a corner at the block you stand in, or
+- `/order job area tool` gives you the area tool, a feather: left-click a block for corner 1, right-click one for
+  corner 2.
+
+The job commands use the area you marked, or else your WorldEdit selection. Store an area to use it again, here or on
+the dashboard: `/order job area save <name>` stores the marked area (or your WorldEdit selection), and
+`/order job area plot <name>` stores the plot you stand on and own. `/order job area` lists your areas,
+`/order job area use <name>` marks one again for the next job, `/order job area show <name>` outlines it, and
+`/order job area delete <name>` removes it. Names are up to 32 letters, digits, dashes or underscores; the server sets
+how many you may keep (10 by default). An area belongs to the server it was stored on: in game you use it there, and
+the dashboard posts its jobs there.
+
 ## Posting a job
 
 A job lies on your land: wholly on one plot or claim you own (PlotSquared, GriefPrevention, HuskClaims, Lands or
@@ -24,8 +48,10 @@ yours, on Lands a sub area counts on its own. Any other land, a road, or the are
 worked on refuses it, and so does an area that reaches above or below the world or touches too many chunks. You may
 have a few jobs waiting at once.
 
-- **Select an area with WorldEdit** (`//pos1`, `//pos2`), then post it:
-  `/order job dig <price> <hours> <title>`
+- **Mark an area**, then post it: `/order job dig <price> <hours> <title>`. See [Areas](#areas) for marking one;
+  a WorldEdit selection (`//pos1`, `//pos2`) works too.
+- **Post it on a stored area on the dashboard:** under **Your areas** on the Jobs page, pick an area and post a dig,
+  terraform, harvest or build job on it, even while you are not online.
 - **Or use your whole plot:** stand on the ground of your plot and post
   `/order job dig plot <price> <hours> <depth> <title>`. The area is the plot, from the block below your feet down
   `depth` blocks.
@@ -36,57 +62,92 @@ have a few jobs waiting at once.
 A **dig job** is done when every block of the area is air, water or lava. Blocks nobody can break, such as bedrock,
 count as cleared. The company keeps what it digs.
 
-A **terraform job** levels the area: every column must be solid up to a height you choose and empty above it. Select
-the area with WorldEdit so it reaches from the lowest block that must be filled to the highest that must go, then post
-`/order job terraform <price> <hours> <y> <title>`, where `y` is the height of the top solid layer. With
-`/order job terraform surface <block> <price> <hours> <y> <title>` the top layer must also be made of one block, such
-as `grass_block` (type the name without `minecraft:`). Blocks players can not place and keep in survival, such as
-bedrock, spawners or farmland, are refused, and so are blocks that change by themselves, such as copper that is not
-waxed or concrete powder. Above `y` the area must be air, water or lava; at or below it any solid
-block counts. Blocks nobody
-can break count as done. The company brings the blocks it fills with and keeps what it digs.
+A **terraform job** levels the area: every column must be solid up to a height you choose and empty above it. Mark the
+area so it reaches from the lowest block that must be filled to the highest that must go, then post `/order job
+terraform <price> <hours> <y> <title>`, where `y` is the height of the top solid layer. With `/order job terraform
+surface <block> <price> <hours> <y> <title>` the top layer must also be made of one block, such as `grass_block` (type
+the name without `minecraft:`; the command suggests the blocks it takes). Blocks players can not place and keep in
+survival, such as bedrock, spawners or farmland, are refused, and so are blocks that change by themselves, such as
+copper that is not waxed or concrete powder. Above `y` the area must be air, water or lava; at or below it any solid
+block counts. Blocks nobody can break count as done. The company brings the blocks it fills with and keeps what it digs.
+
+To level your whole plot, stand on it and post `/order job terraform plot <price> <hours> <y> <title>` (or `terraform
+plot surface <block> ...`). The area is your plot from its lowest ground (or `y`, when that is lower) up to its highest
+block, so `y` may lie below the ground: everything above it is dug out, and every column is made solid up to `y`. The
+plot's own bounds limit how deep it can go, and your land plugin must let the company build that deep.
 
 When your land changes hands while a job waits or is worked on, for example a plot you sold, the job is cancelled. A
 waiting job gives its price back to you. A job a company works on pays the company for the share of the area it cleared,
-and the rest of the price comes back to you. The fee is kept either way. While a company works on your job, only its
-members may place blocks or pour buckets in the area.
+and the rest of the price comes back to you. Blocks of a dig area that were already clear when you posted it do not
+count as cleared. You and the company are told the share done and how many blocks were left. The fee is kept either way.
+While a company works on your job, only its members may place blocks or pour buckets in the area.
 
 ## Build jobs
 
-A **build job** asks a company to build a schematic. The server's schematics are listed by `/order job schematics`;
-an admin puts them into the plugin's `schematics` folder. Stand where the schematic's origin should be and look at its
-outline with `/order job blueprint <schematic> <rotation>`, where `rotation` turns it clockwise by 0, 90, 180 or 270
-degrees. When it fits, post it from the same spot: `/order job build <schematic> <rotation> <price> <hours> <title>`.
-The area is the box the schematic covers there, and it must lie on your land like any other job.
+A **build job** asks a company to build a schematic. The server's schematics are listed by `/order job schematics`; an
+admin puts them into the plugin's `schematics` folder. Where the server allows it, you can also upload your own
+schematics under **Your schematics** on the dashboard's Jobs page: each upload is cleaned of the contents of containers,
+command blocks and creatures, and the dashboard says what was removed. A file may be at most 512 KB, its box must fit
+the server's size for build jobs, and the server sets how many you may keep. Your uploads are listed with `/order job
+schematics` and used by their name like the server's; one of yours comes first when both have the same name. Stand where
+the schematic's origin should be and preview it with `/order job blueprint <schematic> <rotation>`, where `rotation`
+turns it clockwise by 0, 90, 180 or 270 degrees: its outline and small glowing copies of its blocks show where it would
+stand for 30 seconds, only for you, and the chat says what its blocks cost at the server's prices. A preview can be
+shown every 10 seconds; a large schematic shows its lowest 4096 blocks.
 
-The job is done when enough of the schematic's blocks are in place: `buildMatchPercent` (95 % by default) in
-[jobs.yml](../admin/configuration/jobs-yml.md). Only block types count, not which way a stair faces or how a fence
-connects. Where the schematic has air, anything goes, so terrain and furniture never hold the job up.
+When it fits, post it from the same spot: `/order job build <schematic> <rotation> <price> <hours> <title>` previews
+it once more and asks you to confirm with the button or `/order job build confirm`. If the price is below what the
+blocks cost, the question says so, as companies may pass such a job by; you can still post it. The area is the box the
+schematic covers there, and it must lie on your land like any other job. The cost of its blocks is shown on the job in
+game and on the dashboard too.
+
+On the dashboard, **Your areas** on the Jobs page posts a build job on a stored area without going there: choose one of
+the server's schematics or your own, turn it, and place it on the map of the area, which shows the top block of each
+column from above. It must lie inside the area, and it stands on the ground of its origin's column as if you stood there
+in game. A price below what its blocks cost needs a tick to confirm. Areas of up to 128 by 128 columns are drawn.
+
+The job is done when enough of the schematic's blocks are in place and its spots to dig are clear: `buildMatchPercent`
+(95 % by default) in [jobs.yml](../admin/configuration/jobs-yml.md). A block counts when its type is right and it is
+turned as the schematic has it: which way it faces, its top or bottom half, its axis, a door's hinge, a slab's half. How
+a fence or wall connects and the corner shape of a stair are left to the neighbours and never count. Where the schematic
+has air, anything goes, so terrain and furniture never hold the job up. A schematic may reach into the ground, such as a
+house with a cellar: where the schematic has air or water and solid ground lies there when you post it, below the
+surface of its column, that block must be dug out; plants, snow and leaves stay. The preview marks those spots red and
+says how many there are; digging them counts as work, and the company keeps what it digs.
+
+While the company builds, its members may place only the block the schematic asks for at a spot, plus the blocks of
+`buildWhitelist` (scaffolding by default) anywhere to build up; anything else is refused with what the spot asks for.
+A block of the right type placed turned another way is turned as the schematic has it. Blocks of two parts, such as
+doors and beds, joined chests and slabs that are or should be double are not turned and must be placed the right way.
 
 Members of the company see what is missing with `/company job ghosts <id>`: small glowing copies of the missing and
 wrong blocks of one layer, only for them, starting with the lowest layer that is not done.
 `/company job ghosts next <id>` and `/company job ghosts previous <id>` move a layer up or down,
-`/company job ghosts off` hides them. Placing a block the schematic asks for counts as work, once for each spot, and so
-does taking out a wrong block.
+`/company job ghosts off` hides them. A ghost goes away as its block is placed the right way and comes back when the
+block is broken; they all go when the job is no longer worked on. Placing a block the schematic asks for counts as
+work, once for each spot, and so does taking out a wrong block.
 
 ## Harvest jobs
 
-A **harvest job** keeps a field harvested for a time. Select the field with WorldEdit and post
-`/order job harvest <price per item> <budget> <hours> <title>`. You pay the budget and the fee at once. Once a company
-takes the job it harvests for `hours`, and each item it harvests is paid from the budget at the price per item, taxed
-and with the treasury cut like an order payout.
+A **harvest job** keeps a field harvested for a time. Mark the field and post `/order job harvest <price per item>
+<budget> <hours> <title>`, or stand on your plot and post `/order job harvest plot <price per item> <budget> <hours>
+<height> <title>`, where the field is your plot from the block below your feet up `height` layers. You pay the budget
+and the fee at once. Once a company takes the job it harvests for `hours`, and each item it harvests is paid from the
+budget at the price per item, taxed and with the treasury cut like an order payout.
 
 While the company works on it, its members can only harvest in the field:
 
 - Wheat, carrots, potatoes, beetroots, nether wart and cocoa only when ripe. The crop is replanted at once; one seed of
   the yield is kept back for that.
-- Sugar cane, bamboo and cactus only above the lowest block, which stays to grow again.
+- Sugar cane, bamboo, cactus and kelp only above the lowest block, which stays to grow again.
 - Melons and pumpkins only the fruit, never the stem.
-- Nothing else in the field can be broken, and nobody tramples the farmland. Members may plant field crops but not
-  place other blocks or pour buckets there, and what they placed is no harvest.
+- Sweet berries and glow berries are picked by using a ripe bush or a vine with berries; the plant stays.
+- Nothing else in the field can be broken, and neither players nor mobs trample the farmland. Members may plant field
+  crops but not place other blocks or pour buckets there, and what they placed is no harvest.
 
 Nothing drops: the harvest goes into the job's **stock**. List it with `/order job stock <id>` and take it with
-`/order job collect <id>`; what does not fit into your inventory stays in the stock. The stock waits for you after the
+`/order job collect <id>`, or collect it on the dashboard into your item returns (`/order returns`); what does not fit
+into your inventory stays in the stock. The stock waits for you after the
 job ended.
 
 The job ends when its time or budget runs out, when the company ends it, or when you end it with `/order job end <id>`.
@@ -96,10 +157,10 @@ costs a harvest company nothing. A harvest job has no approval and no disputes.
 ## Contracts
 
 A **contract** is work described in words, such as "build me a stable" or "bring 64 lanterns to my shop". On the
-dashboard, **Post a contract** on the Jobs page takes a title, a description, the price and the hours. In game, stand
-where the work is and post `/order job contract <price> <hours> <title>`, then describe it with
-`/order job describe <id> <text>` while nobody has taken it yet. A contract gives the company no access to your land;
-agree on that with them in game.
+dashboard, **Post a contract** on the Jobs page takes a title, a description, the price and the hours, and may place it
+at one of your stored areas or where you were last in game; every company then sees that place. In game, stand where the
+work is and post `/order job contract <price> <hours> <title>`, then describe it with `/order job describe <id> <text>`
+while nobody has taken it yet. A contract gives the company no access to your land; agree on that with them in game.
 
 There is no check. When the company says the work is done, your inbox asks you to approve or reject it:
 
@@ -111,6 +172,20 @@ There is no check. When the company says the work is done, your inbox asks you t
 
 You may also approve a dig job early, before every block is gone, when the rest does not matter to you. It is paid as
 it stands.
+
+The job's page keeps the whole review: each time the company said the work is done and each time you sent it back,
+with your reason. Some servers let you approve dig, terraform and build jobs too (`approveAreaJobs` in
+[jobs.yml](../admin/configuration/jobs-yml.md)): once the check of the area passes, the job waits for you like a
+contract instead of being paid at once.
+
+## Cancelling a taken job
+
+A job nobody has taken yet you cancel at once. Once a company works on it, **Ask to cancel** on the job's page (or
+`/order job cancel <id>`) asks the company to let it go. When the company agrees (**Let it be cancelled**, or
+`/company job cancel accept <id>`), the job is cancelled as if nobody had taken it: the price comes back to you, the fee
+is kept, and the company is not penalized. When it refuses (`/company job cancel refuse <id>`), it keeps working and you
+may ask again. A request stays open until the company answers or the job leaves its hands, so ask only when you mean
+it. A harvest job is not asked about: end it yourself with `/order job end <id>`.
 
 ## Disputes
 
@@ -154,11 +229,17 @@ for what happens only in game:
 | Command | What it does |
 |---|---|
 | `/order job schematics` | Lists the schematics build jobs may use. |
-| `/order job blueprint <schematic> <rotation>` | Outlines a schematic placed where you stand for ten seconds. |
-| `/order job build <schematic> <rotation> <price> <hours> <title>` | Posts a build job of a schematic placed where you stand. |
-| `/order job harvest <price per item> <budget> <hours> <title>` | Posts a harvest job on the field you selected with WorldEdit. |
+| `/order job blueprint <schematic> <rotation>` | Previews a schematic placed where you stand and tells what its blocks cost. |
+| `/order job build <schematic> <rotation> <price> <hours> <title>` | Previews a build job of a schematic placed where you stand and asks to confirm it. |
+| `/order job build confirm` | Posts the build job you were asked to confirm. |
+| `/order job terraform plot [surface <block>] <price> <hours> <y> <title>` | Posts a terraform job on your whole plot, dug out down to `y` when that lies below the ground. |
+| `/order job harvest <price per item> <budget> <hours> <title>` | Posts a harvest job on the field you marked. |
+| `/order job harvest plot <price per item> <budget> <hours> <height> <title>` | Posts a harvest job on your whole plot. |
 | `/order job stock <id>` | Lists the stock of a harvest job. |
 | `/order job collect <id>` | Takes the stock of a harvest job into your inventory. |
+| `/order job area corner <1\|2>`, `/order job area tool` | Marks a corner of an area, at your feet or with the area tool. |
+| `/order job area save <name>`, `/order job area plot <name>` | Stores the marked area or your plot. |
+| `/order job area`, `use`, `show`, `delete <name>` | Lists, marks again, outlines or deletes your stored areas. |
 
 `/order job` and `/order job info <id>` show your jobs in game; the [Commands](../reference/commands.md) page lists
 every job command.

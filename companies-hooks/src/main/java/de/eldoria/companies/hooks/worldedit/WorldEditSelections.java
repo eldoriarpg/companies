@@ -10,6 +10,7 @@ import com.sk89q.worldedit.WorldEdit;
 import com.sk89q.worldedit.bukkit.BukkitAdapter;
 import com.sk89q.worldedit.extent.clipboard.Clipboard;
 import com.sk89q.worldedit.extent.clipboard.io.ClipboardFormats;
+import com.sk89q.worldedit.extent.transform.BlockTransformExtent;
 import com.sk89q.worldedit.math.BlockVector3;
 import com.sk89q.worldedit.math.transform.AffineTransform;
 import com.sk89q.worldedit.regions.CuboidRegion;
@@ -63,16 +64,30 @@ public final class WorldEditSelections implements SelectionHook {
         var turn = new AffineTransform().rotateY(-rotation);
         var origin = clipboard.getOrigin();
         List<Blueprint.Cell> cells = new ArrayList<>();
+        List<int[]> air = new ArrayList<>();
         for (BlockVector3 point : clipboard.getRegion()) {
-            var type = clipboard.getBlock(point).getBlockType();
-            if (type.getMaterial().isAir()) continue;
+            var block = clipboard.getBlock(point);
             var turned = turn.apply(point.subtract(origin).toVector3());
+            var material = block.getBlockType().getMaterial();
+            if (material.isAir() || material.isLiquid()) {
+                air.add(new int[] {
+                    (int) Math.round(turned.x()), (int) Math.round(turned.y()), (int) Math.round(turned.z())
+                });
+                continue;
+            }
+            var data = BukkitAdapter.adapt(BlockTransformExtent.transform(block, turn));
             cells.add(new Blueprint.Cell(
                     (int) Math.round(turned.x()),
                     (int) Math.round(turned.y()),
                     (int) Math.round(turned.z()),
-                    BukkitAdapter.adapt(type)));
+                    data.getMaterial(),
+                    data.getAsString()));
         }
-        return cells.isEmpty() ? Optional.empty() : Optional.of(Blueprint.of(cells));
+        if (cells.isEmpty()) return Optional.empty();
+        try {
+            return Optional.of(Blueprint.of(cells, air));
+        } catch (IllegalArgumentException e) {
+            return Optional.empty();
+        }
     }
 }

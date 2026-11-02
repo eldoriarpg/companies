@@ -142,7 +142,11 @@ public class ItemsReturnedEvent extends Event implements PlayerProvider<OfflineP
         /**
          * A plugin granted the items through {@link de.eldoria.companies.api.PlayerApi#grantItems}.
          */
-        API
+        API,
+        /**
+         * The owner of a harvest job collected its stock on the dashboard.
+         */
+        JOB_STOCK
     }
 
     /**

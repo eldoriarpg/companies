@@ -95,6 +95,14 @@ function send(step: JobStep, id: number, written: string): Promise<JobDetails | 
       return action.run('jobs.extension.grant', {job: id})
     case 'refuse':
       return action.run('jobs.extension.refuse', {job: id, reason: written})
+    case 'askCancel':
+      return action.run('jobs.cancel', {job: id})
+    case 'cancelAccept':
+      return action.run('jobs.cancel.accept', {job: id})
+    case 'cancelRefuse':
+      return action.run('jobs.cancel.refuse', {job: id})
+    case 'collect':
+      return action.run('jobs.collect', {job: id})
   }
 }
 
@@ -130,13 +138,22 @@ async function take(step: JobStep): Promise<void> {
     <MutedText v-if="job.kind === 'harvest'" tag="p">{{ t('jobs.paidSoFar', {paid: money(job.paid ?? 0, locale)}) }}</MutedText>
     <p v-if="details.description" class="m-0 whitespace-pre-line text-sm" data-testid="job-description">{{ details.description }}</p>
     <MutedText v-if="job.world" tag="p">{{ t('jobs.place', {center: job.center, world: job.world}) }}</MutedText>
+    <MutedText v-if="details.progress && job.state === 'taken'" tag="p" data-testid="job-progress">{{ t('jobs.progress', {percent: details.progress.percent, done: count(details.progress.done, locale), total: count(details.progress.total, locale)}) }}</MutedText>
+    <MutedText v-if="details.materialCost" tag="p" data-testid="job-material-cost">{{ t(details.materialCost.unpriced > 0 ? 'jobs.materialCostUnpriced' : 'jobs.materialCost', {cost: money(details.materialCost.total, locale), unpriced: details.materialCost.unpriced}) }}</MutedText>
     <MutedText v-if="details.targetY != null" tag="p">{{ details.surface ? t('jobs.targetSurface', {y: details.targetY, block: details.surface.toLowerCase()}) : t('jobs.target', {y: details.targetY}) }}</MutedText>
     <MutedText v-if="job.state === 'open' && job.expires" tag="p">{{ t('jobs.expires', {time: dateTime(job.expires, locale)}) }}</MutedText>
     <MutedText v-if="job.due && (job.state === 'taken' || job.state === 'done')" tag="p">{{ t('jobs.due', {time: dateTime(job.due, locale)}) }}</MutedText>
     <MutedText v-if="job.state === 'done' && details.approveAt" tag="p" data-testid="job-approve-at">{{ t('jobs.approveAt', {time: dateTime(details.approveAt, locale)}) }}</MutedText>
     <MutedText v-if="(details.extendedHours ?? 0) > 0 && job.state === 'taken'" tag="p" data-testid="job-extended">{{ t('jobs.extended', {hours: details.extendedHours}) }}</MutedText>
     <MutedText v-if="details.request && job.state === 'taken'" tag="p" data-testid="job-extension-request">{{ t(job.mine ? 'jobs.extensionAsked' : 'jobs.extensionWaiting', {hours: details.request.hours, reason: details.request.reason}) }}</MutedText>
-    <MutedText v-if="details.rejected && job.state === 'taken'" tag="p">{{ t('jobs.rejected', {reason: details.rejected}) }}</MutedText>
+    <MutedText v-if="details.rejected && job.state === 'taken' && !(details.reviews ?? []).length" tag="p">{{ t('jobs.rejected', {reason: details.rejected}) }}</MutedText>
+    <MutedText v-if="details.cancelAsked && job.state === 'taken'" tag="p" data-testid="job-cancel-asked">{{ t(job.mine ? 'jobs.cancelAskedOwner' : 'jobs.cancelAskedCompany') }}</MutedText>
+    <section v-if="(details.reviews ?? []).length > 0" class="flex flex-col gap-2" data-testid="job-reviews">
+      <SectionHeader>{{ t('jobs.reviews') }}</SectionHeader>
+      <ul class="m-0 flex list-none flex-col gap-1 p-0 text-sm">
+        <li v-for="(review, index) in details.reviews" :key="index">{{ review.at ? dateTime(review.at, locale) + ': ' : '' }}{{ review.kind === 'rejected' ? t('jobs.review.rejected', {reason: review.reason ?? ''}) : t('jobs.review.done') }}</li>
+      </ul>
+    </section>
     <MutedText v-if="job.state === 'disputed'" tag="p" data-testid="job-dispute-reason">{{ t('jobs.dispute', {reason: details.dispute ?? ''}) }}</MutedText>
     <MutedText v-if="job.state === 'settled' && details.settled != null" tag="p">{{ t('jobs.settled', {percent: details.settled}) }}</MutedText>
     <section v-if="stock.length > 0" class="flex flex-col gap-2" data-testid="job-stock">
@@ -147,7 +164,7 @@ async function take(step: JobStep): Promise<void> {
           <span class="tabular">{{ count(amount, locale) }}</span>
         </li>
       </ul>
-      <MutedText tag="p">{{ t('jobs.collectInGame', {id: job.id}) }}</MutedText>
+      <MutedText tag="p">{{ t('jobs.collectInGame', {id: job.id}) }} {{ t('jobs.collectNote') }}</MutedText>
     </section>
     <MutedText v-if="finishInGame" tag="p">{{ t('jobs.finishInGame', {id: job.id}) }}</MutedText>
     <ActionNotice :problem="action.problem.value"/>

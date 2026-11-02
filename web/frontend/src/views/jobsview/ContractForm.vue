@@ -4,13 +4,15 @@
  *     Copyright (C) EldoriaRPG Team and Contributor
  */
 <script lang="ts" setup>
-import type {JobDetails} from '~/api/gateway'
+import type {AreaList, JobDetails} from '~/api/gateway'
 import ButtonRow from '@/components/button/ButtonRow.vue'
 import PrimaryButton from '@/components/button/PrimaryButton.vue'
 import SecondaryButton from '@/components/button/SecondaryButton.vue'
 import ActionNotice from '@/components/feedback/ActionNotice.vue'
+import CheckboxInput from '@/components/input/CheckboxInput.vue'
 import DecimalInput from '@/components/input/DecimalInput.vue'
 import NumberInput from '@/components/input/NumberInput.vue'
+import SelectInput from '@/components/input/SelectInput.vue'
 import TextAreaInput from '@/components/input/TextAreaInput.vue'
 import TextInput from '@/components/input/TextInput.vue'
 import MutedText from '@/components/typography/MutedText.vue'
@@ -18,7 +20,8 @@ import SectionHeader from '@/components/typography/SectionHeader.vue'
 
 /**
  * Posts a contract: work described in words, which a company takes like an order and the owner approves when it is
- * done. The price and the order fee are taken at once. Area jobs need a selection in the world and are posted in game.
+ * done. The price and the order fee are taken at once. It may be placed at one of the player's stored areas or where
+ * they were last in game; every company then sees that place.
  */
 const emit = defineEmits<{
   posted: [details: JobDetails]
@@ -27,10 +30,22 @@ const emit = defineEmits<{
 
 const {t} = useI18n()
 const action = useAction()
+const loading = useAction()
 const title = ref('')
 const description = ref('')
 const price = ref<number | undefined>()
 const hours = ref<number | undefined>(24)
+const place = ref(false)
+const area = ref('')
+const areas = ref<AreaList | null>(null)
+const areaOptions = computed(() => [
+  {value: '', label: t('jobs.contract.noArea')},
+  ...(areas.value?.areas ?? []).map(stored => ({value: stored.name, label: stored.name})),
+])
+
+onMounted(async () => {
+  areas.value = await loading.run('jobs.areas.list', {})
+})
 const ready = computed(() => title.value.trim().length > 0 && (price.value ?? 0) > 0 && (hours.value ?? 0) >= 1)
 
 async function post(): Promise<void> {
@@ -40,6 +55,8 @@ async function post(): Promise<void> {
     description: description.value,
     price: price.value ?? 0,
     hours: hours.value ?? 0,
+    place: area.value === '' && place.value,
+    ...(area.value === '' ? {} : {area: area.value}),
   })
   if (result) emit('posted', result)
 }
@@ -55,6 +72,8 @@ async function post(): Promise<void> {
       <DecimalInput v-model="price" :label="t('jobs.contract.price')" :min="0.01" data-testid="contract-price"/>
       <NumberInput v-model="hours" :label="t('jobs.contract.hours')" :min="1"/>
     </div>
+    <SelectInput v-if="(areas?.areas.length ?? 0) > 0" v-model="area" :label="t('jobs.contract.area')" :options="areaOptions" data-testid="contract-area"/>
+    <CheckboxInput v-if="area === ''" v-model="place" :label="t('jobs.contract.place')" data-testid="contract-place"/>
     <MutedText tag="p">{{ t('jobs.contract.charged') }}</MutedText>
     <ActionNotice :problem="action.problem.value"/>
     <ButtonRow>

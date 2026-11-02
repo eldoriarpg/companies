@@ -384,6 +384,7 @@ public final class SettingsCatalogue {
         jobs.whole("harvestMaxVolume");
         jobs.whole("buildMaxVolume");
         jobs.whole("buildMatchPercent");
+        jobs.add(Type.TEXT_LIST, "buildWhitelist", List.of(), false);
         jobs.whole("maxChunks");
         jobs.whole("maxOpenPerOwner");
         jobs.whole("maxDueHours");
@@ -392,6 +393,10 @@ public final class SettingsCatalogue {
         jobs.whole("maxExtensionRequests");
         jobs.whole("openDays");
         jobs.whole("approveHours");
+        jobs.flag("approveAreaJobs");
+        jobs.flag("schematicUploads");
+        jobs.whole("maxSchematics");
+        jobs.whole("maxAreas");
 
         var areas = new Section(fields, AREAS, "areas");
         areas.flag("enabled");

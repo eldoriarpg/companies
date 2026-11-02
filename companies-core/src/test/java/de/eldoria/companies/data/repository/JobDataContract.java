@@ -13,7 +13,9 @@ import de.eldoria.companies.data.wrapper.job.JobArea;
 import de.eldoria.companies.data.wrapper.job.JobExtension;
 import de.eldoria.companies.data.wrapper.job.JobHarvest;
 import de.eldoria.companies.data.wrapper.job.JobLand;
+import de.eldoria.companies.data.wrapper.job.JobReviewEntry;
 import de.eldoria.companies.data.wrapper.job.JobTarget;
+import de.eldoria.companies.data.wrapper.job.StoredArea;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -23,6 +25,7 @@ import org.junit.jupiter.api.TestInstance;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -348,12 +351,12 @@ public abstract class JobDataContract {
                         .withHarvest(new JobHarvest(0.5, 0)))
                 .orElseThrow();
 
-        assertFalse(jobs.harvested(id, 3, Map.of("WHEAT", 4), 2));
+        assertFalse(jobs.harvested(id, 3, Map.of("WHEAT", 4), 200));
         jobs.take(id, 3, NOW, NOW.plusHours(48));
-        assertFalse(jobs.harvested(id, 4, Map.of("WHEAT", 4), 2));
-        assertTrue(jobs.harvested(id, 3, Map.of("WHEAT", 4, "WHEAT_SEEDS", 2), 3));
-        assertTrue(jobs.harvested(id, 3, Map.of("WHEAT", 6), 3));
-        assertFalse(jobs.harvested(id, 3, Map.of("WHEAT", 20), 10));
+        assertFalse(jobs.harvested(id, 4, Map.of("WHEAT", 4), 200));
+        assertTrue(jobs.harvested(id, 3, Map.of("WHEAT", 4, "WHEAT_SEEDS", 2), 300));
+        assertTrue(jobs.harvested(id, 3, Map.of("WHEAT", 6), 300));
+        assertFalse(jobs.harvested(id, 3, Map.of("WHEAT", 20), 1000));
         jobs.stock(id, Map.of("WHEAT", 1));
 
         assertEquals(new JobHarvest(0.5, 6), jobs.job(id).orElseThrow().harvest());
@@ -361,6 +364,107 @@ public abstract class JobDataContract {
         assertTrue(jobs.takeStock(id, "WHEAT", 11));
         assertFalse(jobs.takeStock(id, "WHEAT_SEEDS", 3));
         assertEquals(Map.of("WHEAT_SEEDS", 2), jobs.stock(id));
+    }
+
+    @Test
+    void aCancelRequestIsOpenOnceAndGoesWhenTheJobIsReleased() {
+        var id = created(JobKind.CONTRACT, NOW.plusDays(7));
+
+        assertFalse(jobs.askCancel(id, 3, NOW));
+        jobs.take(id, 3, NOW, NOW.plusHours(48));
+        assertFalse(jobs.askCancel(id, 4, NOW));
+        assertTrue(jobs.askCancel(id, 3, NOW));
+        assertFalse(jobs.askCancel(id, 3, NOW));
+        assertEquals(NOW, jobs.job(id).orElseThrow().review().cancelAsked());
+        assertFalse(jobs.refuseCancel(id, 4));
+        assertTrue(jobs.refuseCancel(id, 3));
+        assertFalse(jobs.refuseCancel(id, 3));
+        assertTrue(jobs.askCancel(id, 3, NOW));
+        assertTrue(jobs.release(id, 3));
+
+        assertNull(jobs.job(id).orElseThrow().review().cancelAsked());
+    }
+
+    @Test
+    void aCancelIsAcceptedOnlyWhileItsRequestIsOpen() {
+        var id = created(JobKind.CONTRACT, NOW.plusDays(7));
+        jobs.take(id, 3, NOW, NOW.plusHours(48));
+
+        assertFalse(jobs.acceptCancel(id, 3, "Mia", NOW));
+        jobs.askCancel(id, 3, NOW);
+        assertTrue(jobs.markDone(id, 3, UUID.randomUUID(), NOW));
+        assertNull(jobs.job(id).orElseThrow().review().cancelAsked());
+        assertTrue(jobs.reject(id, "Not yet", NOW.plusHours(48)));
+        jobs.askCancel(id, 3, NOW);
+        assertTrue(jobs.refuseCancel(id, 3));
+        assertFalse(jobs.acceptCancel(id, 3, "Mia", NOW));
+        jobs.askCancel(id, 3, NOW);
+        assertFalse(jobs.acceptCancel(id, 4, "Mia", NOW));
+        assertTrue(jobs.acceptCancel(id, 3, "Mia", NOW));
+
+        var cancelled = jobs.job(id).orElseThrow();
+        assertEquals(JobState.CANCELLED, cancelled.state());
+        assertEquals("Mia", cancelled.closedBy());
+        assertNull(cancelled.review().cancelAsked());
+    }
+
+    @Test
+    void theReviewsOfAJobAreKeptOldestFirst() {
+        var id = created(JobKind.CONTRACT, NOW.plusDays(7));
+        var member = UUID.randomUUID();
+        var owner = UUID.randomUUID();
+
+        jobs.review(new JobReviewEntry(id, JobReviewEntry.Kind.REJECTED, owner, "Not yet", NOW.plusHours(2)));
+        jobs.review(new JobReviewEntry(id, JobReviewEntry.Kind.DONE, member, null, NOW.plusHours(1)));
+
+        assertEquals(
+                List.of(
+                        new JobReviewEntry(id, JobReviewEntry.Kind.DONE, member, null, NOW.plusHours(1)),
+                        new JobReviewEntry(id, JobReviewEntry.Kind.REJECTED, owner, "Not yet", NOW.plusHours(2))),
+                jobs.reviews(id));
+        assertEquals(List.of(), jobs.reviews(id + 1));
+    }
+
+    @Test
+    void uploadedSchematicsAreKeptPerPlayerAndReplacedByName() {
+        var owner = UUID.randomUUID();
+        var other = UUID.randomUUID();
+
+        jobs.saveSchematic(owner, "barn", "AAAA", NOW);
+        jobs.saveSchematic(owner, "abbey", "BBBB", NOW);
+        jobs.saveSchematic(owner, "barn", "CCCC", NOW.plusHours(1));
+        jobs.saveSchematic(other, "barn", "DDDD", NOW);
+
+        assertEquals(List.of("abbey", "barn"), jobs.schematicNames(owner));
+        assertEquals(Optional.of("CCCC"), jobs.schematic(owner, "barn"));
+        assertEquals(Optional.of("DDDD"), jobs.schematic(other, "barn"));
+        assertTrue(jobs.deleteSchematic(owner, "barn"));
+        assertFalse(jobs.deleteSchematic(owner, "barn"));
+        assertEquals(Optional.empty(), jobs.schematic(owner, "barn"));
+        assertEquals(List.of("abbey"), jobs.schematicNames(owner));
+    }
+
+    @Test
+    void storedAreasAreKeptPerPlayerAndReplacedByName() {
+        var owner = UUID.randomUUID();
+        var other = UUID.randomUUID();
+        var node = UUID.randomUUID();
+        var field = new StoredArea("field", node, new JobArea("world", 0, 60, 0, 9, 64, 9));
+        var moved = new StoredArea("field", node, new JobArea("nether", -5, 30, -5, 5, 40, 5));
+
+        jobs.saveArea(owner, field, NOW);
+        jobs.saveArea(owner, new StoredArea("barn", node, new JobArea("world", 1, 1, 1, 2, 2, 2)), NOW);
+        jobs.saveArea(owner, moved, NOW.plusHours(1));
+        jobs.saveArea(other, field, NOW);
+
+        assertEquals(
+                List.of("barn", "field"),
+                jobs.areas(owner).stream().map(StoredArea::name).toList());
+        assertEquals(Optional.of(moved), jobs.area(owner, "field"));
+        assertEquals(Optional.of(field), jobs.area(other, "field"));
+        assertTrue(jobs.deleteArea(owner, "field"));
+        assertFalse(jobs.deleteArea(owner, "field"));
+        assertEquals(Optional.empty(), jobs.area(owner, "field"));
     }
 
     @Test

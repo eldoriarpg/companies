@@ -21,6 +21,9 @@ dependencies {
         exclude("*")
     }
     implementation(libs.messageblocker)
+    implementation(libs.schematic.sanitizer) {
+        isTransitive = false
+    }
     paperLibrary(libs.bundles.eldoria.utilities)
     paperLibrary(libs.bundles.jackson)
     paperLibrary(libs.bundles.database)

@@ -97,14 +97,25 @@ See [Jobs](../players/jobs.md).
 |---|---|---|
 | `/order job` | `companies.orders.jobs` | Lists your jobs. |
 | `/order job info <id>` | `companies.orders.jobs` | Shows a job of yours and, on the server of its area, how far the work is. |
-| `/order job dig <price> <hours> <title>` | `companies.orders.jobs` | Posts a dig job on the area you selected with WorldEdit. You pay the price and the order fee at once. |
+| `/order job dig <price> <hours> <title>` | `companies.orders.jobs` | Posts a dig job on the area you marked with `/order job area`, or else selected with WorldEdit. You pay the price and the order fee at once. |
 | `/order job dig plot <price> <hours> <depth> <title>` | `companies.orders.jobs` | Posts a dig job on the whole plot or claim you stand on, from the block below your feet down `depth` blocks. Land that is not a rectangle, such as a Lands area of scattered chunks, is refused; select the area instead. |
-| `/order job terraform <price> <hours> <y> <title>` | `companies.orders.jobs` | Posts a terraform job on the area you selected with WorldEdit: solid up to height `y`, empty above. You pay the price and the order fee at once. |
+| `/order job terraform <price> <hours> <y> <title>` | `companies.orders.jobs` | Posts a terraform job on the area you marked or selected with WorldEdit: solid up to height `y`, empty above. You pay the price and the order fee at once. |
 | `/order job terraform surface <block> <price> <hours> <y> <title>` | `companies.orders.jobs` | Posts a terraform job whose top layer must be made of `block`. |
+| `/order job terraform plot [surface <block>] <price> <hours> <y> <title>` | `companies.orders.jobs` | Posts a terraform job on the whole plot you stand on, from its lowest ground (or `y`, when lower) up to its highest block; every column is made solid up to `y`, so the plot is dug out down to `y` when that lies below the ground. |
+| `/order job area` | `companies.orders.jobs` | Lists the areas you stored for jobs. |
+| `/order job area corner <1\|2>` | `companies.orders.jobs` | Marks a corner of your area at the block you stand in. |
+| `/order job area tool` | `companies.orders.jobs` | Gives you the area tool: left-click a block marks corner 1, right-click corner 2. |
+| `/order job area save <name>` | `companies.orders.jobs` | Stores the area you marked, or else your WorldEdit selection, under a name. |
+| `/order job area plot <name>` | `companies.orders.jobs` | Stores the plot you stand on and own under a name. |
+| `/order job area use <name>` | `companies.orders.jobs` | Marks a stored area again, so the next dig, terraform or harvest job uses it. |
+| `/order job area show <name>` | `companies.orders.jobs` | Outlines a stored area for a short while. |
+| `/order job area delete <name>` | `companies.orders.jobs` | Deletes a stored area. |
 | `/order job schematics` | `companies.orders.jobs` | Lists the schematics of the plugin's `schematics` folder. |
-| `/order job blueprint <schematic> <rotation>` | `companies.orders.jobs` | Outlines a schematic placed where you stand, turned by 0, 90, 180 or 270 degrees, for ten seconds. |
-| `/order job build <schematic> <rotation> <price> <hours> <title>` | `companies.orders.jobs` | Posts a build job of a schematic placed where you stand. You pay the price and the order fee at once. |
-| `/order job harvest <price per item> <budget> <hours> <title>` | `companies.orders.jobs` | Posts a harvest job on the field you selected with WorldEdit. You pay the budget and the order fee at once. |
+| `/order job blueprint <schematic> <rotation>` | `companies.orders.jobs` | Previews a schematic placed where you stand, turned by 0, 90, 180 or 270 degrees: its outline and blocks for a short while, and what its blocks cost. |
+| `/order job build <schematic> <rotation> <price> <hours> <title>` | `companies.orders.jobs` | Previews a build job of a schematic placed where you stand and asks to confirm it, warning when the price is below what its blocks cost. |
+| `/order job build confirm` | `companies.orders.jobs` | Posts the build job you were asked to confirm. You pay the price and the order fee at once. |
+| `/order job harvest <price per item> <budget> <hours> <title>` | `companies.orders.jobs` | Posts a harvest job on the field you marked or selected with WorldEdit. You pay the budget and the order fee at once. |
+| `/order job harvest plot <price per item> <budget> <hours> <height> <title>` | `companies.orders.jobs` | Posts a harvest job on the whole plot you stand on, from the block below your feet up `height` layers. |
 | `/order job stock <id>` | `companies.orders.jobs` | Lists the stock of a harvest job. |
 | `/order job collect <id>` | `companies.orders.jobs` | Takes the stock of a harvest job into your inventory; what does not fit stays. |
 | `/order job end <id>` | `companies.orders.jobs` | Ends a harvest job a company works on; the rest of the budget comes back. |
@@ -114,7 +125,7 @@ See [Jobs](../players/jobs.md).
 | `/order job reject <id> <reason>` | `companies.orders.jobs` | Sends a contract the company says is done back to work. |
 | `/order job dispute <id> <reason>` | `companies.orders.jobs` | Opens a dispute about a job a company holds; an admin settles it. |
 | `/order job withdraw <id>` | `companies.orders.jobs` | Withdraws a dispute you opened; the company works on the job again. |
-| `/order job cancel <id>` | `companies.orders.jobs` | Cancels a job nobody works on. The price comes back, the fee is kept. |
+| `/order job cancel <id>` | `companies.orders.jobs` | Cancels a job nobody works on; the price comes back, the fee is kept. For a job a company works on, asks the company to let it be cancelled. |
 | `/order job extend <id> <hours>` | `companies.orders.jobs` | Gives the company working on your job more time, within `maxTotalHours`. |
 | `/order job extension grant <id>` | `companies.orders.jobs` | Grants the company's request for more time. |
 | `/order job extension refuse <id> [reason]` | `companies.orders.jobs` | Refuses the company's request for more time. |
@@ -280,6 +291,8 @@ See [Event offers](../players/event-offers.md#contests) for a guide.
 | `/company job ghosts next <id>` / `ghosts previous <id>` | none | none | Moves the ghost blocks a layer up or down. |
 | `/company job ghosts off` | none | none | Hides the ghost blocks. |
 | `/company job withdraw <id>` | none | `manage_orders` | Withdraws a dispute the company opened. |
+| `/company job cancel accept <id>` | none | `manage_orders` | Lets the owner cancel a job of the company, as they asked; the price goes back to them and the company is not penalized. |
+| `/company job cancel refuse <id>` | none | `manage_orders` | Refuses the owner's request to cancel a job; the company keeps working on it. |
 | `/company job extend <id> <hours> <reason>` | none | `manage_orders` | Asks the owner of a job the company works on for more time. |
 ### Web dashboard
 

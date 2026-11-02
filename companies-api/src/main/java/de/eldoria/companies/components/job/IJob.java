@@ -141,4 +141,32 @@ public interface IJob {
      * @return whether the owner paid price and fee; a job posted uncharged by a plugin refunds nothing
      */
     boolean charged();
+
+    /**
+     * The extra time of the job.
+     *
+     * @return extension, with nothing given or asked when there is none
+     */
+    IJobExtension extension();
+
+    /**
+     * The shape a terraform job asks for.
+     *
+     * @return target, empty for other kinds
+     */
+    Optional<IJobTarget> target();
+
+    /**
+     * What a harvest job pays.
+     *
+     * @return harvest terms, empty for other kinds
+     */
+    Optional<IJobHarvest> harvest();
+
+    /**
+     * Where a contract stands with its owner, and the dispute of any job.
+     *
+     * @return review, empty in every part when nothing happened
+     */
+    IJobReview review();
 }

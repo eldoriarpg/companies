@@ -520,6 +520,26 @@ class HostedGatewayTest {
     }
 
     @Test
+    void takesLargeBodiesOnlyForActions() {
+        UUID uid = UUID.randomUUID();
+        try (FakeNode node = node(key(), uid)) {
+            FakeBrowser browser = new FakeBrowser(gateway, "203.0.113.73");
+            login(node, browser, create(node, uid));
+
+            String upload = "{\"name\":\"inbox.read-all\",\"args\":{\"data\":\"" + "A".repeat(700 * 1024) + "\"}}";
+            CompletableFuture<HttpResponse<String>> write = browser.postAsync("/api/v1/me/actions", upload);
+            answer(node, node.expect(ActionRequest.class), 1);
+            assertEquals(200, write.join().statusCode());
+
+            String tooLarge = "{\"name\":\"inbox.read-all\",\"args\":{\"data\":\"" + "A".repeat(1024 * 1024) + "\"}}";
+            assertEquals(413, browser.post("/api/v1/me/actions", tooLarge).statusCode());
+            String login = "{\"code\":\"" + "A".repeat(GatewayApp.BODY_BYTES) + "\"}";
+            assertEquals(413, browser.post("/api/v1/s/unknown/login", login).statusCode());
+            node.assertQuiet();
+        }
+    }
+
+    @Test
     void limitsWritesSeparatelyFromReads() {
         UUID uid = UUID.randomUUID();
         try (FakeNode node = node(key(), uid)) {

@@ -333,8 +333,8 @@ test.describe('admin', () => {
         const url = page.getByTestId('admin-setting-discord.url')
         await expect(url.getByTestId('admin-setting-secret')).toHaveText('set by the environment variable on survival')
         await expect(url.getByRole('textbox')).toBeDisabled()
-        await expect(page.getByTestId('admin-setting-dashboard.features').getByLabel('market', {exact: true})).not.toBeChecked()
-        await expect(page.getByTestId('admin-setting-dashboard.features').getByLabel('inbox', {exact: true})).toBeChecked()
+        await expect(page.getByTestId('admin-setting-dashboard.features').getByLabel('Market', {exact: true})).not.toBeChecked()
+        await expect(page.getByTestId('admin-setting-dashboard.features').getByLabel('Inbox', {exact: true})).toBeChecked()
         await expect(page.getByTestId('admin-settings-general').getByText('set on survival')).toBeVisible()
 
         await page.getByTestId('admin-settings-history').getByRole('button', {name: /#2 · Ada/}).click()

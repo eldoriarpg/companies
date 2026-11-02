@@ -8,12 +8,16 @@ package de.eldoria.companies.data.repository;
 import de.eldoria.companies.components.job.JobState;
 import de.eldoria.companies.data.wrapper.job.Job;
 import de.eldoria.companies.data.wrapper.job.JobArea;
+import de.eldoria.companies.data.wrapper.job.JobMark;
+import de.eldoria.companies.data.wrapper.job.JobReviewEntry;
+import de.eldoria.companies.data.wrapper.job.StoredArea;
 import org.jetbrains.annotations.Nullable;
 
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalLong;
 import java.util.Set;
 import java.util.UUID;
 
@@ -109,6 +113,50 @@ public abstract class AJobData {
      * @return true when the job waited for the owner and is taken again
      */
     public abstract boolean reject(int job, String reason, LocalDateTime due);
+
+    /**
+     * Notes that the owner asks the company holding a taken job to let it be cancelled.
+     *
+     * @param job     id of the job
+     * @param company id of the company that holds it
+     * @param at      when the owner asked
+     * @return true when the company held the job taken and no request was open yet
+     */
+    public abstract boolean askCancel(int job, int company, LocalDateTime at);
+
+    /**
+     * Cancels a job the company holds taken, as the owner asked; only while the request is still open, so a refusal
+     * that came first wins.
+     *
+     * @param job     id of the job
+     * @param company id of the company that holds it
+     * @param by      who agreed, as noted
+     * @param at      when
+     * @return true when the company held the job taken with a request open and it is now cancelled
+     */
+    public abstract boolean acceptCancel(int job, int company, @Nullable String by, LocalDateTime at);
+
+    /**
+     * Drops the owner's request to cancel a job, when the company refused it.
+     *
+     * @param job     id of the job
+     * @param company id of the company that holds it
+     * @return true when the company held the job taken with a request open
+     */
+    public abstract boolean refuseCancel(int job, int company);
+
+    /**
+     * Notes a step of the review of a job's work.
+     *
+     * @param entry the step
+     */
+    public abstract void review(JobReviewEntry entry);
+
+    /**
+     * @param job id of a job
+     * @return the steps of the review of its work, oldest first
+     */
+    public abstract List<JobReviewEntry> reviews(int job);
 
     /**
      * Opens a dispute about a job a company holds.
@@ -262,6 +310,50 @@ public abstract class AJobData {
     public abstract void work(int job, int company, UUID worker, int blocks);
 
     /**
+     * @param job     id of the job
+     * @param company id of the company working on it
+     * @return the positions remembered for the job and company, by what is remembered about them
+     */
+    public abstract Map<JobMark.Kind, Set<Long>> marks(int job, int company);
+
+    /**
+     * Writes changes to the remembered positions: true remembers a position, false forgets it. A position is only
+     * remembered while its job is taken or disputed by the company it was remembered for.
+     *
+     * @param changes the changes
+     * @return true when they were written, false when nothing was
+     */
+    public abstract boolean marks(Map<JobMark, Boolean> changes);
+
+    /**
+     * Forgets every position remembered for a job.
+     *
+     * @param job id of the job
+     */
+    public abstract void clearMarks(int job);
+
+    /**
+     * Forgets the positions remembered for jobs that are neither taken nor disputed, or for a company that no longer
+     * has the job.
+     */
+    public abstract void pruneMarks();
+
+    /**
+     * @param job id of the job
+     * @return how many blocks of a dig job's area were already cleared when it was posted, empty when unknown
+     */
+    public abstract OptionalLong airAtPost(int job);
+
+    /**
+     * Notes how many blocks of a dig job's area were already cleared when it was posted, once.
+     *
+     * @param job    id of the job
+     * @param blocks the cleared blocks
+     * @return true when it was not noted before
+     */
+    public abstract boolean airAtPost(int job, long blocks);
+
+    /**
      * @param area an area
      * @return the area jobs that wait or are held by a company whose areas share a block with it
      */
@@ -280,10 +372,10 @@ public abstract class AJobData {
      * @param job     id of the job
      * @param company id of the company that harvested them
      * @param items   the items, as amounts by material name
-     * @param pay     what they are paid before tax
+     * @param cents   what they are paid before tax, in cents
      * @return true when they were stored and paid
      */
-    public abstract boolean harvested(int job, int company, Map<String, Integer> items, double pay);
+    public abstract boolean harvested(int job, int company, Map<String, Integer> items, long cents);
 
     /**
      * Puts items into a job's stock without paying for them, when the budget is used up.
@@ -370,4 +462,63 @@ public abstract class AJobData {
      * @return true when there was a request
      */
     public abstract boolean refuseExtension(int job, int company);
+
+    /**
+     * Stores a schematic a player uploaded, replacing one of the same name.
+     *
+     * @param owner the player
+     * @param name  its name, unique per player
+     * @param data  the cleaned schematic file as base64
+     * @param at    when it was uploaded
+     */
+    public abstract void saveSchematic(UUID owner, String name, String data, LocalDateTime at);
+
+    /**
+     * @param owner a player
+     * @return the names of the schematics the player uploaded, sorted
+     */
+    public abstract List<String> schematicNames(UUID owner);
+
+    /**
+     * @param owner a player
+     * @param name  the name of one of the player's schematics
+     * @return the schematic file as base64, empty when the player has none of that name
+     */
+    public abstract Optional<String> schematic(UUID owner, String name);
+
+    /**
+     * @param owner a player
+     * @param name  the name of one of the player's schematics
+     * @return true when it existed and is gone
+     */
+    public abstract boolean deleteSchematic(UUID owner, String name);
+
+    /**
+     * Stores an area a player named, replacing one of the same name.
+     *
+     * @param owner the player
+     * @param area  the area and its name
+     * @param at    when it was stored
+     */
+    public abstract void saveArea(UUID owner, StoredArea area, LocalDateTime at);
+
+    /**
+     * @param owner a player
+     * @return the player's stored areas, sorted by name
+     */
+    public abstract List<StoredArea> areas(UUID owner);
+
+    /**
+     * @param owner a player
+     * @param name  the name of one of the player's areas
+     * @return the area, empty when the player has none of that name
+     */
+    public abstract Optional<StoredArea> area(UUID owner, String name);
+
+    /**
+     * @param owner a player
+     * @param name  the name of one of the player's areas
+     * @return true when it existed and is gone
+     */
+    public abstract boolean deleteArea(UUID owner, String name);
 }

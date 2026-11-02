@@ -13,17 +13,24 @@ import de.eldoria.companies.data.wrapper.job.Job;
 import de.eldoria.companies.data.wrapper.job.JobArea;
 import de.eldoria.companies.data.wrapper.job.JobHarvest;
 import de.eldoria.companies.data.wrapper.job.JobLand;
+import de.eldoria.companies.data.wrapper.job.JobMark;
 import de.eldoria.companies.data.wrapper.job.JobTarget;
 import de.eldoria.companies.jobs.hooks.Claim;
 import de.eldoria.companies.jobs.hooks.JobHooks;
 import de.eldoria.companies.jobs.hooks.JobLandHook;
+import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.block.Block;
+import org.bukkit.block.BlockFace;
 import org.bukkit.block.data.Ageable;
+import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
+import org.bukkit.event.block.Action;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
+import org.bukkit.event.entity.EntityInteractEvent;
+import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.junit.jupiter.api.AfterEach;
@@ -44,6 +51,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.logging.Logger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -67,6 +75,8 @@ class JobAccessTest {
     private final Map<Integer, Set<UUID>> access = new HashMap<>();
     private final List<Integer> revoked = new ArrayList<>();
     private final List<Job> lost = new ArrayList<>();
+    private final List<Job> measuring = new ArrayList<>();
+    private CompletableFuture<?> scan = CompletableFuture.completedFuture(null);
     private final List<String> harvests = new ArrayList<>();
     private boolean owned = true;
     private boolean loaded = true;
@@ -74,6 +84,7 @@ class JobAccessTest {
     private ServerMock server;
     private WorldMock world;
     private JobAccess sync;
+    private JobHooks hooks;
 
     @BeforeEach
     void setUp() throws Exception {
@@ -84,16 +95,171 @@ class JobAccessTest {
         var hooks = new JobHooks(name -> false, className -> new Object(), Logger.getAnonymousLogger());
         hooks.load();
         addHook(hooks);
-        sync = new JobAccess(
+        this.hooks = hooks;
+        sync = access();
+    }
+
+    private JobAccess access() {
+        return new JobAccess(
                 jobs,
                 company -> members.getOrDefault(company, Set.of()),
                 hooks,
                 NODE,
                 Runnable::run,
                 lost::add,
-                (job, company, worker, items) -> harvests.add(job + " " + worker + " " + items),
+                job -> {
+                    measuring.add(job);
+                    return scan;
+                },
+                (job, company, byWorker) ->
+                        byWorker.forEach((worker, items) -> harvests.add(job + " " + worker + " " + items)),
                 new Blueprints(jobs, Logger.getAnonymousLogger()),
                 Logger.getAnonymousLogger());
+    }
+
+    @Test
+    void placedAndFilledPositionsCountNoMoreAfterARestart() {
+        var worker = server.addPlayer();
+        var id = terraformJob();
+        members.put(3, Set.of(worker.getUniqueId()));
+        sync.check();
+        place(worker, world.getBlockAt(3, 60, 3));
+        place(worker, world.getBlockAt(2, 64, 2));
+        sync.stop();
+
+        sync = access();
+        sync.check();
+        breakBlock(worker, world.getBlockAt(2, 64, 2));
+        breakBlock(worker, world.getBlockAt(3, 60, 3));
+        place(worker, world.getBlockAt(3, 60, 3));
+        sync.flush();
+
+        assertEquals(Map.of(worker.getUniqueId(), 1), jobs.workOf(id));
+    }
+
+    @Test
+    void aGivenBackOrEndedJobForgetsItsPositions() {
+        var worker = server.addPlayer();
+        var given = terraformJob();
+        var ended = taken(3);
+        members.put(3, Set.of(worker.getUniqueId()));
+        sync.check();
+        place(worker, world.getBlockAt(3, 60, 3));
+        sync.flush();
+        assertFalse(jobs.marks(given, 3).get(JobMark.Kind.FILLED).isEmpty());
+
+        sync.forget(given);
+        jobs.marks(Map.of(new JobMark(ended, 3, JobMark.Kind.PLACED, 7L), true));
+        jobs.close(ended, JobState.TAKEN, JobState.CANCELLED, "test", NOW);
+        sync.flush();
+        sync.check();
+
+        assertTrue(jobs.marks(given, 3).get(JobMark.Kind.FILLED).isEmpty());
+        assertTrue(jobs.marks(ended, 3).get(JobMark.Kind.PLACED).isEmpty());
+    }
+
+    @Test
+    void aTakenJobThatBrieflyLeavesTheActiveListKeepsItsPositions() {
+        var worker = server.addPlayer();
+        var id = terraformJob();
+        members.put(3, Set.of(worker.getUniqueId()));
+        sync.check();
+        place(worker, world.getBlockAt(3, 60, 3));
+        owned = false;
+        sync.check();
+        owned = true;
+        sync.check();
+        breakBlock(worker, world.getBlockAt(3, 60, 3));
+        place(worker, world.getBlockAt(3, 60, 3));
+        sync.flush();
+
+        assertEquals(Map.of(worker.getUniqueId(), 1), jobs.workOf(id));
+    }
+
+    @Test
+    void aCompanyThatTakesAJobOverStartsWithoutThePositionsOfThePreviousOne() {
+        var ada = server.addPlayer();
+        var bea = server.addPlayer();
+        var id = terraformJob();
+        members.put(3, Set.of(ada.getUniqueId()));
+        members.put(4, Set.of(bea.getUniqueId()));
+        sync.check();
+        place(ada, world.getBlockAt(2, 64, 2));
+        sync.flush();
+        jobs.release(id, 3);
+        jobs.take(id, 4, NOW, NOW.plusDays(1));
+        sync.check();
+        breakBlock(bea, world.getBlockAt(2, 64, 2));
+        sync.flush();
+
+        assertEquals(1, jobs.workOf(id).getOrDefault(bea.getUniqueId(), 0));
+        assertTrue(jobs.marks(id, 3).get(JobMark.Kind.PLACED).isEmpty());
+    }
+
+    @Test
+    void aTakenDigJobGetsItsAccessOnlyOnceItsAreaWasMeasured() {
+        var waiting = new CompletableFuture<Void>();
+        scan = waiting;
+        members.put(3, Set.of(ada));
+        var id = taken(3);
+
+        sync.check();
+        assertTrue(access.getOrDefault(id, Set.of()).isEmpty());
+        assertTrue(sync.active().isEmpty());
+
+        jobs.airAtPost(id, 3);
+        waiting.complete(null);
+        sync.check();
+
+        assertEquals(Set.of(ada), access.get(id));
+        assertEquals(1, measuring.size());
+    }
+
+    @Test
+    void aDigJobNobodyWorksOnYetIsMeasuredUntilItsAirIsNoted() {
+        var open = jobs.create(Job.draft(
+                        UUID.randomUUID(),
+                        JobKind.DIG,
+                        "Pit",
+                        100,
+                        5,
+                        NODE,
+                        new JobArea("world", 0, 60, 0, 4, 64, 4),
+                        JobLand.AREA,
+                        "plotsquared:plots|1;1",
+                        24,
+                        NOW,
+                        NOW.plusDays(7)))
+                .orElseThrow();
+        var worked = taken(3);
+        jobs.granted(worked, true);
+
+        sync.check();
+        jobs.airAtPost(open, 12);
+        sync.check();
+        sync.check();
+
+        assertEquals(List.of(open), measuring.stream().map(Job::id).toList());
+    }
+
+    private int terraformJob() {
+        var id = jobs.create(Job.draft(
+                                UUID.randomUUID(),
+                                JobKind.TERRAFORM,
+                                "Flat",
+                                100,
+                                5,
+                                NODE,
+                                new JobArea("world", 0, 60, 0, 4, 64, 4),
+                                JobLand.AREA,
+                                "plotsquared:plots|1;1",
+                                24,
+                                NOW,
+                                NOW.plusDays(7))
+                        .withTarget(new JobTarget(62, Material.GRASS_BLOCK.name())))
+                .orElseThrow();
+        jobs.take(id, 3, NOW, NOW.plusDays(1));
+        return id;
     }
 
     @Test
@@ -314,6 +480,66 @@ class JobAccessTest {
     }
 
     @Test
+    void kelpIsHarvestedAboveItsBaseWhichBecomesTheTopAgain() {
+        var worker = server.addPlayer();
+        var id = harvestJob();
+        members.put(3, Set.of(worker.getUniqueId()));
+        sync.check();
+        world.getBlockAt(1, 59, 1).setType(Material.SAND);
+        world.getBlockAt(1, 60, 1).setType(Material.KELP_PLANT);
+        world.getBlockAt(1, 61, 1).setType(Material.KELP_PLANT);
+        world.getBlockAt(1, 62, 1).setType(Material.KELP);
+
+        sync.onHarvest(new BlockBreakEvent(world.getBlockAt(1, 61, 1), worker));
+        sync.flush();
+
+        assertEquals(Material.KELP, world.getBlockAt(1, 60, 1).getType());
+        assertEquals(Material.WATER, world.getBlockAt(1, 61, 1).getType());
+        assertEquals(Material.WATER, world.getBlockAt(1, 62, 1).getType());
+        assertEquals(List.of(id + " " + worker.getUniqueId() + " {KELP=2}"), harvests);
+    }
+
+    @Test
+    void ripeBerriesArePickedIntoTheStockAndTheBushStays() {
+        var worker = server.addPlayer();
+        var id = harvestJob();
+        members.put(3, Set.of(worker.getUniqueId()));
+        sync.check();
+        var bush = world.getBlockAt(1, 60, 1);
+        bush.setType(Material.SWEET_BERRY_BUSH);
+        var ripe = (Ageable) bush.getBlockData();
+        ripe.setAge(3);
+        bush.setBlockData(ripe);
+
+        var pick =
+                new PlayerInteractEvent(worker, Action.RIGHT_CLICK_BLOCK, null, bush, BlockFace.UP, EquipmentSlot.HAND);
+        sync.onPick(pick);
+        sync.flush();
+
+        assertTrue(pick.isCancelled());
+        assertEquals(Material.SWEET_BERRY_BUSH, bush.getType());
+        assertEquals(1, ((Ageable) bush.getBlockData()).getAge());
+        assertEquals(1, harvests.size());
+        assertTrue(
+                harvests.getFirst().startsWith(id + " " + worker.getUniqueId() + " {SWEET_BERRIES="),
+                harvests.toString());
+    }
+
+    @Test
+    void mobsDoNotTrampleTheField() {
+        harvestJob();
+        sync.check();
+        var soil = world.getBlockAt(2, 60, 2);
+        soil.setType(Material.FARMLAND);
+        var mob = world.spawnEntity(soil.getLocation().add(0.5, 1, 0.5), EntityType.PIG);
+
+        var trample = new EntityInteractEvent(mob, soil);
+        sync.onMobTrample(trample);
+
+        assertTrue(trample.isCancelled());
+    }
+
+    @Test
     void membersOnlyPlantInAHarvestFieldAndWhatTheyPlacedIsNoHarvest() {
         var worker = server.addPlayer();
         var id = harvestJob();
@@ -409,6 +635,96 @@ class JobAccessTest {
         var undo = new BlockBreakEvent(world.getBlockAt(0, 60, 0), owner);
         sync.onHold(undo);
         assertTrue(undo.isCancelled());
+    }
+
+    @Test
+    void membersPlaceOnlyWhatTheBlueprintAsksForOrTheWhitelist() {
+        var worker = server.addPlayer();
+        var id = buildJob(Blueprint.of(
+                List.of(new Blueprint.Cell(0, 0, 0, Material.STONE), new Blueprint.Cell(1, 0, 0, Material.STONE))));
+        List<Material> told = new ArrayList<>();
+        sync.building(() -> Set.of(Material.SCAFFOLDING), (player, want) -> told.add(want.type()));
+        members.put(3, Set.of(worker.getUniqueId()));
+        sync.check();
+
+        var glass = placing(worker, world.getBlockAt(0, 60, 0), Material.GLASS);
+        var stone = placing(worker, world.getBlockAt(0, 60, 0), Material.STONE);
+        var scaffolding = placing(worker, world.getBlockAt(1, 60, 0), Material.SCAFFOLDING);
+
+        assertTrue(glass.isCancelled());
+        assertFalse(stone.isCancelled());
+        assertFalse(scaffolding.isCancelled());
+        assertEquals(List.of(Material.STONE), told);
+        assertTrue(jobs.job(id).isPresent());
+    }
+
+    @Test
+    void aBlockPlacedTurnedAnotherWayIsTurnedAndCounts() {
+        var worker = server.addPlayer();
+        var asked = "minecraft:oak_stairs[facing=north,half=bottom,shape=straight,waterlogged=false]";
+        var id = buildJob(Blueprint.of(List.of(
+                new Blueprint.Cell(0, 0, 0, Material.OAK_STAIRS, asked), new Blueprint.Cell(1, 0, 0, Material.STONE))));
+        members.put(3, Set.of(worker.getUniqueId()));
+        sync.check();
+        var block = world.getBlockAt(0, 60, 0);
+
+        block.setBlockData(Bukkit.createBlockData(asked.replace("north", "east")));
+        sync.onPlaced(new BlockPlaceEvent(
+                block, block.getState(), block, new ItemStack(Material.OAK_STAIRS), worker, true, EquipmentSlot.HAND));
+        sync.flush();
+
+        assertEquals(
+                "north", Blueprint.states(block.getBlockData().getAsString()).get("facing"));
+        assertEquals(Map.of(worker.getUniqueId(), 1), jobs.workOf(id));
+    }
+
+    @Test
+    void groundTheBlueprintDigsOutCountsAsWorkAndTakesNoBlocks() {
+        var worker = server.addPlayer();
+        world.getBlockAt(1, 60, 0).setType(Material.DIRT);
+        var blueprint = Blueprint.of(List.of(new Blueprint.Cell(0, 0, 0, Material.STONE)), List.of(new int[] {1, 0, 0}))
+                .dug("world", 0, 60, 0, BuildCheck.of(world), (x, z) -> 60);
+        var id = buildJob(blueprint);
+        members.put(3, Set.of(worker.getUniqueId()));
+        sync.check();
+
+        var cobble = placing(worker, world.getBlockAt(1, 60, 0), Material.COBBLESTONE);
+        world.getBlockAt(1, 60, 0).setType(Material.DIRT);
+        breakBlock(worker, world.getBlockAt(1, 60, 0));
+        world.getBlockAt(1, 60, 0).setType(Material.SAND);
+        breakBlock(worker, world.getBlockAt(1, 60, 0));
+        sync.flush();
+
+        assertTrue(cobble.isCancelled());
+        assertEquals(Map.of(worker.getUniqueId(), 1), jobs.workOf(id));
+    }
+
+    private int buildJob(Blueprint blueprint) {
+        var id = jobs.create(Job.draft(
+                        UUID.randomUUID(),
+                        JobKind.BUILD,
+                        "Wall",
+                        100,
+                        5,
+                        NODE,
+                        new JobArea("world", 0, 60, 0, 1, 60, 0),
+                        JobLand.AREA,
+                        "plotsquared:plots|1;1",
+                        24,
+                        NOW,
+                        NOW.plusDays(7)))
+                .orElseThrow();
+        jobs.blueprint(id, blueprint.encode());
+        jobs.take(id, 3, NOW, NOW.plusDays(1));
+        return id;
+    }
+
+    private BlockPlaceEvent placing(Player player, Block block, Material type) {
+        block.setType(type);
+        var event = new BlockPlaceEvent(
+                block, block.getState(), block, new ItemStack(type), player, true, EquipmentSlot.HAND);
+        sync.onPlace(event);
+        return event;
     }
 
     private int harvestJob() {

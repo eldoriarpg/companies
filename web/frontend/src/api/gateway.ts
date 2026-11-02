@@ -1239,6 +1239,120 @@ export interface JobDetails {
     requestsLeft?: number
     /** The company's open request for more time, none without one. */
     request?: ExtensionRequest | null
+    /** What the blocks of a build job's blueprint cost; missing for other kinds and from older plugins. */
+    materialCost?: MaterialCost | null
+    /** How far the work was at the last check of its area; only from the server holding the area. */
+    progress?: JobProgress | null
+    /** Whether the owner asks the company working on it to let it be cancelled; missing from older plugins. */
+    cancelAsked?: boolean
+    /** The steps of the review of its work, oldest first; only for the owner and its company. */
+    reviews?: JobReview[]
+}
+
+/** The schematics a player uploaded for build jobs. */
+export interface SchematicList {
+    /** Whether the server takes uploads now. */
+    open: boolean
+    /** The most schematics a player may keep. */
+    max: number
+    /** The largest file taken, in bytes. */
+    maxBytes: number
+    names: string[]
+}
+
+/** A schematic that was cleaned and kept. */
+export interface SchematicUpload {
+    list: SchematicList
+    name: string
+    /** How many blocks its blueprint asks for. */
+    blocks: number
+    /** How many blocks cleaning removed. */
+    removed: number
+    /** How much block and entity data cleaning removed, such as the contents of a chest. */
+    data: number
+    /** How many entities cleaning removed. */
+    entities: number
+}
+
+/** The areas a player stored for area jobs. */
+export interface AreaList {
+    /** The most areas a player may keep. */
+    max: number
+    areas: AreaRow[]
+}
+
+/** An area a player stored in game. */
+export interface AreaRow {
+    name: string
+    /** The server whose world holds it; jobs on it are posted there. */
+    node: string
+    world: string
+    /** The block in the middle of its top layer. */
+    center: string
+    width: number
+    height: number
+    length: number
+    /** How many blocks it holds. */
+    blocks: number
+}
+
+/** The top layer of a stored area, seen from above, and the schematics a build job on it may use. */
+export interface AreaPreview {
+    name: string
+    /** Columns along x. */
+    width: number
+    /** Columns along z. */
+    length: number
+    /** Colours as `#rrggbb`; an empty text for a column with nothing in the area. */
+    palette: string[]
+    /** The palette index of each column, row by row along z, each row along x. */
+    cells: number[]
+    /** The server's schematics. */
+    server: string[]
+    /** The player's uploaded schematics. */
+    own: string[]
+}
+
+/** A schematic, turned, as a build job would ask for it. */
+export interface SchematicFit {
+    width: number
+    height: number
+    length: number
+    /** How many blocks it asks for. */
+    blocks: number
+    /** What its blocks cost at the server's prices. */
+    cost: number
+    /** How many block types have no known price and are left out. */
+    unpriced: number
+}
+
+/** The kinds of job posted on a stored area. */
+export type AreaJobKind = 'dig' | 'terraform' | 'harvest'
+
+/** A step of the review of a job's work. */
+export interface JobReview {
+    /** `done` when the company said the work is done, `rejected` when the owner sent it back. */
+    kind: 'done' | 'rejected'
+    /** Why it was sent back. */
+    reason?: string | null
+    at?: string | null
+}
+
+/** How far the work on a job was at the last check of its area. */
+export interface JobProgress {
+    percent: number
+    /** The blocks as the job asks. */
+    done: number
+    /** The blocks the job asks about. */
+    total: number
+}
+
+/** What the blocks of a build job's blueprint cost. */
+export interface MaterialCost {
+    /** The cost of the blocks with a known price. */
+    total: number
+    /** How many block types have no known price and are left out. */
+    unpriced: number
 }
 
 /** The open request of the company working on a job for more time. */
@@ -1355,7 +1469,7 @@ export interface WriteActions {
     'admin.nodes.remove': {args: {uid: string}, result: {nodes: AdminNode[]}}
     'admin.nodes.prices': {args: Record<string, never>, result: {sources: AdminPriceSource[]}}
     'events.join': {args: OfferRef, result: EventDetails}
-    'jobs.contract': {args: {title: string, description: string, price: number, hours: number}, result: JobDetails}
+    'jobs.contract': {args: {title: string, description: string, price: number, hours: number, place?: boolean, area?: string}, result: JobDetails}
     'jobs.describe': {args: JobRef & {text: string}, result: JobDetails}
     'jobs.approve': {args: JobRef, result: JobDetails}
     'jobs.reject': {args: JobRef & {reason: string}, result: JobDetails}
@@ -1370,6 +1484,18 @@ export interface WriteActions {
     'jobs.extension.ask': {args: JobRef & {hours: number, reason: string}, result: JobDetails}
     'jobs.extension.grant': {args: JobRef, result: JobDetails}
     'jobs.extension.refuse': {args: JobRef & {reason: string}, result: JobDetails}
+    'jobs.cancel.accept': {args: JobRef, result: JobDetails}
+    'jobs.cancel.refuse': {args: JobRef, result: JobDetails}
+    'jobs.collect': {args: JobRef, result: JobDetails}
+    'jobs.schematics.list': {args: Record<string, never>, result: SchematicList}
+    'jobs.schematics.upload': {args: {name: string, data: string}, result: SchematicUpload}
+    'jobs.schematics.delete': {args: {name: string}, result: SchematicList}
+    'jobs.areas.list': {args: Record<string, never>, result: AreaList}
+    'jobs.areas.delete': {args: {name: string}, result: AreaList}
+    'jobs.areas.preview': {args: {node: string, area: string}, result: AreaPreview}
+    'jobs.areas.schematic': {args: {node: string, area: string, schematic: string, rotation: number}, result: SchematicFit}
+    'jobs.areas.build': {args: {node: string, area: string, schematic: string, rotation: number, x: number, z: number, title: string, price: number, hours: number, confirm: boolean}, result: JobDetails}
+    'jobs.areas.post': {args: {node: string, area: string, kind: AreaJobKind, title: string, price: number, hours: number, y?: number, surface?: string, unitPrice?: number}, result: JobDetails}
     'admin.jobs.disputes': {args: Record<string, never>, result: {disputes: DisputeRow[]}}
     'admin.jobs.settle': {args: JobRef & {percent: number}, result: {disputes: DisputeRow[]}}
     'events.leave': {args: OfferRef, result: EventDetails}

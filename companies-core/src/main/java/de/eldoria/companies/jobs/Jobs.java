@@ -17,6 +17,8 @@ import de.eldoria.companies.data.wrapper.job.Job;
 import de.eldoria.companies.events.company.CompanyDisbandEvent;
 import de.eldoria.companies.jobs.hooks.JobHooks;
 import de.eldoria.companies.jobs.hooks.ProviderJobLand;
+import de.eldoria.companies.menus.MenuComponents;
+import de.eldoria.companies.menus.Values;
 import de.eldoria.companies.orders.Collector;
 import de.eldoria.companies.orders.FeeReductions;
 import de.eldoria.companies.services.LevelService;
@@ -30,7 +32,9 @@ import de.eldoria.companies.services.notifications.NotificationType;
 import de.eldoria.companies.util.Texts;
 import de.eldoria.companies.util.Threading;
 import de.eldoria.companies.util.Times;
+import de.eldoria.eldoutilities.messages.MessageSender;
 import net.milkbowl.vault.economy.Economy;
+import org.bukkit.Material;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.plugin.Plugin;
@@ -57,6 +61,8 @@ public final class Jobs {
      * How often the primary expires jobs and opens overdue ones again, in minutes.
      */
     public static final int CHECK_MINUTES = 1;
+
+    private static final long GHOST_PRUNE_TICKS = 100;
 
     private Jobs() {}
 
@@ -163,7 +169,12 @@ public final class Jobs {
                                 if (detail instanceof Double amount) args.money("amount", economy.format(amount));
                                 yield NotificationType.MY_JOB_EXPIRED;
                             }
-                            case LAND_LOST -> NotificationType.MY_JOB_LAND_LOST;
+                            case LAND_LOST -> {
+                                if (!(detail instanceof JobService.Worked worked))
+                                    yield NotificationType.MY_JOB_LAND_LOST;
+                                worked(args, worked, worked.back());
+                                yield NotificationType.MY_JOB_LAND_LOST_WORKED;
+                            }
                             case AWAITING -> {
                                 if (detail instanceof LocalDateTime at)
                                     args.text("time", EventTimes.show(at, Times.zone()));
@@ -194,6 +205,11 @@ public final class Jobs {
                                 }
                                 yield NotificationType.MY_JOB_EXTENSION_ASKED;
                             }
+                            case CANCEL_ACCEPTED -> {
+                                if (detail instanceof Double amount) args.money("amount", economy.format(amount));
+                                yield NotificationType.MY_JOB_CANCEL_ACCEPTED;
+                            }
+                            case CANCEL_REFUSED -> NotificationType.MY_JOB_CANCEL_REFUSED;
                         };
                 if (type != null) notifications.send(owner, job.charged() ? type : uncharged(type), args);
             }
@@ -220,6 +236,13 @@ public final class Jobs {
                                 found,
                                 NotificationType.JOB_EXTENSION_REFUSED,
                                 args(job).text("reason", reason == null ? "" : reason)));
+            }
+
+            @Override
+            public void cancelAsked(int company, Job job) {
+                profile(companies, company)
+                        .ifPresent(found ->
+                                notifications.sendCompany(found, NotificationType.JOB_CANCEL_ASKED, args(job)));
             }
 
             @Override
@@ -257,10 +280,17 @@ public final class Jobs {
             }
 
             @Override
-            public void landLost(int company, Job job) {
-                profile(companies, company)
-                        .ifPresent(
-                                found -> notifications.sendCompany(found, NotificationType.JOB_LAND_LOST, args(job)));
+            public void landLost(int company, Job job, JobService.@Nullable Worked worked) {
+                var args = args(job);
+                if (worked != null) worked(args, worked, worked.paid());
+                var type = worked == null ? NotificationType.JOB_LAND_LOST : NotificationType.JOB_LAND_LOST_WORKED;
+                profile(companies, company).ifPresent(found -> notifications.sendCompany(found, type, args));
+            }
+
+            private void worked(NotificationArgs args, JobService.Worked worked, double amount) {
+                args.number("percent", worked.percent())
+                        .number("blocks", worked.left())
+                        .money("amount", economy.format(amount));
             }
         };
         JobService.Penalties penalties =
@@ -295,6 +325,8 @@ public final class Jobs {
                         .maxOrders(),
                 Times.UTC,
                 plugin.getLogger());
+        service.events(new JobApiEvents(
+                plugin.getServer().getPluginManager()::callEvent, plugin.getServer()::getOfflinePlayer));
         var node = configuration.nodeSettings().nodeUid();
         var blueprints = new Blueprints(jobs, plugin.getLogger());
         var progress = new JobProgress(
@@ -308,6 +340,12 @@ public final class Jobs {
                 job -> service.landLost(
                         job,
                         job.state() == JobState.TAKEN && job.kind() != JobKind.HARVEST ? checked(progress, job) : null),
+                job -> progress.of(job, true)
+                        .copy()
+                        .orTimeout(JobAccess.MAIN_THREAD_SECONDS * 3L, TimeUnit.SECONDS)
+                        .thenAcceptAsync(
+                                found -> found.ifPresent(scan -> jobs.airAtPost(job.id(), scan.cleared())),
+                                Threading.VIRTUAL),
                 service::harvested,
                 blueprints,
                 plugin.getLogger());
@@ -315,11 +353,58 @@ public final class Jobs {
         plugin.getServer().getPluginManager().registerEvents(new Disbands(service, access, plugin), plugin);
         var ghosts = new BuildGhosts(plugin);
         plugin.getServer().getPluginManager().registerEvents(ghosts, plugin);
-        return new JobServices(jobs, service, hooks, access, progress, node, blueprints, ghosts);
+        var costs = new MaterialCosts(blueprints, type -> price(orders, type, plugin));
+        var barTexts = MessageSender.getPluginMessageSender(plugin);
+        var bars = new ProgressBars(
+                plugin,
+                access::active,
+                job -> progress.of(job, false),
+                mainThread,
+                (player, job, work) -> new MenuComponents(barTexts, player)
+                        .locale(
+                                "jobs.progressBar",
+                                Values.number("id", job.id()),
+                                Values.text("job_title", job.title()),
+                                Values.number("percent", work.percent())));
+        plugin.getServer().getPluginManager().registerEvents(bars, plugin);
+        var uploads = new SchematicUploads(jobs, hooks, configuration::jobSettings, Times::now, plugin.getLogger());
+        var areas = new StoredAreas(jobs, configuration::jobSettings, Times::now);
+        var tool = new AreaTool(plugin, areas, barTexts);
+        plugin.getServer().getPluginManager().registerEvents(tool, plugin);
+        var checks = new AreaChecks(plugin.getServer(), hooks, configuration::jobSettings, mainThread);
+        var schematics = new BuildSchematics(
+                plugin.getDataFolder().toPath().resolve("schematics"), uploads, hooks, plugin.getLogger());
+        return new JobServices(
+                jobs,
+                service,
+                hooks,
+                access,
+                progress,
+                node,
+                blueprints,
+                ghosts,
+                costs,
+                bars,
+                uploads,
+                areas,
+                tool,
+                checks,
+                schematics,
+                new AreaWorld(plugin.getServer(), mainThread));
+    }
+
+    private static double price(AOrderData orders, Material type, Plugin plugin) {
+        try {
+            return orders.retrieveMaterialPrice(type.name()).asFuture().join().price();
+        } catch (RuntimeException e) {
+            plugin.getLogger().log(Level.WARNING, "Could not read the price of " + type, e);
+            return 0;
+        }
     }
 
     /**
-     * Schedules the access of this server's areas and, on the primary, the check that expires jobs.
+     * Schedules the access of this server's areas, the progress bars, the removal of ghost blocks and last progress of
+     * jobs that ended and, on the primary, the check that expires jobs.
      *
      * @param services the jobs
      * @param primary  whether this server is the primary
@@ -329,6 +414,19 @@ public final class Jobs {
     public static void schedule(
             JobServices services, boolean primary, ScheduledExecutorService executor, Plugin plugin) {
         services.access().schedule(executor);
+        plugin.getServer()
+                .getScheduler()
+                .runTaskTimer(
+                        plugin,
+                        () -> {
+                            services.ghosts().prune(services.access()::working);
+                            services.progress().prune(services.access()::working);
+                        },
+                        GHOST_PRUNE_TICKS,
+                        GHOST_PRUNE_TICKS);
+        plugin.getServer()
+                .getScheduler()
+                .runTaskTimer(plugin, services.bars()::refresh, ProgressBars.REFRESH_TICKS, ProgressBars.REFRESH_TICKS);
         if (!primary) return;
         executor.scheduleWithFixedDelay(
                 () -> {
@@ -416,8 +514,10 @@ public final class Jobs {
         return switch (type) {
             case MY_JOB_EXPIRED -> NotificationType.MY_JOB_EXPIRED_UNCHARGED;
             case MY_JOB_LAND_LOST -> NotificationType.MY_JOB_LAND_LOST_UNCHARGED;
+            case MY_JOB_LAND_LOST_WORKED -> NotificationType.MY_JOB_LAND_LOST_WORKED_UNCHARGED;
             case MY_JOB_HARVEST_ENDED -> NotificationType.MY_JOB_HARVEST_ENDED_UNCHARGED;
             case MY_JOB_SETTLED -> NotificationType.MY_JOB_SETTLED_UNCHARGED;
+            case MY_JOB_CANCEL_ACCEPTED -> NotificationType.MY_JOB_CANCEL_ACCEPTED_UNCHARGED;
             default -> type;
         };
     }

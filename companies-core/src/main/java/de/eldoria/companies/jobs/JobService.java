@@ -18,7 +18,9 @@ import de.eldoria.companies.data.wrapper.job.JobExtension;
 import de.eldoria.companies.data.wrapper.job.JobHarvest;
 import de.eldoria.companies.data.wrapper.job.JobLand;
 import de.eldoria.companies.data.wrapper.job.JobReview;
+import de.eldoria.companies.data.wrapper.job.JobReviewEntry;
 import de.eldoria.companies.data.wrapper.job.JobTarget;
+import de.eldoria.companies.events.job.JobEndEvent;
 import de.eldoria.companies.orders.Payout;
 import org.jetbrains.annotations.Nullable;
 
@@ -34,6 +36,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.BooleanSupplier;
 import java.util.function.DoubleUnaryOperator;
 import java.util.function.IntFunction;
 import java.util.function.Supplier;
@@ -105,6 +108,7 @@ public final class JobService {
     private final ToIntFunction<CompanyProfile> maxOrders;
     private final Clock clock;
     private final Logger logger;
+    private volatile Events events = Events.NONE;
 
     /**
      * @param jobs      job repository
@@ -259,7 +263,6 @@ public final class JobService {
         if (kind.area() && !jobs.overlapping(area).isEmpty()) return new Posted.Refused(Refusal.OVERLAP);
         var feeCharged = charge ? cents(fee.applyAsDouble(rounded)) : 0;
         var total = cents(rounded + feeCharged);
-        if (charge && !money.withdraw(owner, total)) return new Posted.Refused(Refusal.FUNDS);
         var now = now();
         var draft = Job.draft(
                         owner,
@@ -278,6 +281,8 @@ public final class JobService {
                 .withHarvest(unitPrice == null ? null : new JobHarvest(cents(unitPrice), 0))
                 .withDescription(description)
                 .withCharged(charge);
+        if (!allows(() -> events.allowsPost(draft))) return new Posted.Refused(Refusal.REFUSED);
+        if (charge && !money.withdraw(owner, total)) return new Posted.Refused(Refusal.FUNDS);
         Optional<Integer> id;
         try {
             id = jobs.create(draft);
@@ -299,6 +304,39 @@ public final class JobService {
         var stored = id.get();
         if (!charge) logger.info("Posted job " + stored + " for " + owner + " without charging it");
         return new Posted.Done(jobs.job(stored).orElseGet(() -> draft.withId(stored)));
+    }
+
+    /**
+     * Sets who hears about the life of jobs here, such as the API events.
+     *
+     * @param events the listener
+     */
+    public void events(Events events) {
+        this.events = events;
+    }
+
+    /**
+     * @return when a contract said to be done now is approved without an answer of its owner
+     */
+    public LocalDateTime approveAt() {
+        return now().plusHours(settings.get().approveHours());
+    }
+
+    private void fire(Runnable event) {
+        try {
+            event.run();
+        } catch (RuntimeException e) {
+            logger.log(Level.SEVERE, "A job event failed", e);
+        }
+    }
+
+    private boolean allows(BooleanSupplier check) {
+        try {
+            return check.getAsBoolean();
+        } catch (RuntimeException e) {
+            logger.log(Level.SEVERE, "A job event failed", e);
+            return true;
+        }
     }
 
     private void refund(Job job, double amount) {
@@ -382,11 +420,21 @@ public final class JobService {
         if (company.member(job.owner()).isPresent()) return Change.OWN;
         var used = orders.retrieveCompanySlotCount(company).join();
         if (used == null || used >= maxOrders.applyAsInt(company)) return Change.LIMIT;
+        if (!allows(() -> events.allowsTake(job, company, member))) return Change.REFUSED;
         var now = now();
         var due = now.plusHours(job.dueHours());
         if (!jobs.take(id, company.id(), now, due)) return Change.CLOSED;
         notices.owner(job.owner(), Notice.TAKEN, job, due);
         return Change.DONE;
+    }
+
+    /**
+     * @param company a company
+     * @return whether it has an order slot free to take a job; blocks
+     */
+    public boolean hasFreeSlot(CompanyProfile company) {
+        var used = orders.retrieveCompanySlotCount(company).join();
+        return used != null && used < maxOrders.applyAsInt(company);
     }
 
     /**
@@ -407,6 +455,7 @@ public final class JobService {
         if (!jobs.release(id, company.id())) return Change.CLOSED;
         notices.owner(job.owner(), Notice.RELEASED, job, null);
         penalties.penalize(company.id(), false);
+        fire(() -> events.ended(job, JobEndEvent.Reason.GIVEN_BACK));
         return Change.DONE;
     }
 
@@ -421,6 +470,7 @@ public final class JobService {
         for (var job : jobs.ofCompany(company)) {
             if (!jobs.release(job.id(), company)) continue;
             notices.owner(job.owner(), Notice.RELEASED, job, null);
+            fire(() -> events.ended(job, JobEndEvent.Reason.GIVEN_BACK));
             released.add(job.id());
         }
         return released;
@@ -430,7 +480,8 @@ public final class JobService {
      * Closes a job whose land changed hands, such as a plot that was sold. A waiting job gives its price back and keeps
      * the fee. A job a company works on pays the company for the share of the area it cleared, as a finished job pays,
      * and gives the rest of the price back, so an owner can not keep the work by giving the land away; without counted
-     * work the company's owner gets the share. No penalty applies.
+     * work the company's owner gets the share. Blocks of a dig job's area that were already cleared when it was posted
+     * are no work of the company. Both sides hear the share done and how many blocks were left. No penalty applies.
      *
      * @param job      the job as read
      * @param progress how far the work on a taken job is; a taken job without it is left alone, so it is tried again
@@ -444,6 +495,7 @@ public final class JobService {
             refund(job, cents(job.unpaid()));
             money.collect(job.fee());
             notices.owner(job.owner(), Notice.LAND_LOST, job, null);
+            fire(() -> events.ended(job, JobEndEvent.Reason.LAND_LOST));
             return true;
         }
         if (job.state() == JobState.TAKEN && job.kind() == JobKind.HARVEST) {
@@ -451,7 +503,8 @@ public final class JobService {
         }
         if (job.state() != JobState.TAKEN || company == null || progress == null) return false;
         var profile = companies.apply(company).orElse(null);
-        var earned = profile == null ? 0 : earned(job.price(), progress);
+        var air = job.kind() == JobKind.DIG ? jobs.airAtPost(job.id()).orElse(0) : 0;
+        var earned = profile == null ? 0 : earned(job.price(), progress, air);
         var parts = earned > 0 && profile != null
                 ? parts(earned, jobs.workOf(job.id()), head(profile))
                 : Map.<UUID, Double>of();
@@ -465,22 +518,28 @@ public final class JobService {
         } else {
             money.collect(job.fee());
         }
-        notices.owner(job.owner(), Notice.LAND_LOST, job, null);
-        notices.landLost(company, job);
+        var worked = new Worked(progress, air, earned, rest);
+        notices.owner(job.owner(), Notice.LAND_LOST, job, worked);
+        notices.landLost(company, job, worked);
+        fire(() -> events.ended(job, JobEndEvent.Reason.LAND_LOST));
         return true;
     }
 
     /**
      * @param price    the price of a job
      * @param progress how far its work is
+     * @param air      the blocks of the area that were cleared before any work, which earn nothing
      * @return the share of the price the cleared blocks earned, rounded down to the cent
      */
-    static double earned(double price, DigCheck.Progress progress) {
+    static double earned(double price, DigCheck.Progress progress, long air) {
         if (progress.total() <= 0) return 0;
         if (progress.done()) return price;
+        var total = progress.total() - air;
+        var cleared = progress.cleared() - air;
+        if (total <= 0 || cleared <= 0) return 0;
         return BigDecimal.valueOf(price)
-                .multiply(BigDecimal.valueOf(progress.cleared()))
-                .divide(BigDecimal.valueOf(progress.total()), 2, RoundingMode.FLOOR)
+                .multiply(BigDecimal.valueOf(cleared))
+                .divide(BigDecimal.valueOf(total), 2, RoundingMode.FLOOR)
                 .doubleValue();
     }
 
@@ -505,26 +564,74 @@ public final class JobService {
     }
 
     /**
-     * Cancels the owner's job while nobody works on it: the price goes back, the fee is kept.
+     * Cancels the owner's job while nobody works on it: the price goes back, the fee is kept. A job a company holds
+     * taken is not cancelled but its company is asked to let it be, see {@link #answerCancel}; a harvest job is ended
+     * by its owner instead, see {@link #endAsOwner}.
      *
      * @param owner the owner
      * @param by    who cancels it, as noted
      * @param id    id of the job
-     * @return what came of it
+     * @return what came of it; {@link Change#CANCEL_ASKED} when the company was asked, {@link Change#ASKED} when it was
+     *     asked before and has not answered, {@link Change#HARVEST} for a taken harvest job
      */
     public Change cancel(UUID owner, String by, int id) {
         var job = jobs.job(id).orElse(null);
         if (job == null) return Change.UNKNOWN;
         if (!job.owner().equals(owner)) return Change.NOT_YOURS;
+        var company = job.company();
+        if (job.state() == JobState.TAKEN && company != null) {
+            if (job.kind() == JobKind.HARVEST) return Change.HARVEST;
+            if (job.review().cancelAsked() != null) return Change.ASKED;
+            if (!jobs.askCancel(id, company, now())) return Change.CLOSED;
+            notices.cancelAsked(company, job);
+            return Change.CANCEL_ASKED;
+        }
         if (job.state() != JobState.OPEN) return job.state().closed() ? Change.CLOSED : Change.TAKEN;
         if (!jobs.close(id, JobState.OPEN, JobState.CANCELLED, by, now())) return Change.CLOSED;
         refund(job, cents(job.unpaid()));
         money.collect(job.fee());
+        fire(() -> events.ended(job, JobEndEvent.Reason.CANCELLED));
         return Change.DONE;
     }
 
     /**
-     * Finishes a job the member's company works on, when its check passed on the server of its area: the job is paid.
+     * Answers the owner's request to cancel a job the member's company holds. Agreeing cancels it as if nobody had
+     * taken it: the price goes back to the owner, the fee is kept, and the company is not penalized. Refusing leaves
+     * the job as it is.
+     *
+     * @param company the company
+     * @param member  the member answering
+     * @param by      the member's name, noted as who closed the job when it is cancelled
+     * @param id      id of the job
+     * @param agree   whether the company lets it be cancelled
+     * @return what came of it
+     */
+    public Change answerCancel(CompanyProfile company, UUID member, String by, int id, boolean agree) {
+        if (!mayManage(company, member)) return Change.NO_PERMISSION;
+        var job = jobs.job(id).orElse(null);
+        if (job == null) return Change.UNKNOWN;
+        if (job.state() != JobState.TAKEN || !Integer.valueOf(company.id()).equals(job.company())) {
+            return Change.NOT_YOURS;
+        }
+        if (job.review().cancelAsked() == null) return Change.NO_REQUEST;
+        if (!agree) {
+            if (!jobs.refuseCancel(id, company.id())) return Change.CLOSED;
+            notices.owner(job.owner(), Notice.CANCEL_REFUSED, job, null);
+            return Change.DONE;
+        }
+        if (!jobs.acceptCancel(id, company.id(), by, now())) return Change.CLOSED;
+        var back = cents(job.unpaid());
+        refund(job, back);
+        money.collect(job.fee());
+        notices.owner(job.owner(), Notice.CANCEL_ACCEPTED, job, back);
+        fire(() -> events.ended(job, JobEndEvent.Reason.CANCELLED));
+        return Change.DONE;
+    }
+
+    /**
+     * Finishes a job the member's company works on, when its check passed on the server of its area: the job is paid,
+     * or, when the server lets owners approve area jobs ({@link JobSettings#approveAreaJobs()}), it waits for its
+     * owner like a contract the company says is done.
      *
      * @param company  the company
      * @param member   the member finishing it
@@ -542,6 +649,15 @@ public final class JobService {
         if (!job.kind().area()) return new Finished.Refused(Change.CONTRACT);
         if (job.kind() == JobKind.HARVEST) return new Finished.Refused(Change.HARVEST);
         if (!progress.done()) return new Finished.NotDone(progress);
+        if (settings.get().approveAreaJobs()) {
+            var now = now();
+            if (!jobs.markDone(id, company.id(), member, now)) return new Finished.Refused(Change.CLOSED);
+            reviewed(new JobReviewEntry(id, JobReviewEntry.Kind.DONE, member, null, now));
+            var approveAt = now.plusHours(settings.get().approveHours());
+            notices.owner(job.owner(), Notice.AWAITING, job, approveAt);
+            fire(() -> events.markedDone(jobs.job(id).orElse(job)));
+            return new Finished.Waiting(approveAt);
+        }
         var parts = parts(job.price(), jobs.workOf(id), member);
         var tax = money.taxPercent(company);
         var share = money.share(company);
@@ -551,15 +667,14 @@ public final class JobService {
         var paid = pay(job, company, parts, tax, share);
         notices.owner(job.owner(), Notice.DONE, job, null);
         notices.paid(company, job, paid);
+        fire(() -> events.finished(job, paid));
+        fire(() -> events.ended(job, JobEndEvent.Reason.PAID));
         return new Finished.Paid(paid);
     }
 
     /**
-     * Stores what a member harvested on a harvest job and pays them for it from the budget, taxed and with the treasury
-     * share kept as for order payouts. Items the budget no longer covers, or harvested for a company that no longer has
-     * the job, still go into the stock, as they came from the owner's field. When the budget is used up the job ends.
-     * A payment that loses against another one of the same job, which the budget check of the database refuses, is
-     * worked out again once against the budget as it then stands.
+     * Stores what one member harvested on a harvest job and pays them for it, as
+     * {@link #harvested(int, int, Map)} does for several.
      *
      * @param id      id of the job
      * @param company id of the company the member harvested for
@@ -567,52 +682,112 @@ public final class JobService {
      * @param items   the items, as amounts by material name
      * @return what the member was paid after tax and treasury share
      */
-    public double harvested(int id, int company, UUID worker, Map<String, Integer> items) {
+    double harvested(int id, int company, UUID worker, Map<String, Integer> items) {
+        return harvested(id, company, Map.of(worker, items));
+    }
+
+    /**
+     * Stores what members harvested on a harvest job and pays each of them for their items from the budget, taxed and
+     * with the treasury share kept as for order payouts; the shares of all of them are booked to the treasury at once.
+     * The budget pays the members in turn until it runs out. Items the budget no longer covers, or harvested for a
+     * company that no longer has the job, still go into the stock, as they came from the owner's field. When the budget
+     * is used up the job ends. A payment that loses against another one of the same job, which the budget check of the
+     * database refuses, is worked out again once against the budget as it then stands.
+     *
+     * @param id       id of the job
+     * @param company  id of the company the members harvested for
+     * @param byWorker the items of each member, as amounts by material name
+     * @return what the members were paid in all after tax and treasury share
+     */
+    public double harvested(int id, int company, Map<UUID, Map<String, Integer>> byWorker) {
+        Map<String, Integer> items = new LinkedHashMap<>();
+        byWorker.values().forEach(found -> found.forEach((name, amount) -> items.merge(name, amount, Integer::sum)));
         if (items.isEmpty()) return 0;
-        long units = items.values().stream().mapToLong(Integer::longValue).sum();
         var profile = companies.apply(company).orElse(null);
         Job job = null;
-        double gross = 0;
-        var left = BigDecimal.ZERO;
+        Map<UUID, Long> gross = new LinkedHashMap<>();
+        long left = 0;
         var paid = false;
         for (var attempt = 0; attempt < 2 && !paid; attempt++) {
             job = jobs.job(id).orElse(null);
             var harvest = job == null ? null : job.harvest();
             if (job == null || harvest == null) return 0;
-            left = BigDecimal.valueOf(job.unpaid());
-            gross = BigDecimal.valueOf(harvest.unitPrice())
-                    .multiply(BigDecimal.valueOf(units))
-                    .min(left)
-                    .setScale(2, RoundingMode.FLOOR)
-                    .doubleValue();
+            left = Math.max(0, Math.round(job.price() * 100) - Math.round(harvest.paid() * 100));
+            gross = shares(byWorker, harvest.unitPrice(), left);
+            var total = gross.values().stream().mapToLong(Long::longValue).sum();
             var mine = job.state() == JobState.TAKEN && Integer.valueOf(company).equals(job.company());
             if (!mine || profile == null) break;
-            if (gross <= 0) {
+            if (total <= 0) {
                 ended(job, BUDGET_BY, JobState.PAID);
                 break;
             }
-            paid = jobs.harvested(id, company, items, gross);
+            paid = jobs.harvested(id, company, items, total);
         }
         var harvest = job == null ? null : job.harvest();
         if (!paid || job == null || harvest == null || profile == null) {
             jobs.stock(id, items);
             return 0;
         }
-        var payout = Payout.split(gross, money.taxPercent(profile), money.share(profile));
-        try {
-            money.deposit(worker, payout.net());
-            money.collect(payout.tax());
-            if (payout.shareCents() > 0) money.keep(profile, id, payout.shareCents());
-        } catch (RuntimeException e) {
-            logger.log(
-                    Level.SEVERE,
-                    "Could not pay " + payout.net() + " of harvest job " + id + " to " + worker + "; pay it by hand",
-                    e);
+        var net = 0.0;
+        var tax = 0.0;
+        long share = 0;
+        long total = 0;
+        for (var entry : gross.entrySet()) {
+            if (entry.getValue() <= 0) continue;
+            total += entry.getValue();
+            var payout = Payout.split(entry.getValue() / 100.0, money.taxPercent(profile), money.share(profile));
+            try {
+                money.deposit(entry.getKey(), payout.net());
+                net += payout.net();
+            } catch (RuntimeException e) {
+                logger.log(
+                        Level.SEVERE,
+                        "Could not pay " + payout.net() + " of harvest job " + id + " to " + entry.getKey()
+                                + "; pay it by hand",
+                        e);
+            }
+            tax += payout.tax();
+            share += payout.shareCents();
         }
-        if (left.subtract(BigDecimal.valueOf(gross)).compareTo(BigDecimal.valueOf(harvest.unitPrice())) < 0) {
+        try {
+            money.collect(tax);
+            if (share > 0) money.keep(profile, id, share);
+        } catch (RuntimeException e) {
+            logger.log(Level.SEVERE, "Could not book the tax and share of harvest job " + id, e);
+        }
+        var unit = BigDecimal.valueOf(harvest.unitPrice())
+                .movePointRight(2)
+                .setScale(0, RoundingMode.CEILING)
+                .longValue();
+        if (left - total < unit) {
             jobs.job(id).ifPresent(found -> ended(found, BUDGET_BY, JobState.PAID));
         }
-        return payout.net();
+        return net;
+    }
+
+    /**
+     * @param byWorker  the items of each member
+     * @param unitPrice what one item pays
+     * @param left      what the budget still holds, in cents
+     * @return what each member is paid before tax, in cents, the budget paying them in turn until it runs out
+     */
+    static Map<UUID, Long> shares(Map<UUID, Map<String, Integer>> byWorker, double unitPrice, long left) {
+        Map<UUID, Long> shares = new LinkedHashMap<>();
+        var rest = left;
+        for (var entry : byWorker.entrySet()) {
+            long units = entry.getValue().values().stream()
+                    .mapToLong(Integer::longValue)
+                    .sum();
+            var worth = BigDecimal.valueOf(unitPrice)
+                    .multiply(BigDecimal.valueOf(units))
+                    .movePointRight(2)
+                    .setScale(0, RoundingMode.FLOOR)
+                    .longValue();
+            var cents = Math.max(0, Math.min(worth, rest));
+            shares.put(entry.getKey(), cents);
+            rest -= cents;
+        }
+        return shares;
     }
 
     /**
@@ -675,10 +850,12 @@ public final class JobService {
                 .sum();
         if (to == JobState.CANCELLED) {
             notices.owner(job.owner(), Notice.LAND_LOST, job, null);
-            notices.landLost(company, job);
+            notices.landLost(company, job, null);
+            fire(() -> events.ended(job, JobEndEvent.Reason.LAND_LOST));
         } else {
             notices.owner(job.owner(), Notice.HARVEST_ENDED, job, new Harvested(rest, stocked));
             companies.apply(company).ifPresent(profile -> notices.paid(profile, job, paid));
+            fire(() -> events.ended(job, JobEndEvent.Reason.PAID));
         }
         return true;
     }
@@ -747,6 +924,7 @@ public final class JobService {
         var until = due.plusHours(hours);
         if (!jobs.extend(job.id(), company, due, until, hours, asked, now)) return Change.CLOSED;
         notices.extended(company, job, hours, until);
+        fire(() -> events.extended(jobs.job(job.id()).orElse(job), hours));
         return Change.DONE;
     }
 
@@ -837,8 +1015,10 @@ public final class JobService {
         if (job.kind().area()) return Change.AREA;
         var now = now();
         if (!jobs.markDone(id, company.id(), member, now)) return Change.CLOSED;
+        reviewed(new JobReviewEntry(id, JobReviewEntry.Kind.DONE, member, null, now));
         notices.owner(
                 job.owner(), Notice.AWAITING, job, now.plusHours(settings.get().approveHours()));
+        fire(() -> events.markedDone(jobs.job(id).orElse(job)));
         return Change.DONE;
     }
 
@@ -881,8 +1061,17 @@ public final class JobService {
         var newDue =
                 (due == null ? now.plusHours(job.dueHours()) : due).plus(waited.isNegative() ? Duration.ZERO : waited);
         if (!jobs.reject(id, text, newDue)) return Change.CLOSED;
+        reviewed(new JobReviewEntry(id, JobReviewEntry.Kind.REJECTED, owner, text, now));
         notices.rejected(company, job, text);
         return Change.DONE;
+    }
+
+    private void reviewed(JobReviewEntry entry) {
+        try {
+            jobs.review(entry);
+        } catch (RuntimeException e) {
+            logger.log(Level.WARNING, "Could not note the review of job " + entry.job(), e);
+        }
     }
 
     /**
@@ -1034,6 +1223,7 @@ public final class JobService {
         }
         notices.owner(job.owner(), Notice.SETTLED, job, rest);
         if (company != null) notices.settled(company, job, paid);
+        fire(() -> events.ended(job, JobEndEvent.Reason.SETTLED));
         return Change.DONE;
     }
 
@@ -1055,6 +1245,7 @@ public final class JobService {
         if (!jobs.closeHeld(job.id(), company, job.state(), JobState.PAID, by, now())) return false;
         var paid = pay(job, profile, parts, tax, cut);
         notices.paid(profile, job, paid);
+        fire(() -> events.ended(job, JobEndEvent.Reason.PAID));
         return true;
     }
 
@@ -1107,6 +1298,7 @@ public final class JobService {
                 var back = cents(job.unpaid() + job.fee());
                 refund(job, back);
                 notices.owner(job.owner(), Notice.EXPIRED, job, back);
+                fire(() -> events.ended(job, JobEndEvent.Reason.EXPIRED));
                 expired.add(job.id());
             } catch (RuntimeException e) {
                 logger.log(Level.SEVERE, "Could not expire job " + job.id(), e);
@@ -1124,6 +1316,7 @@ public final class JobService {
                 notices.owner(job.owner(), Notice.RELEASED, job, null);
                 notices.overdue(company, job);
                 penalties.penalize(company, true);
+                fire(() -> events.ended(job, JobEndEvent.Reason.OVERDUE));
                 reopened.add(job.id());
             } catch (RuntimeException e) {
                 logger.log(Level.SEVERE, "Could not open overdue job " + job.id() + " again", e);
@@ -1305,8 +1498,9 @@ public final class JobService {
         /**
          * @param company id of the company that lost the job, since its land changed hands
          * @param job     the job
+         * @param worked  how far the work on an area was and what it was paid, null for a harvest job
          */
-        void landLost(int company, Job job);
+        void landLost(int company, Job job, @Nullable Worked worked);
 
         /**
          * @param company id of the company whose work the owner rejected
@@ -1349,6 +1543,12 @@ public final class JobService {
          * @param reason  why the owner refused, null without a reason
          */
         void extensionRefused(int company, Job job, @Nullable String reason);
+
+        /**
+         * @param company id of the company holding the job
+         * @param job     the job whose owner asks to cancel it
+         */
+        void cancelAsked(int company, Job job);
     }
 
     /**
@@ -1384,7 +1584,8 @@ public final class JobService {
          */
         EXPIRED,
         /**
-         * The job's land changed hands, so it was cancelled.
+         * The job's land changed hands, so it was cancelled. The detail is how far the work on its area was, a
+         * {@link Worked}, when a company worked on it.
          */
         LAND_LOST,
         /**
@@ -1415,7 +1616,15 @@ public final class JobService {
         /**
          * The company holding it asks for more time. The detail is an {@link Asked}.
          */
-        EXTENSION_ASKED
+        EXTENSION_ASKED,
+        /**
+         * The company let the job be cancelled; the price went back. Detail: the amount back.
+         */
+        CANCEL_ACCEPTED,
+        /**
+         * The company refused to let the job be cancelled.
+         */
+        CANCEL_REFUSED
     }
 
     /**
@@ -1434,6 +1643,104 @@ public final class JobService {
      * @param left   how long its time still runs
      */
     public record Asked(int hours, String reason, Duration left) {}
+
+    /**
+     * Hears about the life of jobs on this server, where each change is won.
+     */
+    public interface Events {
+        /**
+         * Hears nothing.
+         */
+        Events NONE = new Events() {};
+
+        /**
+         * @param draft a job about to be posted, checked and not stored yet
+         * @return whether it may be posted
+         */
+        default boolean allowsPost(Job draft) {
+            return true;
+        }
+
+        /**
+         * @param job     an open job about to be taken
+         * @param company the company taking it
+         * @param member  the member taking it
+         * @return whether it may be taken
+         */
+        default boolean allowsTake(Job job, CompanyProfile company, UUID member) {
+            return true;
+        }
+
+        /**
+         * @param job   a taken job, with its new due time
+         * @param hours the hours added
+         */
+        default void extended(Job job, int hours) {}
+
+        /**
+         * @param job a contract its company said is done
+         */
+        default void markedDone(Job job) {}
+
+        /**
+         * @param job  an area job its company finished
+         * @param paid what its workers were paid in all
+         */
+        default void finished(Job job, double paid) {}
+
+        /**
+         * @param job    a job as it was before it ended
+         * @param reason why it ended
+         */
+        default void ended(Job job, JobEndEvent.Reason reason) {}
+    }
+
+    /**
+     * How far the work on an area was when its land changed hands.
+     *
+     * @param progress how far the blocks were as asked
+     * @param air      the blocks of the area that were cleared before any work
+     * @param paid     what the company was paid for its share
+     * @param back     what went back to the owner
+     */
+    public record Worked(DigCheck.Progress progress, long air, double paid, double back) {
+        /**
+         * @return the share of the work done, from 0 to 100, rounded down, leaving out the blocks cleared before any
+         *     work; 100 only when done
+         */
+        public int percent() {
+            if (progress.done()) return 100;
+            var total = progress.total() - air;
+            var cleared = progress.cleared() - air;
+            if (total <= 0 || cleared <= 0) return 0;
+            return (int) Math.min(99, cleared * 100 / total);
+        }
+
+        /**
+         * @return the blocks still to do
+         */
+        public long left() {
+            return Math.max(0, progress.total() - progress.cleared());
+        }
+    }
+
+    /**
+     * @param refusal  why a job was refused
+     * @param kind     the kind of the job
+     * @param settings the settings of jobs
+     * @return the limit the refusal names, such as the most blocks of the job's kind; 0 when it names none
+     */
+    public static Number limit(Refusal refusal, JobKind kind, JobSettings settings) {
+        return switch (refusal) {
+            case VOLUME -> settings.maxVolume(kind);
+            case DESCRIPTION -> Job.MAX_DESCRIPTION;
+            case CHUNKS -> settings.maxChunks();
+            case TOO_MANY -> settings.maxOpenPerOwner();
+            case DUE -> settings.maxDueHours();
+            case TITLE -> Job.MAX_TITLE;
+            default -> 0;
+        };
+    }
 
     /**
      * Why a job was not posted.
@@ -1502,7 +1809,11 @@ public final class JobService {
         /**
          * A build job was stored and taken, but its blueprint could not be stored; its money stays held for an admin.
          */
-        STRANDED
+        STRANDED,
+        /**
+         * A listener of the API refused it.
+         */
+        REFUSED
     }
 
     /**
@@ -1606,13 +1917,29 @@ public final class JobService {
          */
         NO_REQUEST,
         /**
+         * A listener of the API refused it.
+         */
+        REFUSED,
+        /**
+         * The job's area lies on another server, so it can not be checked here.
+         */
+        OTHER_SERVER,
+        /**
+         * The world of the job's area is not loaded.
+         */
+        WORLD,
+        /**
          * The company already waits for an answer to its request.
          */
         ASKED,
         /**
          * The company asked as often as the server allows for this job.
          */
-        REQUESTS
+        REQUESTS,
+        /**
+         * The job is taken, so the company holding it was asked to let it be cancelled.
+         */
+        CANCEL_ASKED
     }
 
     /**

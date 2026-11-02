@@ -5,34 +5,42 @@
  */
 package de.eldoria.companies.commands.order;
 
+import com.google.common.cache.CacheBuilder;
 import de.eldoria.companies.commands.CommandDependencies;
+import de.eldoria.companies.commands.suggest.SurfaceBlocks;
 import de.eldoria.companies.commands.support.CommandFailure;
 import de.eldoria.companies.commands.support.PlayerOnly;
 import de.eldoria.companies.commands.support.Senders;
 import de.eldoria.companies.components.job.JobKind;
 import de.eldoria.companies.components.job.JobState;
-import de.eldoria.companies.configuration.elements.jobs.JobSettings;
 import de.eldoria.companies.data.wrapper.job.Job;
 import de.eldoria.companies.data.wrapper.job.JobArea;
 import de.eldoria.companies.data.wrapper.job.JobExtension;
 import de.eldoria.companies.data.wrapper.job.JobLand;
 import de.eldoria.companies.data.wrapper.job.JobReview;
+import de.eldoria.companies.data.wrapper.job.JobReviewEntry;
 import de.eldoria.companies.data.wrapper.job.JobTarget;
+import de.eldoria.companies.jobs.AreaChecks;
 import de.eldoria.companies.jobs.Blueprint;
+import de.eldoria.companies.jobs.BuildCheck;
 import de.eldoria.companies.jobs.DigCheck;
 import de.eldoria.companies.jobs.JobService;
 import de.eldoria.companies.jobs.JobServices;
+import de.eldoria.companies.jobs.MaterialCosts;
 import de.eldoria.companies.jobs.TerraformCheck;
-import de.eldoria.companies.jobs.hooks.JobHooks;
+import de.eldoria.companies.menus.ConfirmFlow;
 import de.eldoria.companies.menus.MenuComponents;
+import de.eldoria.companies.menus.MenuMode;
 import de.eldoria.companies.menus.MenuText;
 import de.eldoria.companies.menus.Values;
+import de.eldoria.companies.menus.job.JobListMenu;
+import de.eldoria.companies.menus.job.JobMenu;
+import de.eldoria.companies.menus.job.JobMenus;
 import de.eldoria.companies.util.Permission;
 import de.eldoria.companies.util.Texts;
 import de.eldoria.companies.util.Threading;
 import de.eldoria.companies.util.Times;
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import net.strokkur.commands.Executes;
 import net.strokkur.commands.Subcommand;
@@ -40,25 +48,28 @@ import net.strokkur.commands.arguments.DoubleArg;
 import net.strokkur.commands.arguments.IntArg;
 import net.strokkur.commands.arguments.StringArg;
 import net.strokkur.commands.arguments.StringArgType;
+import org.bukkit.HeightMap;
 import org.bukkit.Material;
 import org.bukkit.Particle;
+import org.bukkit.block.Block;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.Nullable;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.logging.Level;
@@ -68,18 +79,23 @@ import java.util.logging.Level;
  * <ul>
  *     <li>{@code /order job} lists the player's jobs;</li>
  *     <li>{@code info <id>} shows a job, and on the server of its area how far the work is;</li>
- *     <li>{@code dig <price> <hours> <title>} posts a dig job on the area selected with WorldEdit;</li>
+ *     <li>{@code dig <price> <hours> <title>} posts a dig job on the area the player marked with
+ *     {@code area} or selected with WorldEdit;</li>
  *     <li>{@code dig plot <price> <hours> <depth> <title>} posts one on the whole plot the player stands on, from the
  *     block below their feet down {@code depth} blocks;</li>
- *     <li>{@code terraform <price> <hours> <y> <title>} posts a terraform job on the area selected with WorldEdit:
+ *     <li>{@code terraform plot [surface <block>] <price> <hours> <y> <title>} posts a terraform job on the whole plot,
+ *     dug out down to {@code y} when that lies below the ground; {@code harvest plot <unit price> <budget> <hours>
+ *     <height> <title>} posts a harvest job on it from the block below the player's feet up;</li>
+ *     <li>{@code terraform <price> <hours> <y> <title>} posts a terraform job on the marked or selected area:
  *     every column solid up to {@code y} and empty above it; {@code terraform surface <block> ...} also asks for the
  *     top layer to be made of {@code block};</li>
- *     <li>{@code harvest <unit price> <budget> <hours> <title>} posts a harvest job on the field selected with
- *     WorldEdit; {@code stock <id>} lists what was harvested, {@code collect <id>} hands it over, {@code end <id>}
+ *     <li>{@code harvest <unit price> <budget> <hours> <title>} posts a harvest job on the marked or selected
+ *     field; {@code stock <id>} lists what was harvested, {@code collect <id>} hands it over, {@code end <id>}
  *     ends the harvest early;</li>
  *     <li>{@code schematics} lists the schematics of the plugin's {@code schematics} folder; {@code blueprint <schematic>
- *     <rotation>} outlines one placed where the player stands; {@code build <schematic> <rotation> <price> <hours>
- *     <title>} posts a build job of it there;</li>
+ *     <rotation>} previews one placed where the player stands, with what its blocks cost; {@code build <schematic>
+ *     <rotation> <price> <hours> <title>} previews it there and asks to confirm, warning when the price is below the
+ *     cost of its blocks, and {@code build confirm} or the confirm button posts the build job;</li>
  *     <li>{@code contract <price> <hours> <title>} posts a contract: work described in words, at the place the
  *     player stands;</li>
  *     <li>{@code describe <id> <text>} describes a job while it waits for a company;</li>
@@ -87,7 +103,8 @@ import java.util.logging.Level;
  *     stands, and pays the company;</li>
  *     <li>{@code reject <id> <reason>} sends a contract the company says is done back to work;</li>
  *     <li>{@code dispute <id> <reason>} opens a dispute an admin settles, {@code withdraw <id>} withdraws it;</li>
- *     <li>{@code cancel <id>} cancels a job nobody works on; the price goes back, the fee is kept.</li>
+ *     <li>{@code cancel <id>} cancels a job nobody works on; the price goes back, the fee is kept;</li>
+ *     <li>{@code area ...} marks and stores areas, see {@link JobAreaCommand}.</li>
  * </ul>
  * The owner pays the price and the order fee when posting. The area must lie on the owner's plot or region, or on
  * unowned land in a world where the server allows it.
@@ -99,14 +116,34 @@ public final class JobCommand {
     static final String PREFIX = "order.job.";
     private static final int LISTED = 20;
     private static final int MAX_DEPTH = 384;
+    private static final long LOOK_TICKS = 60;
+    private static final long ASKED_SECONDS = 60;
 
     private final CommandDependencies deps;
+    private final ConfirmFlow<PendingBuild> builds;
+    private final JobListMenu listMenu;
+    private final JobMenu jobMenu;
+
+    @Subcommand
+    public final JobAreaCommand area;
+
+    private final Map<UUID, PendingBuild> asked = CacheBuilder.newBuilder()
+            .expireAfterWrite(ASKED_SECONDS, TimeUnit.SECONDS)
+            .<UUID, PendingBuild>build()
+            .asMap();
 
     /**
      * @param deps what the commands need
      */
     public JobCommand(CommandDependencies deps) {
         this.deps = deps;
+        this.area = new JobAreaCommand(deps, this);
+        this.builds = ConfirmFlow.create(deps.plugin(), this::buildConfirmed);
+        this.listMenu = new JobListMenu(deps.messages());
+        this.jobMenu = new JobMenu(
+                deps.messages(),
+                () -> deps.services().menus(),
+                ConfirmFlow.create(deps.plugin(), Player::performCommand));
     }
 
     /**
@@ -117,15 +154,18 @@ public final class JobCommand {
     @Executes
     public void list(CommandSender sender) {
         var player = Senders.player(sender);
-        run(player, () -> jobs().data().ofOwner(player.getUniqueId(), LISTED), found -> {
-            if (found.isEmpty()) {
-                deps.messages().sendMessage(player, PREFIX + "none");
-                return;
-            }
-            deps.messages()
-                    .sendMessage(player, MenuText.create().text("<heading>").locale(PREFIX + "title"));
-            for (var job : found) deps.messages().sendMessage(player, entry(player, job));
-        });
+        run(player, () -> jobs().data().ofOwner(player.getUniqueId(), LISTED), found -> deps.services()
+                .menus()
+                .show(
+                        player,
+                        listMenu,
+                        new JobListMenu.Model(
+                                MenuText.create().locale(PREFIX + "title"),
+                                MenuText.create().locale(PREFIX + "none"),
+                                found.stream()
+                                        .map(job -> new JobListMenu.Entry(
+                                                JobMenus.name(job), entry(player, job), "order job info " + job.id()))
+                                        .toList())));
     }
 
     /**
@@ -137,11 +177,17 @@ public final class JobCommand {
     @Executes("info")
     public void info(CommandSender sender, @IntArg(min = 0) int id) {
         var player = Senders.player(sender);
-        run(player, () -> own(player, id), job -> show(player, job, progress(job)));
+        run(
+                player,
+                () -> {
+                    var job = own(player, id);
+                    return new Info(job, cost(job), jobs().data().reviews(job.id()));
+                },
+                info -> show(player, info.job(), progress(info.job()), info.cost(), info.reviews()));
     }
 
     /**
-     * Posts a dig job on the area the player selected with WorldEdit.
+     * Posts a dig job on the area the player marked or selected with WorldEdit.
      *
      * @param sender sender of the command
      * @param price  what the company is paid
@@ -155,22 +201,13 @@ public final class JobCommand {
             @IntArg(min = 1) int hours,
             @StringArg(StringArgType.GREEDY) String title) {
         var player = Senders.player(sender);
-        var hooks = jobs().hooks();
-        if (!hooks.selects()) {
-            deps.messages().sendError(player, PREFIX + "error.noWorldEdit");
-            return;
-        }
-        var area = hooks.selection(player);
-        if (area.isEmpty()) {
-            deps.messages().sendError(player, PREFIX + "error.noSelection");
-            return;
-        }
-        post(player, JobKind.DIG, area.get(), price, hours, title, JobService.Details.NONE);
+        selected(player)
+                .ifPresent(area -> post(player, JobKind.DIG, area, price, hours, title, JobService.Details.NONE));
     }
 
     /**
-     * Posts a terraform job on the area the player selected with WorldEdit: every column solid up to a height and empty
-     * above it.
+     * Posts a terraform job on the area the player marked or selected with WorldEdit: every column solid up to a
+     * height and empty above it.
      *
      * @param sender sender of the command
      * @param price  what the company is paid
@@ -201,7 +238,7 @@ public final class JobCommand {
     @Executes("terraform surface")
     public void terraformSurface(
             CommandSender sender,
-            @StringArg(StringArgType.STRING) String block,
+            @SurfaceBlocks @StringArg(StringArgType.STRING) String block,
             @DoubleArg(min = 0, max = JobService.MAX_PRICE) double price,
             @IntArg(min = 1) int hours,
             @IntArg int y,
@@ -222,8 +259,8 @@ public final class JobCommand {
     }
 
     /**
-     * Posts a harvest job on the field the player selected with WorldEdit: the company harvests it for a time and is
-     * paid for each item it puts into the stock, out of the budget.
+     * Posts a harvest job on the field the player marked or selected with WorldEdit: the company harvests it for a
+     * time and is paid for each item it puts into the stock, out of the budget.
      *
      * @param sender    sender of the command
      * @param unitPrice what the company gets for each item
@@ -245,25 +282,38 @@ public final class JobCommand {
     }
 
     /**
-     * Lists the schematics build jobs may use.
+     * Lists the schematics build jobs may use: the server's and the ones the player uploaded.
      *
      * @param sender sender of the command
      */
     @Executes("schematics")
     public void schematics(CommandSender sender) {
         var player = Senders.player(sender);
-        run(player, this::schematicNames, names -> {
-            if (names.isEmpty()) {
+        run(player, () -> jobs().schematics().names(player.getUniqueId()), found -> {
+            if (found.server().isEmpty() && found.own().isEmpty()) {
                 deps.messages().sendMessage(player, PREFIX + "schematics.none");
                 return;
             }
-            deps.messages()
-                    .sendMessage(player, PREFIX + "schematics.list", Values.text("names", String.join(", ", names)));
+            if (!found.server().isEmpty()) {
+                deps.messages()
+                        .sendMessage(
+                                player,
+                                PREFIX + "schematics.list",
+                                Values.text("names", String.join(", ", found.server())));
+            }
+            if (!found.own().isEmpty()) {
+                deps.messages()
+                        .sendMessage(
+                                player,
+                                PREFIX + "schematics.own",
+                                Values.text("names", String.join(", ", found.own())));
+            }
         });
     }
 
     /**
-     * Shows the outline a schematic covers when placed where the player stands, turned, for a few seconds.
+     * Previews a schematic placed where the player stands, turned: its outline and its blocks for a few seconds, and
+     * what its blocks cost.
      *
      * @param sender    sender of the command
      * @param schematic name of the schematic
@@ -274,9 +324,12 @@ public final class JobCommand {
             CommandSender sender, @StringArg(StringArgType.STRING) String schematic, @IntArg int rotation) {
         var player = Senders.player(sender);
         var at = player.getLocation().getBlock();
-        blueprintOf(player, schematic, rotation, blueprint -> {
+        blueprintOf(player, schematic, rotation, (read, cost) -> {
+            var blueprint = placed(player, schematic, read, at);
+            if (blueprint == null) return;
             var area = blueprint.area(at.getWorld().getName(), at.getX(), at.getY(), at.getZ());
             outline(player, area);
+            preview(player, area, blueprint);
             deps.messages()
                     .sendMessage(
                             player,
@@ -286,11 +339,18 @@ public final class JobCommand {
                             Values.number("height", area.maxY() - area.minY() + 1),
                             Values.number("length", area.maxZ() - area.minZ() + 1),
                             Values.number("blocks", blueprint.blocks()));
+            if (blueprint.digs() > 0) {
+                deps.messages().sendMessage(player, PREFIX + "blueprintDigs", Values.number("digs", blueprint.digs()));
+            }
+            sendCost(player, cost);
         });
     }
 
     /**
-     * Posts a build job: a schematic placed where the player stands, turned, to be built by a company.
+     * Asks to post a build job: a schematic placed where the player stands, turned, to be built by a company. The
+     * blueprint is previewed there and the player confirms, warned when the price is below what its blocks cost; a
+     * dialog covering the screen is opened only after a few seconds, so the preview can be looked at first. Only the
+     * latest build the player asked for can be confirmed.
      *
      * @param sender    sender of the command
      * @param schematic name of the schematic
@@ -309,21 +369,159 @@ public final class JobCommand {
             @StringArg(StringArgType.GREEDY) String title) {
         var player = Senders.player(sender);
         var at = player.getLocation().getBlock();
-        blueprintOf(player, schematic, rotation, blueprint -> {
+        blueprintOf(player, schematic, rotation, (read, cost) -> {
+            var blueprint = placed(player, schematic, read, at);
+            if (blueprint == null) return;
             var area = blueprint.area(at.getWorld().getName(), at.getX(), at.getY(), at.getZ());
-            post(player, JobKind.BUILD, area, price, hours, title, JobService.Details.build(blueprint));
+            outline(player, area);
+            preview(player, area, blueprint);
+            var economy = deps.services().economy();
+            var question = MenuText.create()
+                    .locale(
+                            PREFIX + (cost.above(price) ? "confirmBuildBelow" : "confirmBuild"),
+                            Values.text("job_title", title),
+                            Values.money("price", economy, price),
+                            Values.money("cost", economy, cost.total()),
+                            Values.number("unpriced", cost.unpriced().size()));
+            var pending = new PendingBuild(area, price, hours, title, blueprint);
+            asked.put(player.getUniqueId(), pending);
+            var menus = deps.services().menus();
+            var look = menus.mode(player, true) == MenuMode.DIALOG ? LOOK_TICKS : 0;
+            deps.plugin()
+                    .getServer()
+                    .getScheduler()
+                    .runTaskLater(
+                            deps.plugin(),
+                            () -> {
+                                if (player.isOnline()) builds.ask(menus, player, pending, question);
+                            },
+                            look);
         });
     }
 
     /**
-     * Reads a schematic off the main thread and hands its blueprint on to the main thread.
+     * @param player    the player placing it, told when it asks for nothing there
+     * @param schematic name of the schematic
+     * @param blueprint a blueprint as read from its schematic
+     * @param at        the block the player stands on, where it is placed
+     * @return the blueprint placed there, with the ground it reaches into to be dug out; null when it asks for nothing
+     *     there
+     */
+    private @Nullable Blueprint placed(Player player, String schematic, Blueprint blueprint, Block at) {
+        var world = at.getWorld();
+        try {
+            return blueprint.dug(
+                    world.getName(),
+                    at.getX(),
+                    at.getY(),
+                    at.getZ(),
+                    BuildCheck.of(world),
+                    (x, z) -> world.getHighestBlockYAt(x, z, HeightMap.MOTION_BLOCKING_NO_LEAVES));
+        } catch (IllegalArgumentException e) {
+            deps.messages()
+                    .sendError(
+                            player,
+                            PREFIX + "error.schematic",
+                            Values.text("schematic", schematic),
+                            Values.number(
+                                    "max", deps.configuration().jobSettings().buildMaxVolume()));
+            return null;
+        }
+    }
+
+    /**
+     * Posts the build job the sender was asked to confirm.
+     *
+     * @param sender sender of the command
+     */
+    @Executes("build confirm")
+    public void confirmBuild(CommandSender sender) {
+        builds.confirm(Senders.player(sender));
+    }
+
+    private void buildConfirmed(Player player, PendingBuild pending) {
+        if (!asked.remove(player.getUniqueId(), pending)) {
+            deps.messages().sendErrorActionBar(player, "error.confirmationExpired");
+            return;
+        }
+        jobs().ghosts().hidePreview(player.getUniqueId());
+        post(
+                player,
+                JobKind.BUILD,
+                pending.area(),
+                pending.price(),
+                pending.hours(),
+                pending.title(),
+                JobService.Details.build(pending.blueprint()));
+    }
+
+    /**
+     * Shows a player the blocks of a blueprint where it would stand, or how long to wait for the next preview.
+     *
+     * @param player    the player
+     * @param area      the area the blueprint covers
+     * @param blueprint the blueprint
+     */
+    private void preview(Player player, JobArea area, Blueprint blueprint) {
+        var ghosts = jobs().ghosts();
+        if (ghosts.previewing(player, area, blueprint)) return;
+        var wait = ghosts.cooldown(player);
+        if (wait.isPresent()) {
+            deps.messages()
+                    .sendErrorActionBar(
+                            player, PREFIX + "error.previewCooldown", Values.number("seconds", wait.getAsLong()));
+            return;
+        }
+        ghosts.preview(player, area, blueprint).ifPresent(shown -> {
+            if (shown < blueprint.blocks() + blueprint.digs()) {
+                deps.messages()
+                        .sendMessage(
+                                player,
+                                PREFIX + "previewPartial",
+                                Values.number("shown", shown),
+                                Values.number("blocks", blueprint.blocks() + blueprint.digs()));
+            }
+        });
+    }
+
+    private void sendCost(Player player, MaterialCosts.Cost cost) {
+        deps.messages().sendMessage(player, costLine(cost));
+    }
+
+    private MenuText costLine(MaterialCosts.Cost cost) {
+        var economy = deps.services().economy();
+        if (cost.unpriced().isEmpty()) {
+            return MenuText.create().locale(PREFIX + "cost", Values.money("cost", economy, cost.total()));
+        }
+        return MenuText.create()
+                .locale(
+                        PREFIX + "costUnpriced",
+                        Values.money("cost", economy, cost.total()),
+                        Values.number("unpriced", cost.unpriced().size()));
+    }
+
+    /**
+     * A build job the player is asked to confirm.
+     *
+     * @param area      its area
+     * @param price     what the company is paid
+     * @param hours     how long a company has to finish
+     * @param title     title shown to companies
+     * @param blueprint its blueprint
+     */
+    private record PendingBuild(JobArea area, double price, int hours, String title, Blueprint blueprint) {}
+
+    /**
+     * Reads a schematic and what its blocks cost off the main thread and hands both on to the main thread. A schematic
+     * the player uploaded comes before one of the server with the same name.
      *
      * @param player    the player asking
      * @param schematic name of the schematic
      * @param rotation  degrees to turn it clockwise
-     * @param then      gets the blueprint on the main thread
+     * @param then      gets the blueprint and its cost on the main thread
      */
-    private void blueprintOf(Player player, String schematic, int rotation, Consumer<Blueprint> then) {
+    private void blueprintOf(
+            Player player, String schematic, int rotation, BiConsumer<Blueprint, MaterialCosts.Cost> then) {
         if (!jobs().hooks().selects()) {
             deps.messages().sendError(player, PREFIX + "error.noWorldEdit");
             return;
@@ -335,53 +533,18 @@ public final class JobCommand {
         var maxVolume = deps.configuration().jobSettings().buildMaxVolume();
         run(
                 player,
-                () -> schematicFile(schematic)
-                        .flatMap(file -> jobs().hooks().schematic(file, rotation, maxVolume))
+                () -> jobs().schematics()
+                        .blueprint(player.getUniqueId(), schematic, rotation, maxVolume)
+                        .map(blueprint -> new Priced(blueprint, jobs().costs().of(blueprint)))
                         .orElseThrow(() -> CommandFailure.of(
                                 PREFIX + "error.schematic",
                                 Values.text("schematic", schematic),
                                 Values.number("max", maxVolume))),
-                blueprint -> Threading.mainThread(deps.plugin()).execute(() -> then.accept(blueprint)));
+                priced -> Threading.mainThread(deps.plugin())
+                        .execute(() -> then.accept(priced.blueprint(), priced.cost())));
     }
 
-    /**
-     * @return the names of the schematics in the plugin's {@code schematics} folder, without their file endings
-     */
-    private List<String> schematicNames() {
-        return schematicFiles().stream()
-                .map(file -> stripEnding(String.valueOf(file.getFileName())))
-                .sorted()
-                .toList();
-    }
-
-    /**
-     * @param name a schematic name as the player typed it
-     * @return the file of the schematic with that name in the plugin's {@code schematics} folder, ignoring case; only
-     *     files listed in the folder are found, so no name reaches outside it
-     */
-    private Optional<Path> schematicFile(String name) {
-        return schematicFiles().stream()
-                .filter(file -> stripEnding(String.valueOf(file.getFileName())).equalsIgnoreCase(name))
-                .findFirst();
-    }
-
-    private List<Path> schematicFiles() {
-        var folder = deps.plugin().getDataFolder().toPath().resolve("schematics");
-        try {
-            Files.createDirectories(folder);
-            try (var files = Files.list(folder)) {
-                return files.filter(Files::isRegularFile).toList();
-            }
-        } catch (IOException e) {
-            deps.plugin().getLogger().log(Level.WARNING, "Could not read the schematics folder " + folder, e);
-            return List.of();
-        }
-    }
-
-    private static String stripEnding(String fileName) {
-        var dot = fileName.lastIndexOf('.');
-        return dot > 0 ? fileName.substring(0, dot) : fileName;
-    }
+    private record Priced(Blueprint blueprint, MaterialCosts.Cost cost) {}
 
     /**
      * Draws the edges of an area with particles only the player sees, once a second for ten seconds.
@@ -389,7 +552,7 @@ public final class JobCommand {
      * @param player the player
      * @param area   the area
      */
-    private void outline(Player player, JobArea area) {
+    void outline(Player player, JobArea area) {
         var rounds = new int[] {0};
         deps.plugin()
                 .getServer()
@@ -440,21 +603,23 @@ public final class JobCommand {
                 deps.messages().sendMessage(player, PREFIX + "stock.empty", Values.number("id", id));
                 return;
             }
-            deps.messages().sendMessage(player, PREFIX + "stock.title", Values.number("id", id));
-            stock.forEach((material, amount) -> deps.messages()
-                    .sendMessage(
-                            player,
+            List<MenuText> lines = new ArrayList<>();
+            stock.forEach((material, amount) -> lines.add(MenuText.create()
+                    .locale(
                             PREFIX + "stock.entry",
                             Values.text("item", material.toLowerCase(Locale.ROOT)),
-                            Values.number("amount", amount)));
-            deps.messages()
-                    .sendMessage(
+                            Values.number("amount", amount))));
+            deps.services()
+                    .menus()
+                    .show(
                             player,
-                            MenuText.create()
-                                    .text(
-                                            "<act_collect><add>[<i18n:words.collect>]</act_collect>",
-                                            Values.click(
-                                                    "act_collect", ClickEvent.runCommand("/order job collect " + id))));
+                            jobMenu,
+                            new JobMenu.Model(
+                                    MenuText.create().locale(PREFIX + "stock.title", Values.number("id", id)),
+                                    MenuText.create().text("#<id>", Values.number("id", id)),
+                                    lines,
+                                    List.of(new JobMenu.Action(
+                                            "words.collect", "add", "order job collect " + id, JobMenu.Kind.RUN))));
         });
     }
 
@@ -585,17 +750,131 @@ public final class JobCommand {
 
     /**
      * @param player a player
-     * @return the area the player selected with WorldEdit, empty after telling them why there is none
+     * @return the area the player marked with {@code /order job area}, or else selected with WorldEdit; empty after
+     *     telling them how to mark one
      */
     private Optional<JobArea> selected(Player player) {
+        var area = jobs().areas().marked(player.getUniqueId());
         var hooks = jobs().hooks();
-        if (!hooks.selects()) {
-            deps.messages().sendError(player, PREFIX + "error.noWorldEdit");
-            return Optional.empty();
-        }
-        var area = hooks.selection(player);
+        if (area.isEmpty() && hooks.selects()) area = hooks.selection(player);
         if (area.isEmpty()) deps.messages().sendError(player, PREFIX + "error.noSelection");
         return area;
+    }
+
+    /**
+     * Posts a terraform job on the whole plot the player stands on: everything above {@code y} goes, up to the highest
+     * block of the plot, and every column is made solid up to {@code y} from its lowest ground. The target may lie below
+     * the ground, so the plot is dug out to it; the plot's own bounds limit how deep. The chunk limit is checked before
+     * the plot's columns are read.
+     *
+     * @param sender sender of the command
+     * @param price  what the company is paid
+     * @param hours  how long a company has to finish
+     * @param y      the target height
+     * @param title  title shown to companies
+     */
+    @Executes("terraform plot")
+    public void terraformPlot(
+            CommandSender sender,
+            @DoubleArg(min = 0, max = JobService.MAX_PRICE) double price,
+            @IntArg(min = 1) int hours,
+            @IntArg int y,
+            @StringArg(StringArgType.GREEDY) String title) {
+        shapePlot(Senders.player(sender), price, hours, new JobTarget(y, null), title);
+    }
+
+    /**
+     * Posts a terraform job on the whole plot the player stands on with a surface block at the target height.
+     *
+     * @param sender sender of the command
+     * @param block  the block the top layer is made of
+     * @param price  what the company is paid
+     * @param hours  how long a company has to finish
+     * @param y      the target height
+     * @param title  title shown to companies
+     */
+    @Executes("terraform plot surface")
+    public void terraformPlotSurface(
+            CommandSender sender,
+            @SurfaceBlocks @StringArg(StringArgType.STRING) String block,
+            @DoubleArg(min = 0, max = JobService.MAX_PRICE) double price,
+            @IntArg(min = 1) int hours,
+            @IntArg int y,
+            @StringArg(StringArgType.GREEDY) String title) {
+        var player = Senders.player(sender);
+        var material = TerraformCheck.block(block);
+        if (material == null) {
+            deps.messages().sendError(player, PREFIX + "error.block", Values.text("block", block));
+            return;
+        }
+        shapePlot(player, price, hours, new JobTarget(y, material.name()), title);
+    }
+
+    private void shapePlot(Player player, double price, int hours, JobTarget target, String title) {
+        var plot = jobs().hooks().ownArea(player);
+        if (plot.isEmpty()) {
+            deps.messages().sendError(player, PREFIX + "error.noPlot");
+            return;
+        }
+        var found = plot.get();
+        if (target.y() < found.minY() || target.y() > found.maxY()) {
+            deps.messages()
+                    .sendError(
+                            player,
+                            PREFIX + "error.plotDepth",
+                            Values.number("min", found.minY()),
+                            Values.number("max", found.maxY()));
+            return;
+        }
+        var settings = deps.configuration().jobSettings();
+        if (found.chunks() > settings.maxChunks()) {
+            deps.messages().sendError(player, PREFIX + "error.chunks", Values.number("max", settings.maxChunks()));
+            return;
+        }
+        var world = player.getWorld();
+        var top = target.y();
+        var bottom = target.y();
+        for (var x = found.minX(); x <= found.maxX(); x++) {
+            for (var z = found.minZ(); z <= found.maxZ(); z++) {
+                var ground = Math.clamp(world.getHighestBlockYAt(x, z), found.minY(), found.maxY());
+                top = Math.max(top, ground);
+                bottom = Math.min(bottom, ground);
+            }
+        }
+        var area = new JobArea(found.world(), found.minX(), bottom, found.minZ(), found.maxX(), top, found.maxZ());
+        post(player, JobKind.TERRAFORM, area, price, hours, title, JobService.Details.shape(target));
+    }
+
+    /**
+     * Posts a harvest job on the whole plot the player stands on: the field reaches from the block below the player's
+     * feet up {@code height} blocks.
+     *
+     * @param sender    sender of the command
+     * @param unitPrice what one harvested item pays
+     * @param budget    the most the job pays in all
+     * @param hours     how long the harvest runs
+     * @param height    how many layers the field has, the ground below the crops included
+     * @param title     title shown to companies
+     */
+    @Executes("harvest plot")
+    public void harvestPlot(
+            CommandSender sender,
+            @DoubleArg(min = 0, max = JobService.MAX_PRICE) double unitPrice,
+            @DoubleArg(min = 0, max = JobService.MAX_PRICE) double budget,
+            @IntArg(min = 1) int hours,
+            @IntArg(min = 2, max = MAX_DEPTH) int height,
+            @StringArg(StringArgType.GREEDY) String title) {
+        var player = Senders.player(sender);
+        var plot = jobs().hooks().ownArea(player);
+        if (plot.isEmpty()) {
+            deps.messages().sendError(player, PREFIX + "error.noPlot");
+            return;
+        }
+        var ground = player.getLocation().getBlockY() - 1;
+        var found = plot.get();
+        var area = new JobArea(
+                found.world(), found.minX(), ground, found.minZ(), found.maxX(), ground + height - 1, found.maxZ());
+        post(player, JobKind.HARVEST, area, budget, hours, title, JobService.Details.harvest(unitPrice));
     }
 
     /**
@@ -869,7 +1148,7 @@ public final class JobCommand {
     }
 
     /**
-     * Cancels a job of the player that nobody works on.
+     * Cancels a job of the player that nobody works on, or asks the company working on it to let it be cancelled.
      *
      * @param sender sender of the command
      * @param id     id of the job
@@ -892,6 +1171,9 @@ public final class JobCommand {
                                             values);
                             jobs().access().checkSoon();
                         }
+                        case CANCEL_ASKED -> deps.messages().sendMessage(player, PREFIX + "cancelAsked", values);
+                        case ASKED -> deps.messages().sendError(player, PREFIX + "error.cancelAsked", values);
+                        case HARVEST -> deps.messages().sendError(player, PREFIX + "error.harvest", values);
                         case UNKNOWN, NOT_YOURS -> deps.messages().sendError(player, PREFIX + "error.unknown", values);
                         case TAKEN -> deps.messages().sendError(player, PREFIX + "error.taken", values);
                         default -> deps.messages().sendError(player, PREFIX + "error.closed", values);
@@ -907,39 +1189,35 @@ public final class JobCommand {
             int hours,
             String title,
             JobService.Details details) {
-        var world = deps.plugin().getServer().getWorld(area.world());
-        if (world == null || area.minY() < world.getMinHeight() || area.maxY() >= world.getMaxHeight()) {
-            deps.messages()
-                    .sendError(
-                            player,
-                            PREFIX + "error.height",
-                            Values.number("min", world == null ? 0 : world.getMinHeight()),
-                            Values.number("max", world == null ? 0 : world.getMaxHeight() - 1));
-            return;
-        }
-        var settings = deps.configuration().jobSettings();
-        var decision = jobs().hooks().decide(player, area, settings.unownedAllowed(area.world()));
-        switch (decision) {
-            case JobHooks.Decision.Refused refused -> {
+        switch (jobs().checks().check(player, area)) {
+            case AreaChecks.Checked.NoWorld noWorld ->
+                deps.messages().sendError(player, PREFIX + "error.noWorld", Values.text("world", noWorld.world()));
+            case AreaChecks.Checked.Height height ->
+                deps.messages()
+                        .sendError(
+                                player,
+                                PREFIX + "error.height",
+                                Values.number("min", height.min()),
+                                Values.number("max", height.max()));
+            case AreaChecks.Checked.Foreign foreign ->
                 deps.messages()
                         .sendError(
                                 player,
                                 PREFIX + "error.foreign",
-                                Values.text("land", Objects.requireNonNullElse(refused.ref(), "?")));
-                return;
-            }
-            case JobHooks.Decision.Unowned unowned -> {
-                deps.messages().sendError(player, PREFIX + "error.unowned");
-                return;
-            }
-            case JobHooks.Decision.Land land -> {
+                                Values.text("land", Objects.requireNonNullElse(foreign.ref(), "?")));
+            case AreaChecks.Checked.Unowned unowned -> deps.messages().sendError(player, PREFIX + "error.unowned");
+            case AreaChecks.Checked.Land land -> {
                 var owner = player.getUniqueId();
                 var node = jobs().node();
                 run(
                         player,
                         () -> jobs().service()
                                 .post(owner, kind, title, price, hours, node, area, land.land(), land.ref(), details),
-                        posted -> posted(player, kind, posted));
+                        posted -> {
+                            if (posted instanceof JobService.Posted.Done)
+                                jobs().areas().used(owner, area);
+                            posted(player, kind, posted);
+                        });
             }
         }
     }
@@ -972,22 +1250,9 @@ public final class JobCommand {
                         .sendError(
                                 player,
                                 PREFIX + "error." + key(refused.refusal()),
-                                Values.number("max", maxOf(refused.refusal(), kind, settings)));
+                                Values.number("max", JobService.limit(refused.refusal(), kind, settings)));
             }
         }
-    }
-
-    private static Number maxOf(JobService.Refusal refusal, JobKind kind, JobSettings settings) {
-        return switch (refusal) {
-            case VOLUME -> settings.maxVolume(kind);
-            case DESCRIPTION -> Job.MAX_DESCRIPTION;
-            case UNIT_PRICE, BLUEPRINT, STRANDED -> 0;
-            case CHUNKS -> settings.maxChunks();
-            case TOO_MANY -> settings.maxOpenPerOwner();
-            case DUE -> settings.maxDueHours();
-            case TITLE -> Job.MAX_TITLE;
-            default -> 0;
-        };
     }
 
     private boolean charged(int id) {
@@ -1020,182 +1285,213 @@ public final class JobCommand {
         return jobs().progress().of(job, false).join();
     }
 
-    private void show(Player player, Job job, Optional<DigCheck.Progress> progress) {
+    /**
+     * @param job a job
+     * @return what the blocks of a build job's blueprint cost, empty for other kinds; blocks
+     */
+    private Optional<MaterialCosts.Cost> cost(Job job) {
+        return job.kind() == JobKind.BUILD ? jobs().costs().of(job.id()) : Optional.empty();
+    }
+
+    private record Info(Job job, Optional<MaterialCosts.Cost> cost, List<JobReviewEntry> reviews) {}
+
+    private void show(
+            Player player,
+            Job job,
+            Optional<DigCheck.Progress> progress,
+            Optional<MaterialCosts.Cost> cost,
+            List<JobReviewEntry> reviews) {
         var economy = deps.services().economy();
-        var messages = deps.messages();
-        messages.sendMessage(
-                player,
-                PREFIX + "info.head",
-                Values.number("id", job.id()),
-                Values.text("job_title", job.title()),
-                Values.component("state", texts(player).locale(stateKey(job.state()))));
+        List<MenuText> lines = new ArrayList<>();
         var description = job.description();
         if (description != null) {
-            messages.sendMessage(player, PREFIX + "info.description", Values.text("description", description));
+            lines.add(MenuText.create().locale(PREFIX + "info.description", Values.text("description", description)));
         }
         if (job.kind().area()) {
-            messages.sendMessage(
-                    player,
-                    PREFIX + "info.area",
-                    Values.text("world", job.area().world()),
-                    Values.text("center", job.area().center()),
-                    Values.number("blocks", job.area().volume()),
-                    Values.component("land", land(player, job)));
+            lines.add(MenuText.create()
+                    .locale(
+                            PREFIX + "info.area",
+                            Values.text("world", job.area().world()),
+                            Values.text("center", job.area().center()),
+                            Values.number("blocks", job.area().volume()),
+                            Values.component("land", land(player, job))));
         } else if (!job.area().world().isEmpty()) {
-            messages.sendMessage(
-                    player,
-                    PREFIX + "info.place",
-                    Values.text("world", job.area().world()),
-                    Values.text("center", job.area().center()));
+            lines.add(MenuText.create()
+                    .locale(
+                            PREFIX + "info.place",
+                            Values.text("world", job.area().world()),
+                            Values.text("center", job.area().center())));
         }
-        messages.sendMessage(
-                player,
-                PREFIX + "info.money",
-                Values.money("price", economy, job.price()),
-                Values.money("fee", economy, job.fee()));
+        lines.add(MenuText.create()
+                .locale(
+                        PREFIX + "info.money",
+                        Values.money("price", economy, job.price()),
+                        Values.money("fee", economy, job.fee())));
+        cost.ifPresent(found -> lines.add(costLine(found)));
         var harvest = job.harvest();
         if (harvest != null) {
-            messages.sendMessage(
-                    player,
-                    PREFIX + "info.harvest",
-                    Values.money("unit", deps.services().economy(), harvest.unitPrice()),
-                    Values.money("paid", deps.services().economy(), harvest.paid()),
-                    Values.money("price", deps.services().economy(), job.price()));
+            lines.add(MenuText.create()
+                    .locale(
+                            PREFIX + "info.harvest",
+                            Values.money("unit", deps.services().economy(), harvest.unitPrice()),
+                            Values.money("paid", deps.services().economy(), harvest.paid()),
+                            Values.money("price", deps.services().economy(), job.price())));
         }
         var target = job.target();
         if (target != null) {
             var surface = target.surface();
             if (surface == null) {
-                messages.sendMessage(player, PREFIX + "info.target", Values.number("y", target.y()));
+                lines.add(MenuText.create().locale(PREFIX + "info.target", Values.number("y", target.y())));
             } else {
-                messages.sendMessage(
-                        player,
-                        PREFIX + "info.targetSurface",
-                        Values.number("y", target.y()),
-                        Values.text("block", surface.toLowerCase(Locale.ROOT)));
+                lines.add(MenuText.create()
+                        .locale(
+                                PREFIX + "info.targetSurface",
+                                Values.number("y", target.y()),
+                                Values.text("block", surface.toLowerCase(Locale.ROOT))));
             }
         }
         if (job.state() == JobState.OPEN) {
-            messages.sendMessage(player, PREFIX + "info.open", Values.text("time", left(job.expires())));
+            lines.add(MenuText.create().locale(PREFIX + "info.open", Values.text("time", left(job.expires()))));
         }
         var due = job.due();
         if (job.state() == JobState.TAKEN && due != null) {
-            messages.sendMessage(player, PREFIX + "info.taken", Values.text("time", left(due)));
+            lines.add(MenuText.create().locale(PREFIX + "info.taken", Values.text("time", left(due))));
         }
         var extension = job.extension();
         if (job.state() == JobState.TAKEN && extension.extendedHours() > 0) {
-            messages.sendMessage(player, PREFIX + "info.extended", Values.number("hours", extension.extendedHours()));
+            lines.add(MenuText.create()
+                    .locale(PREFIX + "info.extended", Values.number("hours", extension.extendedHours())));
         }
         var asked = extension.askedHours();
         if (job.state() == JobState.TAKEN && asked != null) {
-            messages.sendMessage(
-                    player,
-                    PREFIX + "info.extensionAsked",
-                    Values.number("hours", asked),
-                    Values.text("reason", Objects.requireNonNullElse(extension.reason(), "")));
+            lines.add(MenuText.create()
+                    .locale(
+                            PREFIX + "info.extensionAsked",
+                            Values.number("hours", asked),
+                            Values.text("reason", Objects.requireNonNullElse(extension.reason(), ""))));
         }
         var review = job.review();
+        lines.addAll(JobMenus.reviews(PREFIX, reviews));
+        if (job.state() == JobState.TAKEN && review.cancelAsked() != null) {
+            lines.add(MenuText.create().locale(PREFIX + "info.cancelAsked"));
+        }
         if (job.state() == JobState.DONE) {
             var approveAt = Objects.requireNonNullElse(review.doneAt(), Times.now())
                     .plusHours(deps.configuration().jobSettings().approveHours());
-            messages.sendMessage(player, PREFIX + "info.waiting", Values.text("time", left(approveAt)));
+            lines.add(MenuText.create().locale(PREFIX + "info.waiting", Values.text("time", left(approveAt))));
         }
         if (job.state() == JobState.DISPUTED) {
-            messages.sendMessage(
-                    player,
-                    PREFIX + "info.disputed",
-                    Values.text("reason", Objects.requireNonNullElse(review.dispute(), "")));
+            lines.add(MenuText.create()
+                    .locale(
+                            PREFIX + "info.disputed",
+                            Values.text("reason", Objects.requireNonNullElse(review.dispute(), ""))));
         }
         var settled = review.settled();
         if (job.state() == JobState.SETTLED && settled != null) {
-            messages.sendMessage(player, PREFIX + "info.settled", Values.number("percent", settled));
+            lines.add(MenuText.create().locale(PREFIX + "info.settled", Values.number("percent", settled)));
         }
-        progress.ifPresent(found -> messages.sendMessage(
-                player,
-                PREFIX + "info.progress",
-                Values.number("percent", found.percent()),
-                Values.number("cleared", found.cleared()),
-                Values.number("total", found.total())));
-        messages.sendMessage(player, buttons(job));
+        progress.ifPresent(found -> lines.add(MenuText.create()
+                .locale(
+                        PREFIX + "info.progress",
+                        Values.number("percent", found.percent()),
+                        Values.number("cleared", found.cleared()),
+                        Values.number("total", found.total()))));
+        deps.services()
+                .menus()
+                .show(player, jobMenu, new JobMenu.Model(title(player, job), JobMenus.name(job), lines, actions(job)));
     }
 
-    private void extensionButtons(MenuText buttons, Job job) {
+    private MenuText title(Player player, Job job) {
+        return MenuText.create()
+                .locale(
+                        PREFIX + "info.head",
+                        Values.number("id", job.id()),
+                        Values.text("job_title", job.title()),
+                        Values.component("state", texts(player).locale(stateKey(job.state()))));
+    }
+
+    private void extensionActions(List<JobMenu.Action> actions, Job job) {
         if (!deps.configuration().jobSettings().extensionsEnabled()) return;
         var id = job.id();
         if (job.extension().asked()) {
-            buttons.text(
-                            "<act_grant><add>[<i18n:" + PREFIX + "grantButton>]</act_grant> ",
-                            Values.click("act_grant", ClickEvent.runCommand("/order job extension grant " + id)))
-                    .text(
-                            "<act_refuse><remove>[<i18n:" + PREFIX + "refuseButton>]</act_refuse> ",
-                            Values.click(
-                                    "act_refuse",
-                                    ClickEvent.suggestCommand("/order job extension refuse " + id + " ")));
+            actions.add(new JobMenu.Action(
+                    PREFIX + "grantButton", "add", "order job extension grant " + id, JobMenu.Kind.CHECK));
+            actions.add(JobMenu.Action.text(
+                    PREFIX + "refuseButton",
+                    "remove",
+                    "order job extension refuse " + id,
+                    "jobs.menu.reason",
+                    JobReview.MAX_REASON));
         }
         if (jobs().service().hoursLeft(job) <= 0) return;
-        buttons.text(
-                "<act_extend><show>[<i18n:" + PREFIX + "extendButton>]</act_extend>",
-                Values.click("act_extend", ClickEvent.suggestCommand("/order job extend " + id + " ")));
+        actions.add(JobMenu.Action.hours(PREFIX + "extendButton", "show", "order job extend " + id, null, 0));
     }
 
-    private MenuText buttons(Job job) {
+    /**
+     * @param job a job of the player
+     * @return what the player may do with it now
+     */
+    private List<JobMenu.Action> actions(Job job) {
         var id = job.id();
-        var buttons = MenuText.create();
+        List<JobMenu.Action> actions = new ArrayList<>();
         switch (job.state()) {
-            case OPEN ->
-                buttons.text(
-                        "<act_cancel><remove>[<i18n:words.cancel>]</act_cancel>",
-                        Values.click("act_cancel", ClickEvent.suggestCommand("/order job cancel " + id)));
-            case DONE ->
-                buttons.text(
-                                "<act_approve><add>[<i18n:words.accept>]</act_approve> ",
-                                Values.click("act_approve", ClickEvent.suggestCommand("/order job approve " + id)))
-                        .text(
-                                "<act_reject><remove>[<i18n:words.deny>]</act_reject> ",
-                                Values.click("act_reject", ClickEvent.suggestCommand("/order job reject " + id + " ")))
-                        .text(
-                                "<act_dispute><remove>[<i18n:" + PREFIX + "disputeButton>]</act_dispute>",
-                                Values.click(
-                                        "act_dispute", ClickEvent.suggestCommand("/order job dispute " + id + " ")));
+            case OPEN -> {
+                actions.add(JobMenu.Action.text(
+                        PREFIX + "describeButton",
+                        "show",
+                        "order job describe " + id,
+                        "jobs.menu.description",
+                        Job.MAX_DESCRIPTION));
+                actions.add(new JobMenu.Action("words.cancel", "remove", "order job cancel " + id, JobMenu.Kind.CHECK));
+            }
+            case DONE -> {
+                actions.add(new JobMenu.Action("words.accept", "add", "order job approve " + id, JobMenu.Kind.CHECK));
+                actions.add(JobMenu.Action.text(
+                        "words.deny", "remove", "order job reject " + id, "jobs.menu.reason", JobReview.MAX_REASON));
+                actions.add(dispute(id));
+            }
             case DISPUTED -> {
-                buttons.text(
-                        "<act_approve><add>[<i18n:" + PREFIX + "approveEarlyButton>]</act_approve> ",
-                        Values.click("act_approve", ClickEvent.suggestCommand("/order job approve " + id)));
+                actions.add(new JobMenu.Action(
+                        PREFIX + "approveEarlyButton", "add", "order job approve " + id, JobMenu.Kind.CHECK));
                 if (job.owner().equals(job.review().disputeBy())) {
-                    buttons.text(
-                            "<act_withdraw><show>[<i18n:" + PREFIX + "withdrawButton>]</act_withdraw>",
-                            Values.click("act_withdraw", ClickEvent.suggestCommand("/order job withdraw " + id)));
+                    actions.add(new JobMenu.Action(
+                            PREFIX + "withdrawButton", "show", "order job withdraw " + id, JobMenu.Kind.CHECK));
                 }
             }
             case TAKEN -> {
                 if (job.kind() == JobKind.HARVEST) {
-                    buttons.text(
-                                    "<act_stock><show>[<i18n:" + PREFIX + "stockButton>]</act_stock> ",
-                                    Values.click("act_stock", ClickEvent.runCommand("/order job stock " + id)))
-                            .text(
-                                    "<act_end><remove>[<i18n:" + PREFIX + "endButton>]</act_end> ",
-                                    Values.click("act_end", ClickEvent.suggestCommand("/order job end " + id)));
-                    extensionButtons(buttons, job);
-                    return buttons;
+                    actions.add(stockAction(id));
+                    actions.add(new JobMenu.Action(
+                            PREFIX + "endButton", "remove", "order job end " + id, JobMenu.Kind.CHECK));
+                } else {
+                    actions.add(new JobMenu.Action(
+                            PREFIX + "approveEarlyButton", "add", "order job approve " + id, JobMenu.Kind.CHECK));
+                    actions.add(dispute(id));
                 }
-                buttons.text(
-                                "<act_approve><add>[<i18n:" + PREFIX + "approveEarlyButton>]</act_approve> ",
-                                Values.click("act_approve", ClickEvent.suggestCommand("/order job approve " + id)))
-                        .text(
-                                "<act_dispute><remove>[<i18n:" + PREFIX + "disputeButton>]</act_dispute> ",
-                                Values.click(
-                                        "act_dispute", ClickEvent.suggestCommand("/order job dispute " + id + " ")));
-                extensionButtons(buttons, job);
+                extensionActions(actions, job);
+                if (job.kind() != JobKind.HARVEST && job.review().cancelAsked() == null) {
+                    actions.add(new JobMenu.Action(
+                            PREFIX + "askCancelButton", "remove", "order job cancel " + id, JobMenu.Kind.CHECK));
+                }
             }
             default -> {
-                if (job.kind() == JobKind.HARVEST) {
-                    buttons.text(
-                            "<act_stock><show>[<i18n:" + PREFIX + "stockButton>]</act_stock>",
-                            Values.click("act_stock", ClickEvent.runCommand("/order job stock " + id)));
-                }
+                if (job.kind() == JobKind.HARVEST) actions.add(stockAction(id));
             }
         }
-        return buttons;
+        return actions;
+    }
+
+    private static JobMenu.Action dispute(int id) {
+        return JobMenu.Action.text(
+                PREFIX + "disputeButton",
+                "remove",
+                "order job dispute " + id,
+                "jobs.menu.reason",
+                JobReview.MAX_REASON);
+    }
+
+    private static JobMenu.Action stockAction(int id) {
+        return new JobMenu.Action(PREFIX + "stockButton", "show", "order job stock " + id, JobMenu.Kind.RUN);
     }
 
     private MenuText entry(Player player, Job job) {
@@ -1207,10 +1503,7 @@ public final class JobCommand {
                         Values.number("id", id),
                         Values.text("job_title", job.title()),
                         Values.component("state", texts(player).locale(stateKey(job.state()))),
-                        Values.money("price", economy, job.price()))
-                .text(
-                        " <act_info><show>[<i18n:words.info>]</act_info>",
-                        Values.click("act_info", ClickEvent.runCommand("/order job info " + id)));
+                        Values.money("price", economy, job.price()));
     }
 
     /**
@@ -1246,7 +1539,7 @@ public final class JobCommand {
         return deps.services().jobs();
     }
 
-    private <T> void run(Player player, Supplier<T> query, Consumer<T> answer) {
+    <T> void run(Player player, Supplier<T> query, Consumer<T> answer) {
         deps.requireReady();
         CompletableFuture.supplyAsync(query, Threading.VIRTUAL)
                 .thenAccept(answer)

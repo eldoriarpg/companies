@@ -1,0 +1,9 @@
+ALTER TABLE jobs
+    ADD COLUMN IF NOT EXISTS paid_cents BIGINT NOT NULL DEFAULT 0;
+
+UPDATE jobs
+SET paid_cents = ROUND(paid * 100)
+WHERE paid <> 0;
+
+ALTER TABLE jobs
+    DROP COLUMN IF EXISTS paid;

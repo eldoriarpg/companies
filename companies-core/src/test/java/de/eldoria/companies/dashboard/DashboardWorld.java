@@ -76,6 +76,7 @@ import de.eldoria.companies.data.repository.impl.sqlite.SqLiteTreasuryData;
 import de.eldoria.companies.data.wrapper.company.CompanyMember;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.job.Job;
+import de.eldoria.companies.data.wrapper.job.JobArea;
 import de.eldoria.companies.data.wrapper.offer.EventOffer;
 import de.eldoria.companies.data.wrapper.offer.OfferLine;
 import de.eldoria.companies.data.wrapper.order.FullOrder;
@@ -84,12 +85,18 @@ import de.eldoria.companies.data.wrapper.order.SimpleOrder;
 import de.eldoria.companies.data.wrapper.price.Baseline;
 import de.eldoria.companies.data.wrapper.series.OrderSeries;
 import de.eldoria.companies.events.EventRecorder;
+import de.eldoria.companies.jobs.AreaChecks;
+import de.eldoria.companies.jobs.AreaWorld;
 import de.eldoria.companies.jobs.Blueprints;
 import de.eldoria.companies.jobs.BuildGhosts;
+import de.eldoria.companies.jobs.BuildSchematics;
 import de.eldoria.companies.jobs.JobAccess;
 import de.eldoria.companies.jobs.JobProgress;
 import de.eldoria.companies.jobs.JobService;
 import de.eldoria.companies.jobs.JobServices;
+import de.eldoria.companies.jobs.MaterialCosts;
+import de.eldoria.companies.jobs.SchematicUploads;
+import de.eldoria.companies.jobs.StoredAreas;
 import de.eldoria.companies.jobs.hooks.JobHooks;
 import de.eldoria.companies.orders.CompanyOrderService;
 import de.eldoria.companies.orders.DeliveryResult;
@@ -131,6 +138,7 @@ import de.eldoria.companies.util.StyledMessageSender;
 import de.eldoria.companies.util.TestExecutors;
 import de.eldoria.companies.util.Threading;
 import de.eldoria.companies.util.Times;
+import de.eldoria.companies.web.api.Features;
 import de.eldoria.companies.web.api.session.PlayerRef;
 import de.eldoria.eldoutilities.localization.ILocalizer;
 import dev.chojo.ocular.key.Key;
@@ -178,6 +186,16 @@ import static de.chojo.sadu.queries.converter.StandardValueConverter.UUID_BYTES;
  * A server with a SQLite database, companies, orders and the dashboard's views on top, for dashboard tests.
  */
 public final class DashboardWorld implements AutoCloseable {
+    /**
+     * The items the dashboard put into item returns, by player.
+     */
+    public final Map<UUID, Map<String, Integer>> returned = new HashMap<>();
+
+    /**
+     * Whether putting items into item returns fails, so they are all handed back.
+     */
+    public boolean returnsFail;
+
     public final ServerMock server;
     public final Plugin plugin;
     public final ItemReturnService itemReturns;
@@ -227,6 +245,12 @@ public final class DashboardWorld implements AutoCloseable {
     public final Map<UUID, Double> wallets = new ConcurrentHashMap<>();
     public final JobSettings jobSettings = new JobSettings();
     public SqLiteJobData jobs;
+
+    /**
+     * The order slots of every company.
+     */
+    public int companySlots = 5;
+
     public JobServices jobServices;
     public final List<Integer> changedOrders = new CopyOnWriteArrayList<>();
     public final List<UUID> changedInboxes = new CopyOnWriteArrayList<>();
@@ -691,7 +715,12 @@ public final class DashboardWorld implements AutoCloseable {
                         adminLog,
                         Logger.getAnonymousLogger(),
                         views::instant,
-                        failure -> "text of " + failure.localeKey())),
+                        failure -> "text of " + failure.localeKey(),
+                        field -> switch (field.key()) {
+                            case "dashboard.features" -> Features.ALL;
+                            case "providers" -> List.of("plotsquared");
+                            default -> List.of();
+                        })),
                 new AdminSystemOrderWrites(new AdminSystemOrderWrites.Sources(
                         orders,
                         SqLiteTestDatabase.player(SystemOwner.ID),
@@ -767,7 +796,17 @@ public final class DashboardWorld implements AutoCloseable {
                         () -> jobSettings,
                         views::instant,
                         Times::now,
-                        failure -> "text of " + failure.localeKey())),
+                        failure -> "text of " + failure.localeKey(),
+                        player -> Optional.of(new JobArea("world", 4, 64, 4, 4, 64, 4)),
+                        (player, items) -> {
+                            if (returnsFail) return items;
+                            returned.merge(player, items, (old, add) -> {
+                                Map<String, Integer> all = new HashMap<>(old);
+                                add.forEach((name, amount) -> all.merge(name, amount, Integer::sum));
+                                return all;
+                            });
+                            return Map.of();
+                        })),
                 new AdminJobWrites(new AdminJobWrites.Sources(
                         () -> jobServices,
                         this::name,
@@ -831,7 +870,7 @@ public final class DashboardWorld implements AutoCloseable {
                     public void overdue(int company, Job job) {}
 
                     @Override
-                    public void landLost(int company, Job job) {}
+                    public void landLost(int company, Job job, JobService.@Nullable Worked worked) {}
 
                     @Override
                     public void rejected(int company, Job job, String reason) {}
@@ -850,17 +889,21 @@ public final class DashboardWorld implements AutoCloseable {
 
                     @Override
                     public void extensionRefused(int company, Job job, @Nullable String reason) {}
+
+                    @Override
+                    public void cancelAsked(int company, Job job) {}
                 },
                 (company, overdue) -> {},
                 this::profile,
                 () -> jobSettings,
                 price -> 0,
-                company -> 5,
+                company -> companySlots,
                 Clock.systemUTC(),
                 logger);
         var hooks = new JobHooks(name -> false, className -> new Object(), logger);
         var blueprints = new Blueprints(jobs, logger);
         var node = new UUID(0, 1);
+        var uploads = new SchematicUploads(jobs, hooks, () -> jobSettings, Times::now, logger);
         return new JobServices(
                 jobs,
                 service,
@@ -872,13 +915,22 @@ public final class DashboardWorld implements AutoCloseable {
                         node,
                         Runnable::run,
                         job -> {},
-                        (job, company, worker, items) -> {},
+                        job -> CompletableFuture.completedFuture(null),
+                        (job, company, byWorker) -> {},
                         blueprints,
                         logger),
                 new JobProgress(plugin, node, blueprints, () -> 95),
                 node,
                 blueprints,
-                new BuildGhosts(plugin));
+                new BuildGhosts(plugin),
+                new MaterialCosts(blueprints, type -> 0),
+                null,
+                uploads,
+                new StoredAreas(jobs, () -> jobSettings, Times::now),
+                null,
+                new AreaChecks(plugin.getServer(), hooks, () -> jobSettings, Runnable::run),
+                new BuildSchematics(directory.resolve("schematics"), uploads, hooks, logger),
+                new AreaWorld(plugin.getServer(), Runnable::run));
     }
 
     private AdminServerWrites adminServers(SqLiteOrderData orders) {

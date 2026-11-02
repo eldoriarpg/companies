@@ -32,6 +32,7 @@ import de.eldoria.companies.commands.company.order.search.SearchExecutor;
 import de.eldoria.companies.commands.companyadmin.NodeCommand;
 import de.eldoria.companies.commands.suggest.AlertSuggestions;
 import de.eldoria.companies.commands.suggest.CompanyOrderSources;
+import de.eldoria.companies.commands.suggest.JobProviders;
 import de.eldoria.companies.commands.suggest.MembershipSources;
 import de.eldoria.companies.commands.suggest.SavedItemSources;
 import de.eldoria.companies.commands.suggest.SeriesSources;
@@ -46,6 +47,7 @@ import de.eldoria.companies.configuration.elements.NodeType;
 import de.eldoria.companies.dashboard.Dashboard;
 import de.eldoria.companies.dashboard.DashboardModule;
 import de.eldoria.companies.dashboard.KeyCommandFilter;
+import de.eldoria.companies.dashboard.views.PlainText;
 import de.eldoria.companies.data.DataSourceFactory;
 import de.eldoria.companies.data.migration.UtcMigration;
 import de.eldoria.companies.data.repository.AAreaData;
@@ -124,6 +126,7 @@ import de.eldoria.companies.data.wrapper.area.CompanyArea;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.event.ServerEvent;
 import de.eldoria.companies.data.wrapper.job.JobLand;
+import de.eldoria.companies.data.wrapper.job.StoredArea;
 import de.eldoria.companies.data.wrapper.nodes.Node;
 import de.eldoria.companies.data.wrapper.offer.EventOffer;
 import de.eldoria.companies.debug.CompaniesDebug;
@@ -226,6 +229,7 @@ import de.eldoria.eldoutilities.debug.DebugDataProvider;
 import de.eldoria.eldoutilities.localization.ILocalizer;
 import de.eldoria.eldoutilities.localization.Localizer;
 import de.eldoria.eldoutilities.messages.MessageSender;
+import de.eldoria.eldoutilities.messages.Replacement;
 import de.eldoria.eldoutilities.plugin.EldoPlugin;
 import de.eldoria.messageblocker.MessageBlockerAPI;
 import de.eldoria.messageblocker.blocker.MessageBlocker;
@@ -655,6 +659,30 @@ public class Companies extends EldoPlugin {
                 feeReductions,
                 api.areaProviders());
         jobs = jobServices;
+        JobProviders.useAreas(
+                player -> jobServices.areas().areas(player).stream()
+                        .map(StoredArea::name)
+                        .toList(),
+                Threading.VIRTUAL);
+        var jobMessages = MessageSender.getPluginMessageSender(this);
+        jobServices.access().building(() -> configuration.jobSettings().buildWhitelist(), (player, want) -> {
+            if (want != null && !want.type().isAir()) {
+                jobMessages.sendErrorActionBar(
+                        player,
+                        "company.job.error.blueprintBlock",
+                        Replacement.create(
+                                "block", PlainText.keyName(want.type().getKey())));
+                return;
+            }
+            var blocks = configuration.jobSettings().buildWhitelist().stream()
+                    .map(type -> PlainText.keyName(type.getKey()))
+                    .sorted()
+                    .toList();
+            jobMessages.sendErrorActionBar(
+                    player,
+                    "company.job.error.blueprintNone",
+                    Replacement.create("blocks", blocks.isEmpty() ? "-" : String.join(", ", blocks)));
+        });
         var homeTeleports = homeTeleports(economy, treasuryService);
         homes = homeTeleports;
         var areaSync = new AreaSync(
@@ -1302,7 +1330,8 @@ public class Companies extends EldoPlugin {
                                 commands.services().activeEvents()),
                         () -> jobs,
                         priceData,
-                        api.priceSources()::registered),
+                        api.priceSources()::registered,
+                        api.areaProviders()::providers),
                 () -> bus.publish(new NodeMessage.CacheInvalidate(NodeCaches.DASHBOARD, NodeCaches.DASHBOARD_KEY)),
                 workerPool);
         var started = dashboard;
@@ -1404,6 +1433,7 @@ public class Companies extends EldoPlugin {
         if (runningJobs != null) {
             runningJobs.access().stop();
             runningJobs.ghosts().stop();
+            runningJobs.bars().stop();
         }
         var runningHomes = homes;
         if (runningHomes != null) {
@@ -1426,6 +1456,7 @@ public class Companies extends EldoPlugin {
         MembershipSources.clear();
         SeriesSources.clear();
         SavedItemSources.clear();
+        JobProviders.clearAreas();
         CommandFailures.clear();
         if (updates != null) updates.stop();
         if (discord != null) discord.stop();

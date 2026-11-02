@@ -638,7 +638,7 @@ function jobsOf(state) {
  */
 function jobRow(job) {
     const row = {...job}
-    for (const field of ['description', 'dispute', 'disputeByOwner', 'rejected', 'request', 'extendedHours', 'requestsLeft']) delete row[field]
+    for (const field of ['description', 'dispute', 'disputeByOwner', 'rejected', 'request', 'extendedHours', 'requestsLeft', 'cancelAsked']) delete row[field]
     return row
 }
 
@@ -655,13 +655,17 @@ function jobDetails(job) {
         disputeByOwner: job.disputeByOwner ?? false,
         settled: null,
         approveAt: job.state === 'done' ? '2026-11-05T12:00:00Z' : null,
-        stock: {},
+        stock: job.mine && job.stock ? job.stock : {},
         canManage: true,
         takeable: job.state === 'open' && !job.mine,
         extendedHours: job.extendedHours ?? 0,
         hoursLeft: job.state === 'taken' ? 312 - (job.extendedHours ?? 0) : 0,
         requestsLeft: job.state === 'taken' ? (job.requestsLeft ?? 3) : 0,
         request: job.state === 'taken' ? (job.request ?? null) : null,
+        materialCost: job.kind === 'build' ? {total: 1840, unpriced: 0} : null,
+        progress: job.state === 'taken' && job.kind !== 'contract' && job.kind !== 'harvest' ? {percent: 40, done: 400, total: 1000} : null,
+        cancelAsked: job.state === 'taken' && Boolean(job.cancelAsked),
+        reviews: job.rejected ? [{kind: 'done', reason: null, at: '2026-11-01T10:00:00Z'}, {kind: 'rejected', reason: job.rejected, at: '2026-11-01T12:00:00Z'}] : [],
     }
 }
 
@@ -744,6 +748,57 @@ function jobStep(state, name, args, done, refused) {
         job.disputeByOwner = job.mine
     }
     if (name === 'jobs.describe') job.description = args.text
+    return done(jobDetails(job))
+}
+
+/**
+ * @param state the session's state
+ * @returns the schematics the player uploaded, as the plugin lists them
+ */
+function schematicList(state) {
+    return {open: true, max: 10, maxBytes: 512 * 1024, names: state.schematics ?? []}
+}
+
+/**
+ * @param state the session's state
+ * @returns the areas the player stored, as the plugin lists them; one stored in game to start with
+ */
+function areaList(state) {
+    state.areas ??= [{name: 'field', node: '00000000-0000-0000-0000-000000000001', world: 'world', center: '10 70 -4', width: 9, height: 4, length: 9, blocks: 324}]
+    return {max: 10, areas: state.areas}
+}
+
+/**
+ * Asks the company working on a taken job to let it be cancelled, as the plugin would.
+ *
+ * @param state the session's state
+ * @param args the arguments
+ * @param done answers the job afterwards
+ * @param refused answers a refusal
+ * @returns the answer
+ */
+function cancelAsk(state, args, done, refused) {
+    const job = jobsOf(state)[args.job]
+    if (job.cancelAsked) return refused(`The company working on job #${args.job} was asked already and has not answered yet.`)
+    job.cancelAsked = true
+    return done(jobDetails(job))
+}
+
+/**
+ * Answers the owner's request to cancel a job, as the plugin would.
+ *
+ * @param state the session's state
+ * @param name the action
+ * @param args the arguments
+ * @param done answers the job afterwards
+ * @param refused answers a refusal
+ * @returns the answer
+ */
+function cancelAnswer(state, name, args, done, refused) {
+    const job = jobsOf(state)[args.job]
+    if (!job || job.state !== 'taken' || !job.cancelAsked) return refused(`The owner of job #${args.job} does not ask to cancel it.`)
+    job.cancelAsked = false
+    if (name === 'jobs.cancel.accept') job.state = 'cancelled'
     return done(jobDetails(job))
 }
 
@@ -876,17 +931,67 @@ function action(name, args, state, story = {}) {
             jobsOf(state)[id] = {id, kind: 'contract', state: 'open', title: args.title, price: args.price, fee: 5, expires: '2026-11-06T12:00:00Z', blocks: 0, mine: true, ours: false, description: args.description}
             return done(jobDetails(jobsOf(state)[id]))
         }
+        case 'jobs.cancel':
+            if (jobsOf(state)[args.job]?.state === 'taken') return cancelAsk(state, args, done, refused)
+            return jobStep(state, name, args, done, refused)
         case 'jobs.take':
         case 'jobs.done':
         case 'jobs.approve':
         case 'jobs.reject':
         case 'jobs.dispute':
         case 'jobs.withdraw':
-        case 'jobs.cancel':
+            return jobStep(state, name, args, done, refused)
         case 'jobs.giveback':
         case 'jobs.end':
         case 'jobs.describe':
             return jobStep(state, name, args, done, refused)
+        case 'jobs.cancel.accept':
+        case 'jobs.cancel.refuse':
+            return cancelAnswer(state, name, args, done, refused)
+        case 'jobs.schematics.list':
+            return done(schematicList(state))
+        case 'jobs.schematics.upload': {
+            if (!/^[a-z0-9_-]{1,32}$/.test(args.name ?? '')) return refused('Name the schematic with 1 to 32 lower case letters, digits, dashes or underscores.')
+            state.schematics = [...new Set([...(state.schematics ?? []), args.name])].sort()
+            return done({list: schematicList(state), name: args.name, blocks: 120, removed: 2, data: 3, entities: 1})
+        }
+        case 'jobs.schematics.delete':
+            state.schematics = (state.schematics ?? []).filter(name => name !== args.name)
+            return done(schematicList(state))
+        case 'jobs.areas.list':
+            return done(areaList(state))
+        case 'jobs.areas.delete':
+            state.areas = areaList(state).areas.filter(area => area.name !== args.name)
+            return done(areaList(state))
+        case 'jobs.areas.preview': {
+            const area = areaList(state).areas.find(stored => stored.name === args.area)
+            if (!area) return refused(`You have no area ${args.area}.`)
+            const cells = Array.from({length: area.width * area.length}, (_, i) => (i % area.width + Math.floor(i / area.width)) % 2)
+            return done({name: area.name, width: area.width, length: area.length, palette: ['#7fb238', '#976d4d'], cells, server: ['barn'], own: state.schematics ?? []})
+        }
+        case 'jobs.areas.schematic':
+            return args.schematic === 'barn'
+                ? done({width: args.rotation % 180 === 0 ? 5 : 3, height: 4, length: args.rotation % 180 === 0 ? 3 : 5, blocks: 48, cost: 150, unpriced: 0})
+                : refused(`There is no readable schematic ${args.schematic}.`)
+        case 'jobs.areas.build': {
+            if (args.price < 150 && !args.confirm) return refused('The price is below what the blocks of this schematic cost.')
+            const id = 22
+            jobsOf(state)[id] = {id, kind: 'build', state: 'open', title: args.title, price: args.price, fee: 5, expires: '2026-11-06T12:00:00Z', blocks: 60, world: 'world', center: '10 70 -4', mine: true, ours: false}
+            return done(jobDetails(jobsOf(state)[id]))
+        }
+        case 'jobs.areas.post': {
+            const area = areaList(state).areas.find(stored => stored.name === args.area)
+            if (!area) return refused(`You have no area ${args.area}.`)
+            const id = 21
+            jobsOf(state)[id] = {id, kind: args.kind, state: 'open', title: args.title, price: args.price, fee: 5, expires: '2026-11-06T12:00:00Z', blocks: area.blocks, world: area.world, center: area.center, mine: true, ours: false}
+            return done(jobDetails(jobsOf(state)[id]))
+        }
+        case 'jobs.collect': {
+            const job = jobsOf(state)[args.job]
+            if (!job?.mine || job.kind !== 'harvest' || !job.stock) return refused(`The stock of job #${args.job} is empty.`)
+            job.stock = undefined
+            return done(jobDetails(job))
+        }
         case 'jobs.extend':
         case 'jobs.extension.grant':
         case 'jobs.extension.refuse':

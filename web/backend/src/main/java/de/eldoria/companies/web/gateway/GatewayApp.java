@@ -33,6 +33,7 @@ import de.eldoria.companies.web.gateway.storage.ServerRepository;
 import de.eldoria.companies.web.gateway.storage.SessionRepository;
 import io.javalin.Javalin;
 import io.javalin.http.Context;
+import io.javalin.http.HandlerType;
 import io.javalin.json.JavalinJackson3;
 import io.javalin.websocket.WsConfig;
 import org.slf4j.Logger;
@@ -52,8 +53,21 @@ import java.util.UUID;
  * <p>
  * Everything live (connections, snapshots, streams) is in memory, so the gateway runs as a single instance;
  * sessions, servers, tokens and icons are in the database.
+ * <p>
+ * Request bodies are at most {@link #BODY_BYTES}, except for dashboard actions, which carry uploaded schematics and
+ * may be up to {@link #ACTION_BODY_BYTES}.
  */
 public final class GatewayApp {
+    /**
+     * The largest request body taken by every route but the dashboard actions.
+     */
+    public static final int BODY_BYTES = 64 * 1024;
+
+    /**
+     * The largest request body of a dashboard action: a schematic of 512 KB as base64 and the rest of the call.
+     */
+    public static final int ACTION_BODY_BYTES = 1024 * 1024;
+
     private static final Logger log = LoggerFactory.getLogger(GatewayApp.class);
     private final ServiceConfig config;
     private final NodeHub hub;
@@ -141,8 +155,9 @@ public final class GatewayApp {
         return Javalin.create(javalin -> {
             javalin.concurrency.useVirtualThreads = true;
             javalin.jsonMapper(new JavalinJackson3(Protocol.mapper(), true));
-            javalin.http.maxRequestSize = 64 * 1024;
+            javalin.http.maxRequestSize = ACTION_BODY_BYTES;
             javalin.routes.before("/api/*", ctx -> ctx.header("Cache-Control", "no-store"));
+            javalin.routes.before(GatewayApp::limitBody);
             javalin.routes.exception(
                     ApiError.class, (error, ctx) -> ctx.status(error.status()).json(error.view()));
             javalin.routes.get(Routes.HEALTH, this::health);
@@ -156,6 +171,12 @@ public final class GatewayApp {
             javalin.routes.get(Routes.ICON, browser::icon);
             javalin.routes.ws(Routes.STREAM, browser::stream);
         });
+    }
+
+    private static void limitBody(Context ctx) {
+        if (ctx.path().equals(Routes.ACTIONS) || !HandlerType.POST.equals(ctx.method())) return;
+        if (ctx.contentLength() >= 0 && ctx.contentLength() <= BODY_BYTES) return;
+        throw new ApiError(413, ApiError.Code.INTERNAL, "The request body is too large");
     }
 
     /**

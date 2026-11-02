@@ -32,6 +32,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -305,8 +306,21 @@ public final class AdminSettingsWrites {
                 editable);
     }
 
+    /**
+     * @param field a setting of named switches
+     * @param value its stored value
+     * @return the names it offers: the ones this server knows for it and the ones already stored, so a switch of a
+     *     plugin that is not loaded here stays visible
+     */
+    private List<String> switches(SettingsCatalogue.Field field, JsonNode value) {
+        Set<String> names = new LinkedHashSet<>(sources.switches().apply(field));
+        if (value.isObject()) value.propertyNames().forEach(names::add);
+        return List.copyOf(names);
+    }
+
     private Payloads.AdminSetting setting(SettingsCatalogue.Field field, JsonNode tree, boolean overridden) {
         var value = field.at(tree);
+        var choices = field.type() == SettingsCatalogue.Type.FLAG_MAP ? switches(field, value) : field.choices();
         if (field.secret()) {
             return new Payloads.AdminSetting(
                     field.section(),
@@ -324,7 +338,7 @@ public final class AdminSettingsWrites {
                 field.section(),
                 field.key(),
                 field.type().name(),
-                field.choices(),
+                choices,
                 field.restart(),
                 value.isMissingNode() ? null : value,
                 null,
@@ -434,6 +448,7 @@ public final class AdminSettingsWrites {
      * @param logger        where a failed apply is reported
      * @param instant       turns a stored time into an instant
      * @param render        renders a refusal as plain text
+     * @param switches      the names a setting of named switches offers
      */
     public record Sources(
             Configuration configuration,
@@ -442,5 +457,6 @@ public final class AdminSettingsWrites {
             AdminLog log,
             Logger logger,
             Function<LocalDateTime, Instant> instant,
-            Function<CommandFailure, String> render) {}
+            Function<CommandFailure, String> render,
+            Function<SettingsCatalogue.Field, List<String>> switches) {}
 }
