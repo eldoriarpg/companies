@@ -670,6 +670,21 @@ public final class Actions {
     public static final String JOBS_COLLECT = "jobs.collect";
 
     /**
+     * Lists the schematics the player uploaded for build jobs and whether the server takes uploads.
+     */
+    public static final String JOBS_SCHEMATICS_LIST = "jobs.schematics.list";
+
+    /**
+     * Uploads a schematic for build jobs; it is cleaned of unwanted contents before it is kept.
+     */
+    public static final String JOBS_SCHEMATICS_UPLOAD = "jobs.schematics.upload";
+
+    /**
+     * Deletes a schematic the player uploaded.
+     */
+    public static final String JOBS_SCHEMATICS_DELETE = "jobs.schematics.delete";
+
+    /**
      * Lists the disputed jobs with both sides and the reason.
      */
     public static final String ADMIN_JOBS_DISPUTES = "admin.jobs.disputes";
@@ -813,6 +828,9 @@ public final class Actions {
             JOBS_CANCEL_ACCEPT,
             JOBS_CANCEL_REFUSE,
             JOBS_COLLECT,
+            JOBS_SCHEMATICS_LIST,
+            JOBS_SCHEMATICS_UPLOAD,
+            JOBS_SCHEMATICS_DELETE,
             ADMIN_JOBS_DISPUTES,
             ADMIN_JOBS_SETTLE);
 

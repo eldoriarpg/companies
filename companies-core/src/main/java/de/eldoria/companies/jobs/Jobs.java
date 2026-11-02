@@ -367,7 +367,8 @@ public final class Jobs {
                                 Values.text("job_title", job.title()),
                                 Values.number("percent", work.percent())));
         plugin.getServer().getPluginManager().registerEvents(bars, plugin);
-        return new JobServices(jobs, service, hooks, access, progress, node, blueprints, ghosts, costs, bars);
+        var uploads = new SchematicUploads(jobs, hooks, configuration::jobSettings, Times::now, plugin.getLogger());
+        return new JobServices(jobs, service, hooks, access, progress, node, blueprints, ghosts, costs, bars, uploads);
     }
 
     private static double price(AOrderData orders, Material type, Plugin plugin) {

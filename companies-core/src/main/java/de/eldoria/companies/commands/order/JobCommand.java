@@ -288,20 +288,32 @@ public final class JobCommand {
     }
 
     /**
-     * Lists the schematics build jobs may use.
+     * Lists the schematics build jobs may use: the server's and the ones the player uploaded.
      *
      * @param sender sender of the command
      */
     @Executes("schematics")
     public void schematics(CommandSender sender) {
         var player = Senders.player(sender);
-        run(player, this::schematicNames, names -> {
-            if (names.isEmpty()) {
+        run(player, () -> new Schematics(schematicNames(), jobs().uploads().names(player.getUniqueId())), found -> {
+            if (found.server().isEmpty() && found.own().isEmpty()) {
                 deps.messages().sendMessage(player, PREFIX + "schematics.none");
                 return;
             }
-            deps.messages()
-                    .sendMessage(player, PREFIX + "schematics.list", Values.text("names", String.join(", ", names)));
+            if (!found.server().isEmpty()) {
+                deps.messages()
+                        .sendMessage(
+                                player,
+                                PREFIX + "schematics.list",
+                                Values.text("names", String.join(", ", found.server())));
+            }
+            if (!found.own().isEmpty()) {
+                deps.messages()
+                        .sendMessage(
+                                player,
+                                PREFIX + "schematics.own",
+                                Values.text("names", String.join(", ", found.own())));
+            }
         });
     }
 
@@ -506,7 +518,8 @@ public final class JobCommand {
     private record PendingBuild(JobArea area, double price, int hours, String title, Blueprint blueprint) {}
 
     /**
-     * Reads a schematic and what its blocks cost off the main thread and hands both on to the main thread.
+     * Reads a schematic and what its blocks cost off the main thread and hands both on to the main thread. A schematic
+     * the player uploaded comes before one of the server with the same name.
      *
      * @param player    the player asking
      * @param schematic name of the schematic
@@ -526,8 +539,10 @@ public final class JobCommand {
         var maxVolume = deps.configuration().jobSettings().buildMaxVolume();
         run(
                 player,
-                () -> schematicFile(schematic)
-                        .flatMap(file -> jobs().hooks().schematic(file, rotation, maxVolume))
+                () -> jobs().uploads()
+                        .blueprint(player.getUniqueId(), schematic, rotation, maxVolume)
+                        .or(() -> schematicFile(schematic)
+                                .flatMap(file -> jobs().hooks().schematic(file, rotation, maxVolume)))
                         .map(blueprint -> new Priced(blueprint, jobs().costs().of(blueprint)))
                         .orElseThrow(() -> CommandFailure.of(
                                 PREFIX + "error.schematic",
@@ -538,6 +553,8 @@ public final class JobCommand {
     }
 
     private record Priced(Blueprint blueprint, MaterialCosts.Cost cost) {}
+
+    private record Schematics(List<String> server, List<String> own) {}
 
     /**
      * @return the names of the schematics in the plugin's {@code schematics} folder, without their file endings

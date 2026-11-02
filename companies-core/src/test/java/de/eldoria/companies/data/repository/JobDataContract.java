@@ -24,6 +24,7 @@ import org.junit.jupiter.api.TestInstance;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -421,6 +422,25 @@ public abstract class JobDataContract {
                         new JobReviewEntry(id, JobReviewEntry.Kind.REJECTED, owner, "Not yet", NOW.plusHours(2))),
                 jobs.reviews(id));
         assertEquals(List.of(), jobs.reviews(id + 1));
+    }
+
+    @Test
+    void uploadedSchematicsAreKeptPerPlayerAndReplacedByName() {
+        var owner = UUID.randomUUID();
+        var other = UUID.randomUUID();
+
+        jobs.saveSchematic(owner, "barn", "AAAA", NOW);
+        jobs.saveSchematic(owner, "abbey", "BBBB", NOW);
+        jobs.saveSchematic(owner, "barn", "CCCC", NOW.plusHours(1));
+        jobs.saveSchematic(other, "barn", "DDDD", NOW);
+
+        assertEquals(List.of("abbey", "barn"), jobs.schematicNames(owner));
+        assertEquals(Optional.of("CCCC"), jobs.schematic(owner, "barn"));
+        assertEquals(Optional.of("DDDD"), jobs.schematic(other, "barn"));
+        assertTrue(jobs.deleteSchematic(owner, "barn"));
+        assertFalse(jobs.deleteSchematic(owner, "barn"));
+        assertEquals(Optional.empty(), jobs.schematic(owner, "barn"));
+        assertEquals(List.of("abbey"), jobs.schematicNames(owner));
     }
 
     @Test

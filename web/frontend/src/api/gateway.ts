@@ -1249,6 +1249,31 @@ export interface JobDetails {
     reviews?: JobReview[]
 }
 
+/** The schematics a player uploaded for build jobs. */
+export interface SchematicList {
+    /** Whether the server takes uploads now. */
+    open: boolean
+    /** The most schematics a player may keep. */
+    max: number
+    /** The largest file taken, in bytes. */
+    maxBytes: number
+    names: string[]
+}
+
+/** A schematic that was cleaned and kept. */
+export interface SchematicUpload {
+    list: SchematicList
+    name: string
+    /** How many blocks its blueprint asks for. */
+    blocks: number
+    /** How many blocks cleaning removed. */
+    removed: number
+    /** How much block and entity data cleaning removed, such as the contents of a chest. */
+    data: number
+    /** How many entities cleaning removed. */
+    entities: number
+}
+
 /** A step of the review of a job's work. */
 export interface JobReview {
     /** `done` when the company said the work is done, `rejected` when the owner sent it back. */
@@ -1407,6 +1432,9 @@ export interface WriteActions {
     'jobs.cancel.accept': {args: JobRef, result: JobDetails}
     'jobs.cancel.refuse': {args: JobRef, result: JobDetails}
     'jobs.collect': {args: JobRef, result: JobDetails}
+    'jobs.schematics.list': {args: Record<string, never>, result: SchematicList}
+    'jobs.schematics.upload': {args: {name: string, data: string}, result: SchematicUpload}
+    'jobs.schematics.delete': {args: {name: string}, result: SchematicList}
     'admin.jobs.disputes': {args: Record<string, never>, result: {disputes: DisputeRow[]}}
     'admin.jobs.settle': {args: JobRef & {percent: number}, result: {disputes: DisputeRow[]}}
     'events.leave': {args: OfferRef, result: EventDetails}

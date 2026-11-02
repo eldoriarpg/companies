@@ -38,6 +38,8 @@ public class JobSettings {
     private int openDays = 7;
     private int approveHours = 72;
     private boolean approveAreaJobs = false;
+    private boolean schematicUploads = false;
+    private int maxSchematics = 10;
 
     public JobSettings() {}
 
@@ -263,5 +265,28 @@ public class JobSettings {
 
     public void approveAreaJobs(boolean approveAreaJobs) {
         this.approveAreaJobs = approveAreaJobs;
+    }
+
+    /**
+     * @return whether players may upload their own schematics for build jobs on the dashboard; they are cleaned with
+     *     the Schematic Sanitizer library, which needs FastAsyncWorldEdit
+     */
+    public boolean schematicUploads() {
+        return schematicUploads;
+    }
+
+    public void schematicUploads(boolean schematicUploads) {
+        this.schematicUploads = schematicUploads;
+    }
+
+    /**
+     * @return the most schematics a player may keep uploaded, at least 1
+     */
+    public int maxSchematics() {
+        return Math.max(1, maxSchematics);
+    }
+
+    public void maxSchematics(int maxSchematics) {
+        this.maxSchematics = maxSchematics;
     }
 }

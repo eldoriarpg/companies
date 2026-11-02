@@ -394,6 +394,8 @@ public final class SettingsCatalogue {
         jobs.whole("openDays");
         jobs.whole("approveHours");
         jobs.flag("approveAreaJobs");
+        jobs.flag("schematicUploads");
+        jobs.whole("maxSchematics");
 
         var areas = new Section(fields, AREAS, "areas");
         areas.flag("enabled");

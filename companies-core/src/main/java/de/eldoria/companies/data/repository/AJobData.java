@@ -461,4 +461,34 @@ public abstract class AJobData {
      * @return true when there was a request
      */
     public abstract boolean refuseExtension(int job, int company);
+
+    /**
+     * Stores a schematic a player uploaded, replacing one of the same name.
+     *
+     * @param owner the player
+     * @param name  its name, unique per player
+     * @param data  the cleaned schematic file as base64
+     * @param at    when it was uploaded
+     */
+    public abstract void saveSchematic(UUID owner, String name, String data, LocalDateTime at);
+
+    /**
+     * @param owner a player
+     * @return the names of the schematics the player uploaded, sorted
+     */
+    public abstract List<String> schematicNames(UUID owner);
+
+    /**
+     * @param owner a player
+     * @param name  the name of one of the player's schematics
+     * @return the schematic file as base64, empty when the player has none of that name
+     */
+    public abstract Optional<String> schematic(UUID owner, String name);
+
+    /**
+     * @param owner a player
+     * @param name  the name of one of the player's schematics
+     * @return true when it existed and is gone
+     */
+    public abstract boolean deleteSchematic(UUID owner, String name);
 }

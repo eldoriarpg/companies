@@ -985,4 +985,51 @@ public class MariaDbJobData extends AJobData {
                         readTime(row, "extension_asked")),
                 row.getBoolean("charged"));
     }
+
+    @Override
+    public void saveSchematic(UUID owner, String name, String data, LocalDateTime at) {
+        var stored = query(schematicUpsert())
+                .single(call().bind(owner, UUID_BYTES).bind(name).bind(data).bind(at, time()))
+                .insert()
+                .changed();
+        if (!stored) throw new IllegalStateException("Could not store the schematic " + name);
+    }
+
+    /**
+     * The upsert that keeps a schematic, replacing one of the same owner and name.
+     *
+     * @return statement with the parameters owner, name, data and time
+     */
+    protected String schematicUpsert() {
+        @Language("mariadb")
+        var query = """
+                INSERT INTO job_schematics(owner_uuid, name, data, created)
+                VALUES (?, ?, ?, ?)
+                ON DUPLICATE KEY UPDATE data = VALUES(data), created = VALUES(created)""";
+        return query;
+    }
+
+    @Override
+    public List<String> schematicNames(UUID owner) {
+        return query("SELECT name FROM job_schematics WHERE owner_uuid = ? ORDER BY name")
+                .single(call().bind(owner, UUID_BYTES))
+                .map(row -> row.getString("name"))
+                .all();
+    }
+
+    @Override
+    public Optional<String> schematic(UUID owner, String name) {
+        return query("SELECT data FROM job_schematics WHERE owner_uuid = ? AND name = ?")
+                .single(call().bind(owner, UUID_BYTES).bind(name))
+                .map(row -> row.getString("data"))
+                .first();
+    }
+
+    @Override
+    public boolean deleteSchematic(UUID owner, String name) {
+        return query("DELETE FROM job_schematics WHERE owner_uuid = ? AND name = ?")
+                .single(call().bind(owner, UUID_BYTES).bind(name))
+                .delete()
+                .changed();
+    }
 }

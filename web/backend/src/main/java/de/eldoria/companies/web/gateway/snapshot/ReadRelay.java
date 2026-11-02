@@ -67,7 +67,8 @@ public final class ReadRelay {
             Actions.EVENTS_LIST,
             Actions.EVENTS_INFO,
             Actions.JOBS_LIST,
-            Actions.JOBS_INFO);
+            Actions.JOBS_INFO,
+            Actions.JOBS_SCHEMATICS_LIST);
 
     /**
      * The actions that change something and may be forwarded. They are never cached, and a write drops every cached
@@ -183,6 +184,8 @@ public final class ReadRelay {
             Actions.JOBS_CANCEL_ACCEPT,
             Actions.JOBS_CANCEL_REFUSE,
             Actions.JOBS_COLLECT,
+            Actions.JOBS_SCHEMATICS_UPLOAD,
+            Actions.JOBS_SCHEMATICS_DELETE,
             Actions.ADMIN_JOBS_DISPUTES,
             Actions.ADMIN_JOBS_SETTLE);
 

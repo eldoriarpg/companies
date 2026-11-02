@@ -67,12 +67,16 @@ While a company works on your job, only its members may place blocks or pour buc
 
 ## Build jobs
 
-A **build job** asks a company to build a schematic. The server's schematics are listed by `/order job schematics`;
-an admin puts them into the plugin's `schematics` folder. Stand where the schematic's origin should be and preview it
-with `/order job blueprint <schematic> <rotation>`, where `rotation` turns it clockwise by 0, 90, 180 or 270 degrees:
-its outline and small glowing copies of its blocks show where it would stand for 30 seconds, only for you, and the
-chat says what its blocks cost at the server's prices. A preview can be shown every 10 seconds; a large schematic
-shows its lowest 4096 blocks.
+A **build job** asks a company to build a schematic. The server's schematics are listed by `/order job schematics`; an
+admin puts them into the plugin's `schematics` folder. Where the server allows it, you can also upload your own
+schematics under **Your schematics** on the dashboard's Jobs page: each upload is cleaned of the contents of containers,
+command blocks and creatures, and the dashboard says what was removed. A file may be at most 512 KB, its box must fit
+the server's size for build jobs, and the server sets how many you may keep. Your uploads are listed with `/order job
+schematics` and used by their name like the server's; one of yours comes first when both have the same name. Stand where
+the schematic's origin should be and preview it with `/order job blueprint <schematic> <rotation>`, where `rotation`
+turns it clockwise by 0, 90, 180 or 270 degrees: its outline and small glowing copies of its blocks show where it would
+stand for 30 seconds, only for you, and the chat says what its blocks cost at the server's prices. A preview can be
+shown every 10 seconds; a large schematic shows its lowest 4096 blocks.
 
 When it fits, post it from the same spot: `/order job build <schematic> <rotation> <price> <hours> <title>` previews
 it once more and asks you to confirm with the button or `/order job build confirm`. If the price is below what the

@@ -47,6 +47,9 @@ dependencies {
     }
     compileOnly(libs.worldguard)
     compileOnly(libs.worldedit)
+    compileOnly(libs.schematic.sanitizer) {
+        isTransitive = false
+    }
     compileOnly(libs.plotsquared)
     compileOnly(libs.griefprevention) {
         isTransitive = false

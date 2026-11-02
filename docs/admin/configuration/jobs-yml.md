@@ -29,6 +29,8 @@ maxExtensionRequests: 3
 openDays: 7
 approveHours: 72
 approveAreaJobs: false
+schematicUploads: false
+maxSchematics: 10
 ```
 
 | Key | Values | Default | Description | Takes effect |
@@ -50,6 +52,8 @@ approveAreaJobs: false
 | `openDays` | number (days) | `7` | How long a job waits for a company. Nobody took it by then: it expires and price and fee go back to its owner. | reload |
 | `approveHours` | number (hours) | `72` | How long a job the company says is done waits for its owner to approve or reject it. Without an answer by then it is approved and paid. | reload |
 | `approveAreaJobs` | true/false | `false` | Dig, terraform and build jobs whose check passed wait for their owner to approve them, like contracts, instead of being paid at once. | reload |
+| `schematicUploads` | true/false | `false` | Players may upload their own schematics for build jobs on the dashboard. Each upload is cleaned of the contents of containers, command blocks, creatures and other unwanted contents before it is kept. Uploads are at most 512 KB and must fit `buildMaxVolume`. Needs FastAsyncWorldEdit. Switched off, kept uploads can still be used for build jobs. Also on the integrations page of the setup. | reload |
+| `maxSchematics` | number | `10` | The most schematics a player may keep uploaded. | reload |
 
 The fee of a job is the order fee of [order.yml](./order-yml.md), lowered by the fee reductions of server events. A
 company's order slots count its jobs; giving one back or running out of time costs the order penalties of

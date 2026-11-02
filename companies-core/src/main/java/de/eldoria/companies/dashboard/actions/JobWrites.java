@@ -18,6 +18,7 @@ import de.eldoria.companies.data.wrapper.job.JobLand;
 import de.eldoria.companies.data.wrapper.job.JobReview;
 import de.eldoria.companies.jobs.JobService;
 import de.eldoria.companies.jobs.JobServices;
+import de.eldoria.companies.jobs.SchematicUploads;
 import de.eldoria.companies.menus.Values;
 import de.eldoria.companies.util.Permission;
 import de.eldoria.companies.web.api.Actions;
@@ -29,6 +30,7 @@ import tools.jackson.databind.JsonNode;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -75,7 +77,10 @@ public final class JobWrites {
             Actions.JOBS_EXTENSION_REFUSE,
             Actions.JOBS_CANCEL_ACCEPT,
             Actions.JOBS_CANCEL_REFUSE,
-            Actions.JOBS_COLLECT);
+            Actions.JOBS_COLLECT,
+            Actions.JOBS_SCHEMATICS_LIST,
+            Actions.JOBS_SCHEMATICS_UPLOAD,
+            Actions.JOBS_SCHEMATICS_DELETE);
 
     /**
      * The most jobs of each list.
@@ -168,6 +173,12 @@ public final class JobWrites {
             case Actions.JOBS_CANCEL ->
                 owner(request, jobs, player, company, id, service.cancel(player, session.playerName(), id));
             case Actions.JOBS_COLLECT -> collect(request, jobs, player, company, id);
+            case Actions.JOBS_SCHEMATICS_LIST -> answers.data(request, schematics(jobs, player));
+            case Actions.JOBS_SCHEMATICS_UPLOAD -> upload(request, jobs, session, args);
+            case Actions.JOBS_SCHEMATICS_DELETE -> {
+                jobs.uploads().delete(player, args.path("name").asString(""));
+                yield answers.data(request, schematics(jobs, player));
+            }
             case Actions.JOBS_CANCEL_ACCEPT ->
                 forCompany(
                         request,
@@ -330,6 +341,51 @@ public final class JobWrites {
             return answers.refused(request, CommandFailure.of(OWNER + key, number(id)));
         }
         return answers.data(request, details(jobs, job, player, company));
+    }
+
+    private SchematicList schematics(JobServices jobs, UUID player) {
+        var uploads = jobs.uploads();
+        return new SchematicList(
+                uploads.open(),
+                sources.settings().get().maxSchematics(),
+                SchematicUploads.MAX_BYTES,
+                uploads.names(player));
+    }
+
+    /**
+     * Cleans and keeps a schematic the player uploaded as base64; it may then be used for build jobs by its name.
+     */
+    private ActionResult upload(ActionRequest request, JobServices jobs, StoredSession session, JsonNode args) {
+        if (!session.permissions().contains(Permission.Orders.JOBS)) {
+            return answers.refused(request, "error.permission.postJob");
+        }
+        byte[] file;
+        try {
+            file = Base64.getDecoder().decode(args.path("data").asString(""));
+        } catch (IllegalArgumentException e) {
+            return answers.refused(request, OWNER + "schematic.error.unreadable");
+        }
+        var uploaded = jobs.uploads().upload(session.player(), args.path("name").asString(""), file);
+        return switch (uploaded) {
+            case SchematicUploads.Uploaded.Stored stored ->
+                answers.data(
+                        request,
+                        new Uploaded(
+                                schematics(jobs, session.player()),
+                                stored.name(),
+                                stored.blocks(),
+                                stored.cleaned().blocks(),
+                                stored.cleaned().data(),
+                                stored.cleaned().entities()));
+            case SchematicUploads.Uploaded.Refused refused ->
+                answers.refused(
+                        request,
+                        CommandFailure.of(
+                                OWNER + "schematic.error."
+                                        + camel(refused.reason().name()),
+                                Values.number("max", sources.settings().get().maxSchematics()),
+                                Values.number("size", SchematicUploads.MAX_BYTES / 1024)));
+        };
     }
 
     private ActionResult owner(
@@ -738,6 +794,28 @@ public final class JobWrites {
      * @param unpriced how many block types have no known price and are left out
      */
     public record MaterialCost(double total, int unpriced) {}
+
+    /**
+     * The schematics a player uploaded for build jobs.
+     *
+     * @param open     whether the server takes uploads now
+     * @param max      the most schematics a player may keep
+     * @param maxBytes the largest file taken, in bytes
+     * @param names    the names of the player's schematics, sorted
+     */
+    public record SchematicList(boolean open, int max, int maxBytes, List<String> names) {}
+
+    /**
+     * A schematic that was cleaned and kept.
+     *
+     * @param list     the player's schematics afterwards
+     * @param name     its name
+     * @param blocks   how many blocks its blueprint asks for
+     * @param removed  how many blocks cleaning removed
+     * @param data     how much block and entity data cleaning removed, such as the contents of a chest
+     * @param entities how many entities cleaning removed
+     */
+    public record Uploaded(SchematicList list, String name, int blocks, int removed, int data, int entities) {}
 
     /**
      * The open request of the company working on a job for more time.

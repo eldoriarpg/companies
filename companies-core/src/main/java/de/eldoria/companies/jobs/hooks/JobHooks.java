@@ -46,11 +46,19 @@ public final class JobHooks {
     static final Map<String, String> LANDS = lands();
     static final Map<String, String> SELECTIONS = selections();
 
+    /**
+     * The plugin the cleaner of uploaded schematics needs and the class of the cleaner, which uses the Schematic
+     * Sanitizer library shipped with Companies.
+     */
+    static final Map.Entry<String, String> CLEANER =
+            Map.entry("FastAsyncWorldEdit", "de.eldoria.companies.hooks.sanitizer.SanitizerCleaner");
+
     private final Predicate<String> available;
     private final Factory factory;
     private final Logger logger;
     private final List<JobLandHook> lands = new CopyOnWriteArrayList<>();
     private @Nullable SelectionHook selection;
+    private @Nullable SchematicCleaner cleaner;
 
     /**
      * @param available whether the hook of a plugin may load, by the plugin's name
@@ -114,6 +122,14 @@ public final class JobHooks {
                 logger.log(Level.WARNING, "Could not hook into " + name + ". Jobs cannot use its land.", e);
             }
         });
+        if (available.test(CLEANER.getKey())) {
+            try {
+                cleaner = (SchematicCleaner) factory.create(CLEANER.getValue());
+                logger.info("Cleaning uploaded schematics with " + CLEANER.getKey() + ".");
+            } catch (ReflectiveOperationException | LinkageError | RuntimeException e) {
+                logger.log(Level.WARNING, "Could not set up the cleaner of uploaded schematics. Uploads stay off.", e);
+            }
+        }
         for (var entry : SELECTIONS.entrySet()) {
             if (selection != null || !available.test(entry.getKey())) continue;
             try {
@@ -308,6 +324,13 @@ public final class JobHooks {
      */
     public boolean selects() {
         return selection != null;
+    }
+
+    /**
+     * @return the cleaner of uploaded schematics, empty when no plugin cleans them
+     */
+    public Optional<SchematicCleaner> cleaner() {
+        return Optional.ofNullable(cleaner);
     }
 
     /**

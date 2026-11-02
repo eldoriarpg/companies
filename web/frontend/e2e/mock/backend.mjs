@@ -752,6 +752,14 @@ function jobStep(state, name, args, done, refused) {
 }
 
 /**
+ * @param state the session's state
+ * @returns the schematics the player uploaded, as the plugin lists them
+ */
+function schematicList(state) {
+    return {open: true, max: 10, maxBytes: 512 * 1024, names: state.schematics ?? []}
+}
+
+/**
  * Asks the company working on a taken job to let it be cancelled, as the plugin would.
  *
  * @param state the session's state
@@ -930,6 +938,16 @@ function action(name, args, state, story = {}) {
         case 'jobs.cancel.accept':
         case 'jobs.cancel.refuse':
             return cancelAnswer(state, name, args, done, refused)
+        case 'jobs.schematics.list':
+            return done(schematicList(state))
+        case 'jobs.schematics.upload': {
+            if (!/^[a-z0-9_-]{1,32}$/.test(args.name ?? '')) return refused('Name the schematic with 1 to 32 lower case letters, digits, dashes or underscores.')
+            state.schematics = [...new Set([...(state.schematics ?? []), args.name])].sort()
+            return done({list: schematicList(state), name: args.name, blocks: 120, removed: 2, data: 3, entities: 1})
+        }
+        case 'jobs.schematics.delete':
+            state.schematics = (state.schematics ?? []).filter(name => name !== args.name)
+            return done(schematicList(state))
         case 'jobs.collect': {
             const job = jobsOf(state)[args.job]
             if (!job?.mine || job.kind !== 'harvest' || !job.stock) return refused(`The stock of job #${args.job} is empty.`)
