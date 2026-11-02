@@ -9,8 +9,6 @@ plugins {
     alias(libs.plugins.runserver)
 }
 
-val shadebase = "de.eldoria.companies.libs."
-
 dependencies {
     implementation(project(":companies-core")) {
         exclude("*")
@@ -23,12 +21,8 @@ dependencies {
         exclude("*")
     }
     implementation(libs.messageblocker)
-    implementation(libs.bundles.eldoria.utilities) {
-        exclude("net.kyori")
-        exclude("org.jetbrains")
-    }
-    implementation(platform(libs.jackson.bom))
-    implementation(libs.bundles.jackson)
+    paperLibrary(libs.bundles.eldoria.utilities)
+    paperLibrary(libs.bundles.jackson)
     paperLibrary(libs.bundles.database)
     paperLibrary(libs.bundles.sadu)
     paperLibrary(libs.jedis)
@@ -104,13 +98,6 @@ pluginManifest {
 
 tasks {
     shadowJar {
-        relocate("de.eldoria.eldoutilities", shadebase + "eldoutilities")
-        relocate("de.eldoria.jacksonbukkit", shadebase + "jacksonbukkit")
-        relocate("de.eldoria.messageblocker", shadebase + "messageblocker")
-        relocate("dev.chojo.ocular", shadebase + "ocular")
-        relocate("tools.jackson", shadebase + "jackson")
-        relocate("com.fasterxml", shadebase + "fasterxml")
-        relocate("org.snakeyaml", shadebase + "snakeyaml")
         mergeServiceFiles()
         addMultiReleaseAttribute = false
         exclude("META-INF/versions/**")

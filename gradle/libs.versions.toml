@@ -1,6 +1,7 @@
 [versions]
 palantir = "2.84.0"
 jackson = "3.2.4"
+jackson-annotations = "2.22"
 eldoutil = "3.5.4"
 sadu = "2.3.9"
 paper = "1.21.11-R0.1-SNAPSHOT"
@@ -14,9 +15,10 @@ logback = "1.6.5"
 strokkcommands-annotations = { module = "net.strokkur.commands:annotations-paper", version.ref = "strokkcommands" }
 strokkcommands-processor = { module = "net.strokkur.commands:processor-paper", version.ref = "strokkcommands" }
 jackson-bom = { module = "tools.jackson:jackson-bom", version.ref = "jackson" }
-jackson-databind = { module = "tools.jackson.core:jackson-databind" }
-jackson-yaml = { module = "tools.jackson.dataformat:jackson-dataformat-yaml" }
-jackson-annotations = { module = "com.fasterxml.jackson.core:jackson-annotations" }
+jackson-core = { module = "tools.jackson.core:jackson-core", version.ref = "jackson" }
+jackson-databind = { module = "tools.jackson.core:jackson-databind", version.ref = "jackson" }
+jackson-yaml = { module = "tools.jackson.dataformat:jackson-dataformat-yaml", version.ref = "jackson" }
+jackson-annotations = { module = "com.fasterxml.jackson.core:jackson-annotations", version.ref = "jackson-annotations" }
 
 messageblocker = "de.eldoria:messageblocker:2.0.0"
 jackson-configuration = { module = "de.eldoria.util:jackson-configuration", version.ref = "eldoutil" }
@@ -82,7 +84,7 @@ gradle-publishdata = "de.chojo:publishdata:2.1.0"
 gradle-spotbugs = "com.github.spotbugs:com.github.spotbugs.gradle.plugin:6.5.13"
 
 [bundles]
-jackson = ["jackson-databind", "jackson-annotations", "jackson-yaml"]
+jackson = ["jackson-core", "jackson-databind", "jackson-annotations", "jackson-yaml"]
 eldoria-utilities = ["jackson-configuration", "plugin", "threading", "updater"]
 database = ["hikari", "mariadb", "sqlite", "postgres"]
 sadu-postgresql = ["sadu-queries", "sadu-updater", "sadu-datasource", "sadu-postgresql", "sadu-mapper"]
