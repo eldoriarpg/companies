@@ -16,9 +16,12 @@ import de.eldoria.companies.data.wrapper.job.Job;
 import de.eldoria.companies.data.wrapper.job.JobArea;
 import de.eldoria.companies.data.wrapper.job.JobLand;
 import de.eldoria.companies.data.wrapper.job.JobReview;
+import de.eldoria.companies.data.wrapper.job.JobTarget;
+import de.eldoria.companies.jobs.AreaChecks;
 import de.eldoria.companies.jobs.JobService;
 import de.eldoria.companies.jobs.JobServices;
 import de.eldoria.companies.jobs.SchematicUploads;
+import de.eldoria.companies.jobs.TerraformCheck;
 import de.eldoria.companies.menus.Values;
 import de.eldoria.companies.util.Permission;
 import de.eldoria.companies.web.api.Actions;
@@ -40,6 +43,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -80,7 +84,10 @@ public final class JobWrites {
             Actions.JOBS_COLLECT,
             Actions.JOBS_SCHEMATICS_LIST,
             Actions.JOBS_SCHEMATICS_UPLOAD,
-            Actions.JOBS_SCHEMATICS_DELETE);
+            Actions.JOBS_SCHEMATICS_DELETE,
+            Actions.JOBS_AREAS_LIST,
+            Actions.JOBS_AREAS_DELETE,
+            Actions.JOBS_AREAS_POST);
 
     /**
      * The most jobs of each list.
@@ -179,6 +186,16 @@ public final class JobWrites {
                 jobs.uploads().delete(player, args.path("name").asString(""));
                 yield answers.data(request, schematics(jobs, player));
             }
+            case Actions.JOBS_AREAS_LIST ->
+                mayPost(session)
+                        ? answers.data(request, areas(jobs, player))
+                        : answers.refused(request, "error.permission.postJob");
+            case Actions.JOBS_AREAS_DELETE -> {
+                if (!mayPost(session)) yield answers.refused(request, "error.permission.postJob");
+                jobs.areas().delete(player, args.path("name").asString(""));
+                yield answers.data(request, areas(jobs, player));
+            }
+            case Actions.JOBS_AREAS_POST -> postOnArea(request, jobs, session, args);
             case Actions.JOBS_CANCEL_ACCEPT ->
                 forCompany(
                         request,
@@ -278,7 +295,17 @@ public final class JobWrites {
                     request, CommandFailure.of(OWNER + "error.description", Values.number("max", Job.MAX_DESCRIPTION)));
         }
         var place = NOWHERE;
-        if (args.path("place").asBoolean(false)) {
+        var node = jobs.node();
+        var areaName = args.path("area").asString("");
+        if (!areaName.isEmpty()) {
+            var stored = jobs.areas().area(session.player(), areaName);
+            if (stored.isEmpty()) {
+                return answers.refused(
+                        request, CommandFailure.of(OWNER + "area.error.unknown", Values.text("area", areaName)));
+            }
+            place = stored.get().area();
+            node = stored.get().node();
+        } else if (args.path("place").asBoolean(false)) {
             var last = sources.lastPlace().apply(session.player());
             if (last.isEmpty()) return answers.refused(request, OWNER + "error.noPlace");
             place = last.get();
@@ -290,14 +317,19 @@ public final class JobWrites {
                         title,
                         args.path("price").asDouble(0),
                         args.path("hours").asInt(0),
-                        jobs.node(),
+                        node,
                         place,
                         JobLand.NONE,
                         null,
                         JobService.Details.contract(description));
+        return posted(request, jobs, session.player(), JobKind.CONTRACT, posted);
+    }
+
+    private ActionResult posted(
+            ActionRequest request, JobServices jobs, UUID player, JobKind kind, JobService.Posted posted) {
         return switch (posted) {
             case JobService.Posted.Done done ->
-                answers.data(request, details(jobs, done.job(), session.player(), Optional.empty()));
+                answers.data(request, details(jobs, done.job(), player, Optional.empty()));
             case JobService.Posted.Refused refused ->
                 answers.refused(
                         request,
@@ -305,8 +337,9 @@ public final class JobWrites {
                                 OWNER + "error." + camel(refused.refusal().name()),
                                 Values.number(
                                         "max",
-                                        maxOf(
+                                        JobService.limit(
                                                 refused.refusal(),
+                                                kind,
                                                 sources.settings().get()))));
         };
     }
@@ -341,6 +374,124 @@ public final class JobWrites {
             return answers.refused(request, CommandFailure.of(OWNER + key, number(id)));
         }
         return answers.data(request, details(jobs, job, player, company));
+    }
+
+    private AreaList areas(JobServices jobs, UUID player) {
+        var areas = jobs.areas();
+        return new AreaList(
+                areas.max(),
+                areas.areas(player).stream()
+                        .map(stored -> {
+                            var area = stored.area();
+                            return new AreaRow(
+                                    stored.name(),
+                                    stored.node().toString(),
+                                    area.world(),
+                                    area.center(),
+                                    area.maxX() - area.minX() + 1,
+                                    area.maxY() - area.minY() + 1,
+                                    area.maxZ() - area.minZ() + 1,
+                                    area.volume());
+                        })
+                        .toList());
+    }
+
+    /**
+     * Posts a dig, terraform or harvest job on one of the player's stored areas. The gateway routes the call to the
+     * server whose world holds the area, where its height and land are checked on the main thread as in game.
+     */
+    private ActionResult postOnArea(ActionRequest request, JobServices jobs, StoredSession session, JsonNode args) {
+        if (!mayPost(session)) return answers.refused(request, "error.permission.postJob");
+        var player = session.player();
+        var name = args.path("area").asString("");
+        var stored = jobs.areas().area(player, name);
+        if (stored.isEmpty()) {
+            return answers.refused(request, CommandFailure.of(OWNER + "area.error.unknown", Values.text("area", name)));
+        }
+        if (!stored.get().node().equals(jobs.node())) {
+            return answers.refused(
+                    request, CommandFailure.of(OWNER + "area.error.otherServer", Values.text("area", name)));
+        }
+        var area = stored.get().area();
+        var kind = args.path("kind").asString("");
+        var price = args.path("price").asDouble(0);
+        JobKind jobKind;
+        JobService.Details details;
+        switch (kind) {
+            case "dig" -> {
+                jobKind = JobKind.DIG;
+                details = JobService.Details.NONE;
+            }
+            case "terraform" -> {
+                if (!args.path("y").isInt()) return answers.refused(request, "dashboard.unsupported");
+                String surface = null;
+                var block = args.path("surface").asString("");
+                if (!block.isEmpty()) {
+                    var material = TerraformCheck.block(block);
+                    if (material == null) {
+                        return answers.refused(
+                                request, CommandFailure.of(OWNER + "error.block", Values.text("block", block)));
+                    }
+                    surface = material.name();
+                }
+                jobKind = JobKind.TERRAFORM;
+                details = JobService.Details.shape(new JobTarget(args.path("y").asInt(), surface));
+            }
+            case "harvest" -> {
+                jobKind = JobKind.HARVEST;
+                details = JobService.Details.harvest(args.path("unitPrice").asDouble(0));
+            }
+            default -> {
+                return answers.refused(request, "dashboard.unsupported");
+            }
+        }
+        AreaChecks.Checked checked;
+        try {
+            checked = jobs.checks().checkOnMain(player, area);
+        } catch (CompletionException e) {
+            return answers.refused(request, OWNER + "error.failed");
+        }
+        return switch (checked) {
+            case AreaChecks.Checked.NoWorld noWorld ->
+                answers.refused(
+                        request, CommandFailure.of(OWNER + "error.noWorld", Values.text("world", noWorld.world())));
+            case AreaChecks.Checked.Height height ->
+                answers.refused(
+                        request,
+                        CommandFailure.of(
+                                OWNER + "error.height",
+                                Values.number("min", height.min()),
+                                Values.number("max", height.max())));
+            case AreaChecks.Checked.Foreign foreign ->
+                answers.refused(
+                        request,
+                        CommandFailure.of(
+                                OWNER + "error.foreign",
+                                Values.text("land", Objects.requireNonNullElse(foreign.ref(), "?"))));
+            case AreaChecks.Checked.Unowned unowned -> answers.refused(request, OWNER + "error.unowned");
+            case AreaChecks.Checked.Land land ->
+                posted(
+                        request,
+                        jobs,
+                        player,
+                        jobKind,
+                        jobs.service()
+                                .post(
+                                        player,
+                                        jobKind,
+                                        args.path("title").asString(""),
+                                        price,
+                                        args.path("hours").asInt(0),
+                                        jobs.node(),
+                                        area,
+                                        land.land(),
+                                        land.ref(),
+                                        details));
+        };
+    }
+
+    private static boolean mayPost(StoredSession session) {
+        return session.permissions().contains(Permission.Orders.JOBS);
     }
 
     private SchematicList schematics(JobServices jobs, UUID player) {
@@ -625,16 +776,6 @@ public final class JobWrites {
         return Values.number("id", id);
     }
 
-    private static Number maxOf(JobService.Refusal refusal, JobSettings settings) {
-        return switch (refusal) {
-            case TOO_MANY -> settings.maxOpenPerOwner();
-            case DUE -> settings.maxDueHours();
-            case TITLE -> Job.MAX_TITLE;
-            case DESCRIPTION -> Job.MAX_DESCRIPTION;
-            default -> 0;
-        };
-    }
-
     private static String camel(String name) {
         var parts = name.toLowerCase(Locale.ROOT).split("_");
         var key = new StringBuilder(parts[0]);
@@ -804,6 +945,29 @@ public final class JobWrites {
      * @param names    the names of the player's schematics, sorted
      */
     public record SchematicList(boolean open, int max, int maxBytes, List<String> names) {}
+
+    /**
+     * The areas a player stored for area jobs.
+     *
+     * @param max   the most areas a player may keep
+     * @param areas the player's areas, sorted by name
+     */
+    public record AreaList(int max, List<AreaRow> areas) {}
+
+    /**
+     * A stored area.
+     *
+     * @param name   its name
+     * @param node   the server whose world holds it, where jobs on it are posted
+     * @param world  the world
+     * @param center the block in the middle of its top layer
+     * @param width  its size along x
+     * @param height its size along y
+     * @param length its size along z
+     * @param blocks how many blocks it holds
+     */
+    public record AreaRow(
+            String name, String node, String world, String center, int width, int height, int length, long blocks) {}
 
     /**
      * A schematic that was cleaned and kept.

@@ -57,6 +57,22 @@ test.describe('jobs', () => {
         await expect(jobPage(page, info).getByTestId('job-description')).toHaveText('Stone, three blocks deep.')
     })
 
+    test('post a terraform job on a stored area', async ({page}, info) => {
+        await openDashboard(page, 'JOBS01')
+        await openFromMenu(page, info, 'Jobs')
+        const areas = page.getByTestId('job-areas')
+        await areas.getByTestId('job-areas-open-field').click()
+
+        const form = areas.getByTestId('job-areas-form')
+        await form.getByLabel('Kind').selectOption('terraform')
+        await form.getByLabel('Title').fill('Level the field')
+        await form.getByLabel('Price').fill('120')
+        await form.getByLabel('Height of the top solid block').fill('68')
+        await form.getByTestId('job-areas-post').click()
+
+        await expect(page.getByTestId('jobs-mine').getByText('Level the field')).toBeVisible()
+    })
+
     test('take an open contract for the company and say it is done', async ({page}, info) => {
         await openDashboard(page, 'JOBS01')
         await openFromMenu(page, info, 'Jobs')

@@ -10,6 +10,7 @@ import de.eldoria.companies.data.wrapper.job.Job;
 import de.eldoria.companies.data.wrapper.job.JobArea;
 import de.eldoria.companies.data.wrapper.job.JobMark;
 import de.eldoria.companies.data.wrapper.job.JobReviewEntry;
+import de.eldoria.companies.data.wrapper.job.StoredArea;
 import org.jetbrains.annotations.Nullable;
 
 import java.time.LocalDateTime;
@@ -491,4 +492,33 @@ public abstract class AJobData {
      * @return true when it existed and is gone
      */
     public abstract boolean deleteSchematic(UUID owner, String name);
+
+    /**
+     * Stores an area a player named, replacing one of the same name.
+     *
+     * @param owner the player
+     * @param area  the area and its name
+     * @param at    when it was stored
+     */
+    public abstract void saveArea(UUID owner, StoredArea area, LocalDateTime at);
+
+    /**
+     * @param owner a player
+     * @return the player's stored areas, sorted by name
+     */
+    public abstract List<StoredArea> areas(UUID owner);
+
+    /**
+     * @param owner a player
+     * @param name  the name of one of the player's areas
+     * @return the area, empty when the player has none of that name
+     */
+    public abstract Optional<StoredArea> area(UUID owner, String name);
+
+    /**
+     * @param owner a player
+     * @param name  the name of one of the player's areas
+     * @return true when it existed and is gone
+     */
+    public abstract boolean deleteArea(UUID owner, String name);
 }

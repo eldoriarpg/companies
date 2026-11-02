@@ -23,6 +23,22 @@ While you stand in the area of a dig, terraform or build job your company works 
 shows how far the work is; it goes when you leave the area. The dashboard shows the last check of a job's area too
 when you are on the server of its area.
 
+## Areas
+
+Dig, terraform and harvest jobs need an area. Mark its two opposite corners without any other plugin:
+
+- `/order job area corner 1` and `/order job area corner 2` mark a corner at the block you stand in, or
+- `/order job area tool` gives you the area tool, a feather: left-click a block for corner 1, right-click one for
+  corner 2.
+
+The job commands use the area you marked, or else your WorldEdit selection. Store an area to use it again, here or on
+the dashboard: `/order job area save <name>` stores the marked area (or your WorldEdit selection), and
+`/order job area plot <name>` stores the plot you stand on and own. `/order job area` lists your areas,
+`/order job area use <name>` marks one again for the next job, `/order job area show <name>` outlines it, and
+`/order job area delete <name>` removes it. Names are up to 32 letters, digits, dashes or underscores; the server sets
+how many you may keep (10 by default). An area belongs to the server it was stored on: in game you use it there, and
+the dashboard posts its jobs there.
+
 ## Posting a job
 
 A job lies on your land: wholly on one plot or claim you own (PlotSquared, GriefPrevention, HuskClaims, Lands or
@@ -32,8 +48,10 @@ yours, on Lands a sub area counts on its own. Any other land, a road, or the are
 worked on refuses it, and so does an area that reaches above or below the world or touches too many chunks. You may
 have a few jobs waiting at once.
 
-- **Select an area with WorldEdit** (`//pos1`, `//pos2`), then post it:
-  `/order job dig <price> <hours> <title>`
+- **Mark an area**, then post it: `/order job dig <price> <hours> <title>`. See [Areas](#areas) for marking one;
+  a WorldEdit selection (`//pos1`, `//pos2`) works too.
+- **Post it on a stored area on the dashboard:** under **Your areas** on the Jobs page, pick an area and post a dig,
+  terraform or harvest job on it, even while you are not online.
 - **Or use your whole plot:** stand on the ground of your plot and post
   `/order job dig plot <price> <hours> <depth> <title>`. The area is the plot, from the block below your feet down
   `depth` blocks.
@@ -44,15 +62,14 @@ have a few jobs waiting at once.
 A **dig job** is done when every block of the area is air, water or lava. Blocks nobody can break, such as bedrock,
 count as cleared. The company keeps what it digs.
 
-A **terraform job** levels the area: every column must be solid up to a height you choose and empty above it. Select the
-area with WorldEdit so it reaches from the lowest block that must be filled to the highest that must go, then post
-`/order job terraform <price> <hours> <y> <title>`, where `y` is the height of the top solid layer. With `/order job
-terraform surface <block> <price> <hours> <y> <title>` the top layer must also be made of one block, such as
-`grass_block` (type the name without `minecraft:`; the command suggests the blocks it takes). Blocks players can not
-place and keep in survival, such as bedrock, spawners or farmland, are refused, and so are blocks that change by
-themselves, such as copper that is not waxed or concrete powder. Above `y` the area must be air, water or lava; at or
-below it any solid block counts. Blocks nobody can break count as done. The company brings the blocks it fills with and
-keeps what it digs.
+A **terraform job** levels the area: every column must be solid up to a height you choose and empty above it. Mark the
+area so it reaches from the lowest block that must be filled to the highest that must go, then post `/order job
+terraform <price> <hours> <y> <title>`, where `y` is the height of the top solid layer. With `/order job terraform
+surface <block> <price> <hours> <y> <title>` the top layer must also be made of one block, such as `grass_block` (type
+the name without `minecraft:`; the command suggests the blocks it takes). Blocks players can not place and keep in
+survival, such as bedrock, spawners or farmland, are refused, and so are blocks that change by themselves, such as
+copper that is not waxed or concrete powder. Above `y` the area must be air, water or lava; at or below it any solid
+block counts. Blocks nobody can break count as done. The company brings the blocks it fills with and keeps what it digs.
 
 To level your whole plot, stand on it and post `/order job terraform plot <price> <hours> <y> <title>` (or `terraform
 plot surface <block> ...`). The area is your plot from its lowest ground (or `y`, when that is lower) up to its highest
@@ -107,12 +124,11 @@ work, once for each spot, and so does taking out a wrong block.
 
 ## Harvest jobs
 
-A **harvest job** keeps a field harvested for a time. Select the field with WorldEdit and post
-`/order job harvest <price per item> <budget> <hours> <title>`, or stand on your plot and post
-`/order job harvest plot <price per item> <budget> <hours> <height> <title>`, where the field is your plot from the
-block below your feet up `height` layers. You pay the budget and the fee at once. Once a company
-takes the job it harvests for `hours`, and each item it harvests is paid from the budget at the price per item, taxed
-and with the treasury cut like an order payout.
+A **harvest job** keeps a field harvested for a time. Mark the field and post `/order job harvest <price per item>
+<budget> <hours> <title>`, or stand on your plot and post `/order job harvest plot <price per item> <budget> <hours>
+<height> <title>`, where the field is your plot from the block below your feet up `height` layers. You pay the budget
+and the fee at once. Once a company takes the job it harvests for `hours`, and each item it harvests is paid from the
+budget at the price per item, taxed and with the treasury cut like an order payout.
 
 While the company works on it, its members can only harvest in the field:
 
@@ -136,10 +152,10 @@ costs a harvest company nothing. A harvest job has no approval and no disputes.
 ## Contracts
 
 A **contract** is work described in words, such as "build me a stable" or "bring 64 lanterns to my shop". On the
-dashboard, **Post a contract** on the Jobs page takes a title, a description, the price and the hours. In game, stand
-where the work is and post `/order job contract <price> <hours> <title>`, then describe it with
-`/order job describe <id> <text>` while nobody has taken it yet. A contract gives the company no access to your land;
-agree on that with them in game.
+dashboard, **Post a contract** on the Jobs page takes a title, a description, the price and the hours, and may place it
+at one of your stored areas or where you were last in game; every company then sees that place. In game, stand where the
+work is and post `/order job contract <price> <hours> <title>`, then describe it with `/order job describe <id> <text>`
+while nobody has taken it yet. A contract gives the company no access to your land; agree on that with them in game.
 
 There is no check. When the company says the work is done, your inbox asks you to approve or reject it:
 
@@ -212,10 +228,13 @@ for what happens only in game:
 | `/order job build <schematic> <rotation> <price> <hours> <title>` | Previews a build job of a schematic placed where you stand and asks to confirm it. |
 | `/order job build confirm` | Posts the build job you were asked to confirm. |
 | `/order job terraform plot [surface <block>] <price> <hours> <y> <title>` | Posts a terraform job on your whole plot, dug out down to `y` when that lies below the ground. |
-| `/order job harvest <price per item> <budget> <hours> <title>` | Posts a harvest job on the field you selected with WorldEdit. |
+| `/order job harvest <price per item> <budget> <hours> <title>` | Posts a harvest job on the field you marked. |
 | `/order job harvest plot <price per item> <budget> <hours> <height> <title>` | Posts a harvest job on your whole plot. |
 | `/order job stock <id>` | Lists the stock of a harvest job. |
 | `/order job collect <id>` | Takes the stock of a harvest job into your inventory. |
+| `/order job area corner <1\|2>`, `/order job area tool` | Marks a corner of an area, at your feet or with the area tool. |
+| `/order job area save <name>`, `/order job area plot <name>` | Stores the marked area or your plot. |
+| `/order job area`, `use`, `show`, `delete <name>` | Lists, marks again, outlines or deletes your stored areas. |
 
 `/order job` and `/order job info <id>` show your jobs in game; the [Commands](../reference/commands.md) page lists
 every job command.

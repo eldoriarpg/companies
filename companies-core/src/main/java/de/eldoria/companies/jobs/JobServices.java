@@ -28,6 +28,9 @@ import java.util.concurrent.TimeUnit;
  * @param costs      what the blocks of build jobs cost
  * @param bars       shows members in an area how far its job is
  * @param uploads    the schematics players uploaded
+ * @param areas      the areas players marked and stored
+ * @param tool       the item that marks the corners of an area
+ * @param checks     checks whether an area job may be posted on an area of this server
  */
 public record JobServices(
         AJobData data,
@@ -40,7 +43,10 @@ public record JobServices(
         BuildGhosts ghosts,
         MaterialCosts costs,
         ProgressBars bars,
-        SchematicUploads uploads) {
+        SchematicUploads uploads,
+        StoredAreas areas,
+        AreaTool tool,
+        AreaChecks checks) {
     /**
      * Finishes a job for a member's company: a harvest job ends, a contract is said to be done and waits for its owner,
      * and a dig, terraform or build job has its area checked on this server and is paid when it is done. Blocks; call

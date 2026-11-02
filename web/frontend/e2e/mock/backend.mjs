@@ -760,6 +760,15 @@ function schematicList(state) {
 }
 
 /**
+ * @param state the session's state
+ * @returns the areas the player stored, as the plugin lists them; one stored in game to start with
+ */
+function areaList(state) {
+    state.areas ??= [{name: 'field', node: '00000000-0000-0000-0000-000000000001', world: 'world', center: '10 70 -4', width: 9, height: 4, length: 9, blocks: 324}]
+    return {max: 10, areas: state.areas}
+}
+
+/**
  * Asks the company working on a taken job to let it be cancelled, as the plugin would.
  *
  * @param state the session's state
@@ -922,14 +931,15 @@ function action(name, args, state, story = {}) {
             jobsOf(state)[id] = {id, kind: 'contract', state: 'open', title: args.title, price: args.price, fee: 5, expires: '2026-11-06T12:00:00Z', blocks: 0, mine: true, ours: false, description: args.description}
             return done(jobDetails(jobsOf(state)[id]))
         }
+        case 'jobs.cancel':
+            if (jobsOf(state)[args.job]?.state === 'taken') return cancelAsk(state, args, done, refused)
+            return jobStep(state, name, args, done, refused)
         case 'jobs.take':
         case 'jobs.done':
         case 'jobs.approve':
         case 'jobs.reject':
         case 'jobs.dispute':
         case 'jobs.withdraw':
-        case 'jobs.cancel':
-            if (jobsOf(state)[args.job]?.state === 'taken') return cancelAsk(state, args, done, refused)
             return jobStep(state, name, args, done, refused)
         case 'jobs.giveback':
         case 'jobs.end':
@@ -948,6 +958,18 @@ function action(name, args, state, story = {}) {
         case 'jobs.schematics.delete':
             state.schematics = (state.schematics ?? []).filter(name => name !== args.name)
             return done(schematicList(state))
+        case 'jobs.areas.list':
+            return done(areaList(state))
+        case 'jobs.areas.delete':
+            state.areas = areaList(state).areas.filter(area => area.name !== args.name)
+            return done(areaList(state))
+        case 'jobs.areas.post': {
+            const area = areaList(state).areas.find(stored => stored.name === args.area)
+            if (!area) return refused(`You have no area ${args.area}.`)
+            const id = 21
+            jobsOf(state)[id] = {id, kind: args.kind, state: 'open', title: args.title, price: args.price, fee: 5, expires: '2026-11-06T12:00:00Z', blocks: area.blocks, world: area.world, center: area.center, mine: true, ours: false}
+            return done(jobDetails(jobsOf(state)[id]))
+        }
         case 'jobs.collect': {
             const job = jobsOf(state)[args.job]
             if (!job?.mine || job.kind !== 'harvest' || !job.stock) return refused(`The stock of job #${args.job} is empty.`)

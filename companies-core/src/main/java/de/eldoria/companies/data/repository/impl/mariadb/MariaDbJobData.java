@@ -22,6 +22,7 @@ import de.eldoria.companies.data.wrapper.job.JobMark;
 import de.eldoria.companies.data.wrapper.job.JobReview;
 import de.eldoria.companies.data.wrapper.job.JobReviewEntry;
 import de.eldoria.companies.data.wrapper.job.JobTarget;
+import de.eldoria.companies.data.wrapper.job.StoredArea;
 import org.intellij.lang.annotations.Language;
 import org.jetbrains.annotations.Nullable;
 
@@ -1031,5 +1032,83 @@ public class MariaDbJobData extends AJobData {
                 .single(call().bind(owner, UUID_BYTES).bind(name))
                 .delete()
                 .changed();
+    }
+
+    @Override
+    public void saveArea(UUID owner, StoredArea area, LocalDateTime at) {
+        var box = area.area();
+        var stored = query(areaUpsert())
+                .single(call().bind(owner, UUID_BYTES)
+                        .bind(area.name())
+                        .bind(area.node(), UUID_BYTES)
+                        .bind(box.world())
+                        .bind(box.minX())
+                        .bind(box.minY())
+                        .bind(box.minZ())
+                        .bind(box.maxX())
+                        .bind(box.maxY())
+                        .bind(box.maxZ())
+                        .bind(at, time()))
+                .insert()
+                .changed();
+        if (!stored) throw new IllegalStateException("Could not store the area " + area.name());
+    }
+
+    /**
+     * The upsert that keeps a stored area, replacing one of the same owner and name.
+     *
+     * @return statement with the parameters owner, name, node, world, the six bounds and time
+     */
+    protected String areaUpsert() {
+        @Language("mariadb")
+        var query = """
+                INSERT INTO job_areas(owner_uuid, name, node, world, min_x, min_y, min_z, max_x, max_y, max_z, created)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON DUPLICATE KEY UPDATE node = VALUES(node), world = VALUES(world), min_x = VALUES(min_x),
+                    min_y = VALUES(min_y), min_z = VALUES(min_z), max_x = VALUES(max_x), max_y = VALUES(max_y),
+                    max_z = VALUES(max_z), created = VALUES(created)""";
+        return query;
+    }
+
+    @Override
+    public List<StoredArea> areas(UUID owner) {
+        return query("""
+                        SELECT name, node, world, min_x, min_y, min_z, max_x, max_y, max_z
+                        FROM job_areas WHERE owner_uuid = ? ORDER BY name""")
+                .single(call().bind(owner, UUID_BYTES))
+                .map(this::storedArea)
+                .all();
+    }
+
+    @Override
+    public Optional<StoredArea> area(UUID owner, String name) {
+        return query("""
+                        SELECT name, node, world, min_x, min_y, min_z, max_x, max_y, max_z
+                        FROM job_areas WHERE owner_uuid = ? AND name = ?""")
+                .single(call().bind(owner, UUID_BYTES).bind(name))
+                .map(this::storedArea)
+                .first();
+    }
+
+    @Override
+    public boolean deleteArea(UUID owner, String name) {
+        return query("DELETE FROM job_areas WHERE owner_uuid = ? AND name = ?")
+                .single(call().bind(owner, UUID_BYTES).bind(name))
+                .delete()
+                .changed();
+    }
+
+    private StoredArea storedArea(Row row) throws SQLException {
+        return new StoredArea(
+                row.getString("name"),
+                row.get("node", UUID_BYTES),
+                new JobArea(
+                        row.getString("world"),
+                        row.getInt("min_x"),
+                        row.getInt("min_y"),
+                        row.getInt("min_z"),
+                        row.getInt("max_x"),
+                        row.getInt("max_y"),
+                        row.getInt("max_z")));
     }
 }

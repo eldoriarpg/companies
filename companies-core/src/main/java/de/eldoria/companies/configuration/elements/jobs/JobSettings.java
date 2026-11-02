@@ -40,6 +40,7 @@ public class JobSettings {
     private boolean approveAreaJobs = false;
     private boolean schematicUploads = false;
     private int maxSchematics = 10;
+    private int maxAreas = 10;
 
     public JobSettings() {}
 
@@ -288,5 +289,16 @@ public class JobSettings {
 
     public void maxSchematics(int maxSchematics) {
         this.maxSchematics = maxSchematics;
+    }
+
+    /**
+     * @return the most areas a player may keep stored, at least 1
+     */
+    public int maxAreas() {
+        return Math.max(1, maxAreas);
+    }
+
+    public void maxAreas(int maxAreas) {
+        this.maxAreas = maxAreas;
     }
 }

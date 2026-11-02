@@ -13,7 +13,6 @@ import de.eldoria.companies.commands.support.PlayerOnly;
 import de.eldoria.companies.commands.support.Senders;
 import de.eldoria.companies.components.job.JobKind;
 import de.eldoria.companies.components.job.JobState;
-import de.eldoria.companies.configuration.elements.jobs.JobSettings;
 import de.eldoria.companies.data.wrapper.job.Job;
 import de.eldoria.companies.data.wrapper.job.JobArea;
 import de.eldoria.companies.data.wrapper.job.JobExtension;
@@ -21,6 +20,7 @@ import de.eldoria.companies.data.wrapper.job.JobLand;
 import de.eldoria.companies.data.wrapper.job.JobReview;
 import de.eldoria.companies.data.wrapper.job.JobReviewEntry;
 import de.eldoria.companies.data.wrapper.job.JobTarget;
+import de.eldoria.companies.jobs.AreaChecks;
 import de.eldoria.companies.jobs.Blueprint;
 import de.eldoria.companies.jobs.BuildCheck;
 import de.eldoria.companies.jobs.DigCheck;
@@ -28,7 +28,6 @@ import de.eldoria.companies.jobs.JobService;
 import de.eldoria.companies.jobs.JobServices;
 import de.eldoria.companies.jobs.MaterialCosts;
 import de.eldoria.companies.jobs.TerraformCheck;
-import de.eldoria.companies.jobs.hooks.JobHooks;
 import de.eldoria.companies.menus.ConfirmFlow;
 import de.eldoria.companies.menus.MenuComponents;
 import de.eldoria.companies.menus.MenuMode;
@@ -83,17 +82,18 @@ import java.util.logging.Level;
  * <ul>
  *     <li>{@code /order job} lists the player's jobs;</li>
  *     <li>{@code info <id>} shows a job, and on the server of its area how far the work is;</li>
- *     <li>{@code dig <price> <hours> <title>} posts a dig job on the area selected with WorldEdit;</li>
+ *     <li>{@code dig <price> <hours> <title>} posts a dig job on the area the player marked with
+ *     {@code area} or selected with WorldEdit;</li>
  *     <li>{@code dig plot <price> <hours> <depth> <title>} posts one on the whole plot the player stands on, from the
  *     block below their feet down {@code depth} blocks;</li>
  *     <li>{@code terraform plot [surface <block>] <price> <hours> <y> <title>} posts a terraform job on the whole plot,
  *     dug out down to {@code y} when that lies below the ground; {@code harvest plot <unit price> <budget> <hours>
  *     <height> <title>} posts a harvest job on it from the block below the player's feet up;</li>
- *     <li>{@code terraform <price> <hours> <y> <title>} posts a terraform job on the area selected with WorldEdit:
+ *     <li>{@code terraform <price> <hours> <y> <title>} posts a terraform job on the marked or selected area:
  *     every column solid up to {@code y} and empty above it; {@code terraform surface <block> ...} also asks for the
  *     top layer to be made of {@code block};</li>
- *     <li>{@code harvest <unit price> <budget> <hours> <title>} posts a harvest job on the field selected with
- *     WorldEdit; {@code stock <id>} lists what was harvested, {@code collect <id>} hands it over, {@code end <id>}
+ *     <li>{@code harvest <unit price> <budget> <hours> <title>} posts a harvest job on the marked or selected
+ *     field; {@code stock <id>} lists what was harvested, {@code collect <id>} hands it over, {@code end <id>}
  *     ends the harvest early;</li>
  *     <li>{@code schematics} lists the schematics of the plugin's {@code schematics} folder; {@code blueprint <schematic>
  *     <rotation>} previews one placed where the player stands, with what its blocks cost; {@code build <schematic>
@@ -106,7 +106,8 @@ import java.util.logging.Level;
  *     stands, and pays the company;</li>
  *     <li>{@code reject <id> <reason>} sends a contract the company says is done back to work;</li>
  *     <li>{@code dispute <id> <reason>} opens a dispute an admin settles, {@code withdraw <id>} withdraws it;</li>
- *     <li>{@code cancel <id>} cancels a job nobody works on; the price goes back, the fee is kept.</li>
+ *     <li>{@code cancel <id>} cancels a job nobody works on; the price goes back, the fee is kept;</li>
+ *     <li>{@code area ...} marks and stores areas, see {@link JobAreaCommand}.</li>
  * </ul>
  * The owner pays the price and the order fee when posting. The area must lie on the owner's plot or region, or on
  * unowned land in a world where the server allows it.
@@ -125,6 +126,10 @@ public final class JobCommand {
     private final ConfirmFlow<PendingBuild> builds;
     private final JobListMenu listMenu;
     private final JobMenu jobMenu;
+
+    @Subcommand
+    public final JobAreaCommand area;
+
     private final Map<UUID, PendingBuild> asked = CacheBuilder.newBuilder()
             .expireAfterWrite(ASKED_SECONDS, TimeUnit.SECONDS)
             .<UUID, PendingBuild>build()
@@ -135,6 +140,7 @@ public final class JobCommand {
      */
     public JobCommand(CommandDependencies deps) {
         this.deps = deps;
+        this.area = new JobAreaCommand(deps, this);
         this.builds = ConfirmFlow.create(deps.plugin(), this::buildConfirmed);
         this.listMenu = new JobListMenu(deps.messages());
         this.jobMenu = new JobMenu(
@@ -184,7 +190,7 @@ public final class JobCommand {
     }
 
     /**
-     * Posts a dig job on the area the player selected with WorldEdit.
+     * Posts a dig job on the area the player marked or selected with WorldEdit.
      *
      * @param sender sender of the command
      * @param price  what the company is paid
@@ -198,22 +204,13 @@ public final class JobCommand {
             @IntArg(min = 1) int hours,
             @StringArg(StringArgType.GREEDY) String title) {
         var player = Senders.player(sender);
-        var hooks = jobs().hooks();
-        if (!hooks.selects()) {
-            deps.messages().sendError(player, PREFIX + "error.noWorldEdit");
-            return;
-        }
-        var area = hooks.selection(player);
-        if (area.isEmpty()) {
-            deps.messages().sendError(player, PREFIX + "error.noSelection");
-            return;
-        }
-        post(player, JobKind.DIG, area.get(), price, hours, title, JobService.Details.NONE);
+        selected(player)
+                .ifPresent(area -> post(player, JobKind.DIG, area, price, hours, title, JobService.Details.NONE));
     }
 
     /**
-     * Posts a terraform job on the area the player selected with WorldEdit: every column solid up to a height and empty
-     * above it.
+     * Posts a terraform job on the area the player marked or selected with WorldEdit: every column solid up to a
+     * height and empty above it.
      *
      * @param sender sender of the command
      * @param price  what the company is paid
@@ -265,8 +262,8 @@ public final class JobCommand {
     }
 
     /**
-     * Posts a harvest job on the field the player selected with WorldEdit: the company harvests it for a time and is
-     * paid for each item it puts into the stock, out of the budget.
+     * Posts a harvest job on the field the player marked or selected with WorldEdit: the company harvests it for a
+     * time and is paid for each item it puts into the stock, out of the budget.
      *
      * @param sender    sender of the command
      * @param unitPrice what the company gets for each item
@@ -601,7 +598,7 @@ public final class JobCommand {
      * @param player the player
      * @param area   the area
      */
-    private void outline(Player player, JobArea area) {
+    void outline(Player player, JobArea area) {
         var rounds = new int[] {0};
         deps.plugin()
                 .getServer()
@@ -799,15 +796,13 @@ public final class JobCommand {
 
     /**
      * @param player a player
-     * @return the area the player selected with WorldEdit, empty after telling them why there is none
+     * @return the area the player marked with {@code /order job area}, or else selected with WorldEdit; empty after
+     *     telling them how to mark one
      */
     private Optional<JobArea> selected(Player player) {
+        var area = jobs().areas().marked(player.getUniqueId());
         var hooks = jobs().hooks();
-        if (!hooks.selects()) {
-            deps.messages().sendError(player, PREFIX + "error.noWorldEdit");
-            return Optional.empty();
-        }
-        var area = hooks.selection(player);
+        if (area.isEmpty() && hooks.selects()) area = hooks.selection(player);
         if (area.isEmpty()) deps.messages().sendError(player, PREFIX + "error.noSelection");
         return area;
     }
@@ -1240,39 +1235,35 @@ public final class JobCommand {
             int hours,
             String title,
             JobService.Details details) {
-        var world = deps.plugin().getServer().getWorld(area.world());
-        if (world == null || area.minY() < world.getMinHeight() || area.maxY() >= world.getMaxHeight()) {
-            deps.messages()
-                    .sendError(
-                            player,
-                            PREFIX + "error.height",
-                            Values.number("min", world == null ? 0 : world.getMinHeight()),
-                            Values.number("max", world == null ? 0 : world.getMaxHeight() - 1));
-            return;
-        }
-        var settings = deps.configuration().jobSettings();
-        var decision = jobs().hooks().decide(player, area, settings.unownedAllowed(area.world()));
-        switch (decision) {
-            case JobHooks.Decision.Refused refused -> {
+        switch (jobs().checks().check(player, area)) {
+            case AreaChecks.Checked.NoWorld noWorld ->
+                deps.messages().sendError(player, PREFIX + "error.noWorld", Values.text("world", noWorld.world()));
+            case AreaChecks.Checked.Height height ->
+                deps.messages()
+                        .sendError(
+                                player,
+                                PREFIX + "error.height",
+                                Values.number("min", height.min()),
+                                Values.number("max", height.max()));
+            case AreaChecks.Checked.Foreign foreign ->
                 deps.messages()
                         .sendError(
                                 player,
                                 PREFIX + "error.foreign",
-                                Values.text("land", Objects.requireNonNullElse(refused.ref(), "?")));
-                return;
-            }
-            case JobHooks.Decision.Unowned unowned -> {
-                deps.messages().sendError(player, PREFIX + "error.unowned");
-                return;
-            }
-            case JobHooks.Decision.Land land -> {
+                                Values.text("land", Objects.requireNonNullElse(foreign.ref(), "?")));
+            case AreaChecks.Checked.Unowned unowned -> deps.messages().sendError(player, PREFIX + "error.unowned");
+            case AreaChecks.Checked.Land land -> {
                 var owner = player.getUniqueId();
                 var node = jobs().node();
                 run(
                         player,
                         () -> jobs().service()
                                 .post(owner, kind, title, price, hours, node, area, land.land(), land.ref(), details),
-                        posted -> posted(player, kind, posted));
+                        posted -> {
+                            if (posted instanceof JobService.Posted.Done)
+                                jobs().areas().used(owner, area);
+                            posted(player, kind, posted);
+                        });
             }
         }
     }
@@ -1305,22 +1296,9 @@ public final class JobCommand {
                         .sendError(
                                 player,
                                 PREFIX + "error." + key(refused.refusal()),
-                                Values.number("max", maxOf(refused.refusal(), kind, settings)));
+                                Values.number("max", JobService.limit(refused.refusal(), kind, settings)));
             }
         }
-    }
-
-    private static Number maxOf(JobService.Refusal refusal, JobKind kind, JobSettings settings) {
-        return switch (refusal) {
-            case VOLUME -> settings.maxVolume(kind);
-            case DESCRIPTION -> Job.MAX_DESCRIPTION;
-            case UNIT_PRICE, BLUEPRINT, STRANDED -> 0;
-            case CHUNKS -> settings.maxChunks();
-            case TOO_MANY -> settings.maxOpenPerOwner();
-            case DUE -> settings.maxDueHours();
-            case TITLE -> Job.MAX_TITLE;
-            default -> 0;
-        };
     }
 
     private boolean charged(int id) {
@@ -1607,7 +1585,7 @@ public final class JobCommand {
         return deps.services().jobs();
     }
 
-    private <T> void run(Player player, Supplier<T> query, Consumer<T> answer) {
+    <T> void run(Player player, Supplier<T> query, Consumer<T> answer) {
         deps.requireReady();
         CompletableFuture.supplyAsync(query, Threading.VIRTUAL)
                 .thenAccept(answer)

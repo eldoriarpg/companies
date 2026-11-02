@@ -15,6 +15,7 @@ import de.eldoria.companies.data.wrapper.job.JobHarvest;
 import de.eldoria.companies.data.wrapper.job.JobLand;
 import de.eldoria.companies.data.wrapper.job.JobReviewEntry;
 import de.eldoria.companies.data.wrapper.job.JobTarget;
+import de.eldoria.companies.data.wrapper.job.StoredArea;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -441,6 +442,29 @@ public abstract class JobDataContract {
         assertFalse(jobs.deleteSchematic(owner, "barn"));
         assertEquals(Optional.empty(), jobs.schematic(owner, "barn"));
         assertEquals(List.of("abbey"), jobs.schematicNames(owner));
+    }
+
+    @Test
+    void storedAreasAreKeptPerPlayerAndReplacedByName() {
+        var owner = UUID.randomUUID();
+        var other = UUID.randomUUID();
+        var node = UUID.randomUUID();
+        var field = new StoredArea("field", node, new JobArea("world", 0, 60, 0, 9, 64, 9));
+        var moved = new StoredArea("field", node, new JobArea("nether", -5, 30, -5, 5, 40, 5));
+
+        jobs.saveArea(owner, field, NOW);
+        jobs.saveArea(owner, new StoredArea("barn", node, new JobArea("world", 1, 1, 1, 2, 2, 2)), NOW);
+        jobs.saveArea(owner, moved, NOW.plusHours(1));
+        jobs.saveArea(other, field, NOW);
+
+        assertEquals(
+                List.of("barn", "field"),
+                jobs.areas(owner).stream().map(StoredArea::name).toList());
+        assertEquals(Optional.of(moved), jobs.area(owner, "field"));
+        assertEquals(Optional.of(field), jobs.area(other, "field"));
+        assertTrue(jobs.deleteArea(owner, "field"));
+        assertFalse(jobs.deleteArea(owner, "field"));
+        assertEquals(Optional.empty(), jobs.area(owner, "field"));
     }
 
     @Test

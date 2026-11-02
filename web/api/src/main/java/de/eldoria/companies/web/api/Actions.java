@@ -685,6 +685,22 @@ public final class Actions {
     public static final String JOBS_SCHEMATICS_DELETE = "jobs.schematics.delete";
 
     /**
+     * Lists the areas the player stored for area jobs.
+     */
+    public static final String JOBS_AREAS_LIST = "jobs.areas.list";
+
+    /**
+     * Deletes an area the player stored.
+     */
+    public static final String JOBS_AREAS_DELETE = "jobs.areas.delete";
+
+    /**
+     * Posts a dig, terraform or harvest job on a stored area, on the server whose world holds it; its price and fee are
+     * taken at once.
+     */
+    public static final String JOBS_AREAS_POST = "jobs.areas.post";
+
+    /**
      * Lists the disputed jobs with both sides and the reason.
      */
     public static final String ADMIN_JOBS_DISPUTES = "admin.jobs.disputes";
@@ -831,6 +847,9 @@ public final class Actions {
             JOBS_SCHEMATICS_LIST,
             JOBS_SCHEMATICS_UPLOAD,
             JOBS_SCHEMATICS_DELETE,
+            JOBS_AREAS_LIST,
+            JOBS_AREAS_DELETE,
+            JOBS_AREAS_POST,
             ADMIN_JOBS_DISPUTES,
             ADMIN_JOBS_SETTLE);
 

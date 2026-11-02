@@ -32,6 +32,7 @@ import de.eldoria.companies.commands.company.order.search.SearchExecutor;
 import de.eldoria.companies.commands.companyadmin.NodeCommand;
 import de.eldoria.companies.commands.suggest.AlertSuggestions;
 import de.eldoria.companies.commands.suggest.CompanyOrderSources;
+import de.eldoria.companies.commands.suggest.JobProviders;
 import de.eldoria.companies.commands.suggest.MembershipSources;
 import de.eldoria.companies.commands.suggest.SavedItemSources;
 import de.eldoria.companies.commands.suggest.SeriesSources;
@@ -125,6 +126,7 @@ import de.eldoria.companies.data.wrapper.area.CompanyArea;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.event.ServerEvent;
 import de.eldoria.companies.data.wrapper.job.JobLand;
+import de.eldoria.companies.data.wrapper.job.StoredArea;
 import de.eldoria.companies.data.wrapper.nodes.Node;
 import de.eldoria.companies.data.wrapper.offer.EventOffer;
 import de.eldoria.companies.debug.CompaniesDebug;
@@ -657,6 +659,11 @@ public class Companies extends EldoPlugin {
                 feeReductions,
                 api.areaProviders());
         jobs = jobServices;
+        JobProviders.useAreas(
+                player -> jobServices.areas().areas(player).stream()
+                        .map(StoredArea::name)
+                        .toList(),
+                Threading.VIRTUAL);
         var jobMessages = MessageSender.getPluginMessageSender(this);
         jobServices.access().building(() -> configuration.jobSettings().buildWhitelist(), (player, want) -> {
             if (want != null && !want.type().isAir()) {
@@ -1449,6 +1456,7 @@ public class Companies extends EldoPlugin {
         MembershipSources.clear();
         SeriesSources.clear();
         SavedItemSources.clear();
+        JobProviders.clearAreas();
         CommandFailures.clear();
         if (updates != null) updates.stop();
         if (discord != null) discord.stop();

@@ -1725,6 +1725,15 @@
     "jobs.schematics.delete" : {
       "feature" : "jobs"
     },
+    "jobs.areas.list" : {
+      "feature" : "jobs"
+    },
+    "jobs.areas.delete" : {
+      "feature" : "jobs"
+    },
+    "jobs.areas.post" : {
+      "feature" : "jobs"
+    },
     "admin.jobs.disputes" : {
       "feature" : "admin.jobs"
     },

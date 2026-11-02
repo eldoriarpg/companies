@@ -1725,6 +1725,24 @@ public final class JobService {
     }
 
     /**
+     * @param refusal  why a job was refused
+     * @param kind     the kind of the job
+     * @param settings the settings of jobs
+     * @return the limit the refusal names, such as the most blocks of the job's kind; 0 when it names none
+     */
+    public static Number limit(Refusal refusal, JobKind kind, JobSettings settings) {
+        return switch (refusal) {
+            case VOLUME -> settings.maxVolume(kind);
+            case DESCRIPTION -> Job.MAX_DESCRIPTION;
+            case CHUNKS -> settings.maxChunks();
+            case TOO_MANY -> settings.maxOpenPerOwner();
+            case DUE -> settings.maxDueHours();
+            case TITLE -> Job.MAX_TITLE;
+            default -> 0;
+        };
+    }
+
+    /**
      * Why a job was not posted.
      */
     public enum Refusal {

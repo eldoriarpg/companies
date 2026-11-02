@@ -85,6 +85,7 @@ import de.eldoria.companies.data.wrapper.order.SimpleOrder;
 import de.eldoria.companies.data.wrapper.price.Baseline;
 import de.eldoria.companies.data.wrapper.series.OrderSeries;
 import de.eldoria.companies.events.EventRecorder;
+import de.eldoria.companies.jobs.AreaChecks;
 import de.eldoria.companies.jobs.Blueprints;
 import de.eldoria.companies.jobs.BuildGhosts;
 import de.eldoria.companies.jobs.JobAccess;
@@ -93,6 +94,7 @@ import de.eldoria.companies.jobs.JobService;
 import de.eldoria.companies.jobs.JobServices;
 import de.eldoria.companies.jobs.MaterialCosts;
 import de.eldoria.companies.jobs.SchematicUploads;
+import de.eldoria.companies.jobs.StoredAreas;
 import de.eldoria.companies.jobs.hooks.JobHooks;
 import de.eldoria.companies.orders.CompanyOrderService;
 import de.eldoria.companies.orders.DeliveryResult;
@@ -920,7 +922,10 @@ public final class DashboardWorld implements AutoCloseable {
                 new BuildGhosts(plugin),
                 new MaterialCosts(blueprints, type -> 0),
                 null,
-                new SchematicUploads(jobs, hooks, () -> jobSettings, Times::now, logger));
+                new SchematicUploads(jobs, hooks, () -> jobSettings, Times::now, logger),
+                new StoredAreas(jobs, () -> jobSettings, Times::now),
+                null,
+                new AreaChecks(plugin.getServer(), hooks, () -> jobSettings, Runnable::run));
     }
 
     private AdminServerWrites adminServers(SqLiteOrderData orders) {

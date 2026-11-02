@@ -1274,6 +1274,31 @@ export interface SchematicUpload {
     entities: number
 }
 
+/** The areas a player stored for area jobs. */
+export interface AreaList {
+    /** The most areas a player may keep. */
+    max: number
+    areas: AreaRow[]
+}
+
+/** An area a player stored in game. */
+export interface AreaRow {
+    name: string
+    /** The server whose world holds it; jobs on it are posted there. */
+    node: string
+    world: string
+    /** The block in the middle of its top layer. */
+    center: string
+    width: number
+    height: number
+    length: number
+    /** How many blocks it holds. */
+    blocks: number
+}
+
+/** The kinds of job posted on a stored area. */
+export type AreaJobKind = 'dig' | 'terraform' | 'harvest'
+
 /** A step of the review of a job's work. */
 export interface JobReview {
     /** `done` when the company said the work is done, `rejected` when the owner sent it back. */
@@ -1414,7 +1439,7 @@ export interface WriteActions {
     'admin.nodes.remove': {args: {uid: string}, result: {nodes: AdminNode[]}}
     'admin.nodes.prices': {args: Record<string, never>, result: {sources: AdminPriceSource[]}}
     'events.join': {args: OfferRef, result: EventDetails}
-    'jobs.contract': {args: {title: string, description: string, price: number, hours: number, place?: boolean}, result: JobDetails}
+    'jobs.contract': {args: {title: string, description: string, price: number, hours: number, place?: boolean, area?: string}, result: JobDetails}
     'jobs.describe': {args: JobRef & {text: string}, result: JobDetails}
     'jobs.approve': {args: JobRef, result: JobDetails}
     'jobs.reject': {args: JobRef & {reason: string}, result: JobDetails}
@@ -1435,6 +1460,9 @@ export interface WriteActions {
     'jobs.schematics.list': {args: Record<string, never>, result: SchematicList}
     'jobs.schematics.upload': {args: {name: string, data: string}, result: SchematicUpload}
     'jobs.schematics.delete': {args: {name: string}, result: SchematicList}
+    'jobs.areas.list': {args: Record<string, never>, result: AreaList}
+    'jobs.areas.delete': {args: {name: string}, result: AreaList}
+    'jobs.areas.post': {args: {node: string, area: string, kind: AreaJobKind, title: string, price: number, hours: number, y?: number, surface?: string, unitPrice?: number}, result: JobDetails}
     'admin.jobs.disputes': {args: Record<string, never>, result: {disputes: DisputeRow[]}}
     'admin.jobs.settle': {args: JobRef & {percent: number}, result: {disputes: DisputeRow[]}}
     'events.leave': {args: OfferRef, result: EventDetails}

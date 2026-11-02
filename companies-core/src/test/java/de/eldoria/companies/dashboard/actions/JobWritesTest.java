@@ -14,6 +14,8 @@ import de.eldoria.companies.data.wrapper.job.Job;
 import de.eldoria.companies.data.wrapper.job.JobArea;
 import de.eldoria.companies.data.wrapper.job.JobHarvest;
 import de.eldoria.companies.data.wrapper.job.JobLand;
+import de.eldoria.companies.data.wrapper.job.StoredArea;
+import de.eldoria.companies.jobs.JobService;
 import de.eldoria.companies.util.Permission;
 import de.eldoria.companies.util.Times;
 import de.eldoria.companies.web.api.Actions;
@@ -41,6 +43,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class JobWritesTest {
     private static final UUID NODE = UUID.fromString("00000000-0000-0000-0000-00000000000f");
+    private static final UUID HERE = new UUID(0, 1);
+    private static final JobArea FIELD = new JobArea("world", 0, 60, 0, 9, 64, 9);
 
     @TempDir
     Path directory;
@@ -220,6 +224,98 @@ class JobWritesTest {
     }
 
     @Test
+    void jobsArePostedOnAStoredAreaOfThisServer() {
+        world.server.addSimpleWorld("world");
+        world.jobSettings.unownedWorlds(List.of("world"));
+        world.jobs.saveArea(owner, new StoredArea("field", HERE, FIELD), Times.now());
+        world.jobs.saveArea(owner, new StoredArea("far", UUID.randomUUID(), FIELD), Times.now());
+
+        var listed = perform(owner, Actions.JOBS_AREAS_LIST, "{}", Set.of(Permission.Orders.JOBS));
+        var posted = perform(
+                owner,
+                Actions.JOBS_AREAS_POST,
+                "{\"area\":\"field\",\"kind\":\"terraform\",\"title\":\"Level\",\"price\":100,\"hours\":24,"
+                        + "\"y\":62,\"surface\":\"grass_block\"}",
+                Set.of(Permission.Orders.JOBS));
+        var far = perform(owner, Actions.JOBS_AREAS_POST, onArea("far"), Set.of(Permission.Orders.JOBS));
+        var unknown = perform(owner, Actions.JOBS_AREAS_POST, onArea("nowhere"), Set.of(Permission.Orders.JOBS));
+        var forbidden = perform(owner, Actions.JOBS_AREAS_POST, onArea("field"), Set.of());
+        var deleted = perform(owner, Actions.JOBS_AREAS_DELETE, "{\"name\":\"far\"}", Set.of(Permission.Orders.JOBS));
+        var hidden = perform(owner, Actions.JOBS_AREAS_LIST, "{}", Set.of());
+
+        assertEquals(2, listed.data().path("areas").size());
+        assertEquals(
+                HERE.toString(), listed.data().path("areas").get(1).path("node").asString());
+        assertEquals(10, listed.data().path("areas").get(1).path("width").asInt());
+        var job = world.jobs.job(posted.data().path("job").path("id").asInt()).orElseThrow();
+        assertEquals(JobKind.TERRAFORM, job.kind());
+        assertEquals(FIELD, job.area());
+        assertEquals(62, job.target().y());
+        assertEquals("GRASS_BLOCK", job.target().surface());
+        assertEquals(900.0, world.wallets.get(owner), 50.0);
+        assertEquals("order.job.area.error.otherServer", far.reason());
+        assertEquals("order.job.area.error.unknown", unknown.reason());
+        assertEquals("error.permission.postJob", forbidden.reason());
+        assertEquals(1, deleted.data().path("areas").size());
+        assertEquals("error.permission.postJob", hidden.reason());
+    }
+
+    @Test
+    void areaJobsAreRefusedOnUnownedLandOrOutsideTheWorld() {
+        world.server.addSimpleWorld("world");
+        world.jobs.saveArea(owner, new StoredArea("field", HERE, FIELD), Times.now());
+        world.jobs.saveArea(
+                owner, new StoredArea("sky", HERE, new JobArea("world", 0, 500, 0, 1, 501, 1)), Times.now());
+
+        var unowned = perform(owner, Actions.JOBS_AREAS_POST, onArea("field"), Set.of(Permission.Orders.JOBS));
+        var sky = perform(owner, Actions.JOBS_AREAS_POST, onArea("sky"), Set.of(Permission.Orders.JOBS));
+        var kind = perform(
+                owner,
+                Actions.JOBS_AREAS_POST,
+                "{\"area\":\"field\",\"kind\":\"build\",\"title\":\"Barn\",\"price\":100,\"hours\":24}",
+                Set.of(Permission.Orders.JOBS));
+
+        world.jobSettings.unownedWorlds(List.of("world"));
+        world.jobSettings.digMaxVolume(100);
+        var large = perform(owner, Actions.JOBS_AREAS_POST, onArea("field"), Set.of(Permission.Orders.JOBS));
+        var noY = perform(
+                owner,
+                Actions.JOBS_AREAS_POST,
+                "{\"area\":\"field\",\"kind\":\"terraform\",\"title\":\"Level\",\"price\":100,\"hours\":24}",
+                Set.of(Permission.Orders.JOBS));
+
+        assertEquals("order.job.error.unowned", unowned.reason());
+        assertEquals("order.job.error.height", sky.reason());
+        assertEquals("order.job.error.volume", large.reason());
+        assertEquals(100, JobService.limit(JobService.Refusal.VOLUME, JobKind.DIG, world.jobSettings));
+        assertEquals("dashboard.unsupported", noY.reason());
+        assertEquals("dashboard.unsupported", kind.reason());
+        assertTrue(world.jobs.ofOwner(owner, 10).isEmpty());
+    }
+
+    @Test
+    void aContractMayBePlacedAtAStoredAreaOfAnyServer() {
+        var other = UUID.randomUUID();
+        world.jobs.saveArea(owner, new StoredArea("field", other, FIELD), Times.now());
+
+        var placed = perform(
+                owner,
+                Actions.JOBS_CONTRACT,
+                "{\"title\":\"Barn\",\"price\":100,\"hours\":24,\"place\":true,\"area\":\"field\"}",
+                Set.of(Permission.Orders.JOBS));
+        var unknown = perform(
+                owner,
+                Actions.JOBS_CONTRACT,
+                "{\"title\":\"Barn\",\"price\":100,\"hours\":24,\"area\":\"nowhere\"}",
+                Set.of(Permission.Orders.JOBS));
+
+        var job = world.jobs.job(placed.data().path("job").path("id").asInt()).orElseThrow();
+        assertEquals(FIELD, job.area());
+        assertEquals(other, job.node());
+        assertEquals("order.job.area.error.unknown", unknown.reason());
+    }
+
+    @Test
     void takingIsOfferedOnlyWithAFreeOrderSlot() {
         var id = posted();
         assertTrue(perform(manager, Actions.JOBS_INFO, job(id), Set.of())
@@ -305,6 +401,10 @@ class JobWritesTest {
 
     private static String contract() {
         return "{\"title\":\"Barn\",\"description\":\"Paint the barn red\",\"price\":100,\"hours\":24}";
+    }
+
+    private static String onArea(String area) {
+        return "{\"area\":\"" + area + "\",\"kind\":\"dig\",\"title\":\"Dig\",\"price\":100,\"hours\":24}";
     }
 
     private static String job(int id) {

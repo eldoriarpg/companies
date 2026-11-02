@@ -368,7 +368,25 @@ public final class Jobs {
                                 Values.number("percent", work.percent())));
         plugin.getServer().getPluginManager().registerEvents(bars, plugin);
         var uploads = new SchematicUploads(jobs, hooks, configuration::jobSettings, Times::now, plugin.getLogger());
-        return new JobServices(jobs, service, hooks, access, progress, node, blueprints, ghosts, costs, bars, uploads);
+        var areas = new StoredAreas(jobs, configuration::jobSettings, Times::now);
+        var tool = new AreaTool(plugin, areas, barTexts);
+        plugin.getServer().getPluginManager().registerEvents(tool, plugin);
+        var checks = new AreaChecks(plugin.getServer(), hooks, configuration::jobSettings, mainThread);
+        return new JobServices(
+                jobs,
+                service,
+                hooks,
+                access,
+                progress,
+                node,
+                blueprints,
+                ghosts,
+                costs,
+                bars,
+                uploads,
+                areas,
+                tool,
+                checks);
     }
 
     private static double price(AOrderData orders, Material type, Plugin plugin) {

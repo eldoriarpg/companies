@@ -31,6 +31,7 @@ approveHours: 72
 approveAreaJobs: false
 schematicUploads: false
 maxSchematics: 10
+maxAreas: 10
 ```
 
 | Key | Values | Default | Description | Takes effect |
@@ -54,6 +55,7 @@ maxSchematics: 10
 | `approveAreaJobs` | true/false | `false` | Dig, terraform and build jobs whose check passed wait for their owner to approve them, like contracts, instead of being paid at once. | reload |
 | `schematicUploads` | true/false | `false` | Players may upload their own schematics for build jobs on the dashboard. Each upload is cleaned of the contents of containers, command blocks, creatures and other unwanted contents before it is kept. Uploads are at most 512 KB and must fit `buildMaxVolume`. Needs FastAsyncWorldEdit. Switched off, kept uploads can still be used for build jobs. Also on the integrations page of the setup. | reload |
 | `maxSchematics` | number | `10` | The most schematics a player may keep uploaded. | reload |
+| `maxAreas` | number | `10` | The most areas a player may keep stored for jobs (`/order job area`). | reload |
 
 The fee of a job is the order fee of [order.yml](./order-yml.md), lowered by the fee reductions of server events. A
 company's order slots count its jobs; giving one back or running out of time costs the order penalties of

@@ -21,6 +21,7 @@ import RowTitle from '@/components/typography/RowTitle.vue'
 import SectionHeader from '@/components/typography/SectionHeader.vue'
 import ContractForm from './jobsview/ContractForm.vue'
 import JobDetail from './jobsview/JobDetail.vue'
+import AreasPanel from './jobsview/AreasPanel.vue'
 import SchematicsPanel from './jobsview/SchematicsPanel.vue'
 import {orderIdOf} from '~/composables/useSelection'
 import {money} from '~/util/format'
@@ -94,6 +95,7 @@ function posted(details: JobDetails): void {
             </li>
           </PlainList>
         </PanelBox>
+        <AreasPanel v-if="list?.canPost" @posted="posted"/>
         <SchematicsPanel/>
       </div>
       <JobDetail
