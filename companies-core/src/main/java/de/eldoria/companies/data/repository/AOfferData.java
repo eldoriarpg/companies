@@ -254,10 +254,10 @@ public abstract class AOfferData {
     public abstract List<EventOffer> running();
 
     /**
-     * Notes that the progress of a goal reached a threshold, once: a threshold is noted only when it is above the one
-     * noted before, so every threshold is announced at most once, also across restarts.
+     * Notes that the progress of a goal, or the time of a contest, reached a threshold, once: a threshold is noted only
+     * when it is above the one noted before, so every threshold is announced at most once, also across restarts.
      *
-     * @param offer     id of the goal
+     * @param offer     id of the goal or contest
      * @param threshold the threshold in percent
      * @return true when the threshold is above the one noted before and is noted now
      */

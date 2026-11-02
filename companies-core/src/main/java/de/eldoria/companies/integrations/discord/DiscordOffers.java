@@ -14,8 +14,10 @@ import de.eldoria.companies.orders.offers.EventOfferService;
 import de.eldoria.companies.util.Times;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.DoubleFunction;
 import java.util.function.Supplier;
@@ -23,7 +25,7 @@ import java.util.function.UnaryOperator;
 
 /**
  * Posts what happens to event offers to the webhook: {@link WebhookEvent#OFFER_STARTED},
- * {@link WebhookEvent#GOAL_PROGRESS} and {@link WebhookEvent#CONTEST_RESULT}.
+ * {@link WebhookEvent#GOAL_PROGRESS}, {@link WebhookEvent#CONTEST_PROGRESS} and {@link WebhookEvent#CONTEST_RESULT}.
  * <p>
  * The primary announces each of them once, so it alone posts them. An offer of a server event posts no start of its
  * own when it starts together with its event, whose start names it, see {@link DiscordEvents}; one put on an event
@@ -112,6 +114,21 @@ public final class DiscordOffers implements EventOfferService.Announcer {
                     prize);
         });
         queue.accept(embeds.contestResult(offer.name(), places.toList()));
+    }
+
+    @Override
+    public void contestProgress(EventOffer offer, int threshold, List<ContestEntry> leading) {
+        if (!settings.get().posts(WebhookEvent.CONTEST_PROGRESS)) return;
+        var places = new ArrayList<DiscordEmbeds.Place>();
+        for (var index = 0; index < leading.size(); index++) {
+            var entry = leading.get(index);
+            places.add(new DiscordEmbeds.Place(
+                    index + 1,
+                    entry.name() == null ? "#" + entry.company() : entry.name(),
+                    entry.delivered(),
+                    Optional.empty()));
+        }
+        queue.accept(embeds.contestProgress(offer.name(), threshold, places));
     }
 
     @Override

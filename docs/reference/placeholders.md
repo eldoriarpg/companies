@@ -118,8 +118,9 @@ same for every player.
 | `left` | Time left | `2d 4h` |
 | `id` | Number of the offer, as `/company events` and boards use it | `12` |
 
-Offers that wait for their start or are paused do not count. The list is loaded again with the other values, every
-`placeholders.refreshSeconds`.
+Offers that wait for their start or are paused do not count. The list is loaded again with the other values every
+`placeholders.refreshSeconds`, when an offer starts or closes anywhere in the network, and within a second of a
+delivery into a contest on this server.
 
 ## Server event placeholders
 

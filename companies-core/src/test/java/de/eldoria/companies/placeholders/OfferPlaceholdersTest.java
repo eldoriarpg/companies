@@ -21,13 +21,16 @@ import org.junit.jupiter.api.Test;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class OfferPlaceholdersTest {
     private static final LocalDateTime ENDS = LocalDateTime.of(2026, 11, 2, 18, 30);
@@ -68,6 +71,30 @@ class OfferPlaceholdersTest {
     void offersReadAsLoadingUntilTheFirstRefresh() {
         assertEquals("...", registry.resolve(null, "offer_active_count"));
         assertEquals("...", registry.resolve(null, "offer_1_name"));
+    }
+
+    @Test
+    void asksForARefreshAreGatheredIntoOne() {
+        var waiting = new ArrayList<Runnable>();
+        var loads = new AtomicInteger();
+        var gathered = new OfferPlaceholderCache(
+                () -> {
+                    loads.incrementAndGet();
+                    return CompletableFuture.completedFuture(running);
+                },
+                waiting::add);
+
+        gathered.refreshSoon();
+        gathered.refreshSoon();
+        gathered.refreshSoon();
+
+        assertEquals(1, waiting.size());
+        assertEquals(0, loads.get());
+        waiting.removeFirst().run();
+        assertEquals(1, loads.get());
+        assertTrue(gathered.loaded());
+        gathered.refreshSoon();
+        assertEquals(1, waiting.size());
     }
 
     @Test

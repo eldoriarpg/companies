@@ -20,6 +20,7 @@ import de.eldoria.companies.orders.system.SystemOrderService.Funding;
 import de.eldoria.companies.orders.system.SystemOrderService.Step;
 import org.jetbrains.annotations.Nullable;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -42,8 +43,16 @@ import java.util.logging.Logger;
  * the account paid in and was not spent goes back to it, claimed once, and the result is announced. A cancelled
  * contest pays no prizes: all its money not spent on deliveries goes back, and it is announced as cancelled. A
  * contest that never started announces nothing.
+ * <p>
+ * While a contest runs, it is announced with its first {@value #LEADING} places once 25, 50 and 75 % of the time it
+ * really runs passed: from its start, or from when it began, if that was later.
  */
 final class ContestJob {
+    /**
+     * The first places a progress announcement names.
+     */
+    static final int LEADING = 3;
+
     private final AOfferData offers;
     private final Funding funding;
     private final Prizes prizes;
@@ -88,10 +97,34 @@ final class ContestJob {
             if (next == null) break;
             current = next;
         }
-        if (!current.state().closed()) return;
+        if (!current.state().closed()) {
+            progress(current, now);
+            return;
+        }
         if (current.settled() == null) settle(current, now, run);
         var settled = offers.offer(current.id()).orElse(current);
         if (settled.settled() != null && settled.refunded() == null) finish(settled, now);
+    }
+
+    /**
+     * Announces how a running contest stands once the time it really runs passed 25, 50 and 75 %, with its first
+     * places, each threshold once also across restarts. The end of its time is announced by its result instead.
+     */
+    private void progress(EventOffer offer, LocalDateTime now) {
+        var started = offer.started();
+        if (offer.state() != OfferState.ACTIVE || started == null) return;
+        var began = started.isAfter(offer.starts()) ? started : offer.starts();
+        var total = Duration.between(began, offer.ends()).toSeconds();
+        if (total <= 0) return;
+        var passed = Duration.between(began, now).toSeconds();
+        var threshold = EventOfferService.threshold((int) Math.min(99, passed * 100 / total));
+        if (threshold <= 0 || !offers.progressPosted(offer.id(), threshold)) return;
+        try {
+            announcer.contestProgress(
+                    offer, threshold, places(offer).stream().limit(LEADING).toList());
+        } catch (RuntimeException e) {
+            logger.log(Level.WARNING, "Could not announce the progress of contest " + offer.id(), e);
+        }
     }
 
     /**

@@ -28,6 +28,7 @@ public final class DiscordEmbeds {
     static final int OFFER_STARTED_COLOR = 0xEB459E;
     static final int GOAL_PROGRESS_COLOR = 0x57F287;
     static final int CONTEST_RESULT_COLOR = 0xFEE75C;
+    static final int CONTEST_PROGRESS_COLOR = 0x5865F2;
     static final int CONTEST_CANCELLED_COLOR = 0x99AAB5;
     static final int EVENT_STARTED_COLOR = 0xEB459E;
     static final int EVENT_ENDED_COLOR = 0x99AAB5;
@@ -153,21 +154,39 @@ public final class DiscordEmbeds {
      */
     public Embed contestResult(String name, List<Place> places) {
         List<Embed.Field> fields = new ArrayList<>();
-        if (!places.isEmpty()) {
-            var text = new StringBuilder();
-            for (var place : places) {
-                var row = place.place() + ". " + DiscordText.escape(place.company()) + ": " + place.items() + "×"
-                        + place.prize()
-                                .map(prize -> " · " + DiscordText.escape(prize))
-                                .orElse("");
-                if (text.length() + row.length() + 1 > Embed.FIELD_VALUE_LIMIT) break;
-                if (!text.isEmpty()) text.append('\n');
-                text.append(row);
-            }
-            fields.add(new Embed.Field(texts.apply("words.ranking"), text.toString(), false));
-        }
+        if (!places.isEmpty()) fields.add(ranking(places));
         return new Embed(
                 texts.apply("discord.contestResult"), bold(name), CONTEST_RESULT_COLOR, fields, clock.instant());
+    }
+
+    /**
+     * The embed for how a running contest stands after a share of its time.
+     *
+     * @param name      name of the contest
+     * @param threshold the share of its time that passed in percent
+     * @param places    its first places, best first, without prizes
+     * @return the embed
+     */
+    public Embed contestProgress(String name, int threshold, List<Place> places) {
+        List<Embed.Field> fields = new ArrayList<>();
+        fields.add(new Embed.Field(texts.apply("words.timePassed"), threshold + " %", true));
+        if (!places.isEmpty()) fields.add(ranking(places));
+        return new Embed(
+                texts.apply("discord.contestProgress"), bold(name), CONTEST_PROGRESS_COLOR, fields, clock.instant());
+    }
+
+    private Embed.Field ranking(List<Place> places) {
+        var text = new StringBuilder();
+        for (var place : places) {
+            var row = place.place() + ". " + DiscordText.escape(place.company()) + ": " + place.items() + "×"
+                    + place.prize()
+                            .map(prize -> " · " + DiscordText.escape(prize))
+                            .orElse("");
+            if (text.length() + row.length() + 1 > Embed.FIELD_VALUE_LIMIT) break;
+            if (!text.isEmpty()) text.append('\n');
+            text.append(row);
+        }
+        return new Embed.Field(texts.apply("words.ranking"), text.toString(), false);
     }
 
     /**

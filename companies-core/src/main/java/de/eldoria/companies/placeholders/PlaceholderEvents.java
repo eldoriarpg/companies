@@ -12,6 +12,7 @@ import de.eldoria.companies.events.company.CompanyLeaveEvent;
 import de.eldoria.companies.events.company.CompanyLevelDownEvent;
 import de.eldoria.companies.events.company.CompanyLevelUpEvent;
 import de.eldoria.companies.events.company.CompanyProfileEditEvent;
+import de.eldoria.companies.events.offer.ContestDeliveryEvent;
 import de.eldoria.companies.events.order.OrderAcceptEvent;
 import de.eldoria.companies.events.order.OrderCanceledEvent;
 import de.eldoria.companies.events.order.OrderDoneEvent;
@@ -30,19 +31,29 @@ import org.bukkit.event.player.PlayerQuitEvent;
 
 /**
  * Keeps the placeholder caches current on this node: players are kept while online, and companies and players are
- * reloaded when a local event changes them. Changes on other nodes arrive with the periodic refresh.
+ * reloaded when a local event changes them; the event offers reload soon after a delivery into a contest. Changes on
+ * other nodes arrive with the periodic refresh and the network's offer announcements.
  */
 public final class PlaceholderEvents implements Listener {
     private final PlayerPlaceholderCache players;
     private final CompanyPlaceholderCache companies;
+    private final OfferPlaceholderCache offers;
 
     /**
      * @param players   values of the players
      * @param companies values of the companies
+     * @param offers    the event offers that run
      */
-    public PlaceholderEvents(PlayerPlaceholderCache players, CompanyPlaceholderCache companies) {
+    public PlaceholderEvents(
+            PlayerPlaceholderCache players, CompanyPlaceholderCache companies, OfferPlaceholderCache offers) {
         this.players = players;
         this.companies = companies;
+        this.offers = offers;
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onContestDelivery(ContestDeliveryEvent event) {
+        offers.refreshSoon();
     }
 
     @EventHandler

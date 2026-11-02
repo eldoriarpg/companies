@@ -39,6 +39,7 @@ public class DiscordSettings {
             WebhookEvent.LEVEL_UP,
             WebhookEvent.OFFER_STARTED,
             WebhookEvent.GOAL_PROGRESS,
+            WebhookEvent.CONTEST_PROGRESS,
             WebhookEvent.CONTEST_RESULT,
             WebhookEvent.EVENT_STARTED,
             WebhookEvent.EVENT_ENDED));
