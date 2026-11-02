@@ -50,7 +50,7 @@ public class MariaDbJobData extends AJobData {
             SELECT id, owner_uuid, kind, title, description, price, fee, state, company_id, node, world, min_x, min_y,
                    min_z, max_x, max_y, max_z, land, land_ref, due_hours, created, expires, taken, due, closed,
                    closed_by, granted, done_at, done_by, rejected, dispute_by, dispute, disputed_at, settled,
-                   target_y, target_block, unit_price, paid, extended_hours, extension_requests, extension_hours,
+                   target_y, target_block, unit_price, paid_cents, extended_hours, extension_requests, extension_hours,
                    extension_reason, extension_asked, charged
             FROM jobs
             """;
@@ -657,24 +657,24 @@ public class MariaDbJobData extends AJobData {
     }
 
     @Override
-    public boolean harvested(int job, int company, Map<String, Integer> items, double pay) {
+    public boolean harvested(int job, int company, Map<String, Integer> items, long cents) {
         @Language("mariadb")
         var update = """
                 UPDATE jobs
-                SET paid = paid + ?
+                SET paid_cents = paid_cents + ?
                 WHERE id = ?
                   AND state = ?
                   AND company_id = ?
-                  AND paid + ? <= price + 0.001""";
+                  AND paid_cents + ? <= ROUND(price * 100)""";
         var errors = new ArrayList<SQLException>();
         var conf = Transactions.open(errors);
         try (conf) {
             var paid = conf.query(update)
-                    .single(call().bind(pay)
+                    .single(call().bind(cents)
                             .bind(job)
                             .bind(JobState.TAKEN.name())
                             .bind(company)
-                            .bind(pay))
+                            .bind(cents))
                     .update()
                     .changed();
             if (!paid || !errors.isEmpty()) {
@@ -875,7 +875,7 @@ public class MariaDbJobData extends AJobData {
                         : new JobTarget(row.getInt("target_y"), row.getString("target_block")),
                 row.getObject("unit_price") == null
                         ? null
-                        : new JobHarvest(row.getDouble("unit_price"), row.getDouble("paid")),
+                        : new JobHarvest(row.getDouble("unit_price"), row.getLong("paid_cents") / 100.0),
                 new JobExtension(
                         row.getInt("extended_hours"),
                         row.getInt("extension_requests"),

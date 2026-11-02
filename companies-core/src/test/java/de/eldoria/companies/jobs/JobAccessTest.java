@@ -22,10 +22,15 @@ import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.block.Block;
+import org.bukkit.block.BlockFace;
 import org.bukkit.block.data.Ageable;
+import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
+import org.bukkit.event.block.Action;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
+import org.bukkit.event.entity.EntityInteractEvent;
+import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.junit.jupiter.api.AfterEach;
@@ -106,7 +111,8 @@ class JobAccessTest {
                     measuring.add(job);
                     return scan;
                 },
-                (job, company, worker, items) -> harvests.add(job + " " + worker + " " + items),
+                (job, company, byWorker) ->
+                        byWorker.forEach((worker, items) -> harvests.add(job + " " + worker + " " + items)),
                 new Blueprints(jobs, Logger.getAnonymousLogger()),
                 Logger.getAnonymousLogger());
     }
@@ -471,6 +477,66 @@ class JobAccessTest {
         assertEquals(Material.AIR, world.getBlockAt(1, 61, 1).getType());
         assertEquals(Material.AIR, world.getBlockAt(1, 62, 1).getType());
         assertEquals(List.of(id + " " + worker.getUniqueId() + " {SUGAR_CANE=2}"), harvests);
+    }
+
+    @Test
+    void kelpIsHarvestedAboveItsBaseWhichBecomesTheTopAgain() {
+        var worker = server.addPlayer();
+        var id = harvestJob();
+        members.put(3, Set.of(worker.getUniqueId()));
+        sync.check();
+        world.getBlockAt(1, 59, 1).setType(Material.SAND);
+        world.getBlockAt(1, 60, 1).setType(Material.KELP_PLANT);
+        world.getBlockAt(1, 61, 1).setType(Material.KELP_PLANT);
+        world.getBlockAt(1, 62, 1).setType(Material.KELP);
+
+        sync.onHarvest(new BlockBreakEvent(world.getBlockAt(1, 61, 1), worker));
+        sync.flush();
+
+        assertEquals(Material.KELP, world.getBlockAt(1, 60, 1).getType());
+        assertEquals(Material.WATER, world.getBlockAt(1, 61, 1).getType());
+        assertEquals(Material.WATER, world.getBlockAt(1, 62, 1).getType());
+        assertEquals(List.of(id + " " + worker.getUniqueId() + " {KELP=2}"), harvests);
+    }
+
+    @Test
+    void ripeBerriesArePickedIntoTheStockAndTheBushStays() {
+        var worker = server.addPlayer();
+        var id = harvestJob();
+        members.put(3, Set.of(worker.getUniqueId()));
+        sync.check();
+        var bush = world.getBlockAt(1, 60, 1);
+        bush.setType(Material.SWEET_BERRY_BUSH);
+        var ripe = (Ageable) bush.getBlockData();
+        ripe.setAge(3);
+        bush.setBlockData(ripe);
+
+        var pick =
+                new PlayerInteractEvent(worker, Action.RIGHT_CLICK_BLOCK, null, bush, BlockFace.UP, EquipmentSlot.HAND);
+        sync.onPick(pick);
+        sync.flush();
+
+        assertTrue(pick.isCancelled());
+        assertEquals(Material.SWEET_BERRY_BUSH, bush.getType());
+        assertEquals(1, ((Ageable) bush.getBlockData()).getAge());
+        assertEquals(1, harvests.size());
+        assertTrue(
+                harvests.getFirst().startsWith(id + " " + worker.getUniqueId() + " {SWEET_BERRIES="),
+                harvests.toString());
+    }
+
+    @Test
+    void mobsDoNotTrampleTheField() {
+        harvestJob();
+        sync.check();
+        var soil = world.getBlockAt(2, 60, 2);
+        soil.setType(Material.FARMLAND);
+        var mob = world.spawnEntity(soil.getLocation().add(0.5, 1, 0.5), EntityType.PIG);
+
+        var trample = new EntityInteractEvent(mob, soil);
+        sync.onMobTrample(trample);
+
+        assertTrue(trample.isCancelled());
     }
 
     @Test

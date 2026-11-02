@@ -40,6 +40,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -830,6 +831,54 @@ class JobServiceTest {
         assertTrue(notices.contains("owner HARVEST_ENDED " + job.id()));
         assertEquals(0.0, service.harvested(job.id(), company.id(), worker, Map.of("WHEAT", 2)), 0.001);
         assertEquals(Map.of("WHEAT", 16), jobs.stock(job.id()));
+    }
+
+    @Test
+    void oneHarvestOfSeveralMembersBooksTheTreasuryOnceAndPaysThemInTurn() {
+        var job = harvested(10, 1);
+        service.take(company, manager, job.id());
+        var second = UUID.randomUUID();
+        Map<UUID, Map<String, Integer>> byWorker = new LinkedHashMap<>();
+        byWorker.put(worker, Map.of("WHEAT", 6));
+        byWorker.put(second, Map.of("CARROT", 6));
+        kept.clear();
+
+        var net = service.harvested(job.id(), company.id(), byWorker);
+
+        assertEquals(1, kept.size());
+        assertEquals(180L, kept.getFirst());
+        assertEquals(7.2, net, 0.001);
+        assertEquals(4.32, balances.get(worker), 0.001);
+        assertEquals(2.88, balances.get(second), 0.001);
+        assertEquals(10.0, jobs.job(job.id()).orElseThrow().harvest().paid(), 0.001);
+        assertEquals(JobState.PAID, jobs.job(job.id()).orElseThrow().state());
+    }
+
+    @Test
+    void aBudgetInCentsIsPaidUpWithoutRoundingErrors() {
+        var job = harvested(1.0, 0.3);
+        service.take(company, manager, job.id());
+
+        for (var flush = 0; flush < 3; flush++) {
+            assertTrue(service.harvested(job.id(), company.id(), worker, Map.of("WHEAT", 1)) > 0);
+        }
+        var ended = jobs.job(job.id()).orElseThrow();
+        assertEquals(0.9, ended.harvest().paid(), 0.0001);
+        assertEquals(JobState.PAID, ended.state());
+        assertEquals(0.0, service.harvested(job.id(), company.id(), worker, Map.of("WHEAT", 1)), 0.0001);
+        assertEquals(Map.of("WHEAT", 4), jobs.stock(job.id()));
+    }
+
+    @Test
+    void theBudgetPaysMembersInTurnInWholeCents() {
+        var first = UUID.randomUUID();
+        var second = UUID.randomUUID();
+        Map<UUID, Map<String, Integer>> byWorker = new LinkedHashMap<>();
+        byWorker.put(first, Map.of("WHEAT", 3));
+        byWorker.put(second, Map.of("WHEAT", 3));
+
+        assertEquals(Map.of(first, 99L, second, 1L), JobService.shares(byWorker, 0.33, 100));
+        assertEquals(Map.of(first, 99L, second, 99L), JobService.shares(byWorker, 0.33, 1000));
     }
 
     @Test

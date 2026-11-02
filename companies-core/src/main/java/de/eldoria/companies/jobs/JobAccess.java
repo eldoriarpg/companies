@@ -19,6 +19,7 @@ import org.bukkit.block.BlockFace;
 import org.bukkit.block.Container;
 import org.bukkit.block.data.Ageable;
 import org.bukkit.block.data.Openable;
+import org.bukkit.block.data.type.CaveVinesPlant;
 import org.bukkit.entity.Enemy;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
@@ -33,16 +34,19 @@ import org.bukkit.event.block.BlockIgniteEvent;
 import org.bukkit.event.block.BlockMultiPlaceEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
+import org.bukkit.event.entity.EntityInteractEvent;
 import org.bukkit.event.hanging.HangingBreakByEntityEvent;
 import org.bukkit.event.player.PlayerBucketEmptyEvent;
 import org.bukkit.event.player.PlayerBucketFillEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.inventory.EquipmentSlot;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -51,6 +55,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
@@ -419,17 +424,19 @@ public final class JobAccess implements Listener {
 
     private void flush(Predicate<Work> which) {
         writeMarks();
-        Map<Work, Map<String, Integer>> crops = new HashMap<>();
+        Map<Crops, Map<UUID, Map<String, Integer>>> crops = new HashMap<>();
         for (var key : List.copyOf(harvested.keySet())) {
             if (!which.test(key)) continue;
             var items = harvested.remove(key);
-            if (items != null && !items.isEmpty()) crops.put(key, items);
+            if (items == null || items.isEmpty()) continue;
+            crops.computeIfAbsent(new Crops(key.job(), key.company()), field -> new LinkedHashMap<>())
+                    .put(key.worker(), items);
         }
-        crops.forEach((work, items) -> {
+        crops.forEach((field, byWorker) -> {
             try {
-                harvests.harvested(work.job(), work.company(), work.worker(), items);
+                harvests.harvested(field.job(), field.company(), byWorker);
             } catch (RuntimeException e) {
-                logger.log(Level.SEVERE, "Could not store the harvest " + items + " of job " + work.job(), e);
+                logger.log(Level.SEVERE, "Could not store the harvest " + byWorker + " of job " + field.job(), e);
             }
         });
         Map<Work, Integer> taken = new HashMap<>();
@@ -687,12 +694,63 @@ public final class JobAccess implements Listener {
     }
 
     /**
+     * Keeps mobs from trampling the farmland of a harvest area.
+     *
+     * @param event a mob stepping on a block
+     */
+    @EventHandler(ignoreCancelled = true)
+    public void onMobTrample(EntityInteractEvent event) {
+        var block = event.getBlock();
+        if (block.getType() == Material.FARMLAND && harvestArea(block) != null) event.setCancelled(true);
+    }
+
+    /**
+     * Picks sweet berries and glow berries a member of the working company uses in a harvest area: they go into the
+     * stock and are paid like other crops, and the plant stays to grow again. Using them with the other hand does
+     * nothing, so bone meal can not be used on them either.
+     *
+     * @param event the use of a block
+     */
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onPick(PlayerInteractEvent event) {
+        var block = event.getClickedBlock();
+        if (event.getAction() != Action.RIGHT_CLICK_BLOCK
+                || block == null
+                || HarvestRules.crop(block.getType()) != HarvestRules.Crop.PICKED) {
+            return;
+        }
+        var entry = harvestArea(block);
+        if (entry == null) return;
+        var company = entry.job().company();
+        var player = event.getPlayer();
+        if (company == null || !entry.members().contains(player.getUniqueId())) return;
+        event.setCancelled(true);
+        if (event.getHand() != EquipmentSlot.HAND) return;
+        var data = block.getBlockData();
+        var isBush = block.getType() == Material.SWEET_BERRY_BUSH;
+        var age = isBush && data instanceof Ageable bush ? bush.getAge() : 0;
+        var berries = data instanceof CaveVinesPlant vine && vine.isBerries();
+        var items = HarvestRules.picked(
+                block.getType(), age, berries, ThreadLocalRandom.current().nextBoolean());
+        if (items.isEmpty()) return;
+        if (isBush && data instanceof Ageable bush) bush.setAge(1);
+        if (!isBush && data instanceof CaveVinesPlant vine) vine.setBerries(false);
+        block.setBlockData(data);
+        harvested.merge(new Work(entry.job().id(), company, player.getUniqueId()), new HashMap<>(items), (old, add) -> {
+            add.forEach((name, amount) -> old.merge(name, amount, Integer::sum));
+            return old;
+        });
+    }
+
+    /**
      * Harvests for a member of the company working on a harvest job, by the rules of {@link HarvestRules}: the block
      * is never broken as such and drops nothing. A ripe field crop is replanted at once and its yield, less one seed,
-     * goes into the stock; sugar cane, bamboo and cactus above their base are taken off with everything above; a
-     * melon or pumpkin is taken whole. Anything else a member tries to break in the area stays, and so does anything
-     * placed while the job ran, so nobody sells goods from elsewhere into the stock; a field crop a member planted is
-     * harvested like any other once it is ripe. A column is taken no higher than the top of the area.
+     * goes into the stock; sugar cane, bamboo, cactus and kelp above their base are taken off with everything above,
+     * kelp leaving water and its base growing on as the top; a melon or pumpkin is taken whole. Berries are picked by
+     * using the plant, see {@link #onPick}, so breaking it does nothing. Anything else a member tries to break in the
+     * area stays, and so does anything placed while the job ran, so nobody sells goods from elsewhere into the stock; a
+     * field crop a member planted is harvested like any other once it is ripe. A column is taken no higher than the top
+     * of the area; what grows above it stays without support and drops when it next updates.
      *
      * @param event the break, after the protection plugins had their say
      */
@@ -721,17 +779,24 @@ public final class JobAccess implements Listener {
                         yield HarvestRules.yield(type, drops);
                     }
                     case STACKED -> {
-                        if (block.getRelative(BlockFace.DOWN).getType() != type) yield Map.of();
+                        if (!HarvestRules.sameStack(
+                                type, block.getRelative(BlockFace.DOWN).getType())) {
+                            yield Map.of();
+                        }
                         var height = 0;
                         var top = entry.job().area().maxY() - block.getY();
                         while (height <= top
-                                && block.getRelative(BlockFace.UP, height).getType() == type
+                                && HarvestRules.sameStack(
+                                        type,
+                                        block.getRelative(BlockFace.UP, height).getType())
                                 && !placedHere.contains(key(block.getRelative(BlockFace.UP, height)))) {
                             height++;
                         }
                         for (var up = height - 1; up >= 0; up--) {
-                            block.getRelative(BlockFace.UP, up).setType(Material.AIR, false);
+                            block.getRelative(BlockFace.UP, up).setType(HarvestRules.emptied(type), false);
                         }
+                        var base = block.getRelative(BlockFace.DOWN);
+                        if (base.getType() == Material.KELP_PLANT) base.setType(Material.KELP, false);
                         yield Map.of(HarvestRules.item(type).name(), height);
                     }
                     case FRUIT -> {
@@ -739,7 +804,7 @@ public final class JobAccess implements Listener {
                         block.setType(Material.AIR);
                         yield HarvestRules.yield(type, drops);
                     }
-                    case NONE -> Map.of();
+                    case PICKED, NONE -> Map.of();
                 };
         if (items.isEmpty()) return;
         harvested.merge(new Work(entry.job().id(), company, player.getUniqueId()), new HashMap<>(items), (old, add) -> {
@@ -1080,6 +1145,8 @@ public final class JobAccess implements Listener {
 
     private record Work(int job, int company, UUID worker) {}
 
+    private record Crops(int job, int company) {}
+
     private record Misplaced(Blueprint.@Nullable Want want) {}
 
     private record Plan(Job job, Set<UUID> members, Set<UUID> before) {}
@@ -1094,11 +1161,10 @@ public final class JobAccess implements Listener {
     @FunctionalInterface
     public interface Harvests {
         /**
-         * @param job     id of the job
-         * @param company id of the company the member harvested for
-         * @param worker  the member
-         * @param items   the items, as amounts by material name
+         * @param job      id of the job
+         * @param company  id of the company the members harvested for
+         * @param byWorker the items of each member, as amounts by material name
          */
-        void harvested(int job, int company, UUID worker, Map<String, Integer> items);
+        void harvested(int job, int company, Map<UUID, Map<String, Integer>> byWorker);
     }
 }

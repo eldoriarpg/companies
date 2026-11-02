@@ -874,7 +874,7 @@ public final class DashboardWorld implements AutoCloseable {
                         Runnable::run,
                         job -> {},
                         job -> CompletableFuture.completedFuture(null),
-                        (job, company, worker, items) -> {},
+                        (job, company, byWorker) -> {},
                         blueprints,
                         logger),
                 new JobProgress(plugin, node, blueprints, () -> 95),

@@ -101,10 +101,13 @@ See [Jobs](../players/jobs.md).
 | `/order job dig plot <price> <hours> <depth> <title>` | `companies.orders.jobs` | Posts a dig job on the whole plot or claim you stand on, from the block below your feet down `depth` blocks. Land that is not a rectangle, such as a Lands area of scattered chunks, is refused; select the area instead. |
 | `/order job terraform <price> <hours> <y> <title>` | `companies.orders.jobs` | Posts a terraform job on the area you selected with WorldEdit: solid up to height `y`, empty above. You pay the price and the order fee at once. |
 | `/order job terraform surface <block> <price> <hours> <y> <title>` | `companies.orders.jobs` | Posts a terraform job whose top layer must be made of `block`. |
+| `/order job terraform plot [surface <block>] <price> <hours> <y> <title>` | `companies.orders.jobs` | Posts a terraform job on the whole plot you stand on, from its lowest ground (or `y`, when lower) up to its highest block; every column is made solid up to `y`, so the plot is dug out down to `y` when that lies below the ground. |
 | `/order job schematics` | `companies.orders.jobs` | Lists the schematics of the plugin's `schematics` folder. |
-| `/order job blueprint <schematic> <rotation>` | `companies.orders.jobs` | Outlines a schematic placed where you stand, turned by 0, 90, 180 or 270 degrees, for ten seconds. |
-| `/order job build <schematic> <rotation> <price> <hours> <title>` | `companies.orders.jobs` | Posts a build job of a schematic placed where you stand. You pay the price and the order fee at once. |
+| `/order job blueprint <schematic> <rotation>` | `companies.orders.jobs` | Previews a schematic placed where you stand, turned by 0, 90, 180 or 270 degrees: its outline and blocks for a short while, and what its blocks cost. |
+| `/order job build <schematic> <rotation> <price> <hours> <title>` | `companies.orders.jobs` | Previews a build job of a schematic placed where you stand and asks to confirm it, warning when the price is below what its blocks cost. |
+| `/order job build confirm` | `companies.orders.jobs` | Posts the build job you were asked to confirm. You pay the price and the order fee at once. |
 | `/order job harvest <price per item> <budget> <hours> <title>` | `companies.orders.jobs` | Posts a harvest job on the field you selected with WorldEdit. You pay the budget and the order fee at once. |
+| `/order job harvest plot <price per item> <budget> <hours> <height> <title>` | `companies.orders.jobs` | Posts a harvest job on the whole plot you stand on, from the block below your feet up `height` layers. |
 | `/order job stock <id>` | `companies.orders.jobs` | Lists the stock of a harvest job. |
 | `/order job collect <id>` | `companies.orders.jobs` | Takes the stock of a harvest job into your inventory; what does not fit stays. |
 | `/order job end <id>` | `companies.orders.jobs` | Ends a harvest job a company works on; the rest of the budget comes back. |

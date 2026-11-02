@@ -607,11 +607,8 @@ public final class JobService {
     }
 
     /**
-     * Stores what a member harvested on a harvest job and pays them for it from the budget, taxed and with the treasury
-     * share kept as for order payouts. Items the budget no longer covers, or harvested for a company that no longer has
-     * the job, still go into the stock, as they came from the owner's field. When the budget is used up the job ends.
-     * A payment that loses against another one of the same job, which the budget check of the database refuses, is
-     * worked out again once against the budget as it then stands.
+     * Stores what one member harvested on a harvest job and pays them for it, as
+     * {@link #harvested(int, int, Map)} does for several.
      *
      * @param id      id of the job
      * @param company id of the company the member harvested for
@@ -619,52 +616,112 @@ public final class JobService {
      * @param items   the items, as amounts by material name
      * @return what the member was paid after tax and treasury share
      */
-    public double harvested(int id, int company, UUID worker, Map<String, Integer> items) {
+    double harvested(int id, int company, UUID worker, Map<String, Integer> items) {
+        return harvested(id, company, Map.of(worker, items));
+    }
+
+    /**
+     * Stores what members harvested on a harvest job and pays each of them for their items from the budget, taxed and
+     * with the treasury share kept as for order payouts; the shares of all of them are booked to the treasury at once.
+     * The budget pays the members in turn until it runs out. Items the budget no longer covers, or harvested for a
+     * company that no longer has the job, still go into the stock, as they came from the owner's field. When the budget
+     * is used up the job ends. A payment that loses against another one of the same job, which the budget check of the
+     * database refuses, is worked out again once against the budget as it then stands.
+     *
+     * @param id       id of the job
+     * @param company  id of the company the members harvested for
+     * @param byWorker the items of each member, as amounts by material name
+     * @return what the members were paid in all after tax and treasury share
+     */
+    public double harvested(int id, int company, Map<UUID, Map<String, Integer>> byWorker) {
+        Map<String, Integer> items = new LinkedHashMap<>();
+        byWorker.values().forEach(found -> found.forEach((name, amount) -> items.merge(name, amount, Integer::sum)));
         if (items.isEmpty()) return 0;
-        long units = items.values().stream().mapToLong(Integer::longValue).sum();
         var profile = companies.apply(company).orElse(null);
         Job job = null;
-        double gross = 0;
-        var left = BigDecimal.ZERO;
+        Map<UUID, Long> gross = new LinkedHashMap<>();
+        long left = 0;
         var paid = false;
         for (var attempt = 0; attempt < 2 && !paid; attempt++) {
             job = jobs.job(id).orElse(null);
             var harvest = job == null ? null : job.harvest();
             if (job == null || harvest == null) return 0;
-            left = BigDecimal.valueOf(job.unpaid());
-            gross = BigDecimal.valueOf(harvest.unitPrice())
-                    .multiply(BigDecimal.valueOf(units))
-                    .min(left)
-                    .setScale(2, RoundingMode.FLOOR)
-                    .doubleValue();
+            left = Math.max(0, Math.round(job.price() * 100) - Math.round(harvest.paid() * 100));
+            gross = shares(byWorker, harvest.unitPrice(), left);
+            var total = gross.values().stream().mapToLong(Long::longValue).sum();
             var mine = job.state() == JobState.TAKEN && Integer.valueOf(company).equals(job.company());
             if (!mine || profile == null) break;
-            if (gross <= 0) {
+            if (total <= 0) {
                 ended(job, BUDGET_BY, JobState.PAID);
                 break;
             }
-            paid = jobs.harvested(id, company, items, gross);
+            paid = jobs.harvested(id, company, items, total);
         }
         var harvest = job == null ? null : job.harvest();
         if (!paid || job == null || harvest == null || profile == null) {
             jobs.stock(id, items);
             return 0;
         }
-        var payout = Payout.split(gross, money.taxPercent(profile), money.share(profile));
-        try {
-            money.deposit(worker, payout.net());
-            money.collect(payout.tax());
-            if (payout.shareCents() > 0) money.keep(profile, id, payout.shareCents());
-        } catch (RuntimeException e) {
-            logger.log(
-                    Level.SEVERE,
-                    "Could not pay " + payout.net() + " of harvest job " + id + " to " + worker + "; pay it by hand",
-                    e);
+        var net = 0.0;
+        var tax = 0.0;
+        long share = 0;
+        long total = 0;
+        for (var entry : gross.entrySet()) {
+            if (entry.getValue() <= 0) continue;
+            total += entry.getValue();
+            var payout = Payout.split(entry.getValue() / 100.0, money.taxPercent(profile), money.share(profile));
+            try {
+                money.deposit(entry.getKey(), payout.net());
+                net += payout.net();
+            } catch (RuntimeException e) {
+                logger.log(
+                        Level.SEVERE,
+                        "Could not pay " + payout.net() + " of harvest job " + id + " to " + entry.getKey()
+                                + "; pay it by hand",
+                        e);
+            }
+            tax += payout.tax();
+            share += payout.shareCents();
         }
-        if (left.subtract(BigDecimal.valueOf(gross)).compareTo(BigDecimal.valueOf(harvest.unitPrice())) < 0) {
+        try {
+            money.collect(tax);
+            if (share > 0) money.keep(profile, id, share);
+        } catch (RuntimeException e) {
+            logger.log(Level.SEVERE, "Could not book the tax and share of harvest job " + id, e);
+        }
+        var unit = BigDecimal.valueOf(harvest.unitPrice())
+                .movePointRight(2)
+                .setScale(0, RoundingMode.CEILING)
+                .longValue();
+        if (left - total < unit) {
             jobs.job(id).ifPresent(found -> ended(found, BUDGET_BY, JobState.PAID));
         }
-        return payout.net();
+        return net;
+    }
+
+    /**
+     * @param byWorker  the items of each member
+     * @param unitPrice what one item pays
+     * @param left      what the budget still holds, in cents
+     * @return what each member is paid before tax, in cents, the budget paying them in turn until it runs out
+     */
+    static Map<UUID, Long> shares(Map<UUID, Map<String, Integer>> byWorker, double unitPrice, long left) {
+        Map<UUID, Long> shares = new LinkedHashMap<>();
+        var rest = left;
+        for (var entry : byWorker.entrySet()) {
+            long units = entry.getValue().values().stream()
+                    .mapToLong(Integer::longValue)
+                    .sum();
+            var worth = BigDecimal.valueOf(unitPrice)
+                    .multiply(BigDecimal.valueOf(units))
+                    .movePointRight(2)
+                    .setScale(0, RoundingMode.FLOOR)
+                    .longValue();
+            var cents = Math.max(0, Math.min(worth, rest));
+            shares.put(entry.getKey(), cents);
+            rest -= cents;
+        }
+        return shares;
     }
 
     /**

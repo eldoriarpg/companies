@@ -44,15 +44,20 @@ have a few jobs waiting at once.
 A **dig job** is done when every block of the area is air, water or lava. Blocks nobody can break, such as bedrock,
 count as cleared. The company keeps what it digs.
 
-A **terraform job** levels the area: every column must be solid up to a height you choose and empty above it. Select
-the area with WorldEdit so it reaches from the lowest block that must be filled to the highest that must go, then post
-`/order job terraform <price> <hours> <y> <title>`, where `y` is the height of the top solid layer. With
-`/order job terraform surface <block> <price> <hours> <y> <title>` the top layer must also be made of one block, such
-as `grass_block` (type the name without `minecraft:`). Blocks players can not place and keep in survival, such as
-bedrock, spawners or farmland, are refused, and so are blocks that change by themselves, such as copper that is not
-waxed or concrete powder. Above `y` the area must be air, water or lava; at or below it any solid
-block counts. Blocks nobody
-can break count as done. The company brings the blocks it fills with and keeps what it digs.
+A **terraform job** levels the area: every column must be solid up to a height you choose and empty above it. Select the
+area with WorldEdit so it reaches from the lowest block that must be filled to the highest that must go, then post
+`/order job terraform <price> <hours> <y> <title>`, where `y` is the height of the top solid layer. With `/order job
+terraform surface <block> <price> <hours> <y> <title>` the top layer must also be made of one block, such as
+`grass_block` (type the name without `minecraft:`; the command suggests the blocks it takes). Blocks players can not
+place and keep in survival, such as bedrock, spawners or farmland, are refused, and so are blocks that change by
+themselves, such as copper that is not waxed or concrete powder. Above `y` the area must be air, water or lava; at or
+below it any solid block counts. Blocks nobody can break count as done. The company brings the blocks it fills with and
+keeps what it digs.
+
+To level your whole plot, stand on it and post `/order job terraform plot <price> <hours> <y> <title>` (or `terraform
+plot surface <block> ...`). The area is your plot from its lowest ground (or `y`, when that is lower) up to its highest
+block, so `y` may lie below the ground: everything above it is dug out, and every column is made solid up to `y`. The
+plot's own bounds limit how deep it can go, and your land plugin must let the company build that deep.
 
 When your land changes hands while a job waits or is worked on, for example a plot you sold, the job is cancelled. A
 waiting job gives its price back to you. A job a company works on pays the company for the share of the area it cleared,
@@ -77,9 +82,9 @@ game and on the dashboard too.
 
 The job is done when enough of the schematic's blocks are in place: `buildMatchPercent` (95 % by default) in
 [jobs.yml](../admin/configuration/jobs-yml.md). A block counts when its type is right and it is turned as the schematic
-has it: which way it faces, its top or bottom half, its axis, a door's hinge, a slab's half. How a fence or wall connects
-and the corner shape of a stair are left to the neighbours and never count. Where the schematic has air, anything goes,
-so terrain and furniture never hold the job up.
+has it: which way it faces, its top or bottom half, its axis, a door's hinge, a slab's half. How a fence or wall
+connects and the corner shape of a stair are left to the neighbours and never count. Where the schematic has air,
+anything goes, so terrain and furniture never hold the job up.
 
 While the company builds, its members may place only the block the schematic asks for at a spot, plus the blocks of
 `buildWhitelist` (scaffolding by default) anywhere to build up; anything else is refused with what the spot asks for.
@@ -96,7 +101,9 @@ work, once for each spot, and so does taking out a wrong block.
 ## Harvest jobs
 
 A **harvest job** keeps a field harvested for a time. Select the field with WorldEdit and post
-`/order job harvest <price per item> <budget> <hours> <title>`. You pay the budget and the fee at once. Once a company
+`/order job harvest <price per item> <budget> <hours> <title>`, or stand on your plot and post
+`/order job harvest plot <price per item> <budget> <hours> <height> <title>`, where the field is your plot from the
+block below your feet up `height` layers. You pay the budget and the fee at once. Once a company
 takes the job it harvests for `hours`, and each item it harvests is paid from the budget at the price per item, taxed
 and with the treasury cut like an order payout.
 
@@ -104,10 +111,11 @@ While the company works on it, its members can only harvest in the field:
 
 - Wheat, carrots, potatoes, beetroots, nether wart and cocoa only when ripe. The crop is replanted at once; one seed of
   the yield is kept back for that.
-- Sugar cane, bamboo and cactus only above the lowest block, which stays to grow again.
+- Sugar cane, bamboo, cactus and kelp only above the lowest block, which stays to grow again.
 - Melons and pumpkins only the fruit, never the stem.
-- Nothing else in the field can be broken, and nobody tramples the farmland. Members may plant field crops but not
-  place other blocks or pour buckets there, and what they placed is no harvest.
+- Sweet berries and glow berries are picked by using a ripe bush or a vine with berries; the plant stays.
+- Nothing else in the field can be broken, and neither players nor mobs trample the farmland. Members may plant field
+  crops but not place other blocks or pour buckets there, and what they placed is no harvest.
 
 Nothing drops: the harvest goes into the job's **stock**. List it with `/order job stock <id>` and take it with
 `/order job collect <id>`; what does not fit into your inventory stays in the stock. The stock waits for you after the
@@ -181,7 +189,9 @@ for what happens only in game:
 | `/order job blueprint <schematic> <rotation>` | Previews a schematic placed where you stand and tells what its blocks cost. |
 | `/order job build <schematic> <rotation> <price> <hours> <title>` | Previews a build job of a schematic placed where you stand and asks to confirm it. |
 | `/order job build confirm` | Posts the build job you were asked to confirm. |
+| `/order job terraform plot [surface <block>] <price> <hours> <y> <title>` | Posts a terraform job on your whole plot, dug out down to `y` when that lies below the ground. |
 | `/order job harvest <price per item> <budget> <hours> <title>` | Posts a harvest job on the field you selected with WorldEdit. |
+| `/order job harvest plot <price per item> <budget> <hours> <height> <title>` | Posts a harvest job on your whole plot. |
 | `/order job stock <id>` | Lists the stock of a harvest job. |
 | `/order job collect <id>` | Takes the stock of a harvest job into your inventory. |
 

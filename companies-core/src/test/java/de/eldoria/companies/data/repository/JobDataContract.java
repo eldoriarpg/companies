@@ -348,12 +348,12 @@ public abstract class JobDataContract {
                         .withHarvest(new JobHarvest(0.5, 0)))
                 .orElseThrow();
 
-        assertFalse(jobs.harvested(id, 3, Map.of("WHEAT", 4), 2));
+        assertFalse(jobs.harvested(id, 3, Map.of("WHEAT", 4), 200));
         jobs.take(id, 3, NOW, NOW.plusHours(48));
-        assertFalse(jobs.harvested(id, 4, Map.of("WHEAT", 4), 2));
-        assertTrue(jobs.harvested(id, 3, Map.of("WHEAT", 4, "WHEAT_SEEDS", 2), 3));
-        assertTrue(jobs.harvested(id, 3, Map.of("WHEAT", 6), 3));
-        assertFalse(jobs.harvested(id, 3, Map.of("WHEAT", 20), 10));
+        assertFalse(jobs.harvested(id, 4, Map.of("WHEAT", 4), 200));
+        assertTrue(jobs.harvested(id, 3, Map.of("WHEAT", 4, "WHEAT_SEEDS", 2), 300));
+        assertTrue(jobs.harvested(id, 3, Map.of("WHEAT", 6), 300));
+        assertFalse(jobs.harvested(id, 3, Map.of("WHEAT", 20), 1000));
         jobs.stock(id, Map.of("WHEAT", 1));
 
         assertEquals(new JobHarvest(0.5, 6), jobs.job(id).orElseThrow().harvest());

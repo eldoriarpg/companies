@@ -123,7 +123,7 @@ class JobApiImplTest {
                                 Runnable::run,
                                 job -> {},
                                 job -> CompletableFuture.completedFuture(null),
-                                (job, company, worker, items) -> {},
+                                (job, company, byWorker) -> {},
                                 new Blueprints(jobs, Logger.getAnonymousLogger()),
                                 Logger.getAnonymousLogger()),
                         null,

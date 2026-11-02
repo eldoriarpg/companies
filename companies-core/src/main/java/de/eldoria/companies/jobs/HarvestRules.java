@@ -18,8 +18,10 @@ import java.util.Map;
  * <ul>
  *     <li>Field crops (wheat, carrots, potatoes, beetroots, nether wart, cocoa) only when ripe; they are replanted at
  *     once and one seed of the yield is kept for that.</li>
- *     <li>Sugar cane, bamboo and cactus only above their base block, which stays to grow again.</li>
+ *     <li>Sugar cane, bamboo, cactus and kelp only above their base block, which stays to grow again.</li>
  *     <li>Melons and pumpkins only the fruit, never the stem.</li>
+ *     <li>Sweet berries and glow berries are picked, not broken: using a ripe bush or a vine with berries takes them
+ *     and leaves the plant to grow again.</li>
  * </ul>
  * Every other block of a harvest area stays as it is.
  */
@@ -35,7 +37,9 @@ public final class HarvestRules {
     private static final Map<Material, Material> STACKED = new EnumMap<>(Map.of(
             Material.SUGAR_CANE, Material.SUGAR_CANE,
             Material.BAMBOO, Material.BAMBOO,
-            Material.CACTUS, Material.CACTUS));
+            Material.CACTUS, Material.CACTUS,
+            Material.KELP, Material.KELP,
+            Material.KELP_PLANT, Material.KELP));
 
     private HarvestRules() {}
 
@@ -56,6 +60,10 @@ public final class HarvestRules {
          */
         FRUIT,
         /**
+         * A sweet berry bush or a glow berry vine, picked by using it.
+         */
+        PICKED,
+        /**
          * Anything else, which members may not break.
          */
         NONE
@@ -69,7 +77,46 @@ public final class HarvestRules {
         if (SEEDS.containsKey(type)) return Crop.FIELD;
         if (STACKED.containsKey(type)) return Crop.STACKED;
         if (type == Material.MELON || type == Material.PUMPKIN) return Crop.FRUIT;
+        if (type == Material.SWEET_BERRY_BUSH || type == Material.CAVE_VINES || type == Material.CAVE_VINES_PLANT) {
+            return Crop.PICKED;
+        }
         return Crop.NONE;
+    }
+
+    /**
+     * @param first  a stacked crop
+     * @param second another block type
+     * @return whether both belong to the same plant, as kelp and the kelp stem below its top do
+     */
+    public static boolean sameStack(Material first, Material second) {
+        var item = STACKED.get(first);
+        return item != null && item == STACKED.get(second);
+    }
+
+    /**
+     * @param type a stacked crop
+     * @return what is left where a block of it is taken: water for kelp, air for the rest
+     */
+    public static Material emptied(Material type) {
+        return item(type) == Material.KELP ? Material.WATER : Material.AIR;
+    }
+
+    /**
+     * @param type     a picked crop
+     * @param age      the age of a sweet berry bush, ignored for vines
+     * @param berries  whether a glow berry vine carries berries, ignored for bushes
+     * @param bonus    whether a ripe bush gives one berry more
+     * @return the berries picked, empty when the plant has none yet
+     */
+    public static Map<String, Integer> picked(Material type, int age, boolean berries, boolean bonus) {
+        if (type == Material.SWEET_BERRY_BUSH) {
+            if (age < 2) return Map.of();
+            return Map.of(Material.SWEET_BERRIES.name(), (age >= 3 ? 2 : 1) + (bonus ? 1 : 0));
+        }
+        if ((type == Material.CAVE_VINES || type == Material.CAVE_VINES_PLANT) && berries) {
+            return Map.of(Material.GLOW_BERRIES.name(), 1);
+        }
+        return Map.of();
     }
 
     /**

@@ -326,10 +326,10 @@ public abstract class AJobData {
      * @param job     id of the job
      * @param company id of the company that harvested them
      * @param items   the items, as amounts by material name
-     * @param pay     what they are paid before tax
+     * @param cents   what they are paid before tax, in cents
      * @return true when they were stored and paid
      */
-    public abstract boolean harvested(int job, int company, Map<String, Integer> items, double pay);
+    public abstract boolean harvested(int job, int company, Map<String, Integer> items, long cents);
 
     /**
      * Puts items into a job's stock without paying for them, when the budget is used up.

@@ -7,6 +7,7 @@ package de.eldoria.companies.commands.order;
 
 import com.google.common.cache.CacheBuilder;
 import de.eldoria.companies.commands.CommandDependencies;
+import de.eldoria.companies.commands.suggest.SurfaceBlocks;
 import de.eldoria.companies.commands.support.CommandFailure;
 import de.eldoria.companies.commands.support.PlayerOnly;
 import de.eldoria.companies.commands.support.Senders;
@@ -81,6 +82,9 @@ import java.util.logging.Level;
  *     <li>{@code dig <price> <hours> <title>} posts a dig job on the area selected with WorldEdit;</li>
  *     <li>{@code dig plot <price> <hours> <depth> <title>} posts one on the whole plot the player stands on, from the
  *     block below their feet down {@code depth} blocks;</li>
+ *     <li>{@code terraform plot [surface <block>] <price> <hours> <y> <title>} posts a terraform job on the whole plot,
+ *     dug out down to {@code y} when that lies below the ground; {@code harvest plot <unit price> <budget> <hours>
+ *     <height> <title>} posts a harvest job on it from the block below the player's feet up;</li>
  *     <li>{@code terraform <price> <hours> <y> <title>} posts a terraform job on the area selected with WorldEdit:
  *     every column solid up to {@code y} and empty above it; {@code terraform surface <block> ...} also asks for the
  *     top layer to be made of {@code block};</li>
@@ -236,7 +240,7 @@ public final class JobCommand {
     @Executes("terraform surface")
     public void terraformSurface(
             CommandSender sender,
-            @StringArg(StringArgType.STRING) String block,
+            @SurfaceBlocks @StringArg(StringArgType.STRING) String block,
             @DoubleArg(min = 0, max = JobService.MAX_PRICE) double price,
             @IntArg(min = 1) int hours,
             @IntArg int y,
@@ -748,6 +752,122 @@ public final class JobCommand {
         var area = hooks.selection(player);
         if (area.isEmpty()) deps.messages().sendError(player, PREFIX + "error.noSelection");
         return area;
+    }
+
+    /**
+     * Posts a terraform job on the whole plot the player stands on: everything above {@code y} goes, up to the highest
+     * block of the plot, and every column is made solid up to {@code y} from its lowest ground. The target may lie below
+     * the ground, so the plot is dug out to it; the plot's own bounds limit how deep. The chunk limit is checked before
+     * the plot's columns are read.
+     *
+     * @param sender sender of the command
+     * @param price  what the company is paid
+     * @param hours  how long a company has to finish
+     * @param y      the target height
+     * @param title  title shown to companies
+     */
+    @Executes("terraform plot")
+    public void terraformPlot(
+            CommandSender sender,
+            @DoubleArg(min = 0, max = JobService.MAX_PRICE) double price,
+            @IntArg(min = 1) int hours,
+            @IntArg int y,
+            @StringArg(StringArgType.GREEDY) String title) {
+        shapePlot(Senders.player(sender), price, hours, new JobTarget(y, null), title);
+    }
+
+    /**
+     * Posts a terraform job on the whole plot the player stands on with a surface block at the target height.
+     *
+     * @param sender sender of the command
+     * @param block  the block the top layer is made of
+     * @param price  what the company is paid
+     * @param hours  how long a company has to finish
+     * @param y      the target height
+     * @param title  title shown to companies
+     */
+    @Executes("terraform plot surface")
+    public void terraformPlotSurface(
+            CommandSender sender,
+            @SurfaceBlocks @StringArg(StringArgType.STRING) String block,
+            @DoubleArg(min = 0, max = JobService.MAX_PRICE) double price,
+            @IntArg(min = 1) int hours,
+            @IntArg int y,
+            @StringArg(StringArgType.GREEDY) String title) {
+        var player = Senders.player(sender);
+        var material = TerraformCheck.block(block);
+        if (material == null) {
+            deps.messages().sendError(player, PREFIX + "error.block", Values.text("block", block));
+            return;
+        }
+        shapePlot(player, price, hours, new JobTarget(y, material.name()), title);
+    }
+
+    private void shapePlot(Player player, double price, int hours, JobTarget target, String title) {
+        var plot = jobs().hooks().ownArea(player);
+        if (plot.isEmpty()) {
+            deps.messages().sendError(player, PREFIX + "error.noPlot");
+            return;
+        }
+        var found = plot.get();
+        if (target.y() < found.minY() || target.y() > found.maxY()) {
+            deps.messages()
+                    .sendError(
+                            player,
+                            PREFIX + "error.plotDepth",
+                            Values.number("min", found.minY()),
+                            Values.number("max", found.maxY()));
+            return;
+        }
+        var settings = deps.configuration().jobSettings();
+        if (found.chunks() > settings.maxChunks()) {
+            deps.messages().sendError(player, PREFIX + "error.chunks", Values.number("max", settings.maxChunks()));
+            return;
+        }
+        var world = player.getWorld();
+        var top = target.y();
+        var bottom = target.y();
+        for (var x = found.minX(); x <= found.maxX(); x++) {
+            for (var z = found.minZ(); z <= found.maxZ(); z++) {
+                var ground = Math.clamp(world.getHighestBlockYAt(x, z), found.minY(), found.maxY());
+                top = Math.max(top, ground);
+                bottom = Math.min(bottom, ground);
+            }
+        }
+        var area = new JobArea(found.world(), found.minX(), bottom, found.minZ(), found.maxX(), top, found.maxZ());
+        post(player, JobKind.TERRAFORM, area, price, hours, title, JobService.Details.shape(target));
+    }
+
+    /**
+     * Posts a harvest job on the whole plot the player stands on: the field reaches from the block below the player's
+     * feet up {@code height} blocks.
+     *
+     * @param sender    sender of the command
+     * @param unitPrice what one harvested item pays
+     * @param budget    the most the job pays in all
+     * @param hours     how long the harvest runs
+     * @param height    how many layers the field has, the ground below the crops included
+     * @param title     title shown to companies
+     */
+    @Executes("harvest plot")
+    public void harvestPlot(
+            CommandSender sender,
+            @DoubleArg(min = 0, max = JobService.MAX_PRICE) double unitPrice,
+            @DoubleArg(min = 0, max = JobService.MAX_PRICE) double budget,
+            @IntArg(min = 1) int hours,
+            @IntArg(min = 2, max = MAX_DEPTH) int height,
+            @StringArg(StringArgType.GREEDY) String title) {
+        var player = Senders.player(sender);
+        var plot = jobs().hooks().ownArea(player);
+        if (plot.isEmpty()) {
+            deps.messages().sendError(player, PREFIX + "error.noPlot");
+            return;
+        }
+        var ground = player.getLocation().getBlockY() - 1;
+        var found = plot.get();
+        var area = new JobArea(
+                found.world(), found.minX(), ground, found.minZ(), found.maxX(), ground + height - 1, found.maxZ());
+        post(player, JobKind.HARVEST, area, budget, hours, title, JobService.Details.harvest(unitPrice));
     }
 
     /**
