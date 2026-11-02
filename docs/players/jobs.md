@@ -15,6 +15,14 @@ ones. Post a contract there, and open a job to take every step you may take: des
 more time, cancel. Jobs in an area need a selection in the world, so they are posted in game, and dig, terraform and
 build jobs are finished in game too, where their area is checked.
 
+In game, `/order job` and `/company job` open the same kind of menu: a list of jobs, each opening the job with buttons
+for what you may do now, as a chat menu or as a dialog where the server shows dialogs. Steps that change a job for
+good ask before they run, and steps that need a reason or hours take it in the menu.
+
+While you stand in the area of a dig, terraform or build job your company works on, a bar at the top of the screen
+shows how far the work is; it goes when you leave the area. The dashboard shows the last check of a job's area too
+when you are on the server of its area.
+
 ## Posting a job
 
 A job lies on your land: wholly on one plot or claim you own (PlotSquared, GriefPrevention, HuskClaims, Lands or

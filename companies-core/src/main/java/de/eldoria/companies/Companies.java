@@ -1425,6 +1425,7 @@ public class Companies extends EldoPlugin {
         if (runningJobs != null) {
             runningJobs.access().stop();
             runningJobs.ghosts().stop();
+            runningJobs.bars().stop();
         }
         var runningHomes = homes;
         if (runningHomes != null) {

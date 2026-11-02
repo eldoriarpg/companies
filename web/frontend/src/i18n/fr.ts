@@ -1527,6 +1527,7 @@ export default {
         targetSurface: "Plein jusqu'à la hauteur {y} avec une couche du dessus en {block}, vide au-dessus",
         materialCost: "Ses blocs coûtent environ {cost}",
         materialCostUnpriced: "Ses blocs coûtent environ {cost} ; {unpriced} types de blocs n'ont pas encore de prix et n'y sont pas comptés",
+        progress: "Dernière vérification : {percent} % fait, {done} blocs sur {total}",
         expires: "Attend une entreprise jusqu'au {time}",
         due: "Le temps de l'entreprise court jusqu'au {time}",
         approveAt: "Accepté sans réponse le {time}",

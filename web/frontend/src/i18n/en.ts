@@ -1527,6 +1527,7 @@ export default {
         targetSurface: "Solid up to height {y} with a top layer of {block}, empty above",
         materialCost: "Its blocks cost about {cost}",
         materialCostUnpriced: "Its blocks cost about {cost}; {unpriced} block types have no price yet and are left out",
+        progress: "Last check: {percent} % done, {done} of {total} blocks",
         expires: "Waits for a company until {time}",
         due: "The company's time runs until {time}",
         approveAt: "Approved without an answer at {time}",

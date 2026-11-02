@@ -881,7 +881,8 @@ public final class DashboardWorld implements AutoCloseable {
                 node,
                 blueprints,
                 new BuildGhosts(plugin),
-                new MaterialCosts(blueprints, type -> 0));
+                new MaterialCosts(blueprints, type -> 0),
+                null);
     }
 
     private AdminServerWrites adminServers(SqLiteOrderData orders) {

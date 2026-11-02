@@ -20,6 +20,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.IntPredicate;
 import java.util.function.IntSupplier;
 
 /**
@@ -28,7 +29,8 @@ import java.util.function.IntSupplier;
  * the main thread. A result
  * is kept for {@value #CACHE_SECONDS} seconds per job; a fresh check, as finishing a job asks for, still reuses one at
  * most {@value #FRESH_SECONDS} seconds old, and checks of one job asked for at the same time share one scan. Kept
- * results older than the cache are dropped as new ones come in.
+ * results older than the cache are dropped as new ones come in; the last result of a job stays readable through
+ * {@link #last(int)} until the job is no longer worked on here.
  */
 public final class JobProgress {
     /**
@@ -46,6 +48,7 @@ public final class JobProgress {
     private final Blueprints blueprints;
     private final IntSupplier matchPercent;
     private final Map<Integer, Cached> cache = new ConcurrentHashMap<>();
+    private final Map<Integer, DigCheck.Progress> last = new ConcurrentHashMap<>();
     private final Map<Integer, CompletableFuture<Optional<DigCheck.Progress>>> running = new ConcurrentHashMap<>();
 
     /**
@@ -118,8 +121,26 @@ public final class JobProgress {
                             .removeIf(entry ->
                                     entry.at().plusSeconds(CACHE_SECONDS).isBefore(now));
                     cache.put(job.id(), new Cached(progress, now));
+                    last.put(job.id(), progress);
                     return Optional.of(progress);
                 });
+    }
+
+    /**
+     * @param job id of a job
+     * @return how far its work was at its last check on this server, empty when it was not checked here
+     */
+    public Optional<DigCheck.Progress> last(int job) {
+        return Optional.ofNullable(last.get(job));
+    }
+
+    /**
+     * Forgets the last results of jobs no longer worked on.
+     *
+     * @param working whether a job is still worked on, by its id
+     */
+    public void prune(IntPredicate working) {
+        last.keySet().removeIf(id -> !working.test(id));
     }
 
     /**

@@ -1241,6 +1241,17 @@ export interface JobDetails {
     request?: ExtensionRequest | null
     /** What the blocks of a build job's blueprint cost; missing for other kinds and from older plugins. */
     materialCost?: MaterialCost | null
+    /** How far the work was at the last check of its area; only from the server holding the area. */
+    progress?: JobProgress | null
+}
+
+/** How far the work on a job was at the last check of its area. */
+export interface JobProgress {
+    percent: number
+    /** The blocks as the job asks. */
+    done: number
+    /** The blocks the job asks about. */
+    total: number
 }
 
 /** What the blocks of a build job's blueprint cost. */

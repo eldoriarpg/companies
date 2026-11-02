@@ -31,12 +31,14 @@ import de.eldoria.companies.menus.MenuComponents;
 import de.eldoria.companies.menus.MenuMode;
 import de.eldoria.companies.menus.MenuText;
 import de.eldoria.companies.menus.Values;
+import de.eldoria.companies.menus.job.JobListMenu;
+import de.eldoria.companies.menus.job.JobMenu;
+import de.eldoria.companies.menus.job.JobMenus;
 import de.eldoria.companies.util.Permission;
 import de.eldoria.companies.util.Texts;
 import de.eldoria.companies.util.Threading;
 import de.eldoria.companies.util.Times;
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import net.strokkur.commands.Executes;
 import net.strokkur.commands.Subcommand;
@@ -56,6 +58,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -112,6 +115,8 @@ public final class JobCommand {
 
     private final CommandDependencies deps;
     private final ConfirmFlow<PendingBuild> builds;
+    private final JobListMenu listMenu;
+    private final JobMenu jobMenu;
     private final Map<UUID, PendingBuild> asked = CacheBuilder.newBuilder()
             .expireAfterWrite(ASKED_SECONDS, TimeUnit.SECONDS)
             .<UUID, PendingBuild>build()
@@ -123,6 +128,11 @@ public final class JobCommand {
     public JobCommand(CommandDependencies deps) {
         this.deps = deps;
         this.builds = ConfirmFlow.create(deps.plugin(), this::buildConfirmed);
+        this.listMenu = new JobListMenu(deps.messages());
+        this.jobMenu = new JobMenu(
+                deps.messages(),
+                () -> deps.services().menus(),
+                ConfirmFlow.create(deps.plugin(), Player::performCommand));
     }
 
     /**
@@ -133,15 +143,18 @@ public final class JobCommand {
     @Executes
     public void list(CommandSender sender) {
         var player = Senders.player(sender);
-        run(player, () -> jobs().data().ofOwner(player.getUniqueId(), LISTED), found -> {
-            if (found.isEmpty()) {
-                deps.messages().sendMessage(player, PREFIX + "none");
-                return;
-            }
-            deps.messages()
-                    .sendMessage(player, MenuText.create().text("<heading>").locale(PREFIX + "title"));
-            for (var job : found) deps.messages().sendMessage(player, entry(player, job));
-        });
+        run(player, () -> jobs().data().ofOwner(player.getUniqueId(), LISTED), found -> deps.services()
+                .menus()
+                .show(
+                        player,
+                        listMenu,
+                        new JobListMenu.Model(
+                                MenuText.create().locale(PREFIX + "title"),
+                                MenuText.create().locale(PREFIX + "none"),
+                                found.stream()
+                                        .map(job -> new JobListMenu.Entry(
+                                                JobMenus.name(job), entry(player, job), "order job info " + job.id()))
+                                        .toList())));
     }
 
     /**
@@ -421,14 +434,16 @@ public final class JobCommand {
     }
 
     private void sendCost(Player player, MaterialCosts.Cost cost) {
+        deps.messages().sendMessage(player, costLine(cost));
+    }
+
+    private MenuText costLine(MaterialCosts.Cost cost) {
         var economy = deps.services().economy();
         if (cost.unpriced().isEmpty()) {
-            deps.messages().sendMessage(player, PREFIX + "cost", Values.money("cost", economy, cost.total()));
-            return;
+            return MenuText.create().locale(PREFIX + "cost", Values.money("cost", economy, cost.total()));
         }
-        deps.messages()
-                .sendMessage(
-                        player,
+        return MenuText.create()
+                .locale(
                         PREFIX + "costUnpriced",
                         Values.money("cost", economy, cost.total()),
                         Values.number("unpriced", cost.unpriced().size()));
@@ -575,21 +590,23 @@ public final class JobCommand {
                 deps.messages().sendMessage(player, PREFIX + "stock.empty", Values.number("id", id));
                 return;
             }
-            deps.messages().sendMessage(player, PREFIX + "stock.title", Values.number("id", id));
-            stock.forEach((material, amount) -> deps.messages()
-                    .sendMessage(
-                            player,
+            List<MenuText> lines = new ArrayList<>();
+            stock.forEach((material, amount) -> lines.add(MenuText.create()
+                    .locale(
                             PREFIX + "stock.entry",
                             Values.text("item", material.toLowerCase(Locale.ROOT)),
-                            Values.number("amount", amount)));
-            deps.messages()
-                    .sendMessage(
+                            Values.number("amount", amount))));
+            deps.services()
+                    .menus()
+                    .show(
                             player,
-                            MenuText.create()
-                                    .text(
-                                            "<act_collect><add>[<i18n:words.collect>]</act_collect>",
-                                            Values.click(
-                                                    "act_collect", ClickEvent.runCommand("/order job collect " + id))));
+                            jobMenu,
+                            new JobMenu.Model(
+                                    MenuText.create().locale(PREFIX + "stock.title", Values.number("id", id)),
+                                    MenuText.create().text("#<id>", Values.number("id", id)),
+                                    lines,
+                                    List.of(new JobMenu.Action(
+                                            "words.collect", "add", "order job collect " + id, JobMenu.Kind.RUN))));
         });
     }
 
@@ -1167,181 +1184,188 @@ public final class JobCommand {
 
     private void show(Player player, Job job, Optional<DigCheck.Progress> progress, Optional<MaterialCosts.Cost> cost) {
         var economy = deps.services().economy();
-        var messages = deps.messages();
-        messages.sendMessage(
-                player,
-                PREFIX + "info.head",
-                Values.number("id", job.id()),
-                Values.text("job_title", job.title()),
-                Values.component("state", texts(player).locale(stateKey(job.state()))));
+        List<MenuText> lines = new ArrayList<>();
         var description = job.description();
         if (description != null) {
-            messages.sendMessage(player, PREFIX + "info.description", Values.text("description", description));
+            lines.add(MenuText.create().locale(PREFIX + "info.description", Values.text("description", description)));
         }
         if (job.kind().area()) {
-            messages.sendMessage(
-                    player,
-                    PREFIX + "info.area",
-                    Values.text("world", job.area().world()),
-                    Values.text("center", job.area().center()),
-                    Values.number("blocks", job.area().volume()),
-                    Values.component("land", land(player, job)));
+            lines.add(MenuText.create()
+                    .locale(
+                            PREFIX + "info.area",
+                            Values.text("world", job.area().world()),
+                            Values.text("center", job.area().center()),
+                            Values.number("blocks", job.area().volume()),
+                            Values.component("land", land(player, job))));
         } else if (!job.area().world().isEmpty()) {
-            messages.sendMessage(
-                    player,
-                    PREFIX + "info.place",
-                    Values.text("world", job.area().world()),
-                    Values.text("center", job.area().center()));
+            lines.add(MenuText.create()
+                    .locale(
+                            PREFIX + "info.place",
+                            Values.text("world", job.area().world()),
+                            Values.text("center", job.area().center())));
         }
-        messages.sendMessage(
-                player,
-                PREFIX + "info.money",
-                Values.money("price", economy, job.price()),
-                Values.money("fee", economy, job.fee()));
-        cost.ifPresent(found -> sendCost(player, found));
+        lines.add(MenuText.create()
+                .locale(
+                        PREFIX + "info.money",
+                        Values.money("price", economy, job.price()),
+                        Values.money("fee", economy, job.fee())));
+        cost.ifPresent(found -> lines.add(costLine(found)));
         var harvest = job.harvest();
         if (harvest != null) {
-            messages.sendMessage(
-                    player,
-                    PREFIX + "info.harvest",
-                    Values.money("unit", deps.services().economy(), harvest.unitPrice()),
-                    Values.money("paid", deps.services().economy(), harvest.paid()),
-                    Values.money("price", deps.services().economy(), job.price()));
+            lines.add(MenuText.create()
+                    .locale(
+                            PREFIX + "info.harvest",
+                            Values.money("unit", deps.services().economy(), harvest.unitPrice()),
+                            Values.money("paid", deps.services().economy(), harvest.paid()),
+                            Values.money("price", deps.services().economy(), job.price())));
         }
         var target = job.target();
         if (target != null) {
             var surface = target.surface();
             if (surface == null) {
-                messages.sendMessage(player, PREFIX + "info.target", Values.number("y", target.y()));
+                lines.add(MenuText.create().locale(PREFIX + "info.target", Values.number("y", target.y())));
             } else {
-                messages.sendMessage(
-                        player,
-                        PREFIX + "info.targetSurface",
-                        Values.number("y", target.y()),
-                        Values.text("block", surface.toLowerCase(Locale.ROOT)));
+                lines.add(MenuText.create()
+                        .locale(
+                                PREFIX + "info.targetSurface",
+                                Values.number("y", target.y()),
+                                Values.text("block", surface.toLowerCase(Locale.ROOT))));
             }
         }
         if (job.state() == JobState.OPEN) {
-            messages.sendMessage(player, PREFIX + "info.open", Values.text("time", left(job.expires())));
+            lines.add(MenuText.create().locale(PREFIX + "info.open", Values.text("time", left(job.expires()))));
         }
         var due = job.due();
         if (job.state() == JobState.TAKEN && due != null) {
-            messages.sendMessage(player, PREFIX + "info.taken", Values.text("time", left(due)));
+            lines.add(MenuText.create().locale(PREFIX + "info.taken", Values.text("time", left(due))));
         }
         var extension = job.extension();
         if (job.state() == JobState.TAKEN && extension.extendedHours() > 0) {
-            messages.sendMessage(player, PREFIX + "info.extended", Values.number("hours", extension.extendedHours()));
+            lines.add(MenuText.create()
+                    .locale(PREFIX + "info.extended", Values.number("hours", extension.extendedHours())));
         }
         var asked = extension.askedHours();
         if (job.state() == JobState.TAKEN && asked != null) {
-            messages.sendMessage(
-                    player,
-                    PREFIX + "info.extensionAsked",
-                    Values.number("hours", asked),
-                    Values.text("reason", Objects.requireNonNullElse(extension.reason(), "")));
+            lines.add(MenuText.create()
+                    .locale(
+                            PREFIX + "info.extensionAsked",
+                            Values.number("hours", asked),
+                            Values.text("reason", Objects.requireNonNullElse(extension.reason(), ""))));
         }
         var review = job.review();
         if (job.state() == JobState.DONE) {
             var approveAt = Objects.requireNonNullElse(review.doneAt(), Times.now())
                     .plusHours(deps.configuration().jobSettings().approveHours());
-            messages.sendMessage(player, PREFIX + "info.waiting", Values.text("time", left(approveAt)));
+            lines.add(MenuText.create().locale(PREFIX + "info.waiting", Values.text("time", left(approveAt))));
         }
         if (job.state() == JobState.DISPUTED) {
-            messages.sendMessage(
-                    player,
-                    PREFIX + "info.disputed",
-                    Values.text("reason", Objects.requireNonNullElse(review.dispute(), "")));
+            lines.add(MenuText.create()
+                    .locale(
+                            PREFIX + "info.disputed",
+                            Values.text("reason", Objects.requireNonNullElse(review.dispute(), ""))));
         }
         var settled = review.settled();
         if (job.state() == JobState.SETTLED && settled != null) {
-            messages.sendMessage(player, PREFIX + "info.settled", Values.number("percent", settled));
+            lines.add(MenuText.create().locale(PREFIX + "info.settled", Values.number("percent", settled)));
         }
-        progress.ifPresent(found -> messages.sendMessage(
-                player,
-                PREFIX + "info.progress",
-                Values.number("percent", found.percent()),
-                Values.number("cleared", found.cleared()),
-                Values.number("total", found.total())));
-        messages.sendMessage(player, buttons(job));
+        progress.ifPresent(found -> lines.add(MenuText.create()
+                .locale(
+                        PREFIX + "info.progress",
+                        Values.number("percent", found.percent()),
+                        Values.number("cleared", found.cleared()),
+                        Values.number("total", found.total()))));
+        deps.services()
+                .menus()
+                .show(player, jobMenu, new JobMenu.Model(title(player, job), JobMenus.name(job), lines, actions(job)));
     }
 
-    private void extensionButtons(MenuText buttons, Job job) {
+    private MenuText title(Player player, Job job) {
+        return MenuText.create()
+                .locale(
+                        PREFIX + "info.head",
+                        Values.number("id", job.id()),
+                        Values.text("job_title", job.title()),
+                        Values.component("state", texts(player).locale(stateKey(job.state()))));
+    }
+
+    private void extensionActions(List<JobMenu.Action> actions, Job job) {
         if (!deps.configuration().jobSettings().extensionsEnabled()) return;
         var id = job.id();
         if (job.extension().asked()) {
-            buttons.text(
-                            "<act_grant><add>[<i18n:" + PREFIX + "grantButton>]</act_grant> ",
-                            Values.click("act_grant", ClickEvent.runCommand("/order job extension grant " + id)))
-                    .text(
-                            "<act_refuse><remove>[<i18n:" + PREFIX + "refuseButton>]</act_refuse> ",
-                            Values.click(
-                                    "act_refuse",
-                                    ClickEvent.suggestCommand("/order job extension refuse " + id + " ")));
+            actions.add(new JobMenu.Action(
+                    PREFIX + "grantButton", "add", "order job extension grant " + id, JobMenu.Kind.CHECK));
+            actions.add(JobMenu.Action.text(
+                    PREFIX + "refuseButton",
+                    "remove",
+                    "order job extension refuse " + id,
+                    "jobs.menu.reason",
+                    JobReview.MAX_REASON));
         }
         if (jobs().service().hoursLeft(job) <= 0) return;
-        buttons.text(
-                "<act_extend><show>[<i18n:" + PREFIX + "extendButton>]</act_extend>",
-                Values.click("act_extend", ClickEvent.suggestCommand("/order job extend " + id + " ")));
+        actions.add(JobMenu.Action.hours(PREFIX + "extendButton", "show", "order job extend " + id, null, 0));
     }
 
-    private MenuText buttons(Job job) {
+    /**
+     * @param job a job of the player
+     * @return what the player may do with it now
+     */
+    private List<JobMenu.Action> actions(Job job) {
         var id = job.id();
-        var buttons = MenuText.create();
+        List<JobMenu.Action> actions = new ArrayList<>();
         switch (job.state()) {
-            case OPEN ->
-                buttons.text(
-                        "<act_cancel><remove>[<i18n:words.cancel>]</act_cancel>",
-                        Values.click("act_cancel", ClickEvent.suggestCommand("/order job cancel " + id)));
-            case DONE ->
-                buttons.text(
-                                "<act_approve><add>[<i18n:words.accept>]</act_approve> ",
-                                Values.click("act_approve", ClickEvent.suggestCommand("/order job approve " + id)))
-                        .text(
-                                "<act_reject><remove>[<i18n:words.deny>]</act_reject> ",
-                                Values.click("act_reject", ClickEvent.suggestCommand("/order job reject " + id + " ")))
-                        .text(
-                                "<act_dispute><remove>[<i18n:" + PREFIX + "disputeButton>]</act_dispute>",
-                                Values.click(
-                                        "act_dispute", ClickEvent.suggestCommand("/order job dispute " + id + " ")));
+            case OPEN -> {
+                actions.add(JobMenu.Action.text(
+                        PREFIX + "describeButton",
+                        "show",
+                        "order job describe " + id,
+                        "jobs.menu.description",
+                        Job.MAX_DESCRIPTION));
+                actions.add(new JobMenu.Action("words.cancel", "remove", "order job cancel " + id, JobMenu.Kind.CHECK));
+            }
+            case DONE -> {
+                actions.add(new JobMenu.Action("words.accept", "add", "order job approve " + id, JobMenu.Kind.CHECK));
+                actions.add(JobMenu.Action.text(
+                        "words.deny", "remove", "order job reject " + id, "jobs.menu.reason", JobReview.MAX_REASON));
+                actions.add(dispute(id));
+            }
             case DISPUTED -> {
-                buttons.text(
-                        "<act_approve><add>[<i18n:" + PREFIX + "approveEarlyButton>]</act_approve> ",
-                        Values.click("act_approve", ClickEvent.suggestCommand("/order job approve " + id)));
+                actions.add(new JobMenu.Action(
+                        PREFIX + "approveEarlyButton", "add", "order job approve " + id, JobMenu.Kind.CHECK));
                 if (job.owner().equals(job.review().disputeBy())) {
-                    buttons.text(
-                            "<act_withdraw><show>[<i18n:" + PREFIX + "withdrawButton>]</act_withdraw>",
-                            Values.click("act_withdraw", ClickEvent.suggestCommand("/order job withdraw " + id)));
+                    actions.add(new JobMenu.Action(
+                            PREFIX + "withdrawButton", "show", "order job withdraw " + id, JobMenu.Kind.CHECK));
                 }
             }
             case TAKEN -> {
                 if (job.kind() == JobKind.HARVEST) {
-                    buttons.text(
-                                    "<act_stock><show>[<i18n:" + PREFIX + "stockButton>]</act_stock> ",
-                                    Values.click("act_stock", ClickEvent.runCommand("/order job stock " + id)))
-                            .text(
-                                    "<act_end><remove>[<i18n:" + PREFIX + "endButton>]</act_end> ",
-                                    Values.click("act_end", ClickEvent.suggestCommand("/order job end " + id)));
-                    extensionButtons(buttons, job);
-                    return buttons;
+                    actions.add(stockAction(id));
+                    actions.add(new JobMenu.Action(
+                            PREFIX + "endButton", "remove", "order job end " + id, JobMenu.Kind.CHECK));
+                } else {
+                    actions.add(new JobMenu.Action(
+                            PREFIX + "approveEarlyButton", "add", "order job approve " + id, JobMenu.Kind.CHECK));
+                    actions.add(dispute(id));
                 }
-                buttons.text(
-                                "<act_approve><add>[<i18n:" + PREFIX + "approveEarlyButton>]</act_approve> ",
-                                Values.click("act_approve", ClickEvent.suggestCommand("/order job approve " + id)))
-                        .text(
-                                "<act_dispute><remove>[<i18n:" + PREFIX + "disputeButton>]</act_dispute> ",
-                                Values.click(
-                                        "act_dispute", ClickEvent.suggestCommand("/order job dispute " + id + " ")));
-                extensionButtons(buttons, job);
+                extensionActions(actions, job);
             }
             default -> {
-                if (job.kind() == JobKind.HARVEST) {
-                    buttons.text(
-                            "<act_stock><show>[<i18n:" + PREFIX + "stockButton>]</act_stock>",
-                            Values.click("act_stock", ClickEvent.runCommand("/order job stock " + id)));
-                }
+                if (job.kind() == JobKind.HARVEST) actions.add(stockAction(id));
             }
         }
-        return buttons;
+        return actions;
+    }
+
+    private static JobMenu.Action dispute(int id) {
+        return JobMenu.Action.text(
+                PREFIX + "disputeButton",
+                "remove",
+                "order job dispute " + id,
+                "jobs.menu.reason",
+                JobReview.MAX_REASON);
+    }
+
+    private static JobMenu.Action stockAction(int id) {
+        return new JobMenu.Action(PREFIX + "stockButton", "show", "order job stock " + id, JobMenu.Kind.RUN);
     }
 
     private MenuText entry(Player player, Job job) {
@@ -1353,10 +1377,7 @@ public final class JobCommand {
                         Values.number("id", id),
                         Values.text("job_title", job.title()),
                         Values.component("state", texts(player).locale(stateKey(job.state()))),
-                        Values.money("price", economy, job.price()))
-                .text(
-                        " <act_info><show>[<i18n:words.info>]</act_info>",
-                        Values.click("act_info", ClickEvent.runCommand("/order job info " + id)));
+                        Values.money("price", economy, job.price()));
     }
 
     /**

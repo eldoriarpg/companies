@@ -130,6 +130,7 @@ class JobApiImplTest {
                         NODE,
                         null,
                         null,
+                        null,
                         null),
                 () -> settings,
                 Runnable::run));

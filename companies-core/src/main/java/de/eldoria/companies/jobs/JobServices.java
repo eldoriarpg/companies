@@ -26,6 +26,7 @@ import java.util.concurrent.TimeUnit;
  * @param blueprints the blueprints of build jobs
  * @param ghosts     shows the missing blocks of build jobs
  * @param costs      what the blocks of build jobs cost
+ * @param bars       shows members in an area how far its job is
  */
 public record JobServices(
         AJobData data,
@@ -36,7 +37,8 @@ public record JobServices(
         UUID node,
         Blueprints blueprints,
         BuildGhosts ghosts,
-        MaterialCosts costs) {
+        MaterialCosts costs,
+        ProgressBars bars) {
     /**
      * Finishes a job for a member's company: a harvest job ends, a contract is said to be done and waits for its owner,
      * and a dig, terraform or build job has its area checked on this server and is paid when it is done. Blocks; call

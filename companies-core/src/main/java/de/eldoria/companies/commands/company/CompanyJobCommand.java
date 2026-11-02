@@ -13,6 +13,7 @@ import de.eldoria.companies.components.job.JobKind;
 import de.eldoria.companies.components.job.JobState;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.job.Job;
+import de.eldoria.companies.data.wrapper.job.JobExtension;
 import de.eldoria.companies.data.wrapper.job.JobReview;
 import de.eldoria.companies.jobs.Blueprint;
 import de.eldoria.companies.jobs.BuildCheck;
@@ -21,9 +22,13 @@ import de.eldoria.companies.jobs.DigCheck;
 import de.eldoria.companies.jobs.JobService;
 import de.eldoria.companies.jobs.JobServices;
 import de.eldoria.companies.jobs.MaterialCosts;
+import de.eldoria.companies.menus.ConfirmFlow;
 import de.eldoria.companies.menus.MenuComponents;
 import de.eldoria.companies.menus.MenuText;
 import de.eldoria.companies.menus.Values;
+import de.eldoria.companies.menus.job.JobListMenu;
+import de.eldoria.companies.menus.job.JobMenu;
+import de.eldoria.companies.menus.job.JobMenus;
 import de.eldoria.companies.util.Texts;
 import de.eldoria.companies.util.Threading;
 import de.eldoria.companies.util.Times;
@@ -40,6 +45,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
@@ -75,12 +81,19 @@ public final class CompanyJobCommand {
     private static final int LISTED = 20;
 
     private final CommandDependencies deps;
+    private final JobListMenu listMenu;
+    private final JobMenu jobMenu;
 
     /**
      * @param deps what the commands need
      */
     public CompanyJobCommand(CommandDependencies deps) {
         this.deps = deps;
+        this.listMenu = new JobListMenu(deps.messages());
+        this.jobMenu = new JobMenu(
+                deps.messages(),
+                () -> deps.services().menus(),
+                ConfirmFlow.create(deps.plugin(), Player::performCommand));
     }
 
     /**
@@ -423,12 +436,18 @@ public final class CompanyJobCommand {
     private record Building(Job job, Blueprint blueprint) {}
 
     private void listing(Player player, List<Job> found, String title, String none) {
-        if (found.isEmpty()) {
-            deps.messages().sendMessage(player, PREFIX + none);
-            return;
-        }
-        deps.messages().sendMessage(player, MenuText.create().text("<heading>").locale(PREFIX + title));
-        for (var job : found) deps.messages().sendMessage(player, entry(player, job));
+        deps.services()
+                .menus()
+                .show(
+                        player,
+                        listMenu,
+                        new JobListMenu.Model(
+                                MenuText.create().locale(PREFIX + title),
+                                MenuText.create().locale(PREFIX + none),
+                                found.stream()
+                                        .map(job -> new JobListMenu.Entry(
+                                                JobMenus.name(job), entry(player, job), "company job info " + job.id()))
+                                        .toList()));
     }
 
     private MenuText entry(Player player, Job job) {
@@ -443,119 +462,128 @@ public final class CompanyJobCommand {
                         Values.money("price", deps.services().economy(), job.price()),
                         Values.number("blocks", job.area().volume()),
                         Values.text("world", job.area().world()),
-                        Values.text("time", left(time)))
-                .text(
-                        " <act_info><show>[<i18n:words.info>]</act_info>",
-                        Values.click("act_info", ClickEvent.runCommand("/company job info " + id)));
+                        Values.text("time", left(time)));
     }
 
     private void show(Player player, Shown shown) {
         var job = shown.job();
-        var messages = deps.messages();
-        messages.sendMessage(
-                player,
-                PREFIX + "info.head",
-                Values.number("id", job.id()),
-                Values.text("job_title", job.title()),
-                Values.component("kind", kind(player, job)));
+        List<MenuText> lines = new ArrayList<>();
         var description = job.description();
         if (description != null) {
-            messages.sendMessage(player, PREFIX + "info.description", Values.text("description", description));
+            lines.add(MenuText.create().locale(PREFIX + "info.description", Values.text("description", description)));
         }
         if (!job.kind().area()) {
             if (!job.area().world().isEmpty()) {
-                messages.sendMessage(
-                        player,
-                        PREFIX + "info.place",
-                        Values.text("world", job.area().world()),
-                        Values.text("center", job.area().center()));
+                lines.add(MenuText.create()
+                        .locale(
+                                PREFIX + "info.place",
+                                Values.text("world", job.area().world()),
+                                Values.text("center", job.area().center())));
             }
         } else {
-            messages.sendMessage(
-                    player,
-                    PREFIX + "info.area",
-                    Values.text("world", job.area().world()),
-                    Values.text(
-                            "from",
-                            job.area().minX() + " " + job.area().minY() + " "
-                                    + job.area().minZ()),
-                    Values.text(
-                            "to",
-                            job.area().maxX() + " " + job.area().maxY() + " "
-                                    + job.area().maxZ()),
-                    Values.number("blocks", job.area().volume()));
+            lines.add(MenuText.create()
+                    .locale(
+                            PREFIX + "info.area",
+                            Values.text("world", job.area().world()),
+                            Values.text(
+                                    "from",
+                                    job.area().minX() + " " + job.area().minY() + " "
+                                            + job.area().minZ()),
+                            Values.text(
+                                    "to",
+                                    job.area().maxX() + " " + job.area().maxY() + " "
+                                            + job.area().maxZ()),
+                            Values.number("blocks", job.area().volume())));
         }
-        messages.sendMessage(
-                player,
-                PREFIX + "info.money",
-                Values.money("price", deps.services().economy(), job.price()),
-                Values.number("hours", job.dueHours()));
+        lines.add(MenuText.create()
+                .locale(
+                        PREFIX + "info.money",
+                        Values.money("price", deps.services().economy(), job.price()),
+                        Values.number("hours", job.dueHours())));
         shown.cost()
-                .ifPresent(cost -> messages.sendMessage(
-                        player,
-                        PREFIX + (cost.unpriced().isEmpty() ? "info.cost" : "info.costUnpriced"),
-                        Values.money("cost", deps.services().economy(), cost.total()),
-                        Values.number("unpriced", cost.unpriced().size())));
+                .ifPresent(cost -> lines.add(MenuText.create()
+                        .locale(
+                                PREFIX + (cost.unpriced().isEmpty() ? "info.cost" : "info.costUnpriced"),
+                                Values.money("cost", deps.services().economy(), cost.total()),
+                                Values.number("unpriced", cost.unpriced().size()))));
         var harvest = job.harvest();
         if (harvest != null) {
-            messages.sendMessage(
-                    player,
-                    PREFIX + "info.harvest",
-                    Values.money("unit", deps.services().economy(), harvest.unitPrice()),
-                    Values.money("paid", deps.services().economy(), harvest.paid()),
-                    Values.money("price", deps.services().economy(), job.price()));
+            lines.add(MenuText.create()
+                    .locale(
+                            PREFIX + "info.harvest",
+                            Values.money("unit", deps.services().economy(), harvest.unitPrice()),
+                            Values.money("paid", deps.services().economy(), harvest.paid()),
+                            Values.money("price", deps.services().economy(), job.price())));
         }
         var target = job.target();
         if (target != null) {
             var surface = target.surface();
             if (surface == null) {
-                messages.sendMessage(player, PREFIX + "info.target", Values.number("y", target.y()));
+                lines.add(MenuText.create().locale(PREFIX + "info.target", Values.number("y", target.y())));
             } else {
-                messages.sendMessage(
-                        player,
-                        PREFIX + "info.targetSurface",
-                        Values.number("y", target.y()),
-                        Values.text("block", surface.toLowerCase(Locale.ROOT)));
+                lines.add(MenuText.create()
+                        .locale(
+                                PREFIX + "info.targetSurface",
+                                Values.number("y", target.y()),
+                                Values.text("block", surface.toLowerCase(Locale.ROOT))));
             }
         }
         if (job.state() == JobState.TAKEN) {
-            messages.sendMessage(player, PREFIX + "info.due", Values.text("time", left(job.due())));
+            lines.add(MenuText.create().locale(PREFIX + "info.due", Values.text("time", left(job.due()))));
         }
         var extension = job.extension();
         if (job.state() == JobState.TAKEN && extension.extendedHours() > 0) {
-            messages.sendMessage(player, PREFIX + "info.extended", Values.number("hours", extension.extendedHours()));
+            lines.add(MenuText.create()
+                    .locale(PREFIX + "info.extended", Values.number("hours", extension.extendedHours())));
         }
         var asked = extension.askedHours();
         if (job.state() == JobState.TAKEN && asked != null) {
-            messages.sendMessage(player, PREFIX + "info.extensionAsked", Values.number("hours", asked));
+            lines.add(MenuText.create().locale(PREFIX + "info.extensionAsked", Values.number("hours", asked)));
         }
         var review = job.review();
         var rejected = review.rejected();
         if (job.state() == JobState.TAKEN && rejected != null) {
-            messages.sendMessage(player, PREFIX + "info.rejected", Values.text("reason", rejected));
+            lines.add(MenuText.create().locale(PREFIX + "info.rejected", Values.text("reason", rejected)));
         }
         if (job.state() == JobState.DONE) {
-            messages.sendMessage(player, PREFIX + "info.waiting");
+            lines.add(MenuText.create().locale(PREFIX + "info.waiting"));
         }
         if (job.state() == JobState.DISPUTED) {
-            messages.sendMessage(
-                    player,
-                    PREFIX + "info.disputed",
-                    Values.text("reason", Objects.requireNonNullElse(review.dispute(), "")));
+            lines.add(MenuText.create()
+                    .locale(
+                            PREFIX + "info.disputed",
+                            Values.text("reason", Objects.requireNonNullElse(review.dispute(), ""))));
         }
         shown.progress()
-                .ifPresent(progress -> messages.sendMessage(
-                        player,
-                        PREFIX + "info.progress",
-                        Values.number("percent", progress.percent()),
-                        Values.number("cleared", progress.cleared()),
-                        Values.number("total", progress.total())));
+                .ifPresent(progress -> lines.add(MenuText.create()
+                        .locale(
+                                PREFIX + "info.progress",
+                                Values.number("percent", progress.percent()),
+                                Values.number("cleared", progress.cleared()),
+                                Values.number("total", progress.total()))));
+        deps.services()
+                .menus()
+                .show(player, jobMenu, new JobMenu.Model(title(player, job), JobMenus.name(job), lines, actions(job)));
+    }
+
+    private MenuText title(Player player, Job job) {
+        return MenuText.create()
+                .locale(
+                        PREFIX + "info.head",
+                        Values.number("id", job.id()),
+                        Values.text("job_title", job.title()),
+                        Values.component("kind", kind(player, job)));
+    }
+
+    /**
+     * @param job a job the player's company may see
+     * @return what a member may do with it now
+     */
+    private List<JobMenu.Action> actions(Job job) {
         var id = job.id();
-        var buttons = MenuText.create();
+        List<JobMenu.Action> actions = new ArrayList<>();
         if (job.state() == JobState.OPEN) {
-            buttons.text(
-                    "<act_take><add>[<i18n:" + PREFIX + "takeButton>]</act_take>",
-                    Values.click("act_take", ClickEvent.runCommand("/company job take " + id)));
+            actions.add(new JobMenu.Action(PREFIX + "takeButton", "add", "company job take " + id, JobMenu.Kind.RUN));
         } else if (job.state() == JobState.TAKEN) {
             var done =
                     switch (job.kind()) {
@@ -563,34 +591,40 @@ public final class CompanyJobCommand {
                         case HARVEST -> "endButton";
                         default -> "doneButton";
                     };
-            buttons.text(
-                            "<act_done><add>[<i18n:" + PREFIX + done + ">]</act_done> ",
-                            Values.click("act_done", ClickEvent.runCommand("/company job done " + id)))
-                    .text(
-                            "<act_back><remove>[<i18n:" + PREFIX + "giveBackButton>]</act_back> ",
-                            Values.click("act_back", ClickEvent.suggestCommand("/company job giveback " + id)));
+            actions.add(new JobMenu.Action(PREFIX + done, "add", "company job done " + id, JobMenu.Kind.RUN));
+            actions.add(new JobMenu.Action(
+                    PREFIX + "giveBackButton", "remove", "company job giveback " + id, JobMenu.Kind.CHECK));
+            if (job.kind() == JobKind.BUILD) {
+                actions.add(new JobMenu.Action(
+                        PREFIX + "ghostsButton", "show", "company job ghosts " + id, JobMenu.Kind.RUN));
+            }
             var limits = deps.configuration().jobSettings();
             if (limits.extensionsEnabled()
                     && !job.extension().asked()
                     && job.extension().requests() < limits.maxExtensionRequests()
                     && jobs().service().hoursLeft(job) > 0) {
-                buttons.text(
-                        "<act_extend><show>[<i18n:" + PREFIX + "extendButton>]</act_extend> ",
-                        Values.click("act_extend", ClickEvent.suggestCommand("/company job extend " + id + " ")));
+                actions.add(JobMenu.Action.hours(
+                        PREFIX + "extendButton",
+                        "show",
+                        "company job extend " + id,
+                        "jobs.menu.reason",
+                        JobExtension.MAX_REASON));
             }
         }
         if ((job.state() == JobState.TAKEN || job.state() == JobState.DONE) && job.kind() != JobKind.HARVEST) {
-            buttons.text(
-                    "<act_dispute><remove>[<i18n:" + PREFIX + "disputeButton>]</act_dispute>",
-                    Values.click("act_dispute", ClickEvent.suggestCommand("/company job dispute " + id + " ")));
+            actions.add(JobMenu.Action.text(
+                    PREFIX + "disputeButton",
+                    "remove",
+                    "company job dispute " + id,
+                    "jobs.menu.reason",
+                    JobReview.MAX_REASON));
         }
         var disputeBy = job.review().disputeBy();
         if (job.state() == JobState.DISPUTED && disputeBy != null && !disputeBy.equals(job.owner())) {
-            buttons.text(
-                    "<act_withdraw><show>[<i18n:" + PREFIX + "withdrawButton>]</act_withdraw>",
-                    Values.click("act_withdraw", ClickEvent.suggestCommand("/company job withdraw " + id)));
+            actions.add(new JobMenu.Action(
+                    PREFIX + "withdrawButton", "show", "company job withdraw " + id, JobMenu.Kind.CHECK));
         }
-        messages.sendMessage(player, buttons);
+        return actions;
     }
 
     private void refused(Player player, int id, JobService.Change change) {

@@ -17,6 +17,8 @@ import de.eldoria.companies.data.wrapper.job.Job;
 import de.eldoria.companies.events.company.CompanyDisbandEvent;
 import de.eldoria.companies.jobs.hooks.JobHooks;
 import de.eldoria.companies.jobs.hooks.ProviderJobLand;
+import de.eldoria.companies.menus.MenuComponents;
+import de.eldoria.companies.menus.Values;
 import de.eldoria.companies.orders.Collector;
 import de.eldoria.companies.orders.FeeReductions;
 import de.eldoria.companies.services.LevelService;
@@ -30,6 +32,7 @@ import de.eldoria.companies.services.notifications.NotificationType;
 import de.eldoria.companies.util.Texts;
 import de.eldoria.companies.util.Threading;
 import de.eldoria.companies.util.Times;
+import de.eldoria.eldoutilities.messages.MessageSender;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Material;
 import org.bukkit.event.EventHandler;
@@ -339,7 +342,20 @@ public final class Jobs {
         var ghosts = new BuildGhosts(plugin);
         plugin.getServer().getPluginManager().registerEvents(ghosts, plugin);
         var costs = new MaterialCosts(blueprints, type -> price(orders, type, plugin));
-        return new JobServices(jobs, service, hooks, access, progress, node, blueprints, ghosts, costs);
+        var barTexts = MessageSender.getPluginMessageSender(plugin);
+        var bars = new ProgressBars(
+                plugin,
+                access::active,
+                job -> progress.of(job, false),
+                mainThread,
+                (player, job, work) -> new MenuComponents(barTexts, player)
+                        .locale(
+                                "jobs.progressBar",
+                                Values.number("id", job.id()),
+                                Values.text("job_title", job.title()),
+                                Values.number("percent", work.percent())));
+        plugin.getServer().getPluginManager().registerEvents(bars, plugin);
+        return new JobServices(jobs, service, hooks, access, progress, node, blueprints, ghosts, costs, bars);
     }
 
     private static double price(AOrderData orders, Material type, Plugin plugin) {
@@ -352,8 +368,8 @@ public final class Jobs {
     }
 
     /**
-     * Schedules the access of this server's areas, the removal of ghost blocks of jobs that ended and, on the primary,
-     * the check that expires jobs.
+     * Schedules the access of this server's areas, the progress bars, the removal of ghost blocks and last progress of
+     * jobs that ended and, on the primary, the check that expires jobs.
      *
      * @param services the jobs
      * @param primary  whether this server is the primary
@@ -367,9 +383,15 @@ public final class Jobs {
                 .getScheduler()
                 .runTaskTimer(
                         plugin,
-                        () -> services.ghosts().prune(services.access()::working),
+                        () -> {
+                            services.ghosts().prune(services.access()::working);
+                            services.progress().prune(services.access()::working);
+                        },
                         GHOST_PRUNE_TICKS,
                         GHOST_PRUNE_TICKS);
+        plugin.getServer()
+                .getScheduler()
+                .runTaskTimer(plugin, services.bars()::refresh, ProgressBars.REFRESH_TICKS, ProgressBars.REFRESH_TICKS);
         if (!primary) return;
         executor.scheduleWithFixedDelay(
                 () -> {

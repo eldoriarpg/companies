@@ -663,6 +663,7 @@ function jobDetails(job) {
         requestsLeft: job.state === 'taken' ? (job.requestsLeft ?? 3) : 0,
         request: job.state === 'taken' ? (job.request ?? null) : null,
         materialCost: job.kind === 'build' ? {total: 1840, unpriced: 0} : null,
+        progress: job.state === 'taken' && job.kind !== 'contract' && job.kind !== 'harvest' ? {percent: 40, done: 400, total: 1000} : null,
     }
 }
 

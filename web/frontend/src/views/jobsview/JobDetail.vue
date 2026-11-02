@@ -130,6 +130,7 @@ async function take(step: JobStep): Promise<void> {
     <MutedText v-if="job.kind === 'harvest'" tag="p">{{ t('jobs.paidSoFar', {paid: money(job.paid ?? 0, locale)}) }}</MutedText>
     <p v-if="details.description" class="m-0 whitespace-pre-line text-sm" data-testid="job-description">{{ details.description }}</p>
     <MutedText v-if="job.world" tag="p">{{ t('jobs.place', {center: job.center, world: job.world}) }}</MutedText>
+    <MutedText v-if="details.progress && job.state === 'taken'" tag="p" data-testid="job-progress">{{ t('jobs.progress', {percent: details.progress.percent, done: count(details.progress.done, locale), total: count(details.progress.total, locale)}) }}</MutedText>
     <MutedText v-if="details.materialCost" tag="p" data-testid="job-material-cost">{{ t(details.materialCost.unpriced > 0 ? 'jobs.materialCostUnpriced' : 'jobs.materialCost', {cost: money(details.materialCost.total, locale), unpriced: details.materialCost.unpriced}) }}</MutedText>
     <MutedText v-if="details.targetY != null" tag="p">{{ details.surface ? t('jobs.targetSurface', {y: details.targetY, block: details.surface.toLowerCase()}) : t('jobs.target', {y: details.targetY}) }}</MutedText>
     <MutedText v-if="job.state === 'open' && job.expires" tag="p">{{ t('jobs.expires', {time: dateTime(job.expires, locale)}) }}</MutedText>

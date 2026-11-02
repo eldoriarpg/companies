@@ -468,6 +468,12 @@ public final class JobWrites {
                                 .map(cost -> new MaterialCost(
                                         cost.total(), cost.unpriced().size()))
                                 .orElse(null)
+                        : null,
+                job.state() == JobState.TAKEN
+                        ? jobs.progress()
+                                .last(job.id())
+                                .map(work -> new Progress(work.percent(), work.cleared(), work.total()))
+                                .orElse(null)
                         : null);
     }
 
@@ -596,6 +602,7 @@ public final class JobWrites {
      * @param requestsLeft   how often the company working on it may still ask for more time
      * @param request        the company's open request for more time, null without one
      * @param materialCost   what the blocks of a build job's blueprint cost, null for other kinds
+     * @param progress       how far the work was at the last check of its area, null when this server did not check it
      */
     public record JobDetails(
             JobRow job,
@@ -614,7 +621,17 @@ public final class JobWrites {
             int hoursLeft,
             int requestsLeft,
             @Nullable ExtensionRequest request,
-            @Nullable MaterialCost materialCost) {}
+            @Nullable MaterialCost materialCost,
+            @Nullable Progress progress) {}
+
+    /**
+     * How far the work on a job was at the last check of its area.
+     *
+     * @param percent the share done
+     * @param done    the blocks as the job asks
+     * @param total   the blocks the job asks about
+     */
+    public record Progress(int percent, long done, long total) {}
 
     /**
      * What the blocks of a build job's blueprint cost.
