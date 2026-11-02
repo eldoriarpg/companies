@@ -48,7 +48,8 @@ CompaniesApi api = CompaniesApi.get();
 CompaniesApi api = getServer().getServicesManager().load(CompaniesApi.class);
 ```
 
-Add `depend: [Companies]` or `softdepend: [Companies]` to your `plugin.yml`. See [Get the API](./api.md#get-the-api).
+Add `depend: [Companies]` or `softdepend: [Companies]` to your `plugin.yml`, or the server dependency to your
+`paper-plugin.yml`. See [Declare Companies as a dependency](./api.md#declare-companies-as-a-dependency).
 
 ## What changed
 
