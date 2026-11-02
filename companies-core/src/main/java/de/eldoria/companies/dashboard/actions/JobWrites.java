@@ -17,7 +17,10 @@ import de.eldoria.companies.data.wrapper.job.JobArea;
 import de.eldoria.companies.data.wrapper.job.JobLand;
 import de.eldoria.companies.data.wrapper.job.JobReview;
 import de.eldoria.companies.data.wrapper.job.JobTarget;
+import de.eldoria.companies.data.wrapper.job.StoredArea;
 import de.eldoria.companies.jobs.AreaChecks;
+import de.eldoria.companies.jobs.AreaWorld;
+import de.eldoria.companies.jobs.Blueprint;
 import de.eldoria.companies.jobs.JobService;
 import de.eldoria.companies.jobs.JobServices;
 import de.eldoria.companies.jobs.SchematicUploads;
@@ -44,6 +47,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -87,7 +91,10 @@ public final class JobWrites {
             Actions.JOBS_SCHEMATICS_DELETE,
             Actions.JOBS_AREAS_LIST,
             Actions.JOBS_AREAS_DELETE,
-            Actions.JOBS_AREAS_POST);
+            Actions.JOBS_AREAS_POST,
+            Actions.JOBS_AREAS_PREVIEW,
+            Actions.JOBS_AREAS_SCHEMATIC,
+            Actions.JOBS_AREAS_BUILD);
 
     /**
      * The most jobs of each list.
@@ -97,6 +104,7 @@ public final class JobWrites {
     private static final String OWNER = "order.job.";
     private static final JobArea NOWHERE = new JobArea("", 0, 0, 0, 0, 0, 0);
     private static final String COMPANY = "company.job.";
+    private static final long WORLD_SECONDS = 15;
 
     private final Sources sources;
     private final Answers answers;
@@ -196,6 +204,9 @@ public final class JobWrites {
                 yield answers.data(request, areas(jobs, player));
             }
             case Actions.JOBS_AREAS_POST -> postOnArea(request, jobs, session, args);
+            case Actions.JOBS_AREAS_PREVIEW -> preview(request, jobs, session, args);
+            case Actions.JOBS_AREAS_SCHEMATIC -> schematicFit(request, jobs, session, args);
+            case Actions.JOBS_AREAS_BUILD -> build(request, jobs, session, args);
             case Actions.JOBS_CANCEL_ACCEPT ->
                 forCompany(
                         request,
@@ -401,25 +412,14 @@ public final class JobWrites {
      * server whose world holds the area, where its height and land are checked on the main thread as in game.
      */
     private ActionResult postOnArea(ActionRequest request, JobServices jobs, StoredSession session, JsonNode args) {
-        if (!mayPost(session)) return answers.refused(request, "error.permission.postJob");
-        var player = session.player();
-        var name = args.path("area").asString("");
-        var stored = jobs.areas().area(player, name);
-        if (stored.isEmpty()) {
-            return answers.refused(request, CommandFailure.of(OWNER + "area.error.unknown", Values.text("area", name)));
-        }
-        if (!stored.get().node().equals(jobs.node())) {
-            return answers.refused(
-                    request, CommandFailure.of(OWNER + "area.error.otherServer", Values.text("area", name)));
-        }
-        var area = stored.get().area();
-        var kind = args.path("kind").asString("");
-        var price = args.path("price").asDouble(0);
-        JobKind jobKind;
+        var found = storedHere(request, jobs, session, args);
+        if (found.refused() != null) return found.refused();
+        var area = found.area().area();
+        JobKind kind;
         JobService.Details details;
-        switch (kind) {
+        switch (args.path("kind").asString("")) {
             case "dig" -> {
-                jobKind = JobKind.DIG;
+                kind = JobKind.DIG;
                 details = JobService.Details.NONE;
             }
             case "terraform" -> {
@@ -434,17 +434,150 @@ public final class JobWrites {
                     }
                     surface = material.name();
                 }
-                jobKind = JobKind.TERRAFORM;
+                kind = JobKind.TERRAFORM;
                 details = JobService.Details.shape(new JobTarget(args.path("y").asInt(), surface));
             }
             case "harvest" -> {
-                jobKind = JobKind.HARVEST;
+                kind = JobKind.HARVEST;
                 details = JobService.Details.harvest(args.path("unitPrice").asDouble(0));
             }
             default -> {
                 return answers.refused(request, "dashboard.unsupported");
             }
         }
+        return checkedPost(request, jobs, session.player(), kind, area, args, details);
+    }
+
+    /**
+     * Draws the top layer of one of the player's stored areas and lists the schematics a build job on it may use.
+     */
+    private ActionResult preview(ActionRequest request, JobServices jobs, StoredSession session, JsonNode args) {
+        var found = storedHere(request, jobs, session, args);
+        if (found.refused() != null) return found.refused();
+        var stored = found.area();
+        if (!AreaWorld.drawable(stored.area())) {
+            return answers.refused(
+                    request,
+                    CommandFailure.of(OWNER + "area.error.tooLarge", Values.number("max", AreaWorld.MAX_SIDE)));
+        }
+        AreaWorld.Drawn drawn;
+        try {
+            drawn = jobs.world()
+                    .topLayer(session.player(), stored.area())
+                    .orTimeout(WORLD_SECONDS, TimeUnit.SECONDS)
+                    .join();
+        } catch (CompletionException e) {
+            return answers.refused(request, OWNER + "error.failed");
+        }
+        AreaWorld.TopLayer top;
+        switch (drawn) {
+            case AreaWorld.Drawn.Done done -> top = done.top();
+            case AreaWorld.Drawn.Busy busy -> {
+                return answers.refused(request, OWNER + "area.error.drawing");
+            }
+            case AreaWorld.Drawn.NoWorld noWorld -> {
+                return answers.refused(
+                        request,
+                        CommandFailure.of(
+                                OWNER + "error.noWorld",
+                                Values.text("world", stored.area().world())));
+            }
+        }
+        var names = jobs.schematics().names(session.player());
+        return answers.data(
+                request,
+                new AreaPreview(
+                        stored.name(),
+                        top.width(),
+                        top.length(),
+                        top.palette(),
+                        top.cells(),
+                        names.server(),
+                        names.own()));
+    }
+
+    /**
+     * Reads the size and cost of a schematic the player may build, turned.
+     */
+    private ActionResult schematicFit(ActionRequest request, JobServices jobs, StoredSession session, JsonNode args) {
+        if (!mayPost(session)) return answers.refused(request, "error.permission.postJob");
+        var blueprint = blueprint(request, jobs, session.player(), args);
+        if (blueprint.refused() != null) return blueprint.refused();
+        var read = blueprint.blueprint();
+        var size = read.size();
+        var cost = jobs.costs().of(read);
+        return answers.data(
+                request,
+                new SchematicFit(
+                        size[0],
+                        size[1],
+                        size[2],
+                        read.blocks(),
+                        cost.total(),
+                        cost.unpriced().size()));
+    }
+
+    /**
+     * Posts a build job of a schematic placed on one of the player's stored areas. It stands on the ground of its
+     * origin's column, as if the owner stood there in game; a price below what its blocks cost needs {@code confirm}.
+     */
+    private ActionResult build(ActionRequest request, JobServices jobs, StoredSession session, JsonNode args) {
+        var found = storedHere(request, jobs, session, args);
+        if (found.refused() != null) return found.refused();
+        var blueprint = blueprint(request, jobs, session.player(), args);
+        if (blueprint.refused() != null) return blueprint.refused();
+        AreaWorld.Placed placed;
+        try {
+            placed = jobs.world()
+                    .place(
+                            found.area().area(),
+                            blueprint.blueprint(),
+                            args.path("x").asInt(),
+                            args.path("z").asInt())
+                    .orTimeout(WORLD_SECONDS, TimeUnit.SECONDS)
+                    .join();
+        } catch (CompletionException e) {
+            return answers.refused(request, OWNER + "error.failed");
+        }
+        return switch (placed) {
+            case AreaWorld.Placed.Outside outside -> answers.refused(request, OWNER + "area.error.outside");
+            case AreaWorld.Placed.NoWorld noWorld ->
+                answers.refused(
+                        request,
+                        CommandFailure.of(
+                                OWNER + "error.noWorld",
+                                Values.text("world", found.area().area().world())));
+            case AreaWorld.Placed.Nothing nothing -> schematicMissing(request, args);
+            case AreaWorld.Placed.Done done -> {
+                var cost = jobs.costs().of(done.blueprint());
+                var price = args.path("price").asDouble(0);
+                if (cost.above(price) && !args.path("confirm").asBoolean(false)) {
+                    yield answers.refused(
+                            request, CommandFailure.of(OWNER + "error.belowCost", Values.number("cost", cost.total())));
+                }
+                yield checkedPost(
+                        request,
+                        jobs,
+                        session.player(),
+                        JobKind.BUILD,
+                        done.area(),
+                        args,
+                        JobService.Details.build(done.blueprint()));
+            }
+        };
+    }
+
+    /**
+     * Checks an area on the main thread as in game and posts the job when it may lie there.
+     */
+    private ActionResult checkedPost(
+            ActionRequest request,
+            JobServices jobs,
+            UUID player,
+            JobKind kind,
+            JobArea area,
+            JsonNode args,
+            JobService.Details details) {
         AreaChecks.Checked checked;
         try {
             checked = jobs.checks().checkOnMain(player, area);
@@ -474,13 +607,13 @@ public final class JobWrites {
                         request,
                         jobs,
                         player,
-                        jobKind,
+                        kind,
                         jobs.service()
                                 .post(
                                         player,
-                                        jobKind,
+                                        kind,
                                         args.path("title").asString(""),
-                                        price,
+                                        args.path("price").asDouble(0),
                                         args.path("hours").asInt(0),
                                         jobs.node(),
                                         area,
@@ -488,6 +621,76 @@ public final class JobWrites {
                                         land.ref(),
                                         details));
         };
+    }
+
+    /**
+     * Finds the stored area named in {@code area} and makes sure it lies on this server and the player may post.
+     */
+    private Found storedHere(ActionRequest request, JobServices jobs, StoredSession session, JsonNode args) {
+        if (!mayPost(session)) return Found.refused(answers.refused(request, "error.permission.postJob"));
+        var name = args.path("area").asString("");
+        var stored = jobs.areas().area(session.player(), name);
+        if (stored.isEmpty()) {
+            return Found.refused(answers.refused(
+                    request, CommandFailure.of(OWNER + "area.error.unknown", Values.text("area", name))));
+        }
+        if (!stored.get().node().equals(jobs.node())) {
+            return Found.refused(answers.refused(
+                    request, CommandFailure.of(OWNER + "area.error.otherServer", Values.text("area", name))));
+        }
+        return new Found(stored.get(), null);
+    }
+
+    /**
+     * Reads the schematic named in {@code schematic}, turned by {@code rotation}.
+     */
+    private Read blueprint(ActionRequest request, JobServices jobs, UUID player, JsonNode args) {
+        if (!jobs.hooks().selects()) return new Read(null, answers.refused(request, OWNER + "error.noBlueprints"));
+        var rotation = args.path("rotation").asInt(-1);
+        if (rotation % 90 != 0 || rotation < 0 || rotation >= 360) {
+            return new Read(null, answers.refused(request, OWNER + "error.rotation"));
+        }
+        var maxVolume = sources.settings().get().buildMaxVolume();
+        return jobs.schematics()
+                .blueprint(player, args.path("schematic").asString(""), rotation, maxVolume)
+                .map(found -> new Read(found, null))
+                .orElseGet(() -> new Read(null, schematicMissing(request, args)));
+    }
+
+    private ActionResult schematicMissing(ActionRequest request, JsonNode args) {
+        return answers.refused(
+                request,
+                CommandFailure.of(
+                        OWNER + "error.schematic",
+                        Values.text("schematic", args.path("schematic").asString("")),
+                        Values.number("max", sources.settings().get().buildMaxVolume())));
+    }
+
+    /**
+     * A stored area of the player on this server, or the answer refusing it; the area is read only when nothing refused
+     * it.
+     */
+    private record Found(
+            @Nullable StoredArea area, @Nullable ActionResult refused) {
+        private static Found refused(ActionResult refused) {
+            return new Found(null, refused);
+        }
+
+        @Override
+        public StoredArea area() {
+            return Objects.requireNonNull(area);
+        }
+    }
+
+    /**
+     * A schematic read as a blueprint, or the answer refusing it; the blueprint is read only when nothing refused it.
+     */
+    private record Read(
+            @Nullable Blueprint blueprint, @Nullable ActionResult refused) {
+        @Override
+        public Blueprint blueprint() {
+            return Objects.requireNonNull(blueprint);
+        }
     }
 
     private static boolean mayPost(StoredSession session) {
@@ -953,6 +1156,38 @@ public final class JobWrites {
      * @param areas the player's areas, sorted by name
      */
     public record AreaList(int max, List<AreaRow> areas) {}
+
+    /**
+     * The top layer of a stored area and the schematics a build job on it may use.
+     *
+     * @param name    the area's name
+     * @param width   columns along x
+     * @param length  columns along z
+     * @param palette the colours as {@code #rrggbb}, an empty text for a column with nothing in the area
+     * @param cells   the palette index of each column, row by row along z, each row along x
+     * @param server  the server's schematics
+     * @param own     the player's uploaded schematics
+     */
+    public record AreaPreview(
+            String name,
+            int width,
+            int length,
+            List<String> palette,
+            int[] cells,
+            List<String> server,
+            List<String> own) {}
+
+    /**
+     * A schematic, turned, as a build job would ask for it.
+     *
+     * @param width    its size along x
+     * @param height   its size along y
+     * @param length   its size along z
+     * @param blocks   how many blocks it asks for
+     * @param cost     what its blocks cost at the server's prices
+     * @param unpriced how many block types have no known price and are left out
+     */
+    public record SchematicFit(int width, int height, int length, int blocks, double cost, int unpriced) {}
 
     /**
      * A stored area.

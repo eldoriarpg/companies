@@ -372,6 +372,8 @@ public final class Jobs {
         var tool = new AreaTool(plugin, areas, barTexts);
         plugin.getServer().getPluginManager().registerEvents(tool, plugin);
         var checks = new AreaChecks(plugin.getServer(), hooks, configuration::jobSettings, mainThread);
+        var schematics = new BuildSchematics(
+                plugin.getDataFolder().toPath().resolve("schematics"), uploads, hooks, plugin.getLogger());
         return new JobServices(
                 jobs,
                 service,
@@ -386,7 +388,9 @@ public final class Jobs {
                 uploads,
                 areas,
                 tool,
-                checks);
+                checks,
+                schematics,
+                new AreaWorld(plugin.getServer(), mainThread));
     }
 
     private static double price(AOrderData orders, Material type, Plugin plugin) {

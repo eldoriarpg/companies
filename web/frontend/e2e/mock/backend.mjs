@@ -963,6 +963,22 @@ function action(name, args, state, story = {}) {
         case 'jobs.areas.delete':
             state.areas = areaList(state).areas.filter(area => area.name !== args.name)
             return done(areaList(state))
+        case 'jobs.areas.preview': {
+            const area = areaList(state).areas.find(stored => stored.name === args.area)
+            if (!area) return refused(`You have no area ${args.area}.`)
+            const cells = Array.from({length: area.width * area.length}, (_, i) => (i % area.width + Math.floor(i / area.width)) % 2)
+            return done({name: area.name, width: area.width, length: area.length, palette: ['#7fb238', '#976d4d'], cells, server: ['barn'], own: state.schematics ?? []})
+        }
+        case 'jobs.areas.schematic':
+            return args.schematic === 'barn'
+                ? done({width: args.rotation % 180 === 0 ? 5 : 3, height: 4, length: args.rotation % 180 === 0 ? 3 : 5, blocks: 48, cost: 150, unpriced: 0})
+                : refused(`There is no readable schematic ${args.schematic}.`)
+        case 'jobs.areas.build': {
+            if (args.price < 150 && !args.confirm) return refused('The price is below what the blocks of this schematic cost.')
+            const id = 22
+            jobsOf(state)[id] = {id, kind: 'build', state: 'open', title: args.title, price: args.price, fee: 5, expires: '2026-11-06T12:00:00Z', blocks: 60, world: 'world', center: '10 70 -4', mine: true, ours: false}
+            return done(jobDetails(jobsOf(state)[id]))
+        }
         case 'jobs.areas.post': {
             const area = areaList(state).areas.find(stored => stored.name === args.area)
             if (!area) return refused(`You have no area ${args.area}.`)

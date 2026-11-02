@@ -73,6 +73,30 @@ test.describe('jobs', () => {
         await expect(page.getByTestId('jobs-mine').getByText('Level the field')).toBeVisible()
     })
 
+    test('place a schematic on a stored area and post a build job below its cost', async ({page}, info) => {
+        await openDashboard(page, 'JOBS01')
+        await openFromMenu(page, info, 'Jobs')
+        const areas = page.getByTestId('job-areas')
+        await areas.getByTestId('job-areas-open-field').click()
+
+        const form = areas.getByTestId('job-areas-form')
+        await expect(form.getByTestId('area-map')).toBeVisible()
+        await form.getByLabel('Kind').selectOption('build')
+        await form.getByLabel('Schematic').selectOption('barn')
+        await form.getByLabel('Turned').selectOption('90')
+        await expect(form.getByTestId('job-areas-fit')).toContainText('3×4×5')
+        await form.getByTestId('area-map').focus()
+        await page.keyboard.press('ArrowRight')
+        await expect(form.getByTestId('area-map-footprint')).toBeVisible()
+        await form.getByLabel('Title').fill('A small barn')
+        await form.getByLabel('Price').fill('100')
+        await expect(form.getByTestId('job-areas-post')).toBeDisabled()
+        await form.getByTestId('job-areas-below').getByRole('checkbox').check()
+        await form.getByTestId('job-areas-post').click()
+
+        await expect(page.getByTestId('jobs-mine').getByText('A small barn')).toBeVisible()
+    })
+
     test('take an open contract for the company and say it is done', async ({page}, info) => {
         await openDashboard(page, 'JOBS01')
         await openFromMenu(page, info, 'Jobs')

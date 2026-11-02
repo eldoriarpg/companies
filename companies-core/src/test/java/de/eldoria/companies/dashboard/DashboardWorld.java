@@ -86,8 +86,10 @@ import de.eldoria.companies.data.wrapper.price.Baseline;
 import de.eldoria.companies.data.wrapper.series.OrderSeries;
 import de.eldoria.companies.events.EventRecorder;
 import de.eldoria.companies.jobs.AreaChecks;
+import de.eldoria.companies.jobs.AreaWorld;
 import de.eldoria.companies.jobs.Blueprints;
 import de.eldoria.companies.jobs.BuildGhosts;
+import de.eldoria.companies.jobs.BuildSchematics;
 import de.eldoria.companies.jobs.JobAccess;
 import de.eldoria.companies.jobs.JobProgress;
 import de.eldoria.companies.jobs.JobService;
@@ -901,6 +903,7 @@ public final class DashboardWorld implements AutoCloseable {
         var hooks = new JobHooks(name -> false, className -> new Object(), logger);
         var blueprints = new Blueprints(jobs, logger);
         var node = new UUID(0, 1);
+        var uploads = new SchematicUploads(jobs, hooks, () -> jobSettings, Times::now, logger);
         return new JobServices(
                 jobs,
                 service,
@@ -922,10 +925,12 @@ public final class DashboardWorld implements AutoCloseable {
                 new BuildGhosts(plugin),
                 new MaterialCosts(blueprints, type -> 0),
                 null,
-                new SchematicUploads(jobs, hooks, () -> jobSettings, Times::now, logger),
+                uploads,
                 new StoredAreas(jobs, () -> jobSettings, Times::now),
                 null,
-                new AreaChecks(plugin.getServer(), hooks, () -> jobSettings, Runnable::run));
+                new AreaChecks(plugin.getServer(), hooks, () -> jobSettings, Runnable::run),
+                new BuildSchematics(directory.resolve("schematics"), uploads, hooks, logger),
+                new AreaWorld(plugin.getServer(), Runnable::run));
     }
 
     private AdminServerWrites adminServers(SqLiteOrderData orders) {

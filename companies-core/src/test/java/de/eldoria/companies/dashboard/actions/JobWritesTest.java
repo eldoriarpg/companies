@@ -294,6 +294,41 @@ class JobWritesTest {
     }
 
     @Test
+    void previewsAndBuildsOnAStoredAreaAreRefusedWithoutWhatTheyNeed() {
+        world.jobs.saveArea(owner, new StoredArea("field", HERE, FIELD), Times.now());
+        world.jobs.saveArea(
+                owner, new StoredArea("huge", HERE, new JobArea("world", 0, 60, 0, 300, 64, 9)), Times.now());
+        var jobs = Set.of(Permission.Orders.JOBS);
+
+        var huge = perform(owner, Actions.JOBS_AREAS_PREVIEW, "{\"area\":\"huge\"}", jobs);
+        var noWorld = perform(owner, Actions.JOBS_AREAS_PREVIEW, "{\"area\":\"field\"}", jobs);
+        var rotation = perform(
+                owner,
+                Actions.JOBS_AREAS_SCHEMATIC,
+                "{\"area\":\"field\",\"schematic\":\"barn\",\"rotation\":45}",
+                jobs);
+        var missing = perform(
+                owner,
+                Actions.JOBS_AREAS_SCHEMATIC,
+                "{\"area\":\"field\",\"schematic\":\"barn\",\"rotation\":90}",
+                jobs);
+        var build = perform(
+                owner,
+                Actions.JOBS_AREAS_BUILD,
+                "{\"area\":\"field\",\"schematic\":\"barn\",\"rotation\":0,\"x\":0,\"z\":0,\"title\":\"Barn\","
+                        + "\"price\":100,\"hours\":24}",
+                jobs);
+        var forbidden = perform(owner, Actions.JOBS_AREAS_PREVIEW, "{\"area\":\"field\"}", Set.of());
+
+        assertEquals("order.job.area.error.tooLarge", huge.reason());
+        assertEquals("order.job.error.noWorld", noWorld.reason());
+        assertEquals("order.job.error.noBlueprints", rotation.reason());
+        assertEquals("order.job.error.noBlueprints", missing.reason());
+        assertEquals("order.job.error.noBlueprints", build.reason());
+        assertEquals("error.permission.postJob", forbidden.reason());
+    }
+
+    @Test
     void aContractMayBePlacedAtAStoredAreaOfAnyServer() {
         var other = UUID.randomUUID();
         world.jobs.saveArea(owner, new StoredArea("field", other, FIELD), Times.now());

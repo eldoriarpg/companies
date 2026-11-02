@@ -51,7 +51,7 @@ have a few jobs waiting at once.
 - **Mark an area**, then post it: `/order job dig <price> <hours> <title>`. See [Areas](#areas) for marking one;
   a WorldEdit selection (`//pos1`, `//pos2`) works too.
 - **Post it on a stored area on the dashboard:** under **Your areas** on the Jobs page, pick an area and post a dig,
-  terraform or harvest job on it, even while you are not online.
+  terraform, harvest or build job on it, even while you are not online.
 - **Or use your whole plot:** stand on the ground of your plot and post
   `/order job dig plot <price> <hours> <depth> <title>`. The area is the plot, from the block below your feet down
   `depth` blocks.
@@ -100,6 +100,11 @@ it once more and asks you to confirm with the button or `/order job build confir
 blocks cost, the question says so, as companies may pass such a job by; you can still post it. The area is the box the
 schematic covers there, and it must lie on your land like any other job. The cost of its blocks is shown on the job in
 game and on the dashboard too.
+
+On the dashboard, **Your areas** on the Jobs page posts a build job on a stored area without going there: choose one of
+the server's schematics or your own, turn it, and place it on the map of the area, which shows the top block of each
+column from above. It must lie inside the area, and it stands on the ground of its origin's column as if you stood there
+in game. A price below what its blocks cost needs a tick to confirm. Areas of up to 128 by 128 columns are drawn.
 
 The job is done when enough of the schematic's blocks are in place and its spots to dig are clear: `buildMatchPercent`
 (95 % by default) in [jobs.yml](../admin/configuration/jobs-yml.md). A block counts when its type is right and it is

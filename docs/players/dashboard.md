@@ -137,12 +137,13 @@ The **Jobs** page lists the jobs your company holds, the open [jobs](jobs.md) co
 Open one to see its price, place, time and what happened to it, and to take the steps you may take, as the commands
 allow them. You can post a **contract** here: a title, a description, a price and the hours a company gets to finish it;
 place it at one of your stored areas or where you were last in game, which every company then sees. **Your areas** lists
-the areas you stored in game with `/order job area`: post a dig, terraform or harvest job on one here, even while you
-are offline. Build jobs are posted in game. Dig, terraform and build jobs are finished in game, where their area is
-checked. **Take** shows only while your company has an order slot free. The stock of your harvest job is collected here
-into your item returns, which you take in game with `/order returns`. Where the server allows it, **Your schematics**
-takes your own schematics for build jobs. The owner of a job is never named to companies, and the company working on
-your job is never named to you.
+the areas you stored in game with `/order job area`: see it from above and post a dig, terraform, harvest or build job
+on it here, even while you are offline. For a build job you choose a schematic, turn it and place it on the map of the
+area; it stands on the ground as if you stood at its origin in game. Dig, terraform and build jobs are finished in game,
+where their area is checked. **Take** shows only while your company has an order slot free. The stock of your harvest
+job is collected here into your item returns, which you take in game with `/order returns`. Where the server allows it,
+**Your schematics** takes your own schematics for build jobs. The owner of a job is never named to companies, and the
+company working on your job is never named to you.
 
 ### Events
 

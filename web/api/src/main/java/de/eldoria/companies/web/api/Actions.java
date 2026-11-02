@@ -701,6 +701,23 @@ public final class Actions {
     public static final String JOBS_AREAS_POST = "jobs.areas.post";
 
     /**
+     * Draws the top layer of a stored area and lists the schematics a build job on it may use, on the server whose
+     * world holds it.
+     */
+    public static final String JOBS_AREAS_PREVIEW = "jobs.areas.preview";
+
+    /**
+     * Reads the size and the material cost of a schematic, turned, on the server of a stored area.
+     */
+    public static final String JOBS_AREAS_SCHEMATIC = "jobs.areas.schematic";
+
+    /**
+     * Posts a build job of a schematic the owner placed and turned on a stored area, on the server whose world holds
+     * it; its price and fee are taken at once.
+     */
+    public static final String JOBS_AREAS_BUILD = "jobs.areas.build";
+
+    /**
      * Lists the disputed jobs with both sides and the reason.
      */
     public static final String ADMIN_JOBS_DISPUTES = "admin.jobs.disputes";
@@ -850,6 +867,9 @@ public final class Actions {
             JOBS_AREAS_LIST,
             JOBS_AREAS_DELETE,
             JOBS_AREAS_POST,
+            JOBS_AREAS_PREVIEW,
+            JOBS_AREAS_SCHEMATIC,
+            JOBS_AREAS_BUILD,
             ADMIN_JOBS_DISPUTES,
             ADMIN_JOBS_SETTLE);
 

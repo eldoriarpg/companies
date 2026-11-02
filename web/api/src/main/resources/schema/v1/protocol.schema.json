@@ -1734,6 +1734,15 @@
     "jobs.areas.post" : {
       "feature" : "jobs"
     },
+    "jobs.areas.preview" : {
+      "feature" : "jobs"
+    },
+    "jobs.areas.schematic" : {
+      "feature" : "jobs"
+    },
+    "jobs.areas.build" : {
+      "feature" : "jobs"
+    },
     "admin.jobs.disputes" : {
       "feature" : "admin.jobs"
     },

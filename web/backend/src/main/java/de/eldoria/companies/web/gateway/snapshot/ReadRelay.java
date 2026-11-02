@@ -69,7 +69,9 @@ public final class ReadRelay {
             Actions.JOBS_LIST,
             Actions.JOBS_INFO,
             Actions.JOBS_SCHEMATICS_LIST,
-            Actions.JOBS_AREAS_LIST);
+            Actions.JOBS_AREAS_LIST,
+            Actions.JOBS_AREAS_PREVIEW,
+            Actions.JOBS_AREAS_SCHEMATIC);
 
     /**
      * The actions that change something and may be forwarded. They are never cached, and a write drops every cached
@@ -189,6 +191,7 @@ public final class ReadRelay {
             Actions.JOBS_SCHEMATICS_DELETE,
             Actions.JOBS_AREAS_DELETE,
             Actions.JOBS_AREAS_POST,
+            Actions.JOBS_AREAS_BUILD,
             Actions.ADMIN_JOBS_DISPUTES,
             Actions.ADMIN_JOBS_SETTLE);
 
@@ -203,7 +206,10 @@ public final class ReadRelay {
             Actions.ADMIN_BOARDS_NPC_LIST,
             Actions.ADMIN_BOARDS_NPC_LINK,
             Actions.ADMIN_BOARDS_NPC_UNLINK,
-            Actions.JOBS_AREAS_POST);
+            Actions.JOBS_AREAS_POST,
+            Actions.JOBS_AREAS_PREVIEW,
+            Actions.JOBS_AREAS_SCHEMATIC,
+            Actions.JOBS_AREAS_BUILD);
 
     /**
      * The admin actions only the primary performs, as they push its files to the others. Without a ready primary

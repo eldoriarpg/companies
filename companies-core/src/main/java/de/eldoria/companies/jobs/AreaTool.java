@@ -68,8 +68,9 @@ public final class AreaTool implements Listener {
      * @return whether the player carries an area tool
      */
     public boolean carries(Player player) {
-        for (var item : player.getInventory().getContents()) {
-            if (is(item)) return true;
+        var inventory = player.getInventory();
+        for (var slot = 0; slot < inventory.getSize(); slot++) {
+            if (is(inventory.getItem(slot))) return true;
         }
         return false;
     }

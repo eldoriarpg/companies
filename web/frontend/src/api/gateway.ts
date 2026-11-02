@@ -1296,6 +1296,36 @@ export interface AreaRow {
     blocks: number
 }
 
+/** The top layer of a stored area, seen from above, and the schematics a build job on it may use. */
+export interface AreaPreview {
+    name: string
+    /** Columns along x. */
+    width: number
+    /** Columns along z. */
+    length: number
+    /** Colours as `#rrggbb`; an empty text for a column with nothing in the area. */
+    palette: string[]
+    /** The palette index of each column, row by row along z, each row along x. */
+    cells: number[]
+    /** The server's schematics. */
+    server: string[]
+    /** The player's uploaded schematics. */
+    own: string[]
+}
+
+/** A schematic, turned, as a build job would ask for it. */
+export interface SchematicFit {
+    width: number
+    height: number
+    length: number
+    /** How many blocks it asks for. */
+    blocks: number
+    /** What its blocks cost at the server's prices. */
+    cost: number
+    /** How many block types have no known price and are left out. */
+    unpriced: number
+}
+
 /** The kinds of job posted on a stored area. */
 export type AreaJobKind = 'dig' | 'terraform' | 'harvest'
 
@@ -1462,6 +1492,9 @@ export interface WriteActions {
     'jobs.schematics.delete': {args: {name: string}, result: SchematicList}
     'jobs.areas.list': {args: Record<string, never>, result: AreaList}
     'jobs.areas.delete': {args: {name: string}, result: AreaList}
+    'jobs.areas.preview': {args: {node: string, area: string}, result: AreaPreview}
+    'jobs.areas.schematic': {args: {node: string, area: string, schematic: string, rotation: number}, result: SchematicFit}
+    'jobs.areas.build': {args: {node: string, area: string, schematic: string, rotation: number, x: number, z: number, title: string, price: number, hours: number, confirm: boolean}, result: JobDetails}
     'jobs.areas.post': {args: {node: string, area: string, kind: AreaJobKind, title: string, price: number, hours: number, y?: number, surface?: string, unitPrice?: number}, result: JobDetails}
     'admin.jobs.disputes': {args: Record<string, never>, result: {disputes: DisputeRow[]}}
     'admin.jobs.settle': {args: JobRef & {percent: number}, result: {disputes: DisputeRow[]}}

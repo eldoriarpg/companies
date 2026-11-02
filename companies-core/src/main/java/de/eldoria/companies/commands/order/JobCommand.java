@@ -57,9 +57,6 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.Nullable;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -292,7 +289,7 @@ public final class JobCommand {
     @Executes("schematics")
     public void schematics(CommandSender sender) {
         var player = Senders.player(sender);
-        run(player, () -> new Schematics(schematicNames(), jobs().uploads().names(player.getUniqueId())), found -> {
+        run(player, () -> jobs().schematics().names(player.getUniqueId()), found -> {
             if (found.server().isEmpty() && found.own().isEmpty()) {
                 deps.messages().sendMessage(player, PREFIX + "schematics.none");
                 return;
@@ -536,10 +533,8 @@ public final class JobCommand {
         var maxVolume = deps.configuration().jobSettings().buildMaxVolume();
         run(
                 player,
-                () -> jobs().uploads()
+                () -> jobs().schematics()
                         .blueprint(player.getUniqueId(), schematic, rotation, maxVolume)
-                        .or(() -> schematicFile(schematic)
-                                .flatMap(file -> jobs().hooks().schematic(file, rotation, maxVolume)))
                         .map(blueprint -> new Priced(blueprint, jobs().costs().of(blueprint)))
                         .orElseThrow(() -> CommandFailure.of(
                                 PREFIX + "error.schematic",
@@ -550,47 +545,6 @@ public final class JobCommand {
     }
 
     private record Priced(Blueprint blueprint, MaterialCosts.Cost cost) {}
-
-    private record Schematics(List<String> server, List<String> own) {}
-
-    /**
-     * @return the names of the schematics in the plugin's {@code schematics} folder, without their file endings
-     */
-    private List<String> schematicNames() {
-        return schematicFiles().stream()
-                .map(file -> stripEnding(String.valueOf(file.getFileName())))
-                .sorted()
-                .toList();
-    }
-
-    /**
-     * @param name a schematic name as the player typed it
-     * @return the file of the schematic with that name in the plugin's {@code schematics} folder, ignoring case; only
-     *     files listed in the folder are found, so no name reaches outside it
-     */
-    private Optional<Path> schematicFile(String name) {
-        return schematicFiles().stream()
-                .filter(file -> stripEnding(String.valueOf(file.getFileName())).equalsIgnoreCase(name))
-                .findFirst();
-    }
-
-    private List<Path> schematicFiles() {
-        var folder = deps.plugin().getDataFolder().toPath().resolve("schematics");
-        try {
-            Files.createDirectories(folder);
-            try (var files = Files.list(folder)) {
-                return files.filter(Files::isRegularFile).toList();
-            }
-        } catch (IOException e) {
-            deps.plugin().getLogger().log(Level.WARNING, "Could not read the schematics folder " + folder, e);
-            return List.of();
-        }
-    }
-
-    private static String stripEnding(String fileName) {
-        var dot = fileName.lastIndexOf('.');
-        return dot > 0 ? fileName.substring(0, dot) : fileName;
-    }
 
     /**
      * Draws the edges of an area with particles only the player sees, once a second for ten seconds.
