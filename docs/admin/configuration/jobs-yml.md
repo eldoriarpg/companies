@@ -28,6 +28,7 @@ maxTotalHours: 336
 maxExtensionRequests: 3
 openDays: 7
 approveHours: 72
+approveAreaJobs: false
 ```
 
 | Key | Values | Default | Description | Takes effect |
@@ -48,6 +49,7 @@ approveHours: 72
 | `maxExtensionRequests` | number | `3` | How often a company may ask for more time per job; refused requests count. | reload |
 | `openDays` | number (days) | `7` | How long a job waits for a company. Nobody took it by then: it expires and price and fee go back to its owner. | reload |
 | `approveHours` | number (hours) | `72` | How long a job the company says is done waits for its owner to approve or reject it. Without an answer by then it is approved and paid. | reload |
+| `approveAreaJobs` | true/false | `false` | Dig, terraform and build jobs whose check passed wait for their owner to approve them, like contracts, instead of being paid at once. | reload |
 
 The fee of a job is the order fee of [order.yml](./order-yml.md), lowered by the fee reductions of server events. A
 company's order slots count its jobs; giving one back or running out of time costs the order penalties of

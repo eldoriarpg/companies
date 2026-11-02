@@ -205,6 +205,11 @@ public final class Jobs {
                                 }
                                 yield NotificationType.MY_JOB_EXTENSION_ASKED;
                             }
+                            case CANCEL_ACCEPTED -> {
+                                if (detail instanceof Double amount) args.money("amount", economy.format(amount));
+                                yield NotificationType.MY_JOB_CANCEL_ACCEPTED;
+                            }
+                            case CANCEL_REFUSED -> NotificationType.MY_JOB_CANCEL_REFUSED;
                         };
                 if (type != null) notifications.send(owner, job.charged() ? type : uncharged(type), args);
             }
@@ -231,6 +236,13 @@ public final class Jobs {
                                 found,
                                 NotificationType.JOB_EXTENSION_REFUSED,
                                 args(job).text("reason", reason == null ? "" : reason)));
+            }
+
+            @Override
+            public void cancelAsked(int company, Job job) {
+                profile(companies, company)
+                        .ifPresent(found ->
+                                notifications.sendCompany(found, NotificationType.JOB_CANCEL_ASKED, args(job)));
             }
 
             @Override
@@ -482,6 +494,7 @@ public final class Jobs {
             case MY_JOB_LAND_LOST_WORKED -> NotificationType.MY_JOB_LAND_LOST_WORKED_UNCHARGED;
             case MY_JOB_HARVEST_ENDED -> NotificationType.MY_JOB_HARVEST_ENDED_UNCHARGED;
             case MY_JOB_SETTLED -> NotificationType.MY_JOB_SETTLED_UNCHARGED;
+            case MY_JOB_CANCEL_ACCEPTED -> NotificationType.MY_JOB_CANCEL_ACCEPTED_UNCHARGED;
             default -> type;
         };
     }

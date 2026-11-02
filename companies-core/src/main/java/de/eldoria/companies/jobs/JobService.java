@@ -18,6 +18,7 @@ import de.eldoria.companies.data.wrapper.job.JobExtension;
 import de.eldoria.companies.data.wrapper.job.JobHarvest;
 import de.eldoria.companies.data.wrapper.job.JobLand;
 import de.eldoria.companies.data.wrapper.job.JobReview;
+import de.eldoria.companies.data.wrapper.job.JobReviewEntry;
 import de.eldoria.companies.data.wrapper.job.JobTarget;
 import de.eldoria.companies.events.job.JobEndEvent;
 import de.eldoria.companies.orders.Payout;
@@ -554,17 +555,28 @@ public final class JobService {
     }
 
     /**
-     * Cancels the owner's job while nobody works on it: the price goes back, the fee is kept.
+     * Cancels the owner's job while nobody works on it: the price goes back, the fee is kept. A job a company holds
+     * taken is not cancelled but its company is asked to let it be, see {@link #answerCancel}; a harvest job is ended
+     * by its owner instead, see {@link #endAsOwner}.
      *
      * @param owner the owner
      * @param by    who cancels it, as noted
      * @param id    id of the job
-     * @return what came of it
+     * @return what came of it; {@link Change#CANCEL_ASKED} when the company was asked, {@link Change#ASKED} when it was
+     *     asked before and has not answered, {@link Change#HARVEST} for a taken harvest job
      */
     public Change cancel(UUID owner, String by, int id) {
         var job = jobs.job(id).orElse(null);
         if (job == null) return Change.UNKNOWN;
         if (!job.owner().equals(owner)) return Change.NOT_YOURS;
+        var company = job.company();
+        if (job.state() == JobState.TAKEN && company != null) {
+            if (job.kind() == JobKind.HARVEST) return Change.HARVEST;
+            if (job.review().cancelAsked() != null) return Change.ASKED;
+            if (!jobs.askCancel(id, company, now())) return Change.CLOSED;
+            notices.cancelAsked(company, job);
+            return Change.CANCEL_ASKED;
+        }
         if (job.state() != JobState.OPEN) return job.state().closed() ? Change.CLOSED : Change.TAKEN;
         if (!jobs.close(id, JobState.OPEN, JobState.CANCELLED, by, now())) return Change.CLOSED;
         refund(job, cents(job.unpaid()));
@@ -574,7 +586,43 @@ public final class JobService {
     }
 
     /**
-     * Finishes a job the member's company works on, when its check passed on the server of its area: the job is paid.
+     * Answers the owner's request to cancel a job the member's company holds. Agreeing cancels it as if nobody had
+     * taken it: the price goes back to the owner, the fee is kept, and the company is not penalized. Refusing leaves
+     * the job as it is.
+     *
+     * @param company the company
+     * @param member  the member answering
+     * @param by      the member's name, noted as who closed the job when it is cancelled
+     * @param id      id of the job
+     * @param agree   whether the company lets it be cancelled
+     * @return what came of it
+     */
+    public Change answerCancel(CompanyProfile company, UUID member, String by, int id, boolean agree) {
+        if (!mayManage(company, member)) return Change.NO_PERMISSION;
+        var job = jobs.job(id).orElse(null);
+        if (job == null) return Change.UNKNOWN;
+        if (job.state() != JobState.TAKEN || !Integer.valueOf(company.id()).equals(job.company())) {
+            return Change.NOT_YOURS;
+        }
+        if (job.review().cancelAsked() == null) return Change.NO_REQUEST;
+        if (!agree) {
+            if (!jobs.refuseCancel(id, company.id())) return Change.CLOSED;
+            notices.owner(job.owner(), Notice.CANCEL_REFUSED, job, null);
+            return Change.DONE;
+        }
+        if (!jobs.acceptCancel(id, company.id(), by, now())) return Change.CLOSED;
+        var back = cents(job.unpaid());
+        refund(job, back);
+        money.collect(job.fee());
+        notices.owner(job.owner(), Notice.CANCEL_ACCEPTED, job, back);
+        fire(() -> events.ended(job, JobEndEvent.Reason.CANCELLED));
+        return Change.DONE;
+    }
+
+    /**
+     * Finishes a job the member's company works on, when its check passed on the server of its area: the job is paid,
+     * or, when the server lets owners approve area jobs ({@link JobSettings#approveAreaJobs()}), it waits for its
+     * owner like a contract the company says is done.
      *
      * @param company  the company
      * @param member   the member finishing it
@@ -592,6 +640,15 @@ public final class JobService {
         if (!job.kind().area()) return new Finished.Refused(Change.CONTRACT);
         if (job.kind() == JobKind.HARVEST) return new Finished.Refused(Change.HARVEST);
         if (!progress.done()) return new Finished.NotDone(progress);
+        if (settings.get().approveAreaJobs()) {
+            var now = now();
+            if (!jobs.markDone(id, company.id(), member, now)) return new Finished.Refused(Change.CLOSED);
+            reviewed(new JobReviewEntry(id, JobReviewEntry.Kind.DONE, member, null, now));
+            var approveAt = now.plusHours(settings.get().approveHours());
+            notices.owner(job.owner(), Notice.AWAITING, job, approveAt);
+            fire(() -> events.markedDone(jobs.job(id).orElse(job)));
+            return new Finished.Waiting(approveAt);
+        }
         var parts = parts(job.price(), jobs.workOf(id), member);
         var tax = money.taxPercent(company);
         var share = money.share(company);
@@ -949,6 +1006,7 @@ public final class JobService {
         if (job.kind().area()) return Change.AREA;
         var now = now();
         if (!jobs.markDone(id, company.id(), member, now)) return Change.CLOSED;
+        reviewed(new JobReviewEntry(id, JobReviewEntry.Kind.DONE, member, null, now));
         notices.owner(
                 job.owner(), Notice.AWAITING, job, now.plusHours(settings.get().approveHours()));
         fire(() -> events.markedDone(jobs.job(id).orElse(job)));
@@ -994,8 +1052,17 @@ public final class JobService {
         var newDue =
                 (due == null ? now.plusHours(job.dueHours()) : due).plus(waited.isNegative() ? Duration.ZERO : waited);
         if (!jobs.reject(id, text, newDue)) return Change.CLOSED;
+        reviewed(new JobReviewEntry(id, JobReviewEntry.Kind.REJECTED, owner, text, now));
         notices.rejected(company, job, text);
         return Change.DONE;
+    }
+
+    private void reviewed(JobReviewEntry entry) {
+        try {
+            jobs.review(entry);
+        } catch (RuntimeException e) {
+            logger.log(Level.WARNING, "Could not note the review of job " + entry.job(), e);
+        }
     }
 
     /**
@@ -1467,6 +1534,12 @@ public final class JobService {
          * @param reason  why the owner refused, null without a reason
          */
         void extensionRefused(int company, Job job, @Nullable String reason);
+
+        /**
+         * @param company id of the company holding the job
+         * @param job     the job whose owner asks to cancel it
+         */
+        void cancelAsked(int company, Job job);
     }
 
     /**
@@ -1534,7 +1607,15 @@ public final class JobService {
         /**
          * The company holding it asks for more time. The detail is an {@link Asked}.
          */
-        EXTENSION_ASKED
+        EXTENSION_ASKED,
+        /**
+         * The company let the job be cancelled; the price went back. Detail: the amount back.
+         */
+        CANCEL_ACCEPTED,
+        /**
+         * The company refused to let the job be cancelled.
+         */
+        CANCEL_REFUSED
     }
 
     /**
@@ -1827,7 +1908,11 @@ public final class JobService {
         /**
          * The company asked as often as the server allows for this job.
          */
-        REQUESTS
+        REQUESTS,
+        /**
+         * The job is taken, so the company holding it was asked to let it be cancelled.
+         */
+        CANCEL_ASKED
     }
 
     /**

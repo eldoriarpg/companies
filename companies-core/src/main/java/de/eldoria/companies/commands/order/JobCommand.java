@@ -19,6 +19,7 @@ import de.eldoria.companies.data.wrapper.job.JobArea;
 import de.eldoria.companies.data.wrapper.job.JobExtension;
 import de.eldoria.companies.data.wrapper.job.JobLand;
 import de.eldoria.companies.data.wrapper.job.JobReview;
+import de.eldoria.companies.data.wrapper.job.JobReviewEntry;
 import de.eldoria.companies.data.wrapper.job.JobTarget;
 import de.eldoria.companies.jobs.Blueprint;
 import de.eldoria.companies.jobs.DigCheck;
@@ -174,9 +175,9 @@ public final class JobCommand {
                 player,
                 () -> {
                     var job = own(player, id);
-                    return new Info(job, cost(job));
+                    return new Info(job, cost(job), jobs().data().reviews(job.id()));
                 },
-                info -> show(player, info.job(), progress(info.job()), info.cost()));
+                info -> show(player, info.job(), progress(info.job()), info.cost(), info.reviews()));
     }
 
     /**
@@ -1141,7 +1142,7 @@ public final class JobCommand {
     }
 
     /**
-     * Cancels a job of the player that nobody works on.
+     * Cancels a job of the player that nobody works on, or asks the company working on it to let it be cancelled.
      *
      * @param sender sender of the command
      * @param id     id of the job
@@ -1164,6 +1165,9 @@ public final class JobCommand {
                                             values);
                             jobs().access().checkSoon();
                         }
+                        case CANCEL_ASKED -> deps.messages().sendMessage(player, PREFIX + "cancelAsked", values);
+                        case ASKED -> deps.messages().sendError(player, PREFIX + "error.cancelAsked", values);
+                        case HARVEST -> deps.messages().sendError(player, PREFIX + "error.harvest", values);
                         case UNKNOWN, NOT_YOURS -> deps.messages().sendError(player, PREFIX + "error.unknown", values);
                         case TAKEN -> deps.messages().sendError(player, PREFIX + "error.taken", values);
                         default -> deps.messages().sendError(player, PREFIX + "error.closed", values);
@@ -1300,9 +1304,14 @@ public final class JobCommand {
         return job.kind() == JobKind.BUILD ? jobs().costs().of(job.id()) : Optional.empty();
     }
 
-    private record Info(Job job, Optional<MaterialCosts.Cost> cost) {}
+    private record Info(Job job, Optional<MaterialCosts.Cost> cost, List<JobReviewEntry> reviews) {}
 
-    private void show(Player player, Job job, Optional<DigCheck.Progress> progress, Optional<MaterialCosts.Cost> cost) {
+    private void show(
+            Player player,
+            Job job,
+            Optional<DigCheck.Progress> progress,
+            Optional<MaterialCosts.Cost> cost,
+            List<JobReviewEntry> reviews) {
         var economy = deps.services().economy();
         List<MenuText> lines = new ArrayList<>();
         var description = job.description();
@@ -1373,6 +1382,10 @@ public final class JobCommand {
                             Values.text("reason", Objects.requireNonNullElse(extension.reason(), ""))));
         }
         var review = job.review();
+        lines.addAll(JobMenus.reviews(PREFIX, reviews));
+        if (job.state() == JobState.TAKEN && review.cancelAsked() != null) {
+            lines.add(MenuText.create().locale(PREFIX + "info.cancelAsked"));
+        }
         if (job.state() == JobState.DONE) {
             var approveAt = Objects.requireNonNullElse(review.doneAt(), Times.now())
                     .plusHours(deps.configuration().jobSettings().approveHours());
@@ -1467,6 +1480,10 @@ public final class JobCommand {
                     actions.add(dispute(id));
                 }
                 extensionActions(actions, job);
+                if (job.kind() != JobKind.HARVEST && job.review().cancelAsked() == null) {
+                    actions.add(new JobMenu.Action(
+                            PREFIX + "askCancelButton", "remove", "order job cancel " + id, JobMenu.Kind.CHECK));
+                }
             }
             default -> {
                 if (job.kind() == JobKind.HARVEST) actions.add(stockAction(id));

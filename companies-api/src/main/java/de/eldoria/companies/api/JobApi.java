@@ -110,7 +110,8 @@ public interface JobApi {
 
     /**
      * Cancels an open job of its owner, as {@code /order job cancel} does; its price goes back unless it was posted
-     * without charge, the fee is kept.
+     * without charge, the fee is kept. A taken job is not cancelled: its company is asked to let it be, which gives
+     * {@link JobChange#CANCEL_ASKED}, or {@link JobChange#PENDING} while an earlier request waits for an answer.
      * <p>
      * This is a write operation: before Companies is ready the future completes exceptionally with an
      * {@link ApiNotReadyException}.
@@ -120,6 +121,21 @@ public interface JobApi {
      * @return future of what came of it
      */
     CompletableFuture<JobChange> cancel(int id, UUID owner);
+
+    /**
+     * Answers the owner's request to cancel a job, for the company of a member, as {@code /company job cancel accept}
+     * and {@code refuse} do. Agreeing cancels it: the price goes back to the owner unless it was posted without charge,
+     * the fee is kept, and the company is not penalized. {@link JobChange#PENDING} means there is no request.
+     * <p>
+     * This is a write operation: before Companies is ready the future completes exceptionally with an
+     * {@link ApiNotReadyException}.
+     *
+     * @param id     id of the job
+     * @param member the member answering
+     * @param agree  whether the company lets it be cancelled
+     * @return future of what came of it
+     */
+    CompletableFuture<JobChange> answerCancel(int id, UUID member, boolean agree);
 
     /**
      * Finishes a job for the company of a member, as {@code /company job done} does: a dig, terraform or build job has

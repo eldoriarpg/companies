@@ -851,6 +851,9 @@ public final class DashboardWorld implements AutoCloseable {
 
                     @Override
                     public void extensionRefused(int company, Job job, @Nullable String reason) {}
+
+                    @Override
+                    public void cancelAsked(int company, Job job) {}
                 },
                 (company, overdue) -> {},
                 this::profile,

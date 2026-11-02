@@ -15,6 +15,7 @@ import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.job.Job;
 import de.eldoria.companies.data.wrapper.job.JobExtension;
 import de.eldoria.companies.data.wrapper.job.JobReview;
+import de.eldoria.companies.data.wrapper.job.JobReviewEntry;
 import de.eldoria.companies.jobs.Blueprint;
 import de.eldoria.companies.jobs.BuildCheck;
 import de.eldoria.companies.jobs.BuildGhosts;
@@ -143,7 +144,8 @@ public final class CompanyJobCommand {
                     var cost = job.kind() == JobKind.BUILD
                             ? jobs().costs().of(job.id())
                             : Optional.<MaterialCosts.Cost>empty();
-                    return new Shown(job, checked ? progress(job, false) : Optional.empty(), cost);
+                    var reviews = ours ? jobs().data().reviews(job.id()) : List.<JobReviewEntry>of();
+                    return new Shown(job, checked ? progress(job, false) : Optional.empty(), cost, reviews);
                 },
                 shown -> show(player, shown));
     }
@@ -219,13 +221,15 @@ public final class CompanyJobCommand {
                     jobs().access().checkSoon();
                     deps.messages().sendMessage(player, PREFIX + "ended", Values.number("id", id));
                 }
-                case JobService.Finished.Waiting waiting ->
+                case JobService.Finished.Waiting waiting -> {
+                    jobs().access().checkSoon();
                     deps.messages()
                             .sendMessage(
                                     player,
                                     PREFIX + "marked",
                                     Values.number("id", id),
                                     Values.text("time", left(waiting.approveAt())));
+                }
                 case JobService.Finished.NotDone notDone ->
                     deps.messages()
                             .sendError(
@@ -287,6 +291,47 @@ public final class CompanyJobCommand {
                                         PREFIX + "extensionAsked",
                                         Values.number("id", id),
                                         Values.number("hours", hours));
+                        return;
+                    }
+                    refused(player, id, change);
+                });
+    }
+
+    /**
+     * Lets the owner cancel a job the player's company holds, as they asked; the price goes back to them and the
+     * company is not penalized.
+     *
+     * @param sender sender of the command
+     * @param id     id of the job
+     */
+    @Executes("cancel accept")
+    public void acceptCancel(CommandSender sender, @IntArg(min = 0) int id) {
+        answerCancel(Senders.player(sender), id, true);
+    }
+
+    /**
+     * Refuses the owner's request to cancel a job the player's company holds; the company keeps working on it.
+     *
+     * @param sender sender of the command
+     * @param id     id of the job
+     */
+    @Executes("cancel refuse")
+    public void refuseCancel(CommandSender sender, @IntArg(min = 0) int id) {
+        answerCancel(Senders.player(sender), id, false);
+    }
+
+    private void answerCancel(Player player, int id, boolean agree) {
+        run(
+                player,
+                () -> jobs().service().answerCancel(company(player), player.getUniqueId(), player.getName(), id, agree),
+                change -> {
+                    if (change == JobService.Change.DONE) {
+                        if (agree) jobs().access().checkSoon();
+                        deps.messages()
+                                .sendMessage(
+                                        player,
+                                        PREFIX + (agree ? "cancelAccepted" : "cancelRefused"),
+                                        Values.number("id", id));
                         return;
                     }
                     refused(player, id, change);
@@ -542,8 +587,12 @@ public final class CompanyJobCommand {
         }
         var review = job.review();
         var rejected = review.rejected();
-        if (job.state() == JobState.TAKEN && rejected != null) {
+        if (shown.reviews().isEmpty() && job.state() == JobState.TAKEN && rejected != null) {
             lines.add(MenuText.create().locale(PREFIX + "info.rejected", Values.text("reason", rejected)));
+        }
+        lines.addAll(JobMenus.reviews(PREFIX, shown.reviews()));
+        if (job.state() == JobState.TAKEN && review.cancelAsked() != null) {
+            lines.add(MenuText.create().locale(PREFIX + "info.cancelAsked"));
         }
         if (job.state() == JobState.DONE) {
             lines.add(MenuText.create().locale(PREFIX + "info.waiting"));
@@ -594,6 +643,15 @@ public final class CompanyJobCommand {
             actions.add(new JobMenu.Action(PREFIX + done, "add", "company job done " + id, JobMenu.Kind.RUN));
             actions.add(new JobMenu.Action(
                     PREFIX + "giveBackButton", "remove", "company job giveback " + id, JobMenu.Kind.CHECK));
+            if (job.review().cancelAsked() != null) {
+                actions.add(new JobMenu.Action(
+                        PREFIX + "cancelAcceptButton", "add", "company job cancel accept " + id, JobMenu.Kind.CHECK));
+                actions.add(new JobMenu.Action(
+                        PREFIX + "cancelRefuseButton",
+                        "remove",
+                        "company job cancel refuse " + id,
+                        JobMenu.Kind.CHECK));
+            }
             if (job.kind() == JobKind.BUILD) {
                 actions.add(new JobMenu.Action(
                         PREFIX + "ghostsButton", "show", "company job ghosts " + id, JobMenu.Kind.RUN));
@@ -647,7 +705,8 @@ public final class CompanyJobCommand {
                     case OTHER_SERVER -> "error.otherServer";
                     case WORLD -> "error.world";
                     case REFUSED -> "error.refused";
-                    case DONE, TAKEN, TOO_LONG, AREA, CONTRACT, NOT_DONE, NO_COMPANY, NO_REQUEST -> "error.closed";
+                    case NO_REQUEST -> "error.noCancel";
+                    case DONE, TAKEN, TOO_LONG, AREA, CONTRACT, NOT_DONE, NO_COMPANY, CANCEL_ASKED -> "error.closed";
                 };
         var job = change == JobService.Change.HOURS || change == JobService.Change.REQUESTS
                 ? jobs().data().job(id).orElse(null)
@@ -727,5 +786,9 @@ public final class CompanyJobCommand {
      * @param job      the job
      * @param progress the progress
      */
-    private record Shown(Job job, Optional<DigCheck.Progress> progress, Optional<MaterialCosts.Cost> cost) {}
+    private record Shown(
+            Job job,
+            Optional<DigCheck.Progress> progress,
+            Optional<MaterialCosts.Cost> cost,
+            List<JobReviewEntry> reviews) {}
 }

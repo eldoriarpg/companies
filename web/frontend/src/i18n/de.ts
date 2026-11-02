@@ -1015,6 +1015,7 @@ export default {
                     maxExtensionRequests: 'Wie oft eine Firma pro Job um mehr Zeit bitten darf',
                     openDays: 'Tage, die ein Job auf eine Firma wartet, bevor er abläuft',
                     approveHours: 'Stunden, die ein fertiger Auftrag auf seinen Besitzer wartet, bevor er genehmigt wird',
+                    approveAreaJobs: 'Gebiets-Jobs, deren Prüfung bestanden ist, warten auf die Freigabe des Besitzers',
                 },
                 areas: {
                     enabled: 'Firmen dürfen neue Gebiete bekommen',
@@ -1527,6 +1528,13 @@ export default {
         targetSurface: "Fest bis Höhe {y} mit einer obersten Schicht aus {block}, darüber leer",
         materialCost: "Seine Blöcke kosten etwa {cost}",
         materialCostUnpriced: "Seine Blöcke kosten etwa {cost}; {unpriced} Blocktypen haben noch keinen Preis und fehlen darin",
+        cancelAskedOwner: "Du hast die Firma gebeten, ihn abbrechen zu lassen; sie hat noch nicht geantwortet",
+        cancelAskedCompany: "Der Besitzer bittet deine Firma, ihn abbrechen zu lassen",
+        reviews: "Prüfung",
+        review: {
+            done: "Die Firma meldete die Arbeit als fertig",
+            rejected: "Zurückgeschickt: {reason}",
+        },
         progress: "Letzte Prüfung: {percent} % erledigt, {done} von {total} Blöcken",
         expires: "Wartet bis {time} auf eine Firma",
         due: "Die Zeit der Firma läuft bis {time}",
@@ -1586,6 +1594,9 @@ export default {
             grant: "Mehr Zeit gewähren",
             refuse: "Mehr Zeit ablehnen",
             ask: "Um mehr Zeit bitten",
+            askCancel: "Abbruch erbitten",
+            cancelAccept: "Abbrechen lassen",
+            cancelRefuse: "Weiterarbeiten",
         },
         text: {
             reject: "Warum die Arbeit nicht fertig ist",

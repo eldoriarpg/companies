@@ -37,6 +37,7 @@ public class JobSettings {
     private int maxExtensionRequests = 3;
     private int openDays = 7;
     private int approveHours = 72;
+    private boolean approveAreaJobs = false;
 
     public JobSettings() {}
 
@@ -250,5 +251,17 @@ public class JobSettings {
 
     public void approveHours(int approveHours) {
         this.approveHours = approveHours;
+    }
+
+    /**
+     * @return whether a dig, terraform or build job whose check passed waits for its owner to approve it, like a
+     *     contract, instead of being paid at once
+     */
+    public boolean approveAreaJobs() {
+        return approveAreaJobs;
+    }
+
+    public void approveAreaJobs(boolean approveAreaJobs) {
+        this.approveAreaJobs = approveAreaJobs;
     }
 }

@@ -655,6 +655,16 @@ public final class Actions {
     public static final String JOBS_EXTENSION_REFUSE = "jobs.extension.refuse";
 
     /**
+     * Lets the owner cancel a job the player's company holds, as the owner asked.
+     */
+    public static final String JOBS_CANCEL_ACCEPT = "jobs.cancel.accept";
+
+    /**
+     * Refuses the owner's request to cancel a job the player's company holds.
+     */
+    public static final String JOBS_CANCEL_REFUSE = "jobs.cancel.refuse";
+
+    /**
      * Lists the disputed jobs with both sides and the reason.
      */
     public static final String ADMIN_JOBS_DISPUTES = "admin.jobs.disputes";
@@ -795,6 +805,8 @@ public final class Actions {
             JOBS_EXTENSION_ASK,
             JOBS_EXTENSION_GRANT,
             JOBS_EXTENSION_REFUSE,
+            JOBS_CANCEL_ACCEPT,
+            JOBS_CANCEL_REFUSE,
             ADMIN_JOBS_DISPUTES,
             ADMIN_JOBS_SETTLE);
 

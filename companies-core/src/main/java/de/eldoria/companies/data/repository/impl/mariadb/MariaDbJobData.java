@@ -20,6 +20,7 @@ import de.eldoria.companies.data.wrapper.job.JobHarvest;
 import de.eldoria.companies.data.wrapper.job.JobLand;
 import de.eldoria.companies.data.wrapper.job.JobMark;
 import de.eldoria.companies.data.wrapper.job.JobReview;
+import de.eldoria.companies.data.wrapper.job.JobReviewEntry;
 import de.eldoria.companies.data.wrapper.job.JobTarget;
 import org.intellij.lang.annotations.Language;
 import org.jetbrains.annotations.Nullable;
@@ -32,6 +33,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.Set;
@@ -51,7 +53,7 @@ public class MariaDbJobData extends AJobData {
                    min_z, max_x, max_y, max_z, land, land_ref, due_hours, created, expires, taken, due, closed,
                    closed_by, granted, done_at, done_by, rejected, dispute_by, dispute, disputed_at, settled,
                    target_y, target_block, unit_price, paid_cents, extended_hours, extension_requests, extension_hours,
-                   extension_reason, extension_asked, charged
+                   extension_reason, extension_asked, charged, cancel_asked
             FROM jobs
             """;
 
@@ -192,7 +194,8 @@ public class MariaDbJobData extends AJobData {
                     extension_requests = 0,
                     extension_hours    = NULL,
                     extension_reason   = NULL,
-                    extension_asked    = NULL
+                    extension_asked    = NULL,
+                    cancel_asked       = NULL
                 WHERE id = ?
                   AND state IN (?, ?)
                   AND company_id = ?""";
@@ -240,7 +243,8 @@ public class MariaDbJobData extends AJobData {
                     done_by = ?,
                     extension_hours  = NULL,
                     extension_reason = NULL,
-                    extension_asked  = NULL
+                    extension_asked  = NULL,
+                    cancel_asked     = NULL
                 WHERE id = ?
                   AND state = ?
                   AND company_id = ?""";
@@ -278,6 +282,99 @@ public class MariaDbJobData extends AJobData {
     }
 
     @Override
+    public boolean askCancel(int job, int company, LocalDateTime at) {
+        @Language("mariadb")
+        var update = """
+                UPDATE jobs
+                SET cancel_asked = ?
+                WHERE id = ?
+                  AND state = ?
+                  AND company_id = ?
+                  AND cancel_asked IS NULL""";
+        return query(update)
+                .single(call().bind(at, time())
+                        .bind(job)
+                        .bind(JobState.TAKEN.name())
+                        .bind(company))
+                .update()
+                .changed();
+    }
+
+    @Override
+    public boolean acceptCancel(int job, int company, @Nullable String by, LocalDateTime at) {
+        @Language("mariadb")
+        var update = """
+                UPDATE jobs
+                SET state        = ?,
+                    closed       = ?,
+                    closed_by    = ?,
+                    cancel_asked = NULL
+                WHERE id = ?
+                  AND state = ?
+                  AND company_id = ?
+                  AND cancel_asked IS NOT NULL""";
+        return query(update)
+                .single(call().bind(JobState.CANCELLED.name())
+                        .bind(at, time())
+                        .bind(by)
+                        .bind(job)
+                        .bind(JobState.TAKEN.name())
+                        .bind(company))
+                .update()
+                .changed();
+    }
+
+    @Override
+    public boolean refuseCancel(int job, int company) {
+        @Language("mariadb")
+        var update = """
+                UPDATE jobs
+                SET cancel_asked = NULL
+                WHERE id = ?
+                  AND state = ?
+                  AND company_id = ?
+                  AND cancel_asked IS NOT NULL""";
+        return query(update)
+                .single(call().bind(job).bind(JobState.TAKEN.name()).bind(company))
+                .update()
+                .changed();
+    }
+
+    @Override
+    public void review(JobReviewEntry entry) {
+        @Language("mariadb")
+        var insert = """
+                INSERT INTO job_reviews(job_id, kind, by_uuid, reason, reviewed_at)
+                VALUES (?, ?, ?, ?, ?)""";
+        query(insert)
+                .single(call().bind(entry.job())
+                        .bind(entry.kind().code())
+                        .bind(entry.by(), UUID_BYTES)
+                        .bind(entry.reason())
+                        .bind(entry.at(), time()))
+                .insert();
+    }
+
+    @Override
+    public List<JobReviewEntry> reviews(int job) {
+        @Language("mariadb")
+        var select = """
+                SELECT job_id, kind, by_uuid, reason, reviewed_at
+                FROM job_reviews
+                WHERE job_id = ?
+                ORDER BY reviewed_at, id""";
+        return query(select)
+                .single(call().bind(job))
+                .map(row -> new JobReviewEntry(
+                        row.getInt("job_id"),
+                        JobReviewEntry.Kind.of(row.getInt("kind")),
+                        Objects.requireNonNull(row.get("by_uuid", UUID_BYTES)),
+                        row.getString("reason"),
+                        Objects.requireNonNull(readTime(row, "reviewed_at"))))
+                .all();
+    }
+
+    @Override
     public boolean dispute(int job, int company, JobState from, UUID by, String reason, LocalDateTime at) {
         @Language("mariadb")
         var update = """
@@ -288,7 +385,8 @@ public class MariaDbJobData extends AJobData {
                     disputed_at = ?,
                     extension_hours  = NULL,
                     extension_reason = NULL,
-                    extension_asked  = NULL
+                    extension_asked  = NULL,
+                    cancel_asked     = NULL
                 WHERE id = ?
                   AND state = ?
                   AND company_id = ?""";
@@ -593,9 +691,11 @@ public class MariaDbJobData extends AJobData {
                                   FROM jobs
                                   WHERE jobs.id = job_marks.job_id
                                     AND jobs.company_id = job_marks.company_id
-                                    AND jobs.state IN (?, ?))""";
+                                    AND jobs.state IN (?, ?, ?))""";
         query(prune)
-                .single(call().bind(JobState.TAKEN.name()).bind(JobState.DISPUTED.name()))
+                .single(call().bind(JobState.TAKEN.name())
+                        .bind(JobState.DONE.name())
+                        .bind(JobState.DISPUTED.name()))
                 .delete();
     }
 
@@ -869,7 +969,8 @@ public class MariaDbJobData extends AJobData {
                         row.get("dispute_by", UUID_BYTES),
                         row.getString("dispute"),
                         readTime(row, "disputed_at"),
-                        row.getObject("settled") == null ? null : row.getInt("settled")),
+                        row.getObject("settled") == null ? null : row.getInt("settled"),
+                        readTime(row, "cancel_asked")),
                 row.getObject("target_y") == null
                         ? null
                         : new JobTarget(row.getInt("target_y"), row.getString("target_block")),

@@ -21,6 +21,9 @@ class JobsTest {
         assertEquals(
                 NotificationType.MY_JOB_HARVEST_ENDED_UNCHARGED, Jobs.uncharged(NotificationType.MY_JOB_HARVEST_ENDED));
         assertEquals(NotificationType.MY_JOB_SETTLED_UNCHARGED, Jobs.uncharged(NotificationType.MY_JOB_SETTLED));
+        assertEquals(
+                NotificationType.MY_JOB_CANCEL_ACCEPTED_UNCHARGED,
+                Jobs.uncharged(NotificationType.MY_JOB_CANCEL_ACCEPTED));
         assertEquals(NotificationType.MY_JOB_TAKEN, Jobs.uncharged(NotificationType.MY_JOB_TAKEN));
     }
 }

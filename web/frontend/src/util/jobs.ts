@@ -21,6 +21,9 @@ export type JobStep =
     | 'grant'
     | 'refuse'
     | 'ask'
+    | 'askCancel'
+    | 'cancelAccept'
+    | 'cancelRefuse'
 
 /** The states in which a job is over for good. */
 const CLOSED: readonly JobState[] = ['paid', 'settled', 'cancelled', 'expired']
@@ -39,7 +42,9 @@ export function closedJob(state: JobState): boolean {
  * gives it back, says a contract is done, ends a harvest and disputes. A dispute is withdrawn only by the side that
  * opened it. Area jobs other than harvests are finished in game, where their area is checked. Harvest jobs have no
  * approval and no disputes. While a company works on a job, the owner may give it more time and answers the company's
- * request for it; the company asks while it has no open request, requests left and hours the job may still get.
+ * request for it; the company asks while it has no open request, requests left and hours the job may still get. The
+ * owner may ask the company working on a job to let it be cancelled, once until it answers; the company agrees or
+ * refuses.
  *
  * @param details the job
  * @returns the steps, in the order the page shows them
@@ -59,6 +64,7 @@ export function jobSteps(details: JobDetails): JobStep[] {
             steps.push('refuse')
         }
         if (job.state === 'taken' && (details.hoursLeft ?? 0) > 0) steps.push('extend')
+        if (job.state === 'taken' && !harvest && !details.cancelAsked) steps.push('askCancel')
         if (job.state === 'disputed') {
             steps.push('approve')
             if (details.disputeByOwner) steps.push('withdraw')
@@ -76,6 +82,7 @@ export function jobSteps(details: JobDetails): JobStep[] {
         if (job.state === 'taken' && !details.request && (details.requestsLeft ?? 0) > 0 && (details.hoursLeft ?? 0) > 0) {
             steps.push('ask')
         }
+        if (job.state === 'taken' && details.cancelAsked) steps.push('cancelAccept', 'cancelRefuse')
     }
     return steps
 }
@@ -102,4 +109,5 @@ export function needsHours(step: JobStep): boolean {
  */
 export function warns(step: JobStep): boolean {
     return step === 'cancel' || step === 'giveback' || step === 'dispute' || step === 'reject' || step === 'end' || step === 'refuse'
+        || step === 'askCancel' || step === 'cancelAccept'
 }

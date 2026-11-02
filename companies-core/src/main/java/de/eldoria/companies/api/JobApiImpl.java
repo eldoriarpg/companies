@@ -145,6 +145,16 @@ final class JobApiImpl implements JobApi {
     }
 
     @Override
+    public CompletableFuture<JobChange> answerCancel(int id, UUID member, boolean agree) {
+        return asMember(member, (services, company) -> {
+            var change = services.jobs().service().answerCancel(company, member, name(member), id, agree);
+            if (change == JobService.Change.DONE && agree)
+                services.jobs().access().checkSoon();
+            return change(change);
+        });
+    }
+
+    @Override
     public CompletableFuture<JobChange> finish(int id, UUID member) {
         return asMember(member, (services, company) -> {
             var finished = services.jobs().finish(company, member, id);
@@ -223,7 +233,9 @@ final class JobApiImpl implements JobApi {
             case OTHER_SERVER -> JobChange.OTHER_SERVER;
             case REFUSED -> JobChange.REFUSED;
             case WORLD -> JobChange.NOT_LOADED;
-            case CLOSED, TAKEN, DISABLED, HOURS, NO_REQUEST, ASKED, REQUESTS -> JobChange.CLOSED;
+            case CANCEL_ASKED -> JobChange.CANCEL_ASKED;
+            case ASKED, NO_REQUEST -> JobChange.PENDING;
+            case CLOSED, TAKEN, DISABLED, HOURS, REQUESTS -> JobChange.CLOSED;
         };
     }
 

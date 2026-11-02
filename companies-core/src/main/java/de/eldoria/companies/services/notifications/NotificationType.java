@@ -528,7 +528,38 @@ public enum NotificationType {
      * share it did and the access is gone. Arguments: {@code job_title}, {@code job_id}, {@code percent} (done),
      * {@code blocks} (left), {@code amount} (paid).
      */
-    JOB_LAND_LOST_WORKED(87, "notification.jobLandLostWorked", NotificationCategory.ORDERS, true, null);
+    JOB_LAND_LOST_WORKED(87, "notification.jobLandLostWorked", NotificationCategory.ORDERS, true, null),
+    /**
+     * The owner of a job the company holds asks to cancel it. Arguments: {@code job_title}, {@code job_id}.
+     */
+    JOB_CANCEL_ASKED(
+            88,
+            "notification.jobCancelAsked",
+            NotificationCategory.ORDERS,
+            true,
+            new Action("/company job cancel accept <job_id>", "words.accept"),
+            new Action("/company job cancel refuse <job_id>", "words.deny")),
+    /**
+     * The company holding the player's job let it be cancelled; the price went back. Arguments: {@code job_title},
+     * {@code amount}.
+     */
+    MY_JOB_CANCEL_ACCEPTED(89, "notification.myJobCancelAccepted", NotificationCategory.MY_ORDERS, true, null),
+    /**
+     * As {@link #MY_JOB_CANCEL_ACCEPTED}, for a job posted without charge, so nothing went back. Arguments:
+     * {@code job_title}.
+     */
+    MY_JOB_CANCEL_ACCEPTED_UNCHARGED(
+            90, "notification.myJobCancelAcceptedUncharged", NotificationCategory.MY_ORDERS, true, null),
+    /**
+     * The company holding the player's job refused to let it be cancelled. Arguments: {@code job_title},
+     * {@code job_id}.
+     */
+    MY_JOB_CANCEL_REFUSED(
+            91,
+            "notification.myJobCancelRefused",
+            NotificationCategory.MY_ORDERS,
+            true,
+            new Action("/order job info <job_id>", "words.info"));
 
     private final int id;
     private final String key;

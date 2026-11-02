@@ -1707,6 +1707,12 @@
     "jobs.extension.refuse" : {
       "feature" : "jobs"
     },
+    "jobs.cancel.accept" : {
+      "feature" : "jobs"
+    },
+    "jobs.cancel.refuse" : {
+      "feature" : "jobs"
+    },
     "admin.jobs.disputes" : {
       "feature" : "admin.jobs"
     },

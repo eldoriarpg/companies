@@ -13,6 +13,7 @@ import de.eldoria.companies.data.wrapper.job.JobArea;
 import de.eldoria.companies.data.wrapper.job.JobExtension;
 import de.eldoria.companies.data.wrapper.job.JobHarvest;
 import de.eldoria.companies.data.wrapper.job.JobLand;
+import de.eldoria.companies.data.wrapper.job.JobReviewEntry;
 import de.eldoria.companies.data.wrapper.job.JobTarget;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -361,6 +362,65 @@ public abstract class JobDataContract {
         assertTrue(jobs.takeStock(id, "WHEAT", 11));
         assertFalse(jobs.takeStock(id, "WHEAT_SEEDS", 3));
         assertEquals(Map.of("WHEAT_SEEDS", 2), jobs.stock(id));
+    }
+
+    @Test
+    void aCancelRequestIsOpenOnceAndGoesWhenTheJobIsReleased() {
+        var id = created(JobKind.CONTRACT, NOW.plusDays(7));
+
+        assertFalse(jobs.askCancel(id, 3, NOW));
+        jobs.take(id, 3, NOW, NOW.plusHours(48));
+        assertFalse(jobs.askCancel(id, 4, NOW));
+        assertTrue(jobs.askCancel(id, 3, NOW));
+        assertFalse(jobs.askCancel(id, 3, NOW));
+        assertEquals(NOW, jobs.job(id).orElseThrow().review().cancelAsked());
+        assertFalse(jobs.refuseCancel(id, 4));
+        assertTrue(jobs.refuseCancel(id, 3));
+        assertFalse(jobs.refuseCancel(id, 3));
+        assertTrue(jobs.askCancel(id, 3, NOW));
+        assertTrue(jobs.release(id, 3));
+
+        assertNull(jobs.job(id).orElseThrow().review().cancelAsked());
+    }
+
+    @Test
+    void aCancelIsAcceptedOnlyWhileItsRequestIsOpen() {
+        var id = created(JobKind.CONTRACT, NOW.plusDays(7));
+        jobs.take(id, 3, NOW, NOW.plusHours(48));
+
+        assertFalse(jobs.acceptCancel(id, 3, "Mia", NOW));
+        jobs.askCancel(id, 3, NOW);
+        assertTrue(jobs.markDone(id, 3, UUID.randomUUID(), NOW));
+        assertNull(jobs.job(id).orElseThrow().review().cancelAsked());
+        assertTrue(jobs.reject(id, "Not yet", NOW.plusHours(48)));
+        jobs.askCancel(id, 3, NOW);
+        assertTrue(jobs.refuseCancel(id, 3));
+        assertFalse(jobs.acceptCancel(id, 3, "Mia", NOW));
+        jobs.askCancel(id, 3, NOW);
+        assertFalse(jobs.acceptCancel(id, 4, "Mia", NOW));
+        assertTrue(jobs.acceptCancel(id, 3, "Mia", NOW));
+
+        var cancelled = jobs.job(id).orElseThrow();
+        assertEquals(JobState.CANCELLED, cancelled.state());
+        assertEquals("Mia", cancelled.closedBy());
+        assertNull(cancelled.review().cancelAsked());
+    }
+
+    @Test
+    void theReviewsOfAJobAreKeptOldestFirst() {
+        var id = created(JobKind.CONTRACT, NOW.plusDays(7));
+        var member = UUID.randomUUID();
+        var owner = UUID.randomUUID();
+
+        jobs.review(new JobReviewEntry(id, JobReviewEntry.Kind.REJECTED, owner, "Not yet", NOW.plusHours(2)));
+        jobs.review(new JobReviewEntry(id, JobReviewEntry.Kind.DONE, member, null, NOW.plusHours(1)));
+
+        assertEquals(
+                List.of(
+                        new JobReviewEntry(id, JobReviewEntry.Kind.DONE, member, null, NOW.plusHours(1)),
+                        new JobReviewEntry(id, JobReviewEntry.Kind.REJECTED, owner, "Not yet", NOW.plusHours(2))),
+                jobs.reviews(id));
+        assertEquals(List.of(), jobs.reviews(id + 1));
     }
 
     @Test

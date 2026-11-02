@@ -180,6 +180,8 @@ public final class ReadRelay {
             Actions.JOBS_EXTENSION_ASK,
             Actions.JOBS_EXTENSION_GRANT,
             Actions.JOBS_EXTENSION_REFUSE,
+            Actions.JOBS_CANCEL_ACCEPT,
+            Actions.JOBS_CANCEL_REFUSE,
             Actions.ADMIN_JOBS_DISPUTES,
             Actions.ADMIN_JOBS_SETTLE);
 

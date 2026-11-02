@@ -95,6 +95,12 @@ function send(step: JobStep, id: number, written: string): Promise<JobDetails | 
       return action.run('jobs.extension.grant', {job: id})
     case 'refuse':
       return action.run('jobs.extension.refuse', {job: id, reason: written})
+    case 'askCancel':
+      return action.run('jobs.cancel', {job: id})
+    case 'cancelAccept':
+      return action.run('jobs.cancel.accept', {job: id})
+    case 'cancelRefuse':
+      return action.run('jobs.cancel.refuse', {job: id})
   }
 }
 
@@ -138,7 +144,14 @@ async function take(step: JobStep): Promise<void> {
     <MutedText v-if="job.state === 'done' && details.approveAt" tag="p" data-testid="job-approve-at">{{ t('jobs.approveAt', {time: dateTime(details.approveAt, locale)}) }}</MutedText>
     <MutedText v-if="(details.extendedHours ?? 0) > 0 && job.state === 'taken'" tag="p" data-testid="job-extended">{{ t('jobs.extended', {hours: details.extendedHours}) }}</MutedText>
     <MutedText v-if="details.request && job.state === 'taken'" tag="p" data-testid="job-extension-request">{{ t(job.mine ? 'jobs.extensionAsked' : 'jobs.extensionWaiting', {hours: details.request.hours, reason: details.request.reason}) }}</MutedText>
-    <MutedText v-if="details.rejected && job.state === 'taken'" tag="p">{{ t('jobs.rejected', {reason: details.rejected}) }}</MutedText>
+    <MutedText v-if="details.rejected && job.state === 'taken' && !(details.reviews ?? []).length" tag="p">{{ t('jobs.rejected', {reason: details.rejected}) }}</MutedText>
+    <MutedText v-if="details.cancelAsked && job.state === 'taken'" tag="p" data-testid="job-cancel-asked">{{ t(job.mine ? 'jobs.cancelAskedOwner' : 'jobs.cancelAskedCompany') }}</MutedText>
+    <section v-if="(details.reviews ?? []).length > 0" class="flex flex-col gap-2" data-testid="job-reviews">
+      <SectionHeader>{{ t('jobs.reviews') }}</SectionHeader>
+      <ul class="m-0 flex list-none flex-col gap-1 p-0 text-sm">
+        <li v-for="(review, index) in details.reviews" :key="index">{{ review.at ? dateTime(review.at, locale) + ': ' : '' }}{{ review.kind === 'rejected' ? t('jobs.review.rejected', {reason: review.reason ?? ''}) : t('jobs.review.done') }}</li>
+      </ul>
+    </section>
     <MutedText v-if="job.state === 'disputed'" tag="p" data-testid="job-dispute-reason">{{ t('jobs.dispute', {reason: details.dispute ?? ''}) }}</MutedText>
     <MutedText v-if="job.state === 'settled' && details.settled != null" tag="p">{{ t('jobs.settled', {percent: details.settled}) }}</MutedText>
     <section v-if="stock.length > 0" class="flex flex-col gap-2" data-testid="job-stock">

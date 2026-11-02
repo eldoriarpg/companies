@@ -144,6 +144,20 @@ There is no check. When the company says the work is done, your inbox asks you t
 You may also approve a dig job early, before every block is gone, when the rest does not matter to you. It is paid as
 it stands.
 
+The job's page keeps the whole review: each time the company said the work is done and each time you sent it back,
+with your reason. Some servers let you approve dig, terraform and build jobs too (`approveAreaJobs` in
+[jobs.yml](../admin/configuration/jobs-yml.md)): once the check of the area passes, the job waits for you like a
+contract instead of being paid at once.
+
+## Cancelling a taken job
+
+A job nobody has taken yet you cancel at once. Once a company works on it, **Ask to cancel** on the job's page (or
+`/order job cancel <id>`) asks the company to let it go. When the company agrees (**Let it be cancelled**, or
+`/company job cancel accept <id>`), the job is cancelled as if nobody had taken it: the price comes back to you, the fee
+is kept, and the company is not penalized. When it refuses (`/company job cancel refuse <id>`), it keeps working and you
+may ask again. A request stays open until the company answers or the job leaves its hands, so ask only when you mean
+it. A harvest job is not asked about: end it yourself with `/order job end <id>`.
+
 ## Disputes
 
 When you and the company can not agree, either side opens a **dispute** about a job a company works on or that waits for

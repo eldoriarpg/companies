@@ -393,6 +393,7 @@ public final class SettingsCatalogue {
         jobs.whole("maxExtensionRequests");
         jobs.whole("openDays");
         jobs.whole("approveHours");
+        jobs.flag("approveAreaJobs");
 
         var areas = new Section(fields, AREAS, "areas");
         areas.flag("enabled");

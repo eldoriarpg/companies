@@ -267,6 +267,9 @@ class JobApiImplTest {
         for (var change : JobService.Change.values()) assertNotNull(JobApiImpl.change(change));
         assertEquals(JobChange.REFUSED, JobApiImpl.change(JobService.Change.REFUSED));
         assertEquals(JobChange.WRONG_KIND, JobApiImpl.change(JobService.Change.CONTRACT));
+        assertEquals(JobChange.CANCEL_ASKED, JobApiImpl.change(JobService.Change.CANCEL_ASKED));
+        assertEquals(JobChange.PENDING, JobApiImpl.change(JobService.Change.ASKED));
+        assertEquals(JobChange.PENDING, JobApiImpl.change(JobService.Change.NO_REQUEST));
     }
 
     @Test
@@ -381,5 +384,8 @@ class JobApiImplTest {
 
         @Override
         public void extensionRefused(int company, Job job, @Nullable String reason) {}
+
+        @Override
+        public void cancelAsked(int company, Job job) {}
     }
 }

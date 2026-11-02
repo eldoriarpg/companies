@@ -1243,6 +1243,19 @@ export interface JobDetails {
     materialCost?: MaterialCost | null
     /** How far the work was at the last check of its area; only from the server holding the area. */
     progress?: JobProgress | null
+    /** Whether the owner asks the company working on it to let it be cancelled; missing from older plugins. */
+    cancelAsked?: boolean
+    /** The steps of the review of its work, oldest first; only for the owner and its company. */
+    reviews?: JobReview[]
+}
+
+/** A step of the review of a job's work. */
+export interface JobReview {
+    /** `done` when the company said the work is done, `rejected` when the owner sent it back. */
+    kind: 'done' | 'rejected'
+    /** Why it was sent back. */
+    reason?: string | null
+    at?: string | null
 }
 
 /** How far the work on a job was at the last check of its area. */
@@ -1391,6 +1404,8 @@ export interface WriteActions {
     'jobs.extension.ask': {args: JobRef & {hours: number, reason: string}, result: JobDetails}
     'jobs.extension.grant': {args: JobRef, result: JobDetails}
     'jobs.extension.refuse': {args: JobRef & {reason: string}, result: JobDetails}
+    'jobs.cancel.accept': {args: JobRef, result: JobDetails}
+    'jobs.cancel.refuse': {args: JobRef, result: JobDetails}
     'admin.jobs.disputes': {args: Record<string, never>, result: {disputes: DisputeRow[]}}
     'admin.jobs.settle': {args: JobRef & {percent: number}, result: {disputes: DisputeRow[]}}
     'events.leave': {args: OfferRef, result: EventDetails}

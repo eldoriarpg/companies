@@ -9,6 +9,7 @@ import de.eldoria.companies.components.job.JobState;
 import de.eldoria.companies.data.wrapper.job.Job;
 import de.eldoria.companies.data.wrapper.job.JobArea;
 import de.eldoria.companies.data.wrapper.job.JobMark;
+import de.eldoria.companies.data.wrapper.job.JobReviewEntry;
 import org.jetbrains.annotations.Nullable;
 
 import java.time.LocalDateTime;
@@ -111,6 +112,50 @@ public abstract class AJobData {
      * @return true when the job waited for the owner and is taken again
      */
     public abstract boolean reject(int job, String reason, LocalDateTime due);
+
+    /**
+     * Notes that the owner asks the company holding a taken job to let it be cancelled.
+     *
+     * @param job     id of the job
+     * @param company id of the company that holds it
+     * @param at      when the owner asked
+     * @return true when the company held the job taken and no request was open yet
+     */
+    public abstract boolean askCancel(int job, int company, LocalDateTime at);
+
+    /**
+     * Cancels a job the company holds taken, as the owner asked; only while the request is still open, so a refusal
+     * that came first wins.
+     *
+     * @param job     id of the job
+     * @param company id of the company that holds it
+     * @param by      who agreed, as noted
+     * @param at      when
+     * @return true when the company held the job taken with a request open and it is now cancelled
+     */
+    public abstract boolean acceptCancel(int job, int company, @Nullable String by, LocalDateTime at);
+
+    /**
+     * Drops the owner's request to cancel a job, when the company refused it.
+     *
+     * @param job     id of the job
+     * @param company id of the company that holds it
+     * @return true when the company held the job taken with a request open
+     */
+    public abstract boolean refuseCancel(int job, int company);
+
+    /**
+     * Notes a step of the review of a job's work.
+     *
+     * @param entry the step
+     */
+    public abstract void review(JobReviewEntry entry);
+
+    /**
+     * @param job id of a job
+     * @return the steps of the review of its work, oldest first
+     */
+    public abstract List<JobReviewEntry> reviews(int job);
 
     /**
      * Opens a dispute about a job a company holds.

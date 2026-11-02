@@ -1015,6 +1015,7 @@ export default {
                     maxExtensionRequests: "Combien de fois une entreprise peut demander plus de temps par travail",
                     openDays: "Jours pendant lesquels un travail attend une entreprise avant d'expirer",
                     approveHours: "Heures pendant lesquelles un contrat terminé attend son propriétaire avant d'être approuvé",
+                    approveAreaJobs: "Les travaux de zone dont la vérification est réussie attendent l'accord de leur propriétaire",
                 },
                 areas: {
                     enabled: 'Les entreprises peuvent obtenir de nouvelles zones',
@@ -1527,6 +1528,13 @@ export default {
         targetSurface: "Plein jusqu'à la hauteur {y} avec une couche du dessus en {block}, vide au-dessus",
         materialCost: "Ses blocs coûtent environ {cost}",
         materialCostUnpriced: "Ses blocs coûtent environ {cost} ; {unpriced} types de blocs n'ont pas encore de prix et n'y sont pas comptés",
+        cancelAskedOwner: "Tu as demandé à l'entreprise de le laisser annuler ; elle n'a pas encore répondu",
+        cancelAskedCompany: "Le propriétaire demande à ton entreprise de le laisser annuler",
+        reviews: "Vérification",
+        review: {
+            done: "L'entreprise a déclaré le travail terminé",
+            rejected: "Renvoyé : {reason}",
+        },
         progress: "Dernière vérification : {percent} % fait, {done} blocs sur {total}",
         expires: "Attend une entreprise jusqu'au {time}",
         due: "Le temps de l'entreprise court jusqu'au {time}",
@@ -1586,6 +1594,9 @@ export default {
             grant: "Accorder plus de temps",
             refuse: "Refuser plus de temps",
             ask: "Demander plus de temps",
+            askCancel: "Demander l'annulation",
+            cancelAccept: "Laisser annuler",
+            cancelRefuse: "Continuer",
         },
         text: {
             reject: "Pourquoi le travail n'est pas fini",

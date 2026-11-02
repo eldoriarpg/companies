@@ -70,7 +70,9 @@ public final class JobWrites {
             Actions.JOBS_EXTEND,
             Actions.JOBS_EXTENSION_ASK,
             Actions.JOBS_EXTENSION_GRANT,
-            Actions.JOBS_EXTENSION_REFUSE);
+            Actions.JOBS_EXTENSION_REFUSE,
+            Actions.JOBS_CANCEL_ACCEPT,
+            Actions.JOBS_CANCEL_REFUSE);
 
     /**
      * The most jobs of each list.
@@ -161,6 +163,22 @@ public final class JobWrites {
                                 args.path("reason").asString("")));
             case Actions.JOBS_CANCEL ->
                 owner(request, jobs, player, company, id, service.cancel(player, session.playerName(), id));
+            case Actions.JOBS_CANCEL_ACCEPT ->
+                forCompany(
+                        request,
+                        jobs,
+                        player,
+                        company,
+                        id,
+                        c -> service.answerCancel(c, player, session.playerName(), id, true));
+            case Actions.JOBS_CANCEL_REFUSE ->
+                forCompany(
+                        request,
+                        jobs,
+                        player,
+                        company,
+                        id,
+                        c -> service.answerCancel(c, player, session.playerName(), id, false));
             case Actions.JOBS_DISPUTE -> {
                 var reason = args.path("reason").asString("");
                 yield owns(jobs, player, id)
@@ -278,8 +296,8 @@ public final class JobWrites {
             Optional<CompanyProfile> company,
             int id,
             JobService.Change change) {
-        if (change == JobService.Change.DONE) {
-            jobs.access().checkSoon();
+        if (change == JobService.Change.DONE || change == JobService.Change.CANCEL_ASKED) {
+            if (change == JobService.Change.DONE) jobs.access().checkSoon();
             return jobs.data()
                     .job(id)
                     .map(job -> answers.data(request, details(jobs, job, player, company)))
@@ -288,6 +306,7 @@ public final class JobWrites {
         var key =
                 switch (change) {
                     case UNKNOWN, NOT_YOURS -> "error.unknown";
+                    case ASKED -> "error.cancelAsked";
                     case TAKEN -> "error.taken";
                     case DISPUTED -> "error.disputed";
                     case REASON -> "error.reason";
@@ -364,6 +383,7 @@ public final class JobWrites {
                     case ASKED -> "error.extensionAsked";
                     case REQUESTS -> "error.extensionRequests";
                     case REFUSED -> "error.refused";
+                    case NO_REQUEST -> "error.noCancel";
                     default -> "error.closed";
                 };
         return answers.refused(
@@ -474,7 +494,21 @@ public final class JobWrites {
                                 .last(job.id())
                                 .map(work -> new Progress(work.percent(), work.cleared(), work.total()))
                                 .orElse(null)
-                        : null);
+                        : null,
+                job.state() == JobState.TAKEN && review.cancelAsked() != null,
+                mine || ours(job, company)
+                        ? jobs.data().reviews(job.id()).stream()
+                                .map(entry -> new Review(
+                                        entry.kind().name().toLowerCase(Locale.ROOT),
+                                        entry.reason(),
+                                        instant(entry.at())))
+                                .toList()
+                        : List.of());
+    }
+
+    private static boolean ours(Job job, Optional<CompanyProfile> company) {
+        return company.map(found -> Integer.valueOf(found.id()).equals(job.company()))
+                .orElse(false);
     }
 
     private @Nullable Instant instant(@Nullable LocalDateTime time) {
@@ -603,6 +637,8 @@ public final class JobWrites {
      * @param request        the company's open request for more time, null without one
      * @param materialCost   what the blocks of a build job's blueprint cost, null for other kinds
      * @param progress       how far the work was at the last check of its area, null when this server did not check it
+     * @param cancelAsked    whether the owner asks the company working on it to let it be cancelled
+     * @param reviews        the steps of the review of its work, oldest first; only for the owner and its company
      */
     public record JobDetails(
             JobRow job,
@@ -622,7 +658,19 @@ public final class JobWrites {
             int requestsLeft,
             @Nullable ExtensionRequest request,
             @Nullable MaterialCost materialCost,
-            @Nullable Progress progress) {}
+            @Nullable Progress progress,
+            boolean cancelAsked,
+            List<Review> reviews) {}
+
+    /**
+     * A step of the review of a job's work.
+     *
+     * @param kind   {@code done} when the company said the work is done, {@code rejected} when the owner sent it back
+     * @param reason why it was sent back, null otherwise
+     * @param at     when
+     */
+    public record Review(
+            String kind, @Nullable String reason, @Nullable Instant at) {}
 
     /**
      * How far the work on a job was at the last check of its area.

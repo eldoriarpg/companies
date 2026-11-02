@@ -537,7 +537,8 @@ the economy is set up, like the other writes.
 | `post(JobRequest request)` | `CompletableFuture<PostJobResult>` | **Write.** Posts a job |
 | `take(int id, UUID member)` | `CompletableFuture<JobChange>` | **Write.** Takes an open job for the member's company |
 | `giveBack(int id, UUID member)` | `CompletableFuture<JobChange>` | **Write.** Gives a job back; it is open again |
-| `cancel(int id, UUID owner)` | `CompletableFuture<JobChange>` | **Write.** Cancels the owner's open job |
+| `cancel(int id, UUID owner)` | `CompletableFuture<JobChange>` | **Write.** Cancels the owner's open job; for a taken one asks its company (`CANCEL_ASKED`) |
+| `answerCancel(int id, UUID member, boolean agree)` | `CompletableFuture<JobChange>` | **Write.** Answers the owner's request to cancel a job of the member's company |
 | `finish(int id, UUID member)` | `CompletableFuture<JobChange>` | **Write.** Finishes a job of the member's company |
 | `approve(int id, UUID owner)` | `CompletableFuture<JobChange>` | **Write.** Pays the company of a held job in full, as it stands |
 | `reject(int id, UUID owner, String reason)` | `CompletableFuture<JobChange>` | **Write.** Sends such a contract back to work |
@@ -575,7 +576,8 @@ harvest job it ends the harvest, for a contract it says the work is done and wai
 on the main thread, so never wait for the future of `finish` there. `approve` pays a contract its company said is
 done, and also any dig, terraform or build job a company holds, in full and as it stands. The future
 completes with a `JobChange`: `DONE`, or why not, such as `NO_COMPANY`, `NOT_YOURS`, `LIMIT`, `NOT_DONE`,
-`OTHER_SERVER`, `NOT_LOADED` or `REFUSED` when a listener cancelled the change. See [Job events](./events.md#job-events).
+`OTHER_SERVER`, `NOT_LOADED`, `PENDING` while a request waits for an answer (or there is none to answer), or `REFUSED`
+when a listener cancelled the change. See [Job events](./events.md#job-events).
 
 ```java
 api.jobs().take(jobId, member.getUniqueId()).thenAccept(change -> {

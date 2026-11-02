@@ -36,13 +36,20 @@ describe('jobSteps', () => {
     })
 
     it('lets the owner give more time and answer the company\'s request', () => {
-        expect(jobSteps(details({mine: true, state: 'taken'}, {hoursLeft: 10}))).toEqual(['approve', 'dispute', 'extend'])
-        expect(jobSteps(details({mine: true, state: 'taken'}, {hoursLeft: 0}))).toEqual(['approve', 'dispute'])
+        expect(jobSteps(details({mine: true, state: 'taken'}, {hoursLeft: 10}))).toEqual(['approve', 'dispute', 'extend', 'askCancel'])
+        expect(jobSteps(details({mine: true, state: 'taken'}, {hoursLeft: 0}))).toEqual(['approve', 'dispute', 'askCancel'])
         expect(jobSteps(details({mine: true, state: 'taken'}, {hoursLeft: 10, request: {hours: 5, reason: 'Big'}})))
-            .toEqual(['approve', 'dispute', 'grant', 'refuse', 'extend'])
+            .toEqual(['approve', 'dispute', 'grant', 'refuse', 'extend', 'askCancel'])
         expect(jobSteps(details({mine: true, kind: 'harvest', state: 'taken'}, {hoursLeft: 10}))).toEqual(['end', 'extend'])
         expect(jobSteps(details({mine: true, state: 'taken'}, {hoursLeft: 4, request: {hours: 5, reason: 'Big'}})))
-            .toEqual(['approve', 'dispute', 'refuse', 'extend'])
+            .toEqual(['approve', 'dispute', 'refuse', 'extend', 'askCancel'])
+    })
+
+    it('lets the owner ask to cancel a taken job once and the company answer', () => {
+        expect(jobSteps(details({mine: true, state: 'taken'}, {hoursLeft: 0, cancelAsked: true}))).toEqual(['approve', 'dispute'])
+        expect(jobSteps(details({ours: true, state: 'taken'}, {canManage: true, hoursLeft: 0, cancelAsked: true})))
+            .toEqual(['done', 'giveback', 'dispute', 'cancelAccept', 'cancelRefuse'])
+        expect(jobSteps(details({ours: true, state: 'taken'}, {canManage: false, cancelAsked: true}))).toEqual([])
     })
 
     it('lets the company ask for more time only while it may', () => {

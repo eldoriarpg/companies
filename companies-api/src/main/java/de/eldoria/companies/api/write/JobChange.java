@@ -72,5 +72,13 @@ public enum JobChange {
     /**
      * Something went wrong; the server log names it.
      */
-    FAILED
+    FAILED,
+    /**
+     * The job is taken, so the company holding it was asked to let it be cancelled instead.
+     */
+    CANCEL_ASKED,
+    /**
+     * The other side was asked already and has not answered yet, or there is no request to answer.
+     */
+    PENDING
 }

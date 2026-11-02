@@ -638,7 +638,7 @@ function jobsOf(state) {
  */
 function jobRow(job) {
     const row = {...job}
-    for (const field of ['description', 'dispute', 'disputeByOwner', 'rejected', 'request', 'extendedHours', 'requestsLeft']) delete row[field]
+    for (const field of ['description', 'dispute', 'disputeByOwner', 'rejected', 'request', 'extendedHours', 'requestsLeft', 'cancelAsked']) delete row[field]
     return row
 }
 
@@ -664,6 +664,8 @@ function jobDetails(job) {
         request: job.state === 'taken' ? (job.request ?? null) : null,
         materialCost: job.kind === 'build' ? {total: 1840, unpriced: 0} : null,
         progress: job.state === 'taken' && job.kind !== 'contract' && job.kind !== 'harvest' ? {percent: 40, done: 400, total: 1000} : null,
+        cancelAsked: job.state === 'taken' && Boolean(job.cancelAsked),
+        reviews: job.rejected ? [{kind: 'done', reason: null, at: '2026-11-01T10:00:00Z'}, {kind: 'rejected', reason: job.rejected, at: '2026-11-01T12:00:00Z'}] : [],
     }
 }
 
@@ -746,6 +748,40 @@ function jobStep(state, name, args, done, refused) {
         job.disputeByOwner = job.mine
     }
     if (name === 'jobs.describe') job.description = args.text
+    return done(jobDetails(job))
+}
+
+/**
+ * Asks the company working on a taken job to let it be cancelled, as the plugin would.
+ *
+ * @param state the session's state
+ * @param args the arguments
+ * @param done answers the job afterwards
+ * @param refused answers a refusal
+ * @returns the answer
+ */
+function cancelAsk(state, args, done, refused) {
+    const job = jobsOf(state)[args.job]
+    if (job.cancelAsked) return refused(`The company working on job #${args.job} was asked already and has not answered yet.`)
+    job.cancelAsked = true
+    return done(jobDetails(job))
+}
+
+/**
+ * Answers the owner's request to cancel a job, as the plugin would.
+ *
+ * @param state the session's state
+ * @param name the action
+ * @param args the arguments
+ * @param done answers the job afterwards
+ * @param refused answers a refusal
+ * @returns the answer
+ */
+function cancelAnswer(state, name, args, done, refused) {
+    const job = jobsOf(state)[args.job]
+    if (!job || job.state !== 'taken' || !job.cancelAsked) return refused(`The owner of job #${args.job} does not ask to cancel it.`)
+    job.cancelAsked = false
+    if (name === 'jobs.cancel.accept') job.state = 'cancelled'
     return done(jobDetails(job))
 }
 
@@ -885,10 +921,15 @@ function action(name, args, state, story = {}) {
         case 'jobs.dispute':
         case 'jobs.withdraw':
         case 'jobs.cancel':
+            if (jobsOf(state)[args.job]?.state === 'taken') return cancelAsk(state, args, done, refused)
+            return jobStep(state, name, args, done, refused)
         case 'jobs.giveback':
         case 'jobs.end':
         case 'jobs.describe':
             return jobStep(state, name, args, done, refused)
+        case 'jobs.cancel.accept':
+        case 'jobs.cancel.refuse':
+            return cancelAnswer(state, name, args, done, refused)
         case 'jobs.extend':
         case 'jobs.extension.grant':
         case 'jobs.extension.refuse':

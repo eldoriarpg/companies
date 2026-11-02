@@ -11,16 +11,17 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 /**
- * How the end of a job's work is reviewed: the company saying it is done, the owner rejecting it, and a dispute an
- * admin settles.
+ * How the end of a job's work is reviewed: the company saying it is done, the owner rejecting it, a dispute an admin
+ * settles, and the owner asking the company to let the job be cancelled.
  *
- * @param doneAt     when the company said the work is done, null while it did not or after a rejection
- * @param doneBy     the member who said so, null with {@code doneAt}
- * @param rejected   why the owner rejected the work last, null when they never did
- * @param disputeBy  the player who opened the dispute, null without one
- * @param dispute    why the dispute was opened, null without one
- * @param disputedAt when the dispute was opened, null without one
- * @param settled    the percent of the price an admin gave the company, null while not settled
+ * @param doneAt      when the company said the work is done, null while it did not or after a rejection
+ * @param doneBy      the member who said so, null with {@code doneAt}
+ * @param rejected    why the owner rejected the work last, null when they never did
+ * @param disputeBy   the player who opened the dispute, null without one
+ * @param dispute     why the dispute was opened, null without one
+ * @param disputedAt  when the dispute was opened, null without one
+ * @param settled     the percent of the price an admin gave the company, null while not settled
+ * @param cancelAsked when the owner asked the company working on it to let it be cancelled, null without a request
  */
 public record JobReview(
         @Nullable LocalDateTime doneAt,
@@ -29,11 +30,12 @@ public record JobReview(
         @Nullable UUID disputeBy,
         @Nullable String dispute,
         @Nullable LocalDateTime disputedAt,
-        @Nullable Integer settled) {
+        @Nullable Integer settled,
+        @Nullable LocalDateTime cancelAsked) {
     /**
      * A job whose work was never reviewed.
      */
-    public static final JobReview NONE = new JobReview(null, null, null, null, null, null, null);
+    public static final JobReview NONE = new JobReview(null, null, null, null, null, null, null, null);
 
     /**
      * The longest reason of a rejection or a dispute.

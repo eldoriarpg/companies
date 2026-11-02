@@ -73,36 +73,35 @@ import java.util.logging.Logger;
  * <p>
  * Every check reads the jobs of this server that wait, are taken or are still noted as granted, and asks the land hooks
  * about all of them in one round on the main thread: whether the land is still the owner's and, for taken jobs, which
- * players they would trust. A job whose land changed hands, such as a plot that was sold, is handed to
- * {@code landLost}. The players a hook is about to add are stored before it adds them, so a crash never leaves access
- * nobody takes back. A second round on the main thread first takes the access of every job that is not taken any more
- * back, then gives each taken job exactly the current members of its company, so members who joined or left are added
- * or removed and a job that ended never takes away what another job of the same land still needs. A hook that can not
- * take access back yet, such as while the world is not loaded, is asked again at the next check. Each round on the
- * main thread waits at most {@value #MAIN_THREAD_SECONDS} seconds. Checks run every {@value #CHECK_SECONDS} seconds and
- * soon after a change on this server.
+ * players they would trust. A job whose land changed hands, such as a plot that was sold, is handed to {@code
+ * landLost}. The players a hook is about to add are stored before it adds them, so a crash never leaves access nobody
+ * takes back. A second round on the main thread first takes the access of every job that is not taken any more back,
+ * then gives each taken job exactly the current members of its company, so members who joined or left are added or
+ * removed and a job that ended never takes away what another job of the same land still needs. A hook that can not take
+ * access back yet, such as while the world is not loaded, is asked again at the next check. Each round on the main
+ * thread waits at most {@value #MAIN_THREAD_SECONDS} seconds. Checks run every {@value #CHECK_SECONDS} seconds and soon
+ * after a change on this server.
  * <p>
  * A block a member of the working company breaks inside a taken job's area counts as their work, unless it was placed
  * there while the job ran. In a terraform job's area only breaking what the target asks to go counts: blocks above the
- * target height and top layer blocks that are not its surface block. Placing a block that fills a position as the target
- * asks counts too, once for each position, and never where a member broke a block that already filled it, so taking
- * out a solid block and putting it back earns nothing. Counts are written every {@value #FLUSH_SECONDS} seconds, before a job is finished and when
- * the plugin stops, and only while the company they were counted for still has the job. The placed and filled
- * positions are written with them, for the company they were counted for, and read back when a job becomes active on
- * this server again, so a restart never lets a position count twice; they are dropped once the job is neither taken
- * nor disputed by that company, and a company that takes a job over starts with none. A failed write is tried again
- * with the next one. A dig job nobody worked on yet is handed to {@code untouched}, so the blocks already cleared when
- * it was posted can be noted; a taken one gets its access only once that measuring ended. Only the working company may
- * place blocks or empty buckets in a taken job's area, so nobody fills it up while it is worked on. In a build job's
- * area it may place only the block the blueprint asks for at a position, and the blocks of the build whitelist anywhere
- * to build up; a block of the right type placed turned another way is turned as the blueprint asks on the next tick. A land hook whose
- * access reaches beyond the job's area, such as the trust on a whole plot, is held to the area: players who only have
- * access through a job may not break, place, use buckets, use blocks or touch entities outside the areas of the jobs
- * they work on, though they may still open doors, use the item in their hand and fight monsters. A disputed job's area
- * is frozen until an admin settles it: nobody has access through it and nobody, its owner included, may place blocks
- * or pour into it. Nobody may pour lava,
- * place TNT or set fire in a taken job's area. Players with {@code companies.admin.jobs.bypass} are held by none of
- * this.
+ * target height and top layer blocks that are not its surface block. Placing a block that fills a position as the
+ * target asks counts too, once for each position, and never where a member broke a block that already filled it, so
+ * taking out a solid block and putting it back earns nothing. Counts are written every {@value #FLUSH_SECONDS} seconds,
+ * before a job is finished and when the plugin stops, and only while the company they were counted for still has the
+ * job. The placed and filled positions are written with them, for the company they were counted for, and read back when
+ * a job becomes active on this server again, so a restart never lets a position count twice; they are dropped once the
+ * job is neither taken nor waiting for approval nor disputed by that company, and a company that takes a job over
+ * starts with none. A failed write is tried again with the next one. A dig job nobody worked on yet is handed to {@code
+ * untouched}, so the blocks already cleared when it was posted can be noted; a taken one gets its access only once that
+ * measuring ended. Only the working company may place blocks or empty buckets in a taken job's area, so nobody fills it
+ * up while it is worked on. In a build job's area it may place only the block the blueprint asks for at a position, and
+ * the blocks of the build whitelist anywhere to build up; a block of the right type placed turned another way is turned
+ * as the blueprint asks on the next tick. A land hook whose access reaches beyond the job's area, such as the trust on
+ * a whole plot, is held to the area: players who only have access through a job may not break, place, use buckets, use
+ * blocks or touch entities outside the areas of the jobs they work on, though they may still open doors, use the item
+ * in their hand and fight monsters. A disputed job's area is frozen until an admin settles it: nobody has access
+ * through it and nobody, its owner included, may place blocks or pour into it. Nobody may pour lava, place TNT or set
+ * fire in a taken job's area. Players with {@code companies.admin.jobs.bypass} are held by none of this.
  */
 public final class JobAccess implements Listener {
     /**
@@ -241,7 +240,9 @@ public final class JobAccess implements Listener {
             Set<Integer> waiting = new HashSet<>();
             for (var job : jobs.access(node)) {
                 if (job.kind() == JobKind.BUILD && !job.state().closed()) building.add(job.id());
-                if (job.state() == JobState.TAKEN || job.state() == JobState.DISPUTED) held.add(job.id());
+                if (job.state() == JobState.TAKEN || job.state() == JobState.DONE || job.state() == JobState.DISPUTED) {
+                    held.add(job.id());
+                }
                 if (fresh(job)) {
                     digging.add(job.id());
                     if (measure(job)) waiting.add(job.id());

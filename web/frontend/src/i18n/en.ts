@@ -1015,6 +1015,7 @@ export default {
                     maxExtensionRequests: 'How often a company may ask for more time per job',
                     openDays: 'Days a job waits for a company before it expires',
                     approveHours: 'Hours a finished contract waits for its owner before it is approved',
+                    approveAreaJobs: 'Area jobs whose check passed wait for their owner to approve them',
                 },
                 areas: {
                     enabled: 'Let companies get new areas',
@@ -1527,6 +1528,13 @@ export default {
         targetSurface: "Solid up to height {y} with a top layer of {block}, empty above",
         materialCost: "Its blocks cost about {cost}",
         materialCostUnpriced: "Its blocks cost about {cost}; {unpriced} block types have no price yet and are left out",
+        cancelAskedOwner: "You asked the company to let it be cancelled; it has not answered yet",
+        cancelAskedCompany: "The owner asks your company to let it be cancelled",
+        reviews: "Review",
+        review: {
+            done: "The company said the work is done",
+            rejected: "Sent back: {reason}",
+        },
         progress: "Last check: {percent} % done, {done} of {total} blocks",
         expires: "Waits for a company until {time}",
         due: "The company's time runs until {time}",
@@ -1586,6 +1594,9 @@ export default {
             grant: "Grant more time",
             refuse: "Refuse more time",
             ask: "Ask for more time",
+            askCancel: "Ask to cancel",
+            cancelAccept: "Let it be cancelled",
+            cancelRefuse: "Keep working",
         },
         text: {
             reject: "Why the work is not done",
