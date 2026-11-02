@@ -51,7 +51,7 @@ class BuildGhostsTest {
         ghosts = new BuildGhosts(
                 MockBukkit.createMockPlugin(),
                 now::get,
-                (world, x, y, z, data) ->
+                (world, x, y, z, data, dig) ->
                         world.spawnEntity(world.getBlockAt(x, y, z).getLocation(), EntityType.PIG));
     }
 
@@ -137,5 +137,10 @@ class BuildGhostsTest {
                         now,
                         now.plusDays(7))
                 .withId(7);
+    }
+
+    @Test
+    void aPositionToDigShowsAsRedGlass() {
+        assertEquals(Material.RED_STAINED_GLASS, BuildGhosts.data(Blueprint.DIG).getMaterial());
     }
 }

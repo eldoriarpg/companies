@@ -200,12 +200,25 @@ public record JobRequest(
         /**
          * Copies the blocks.
          *
-         * @throws IllegalArgumentException when there are no blocks
+         * @throws IllegalArgumentException when no block is one a build job can ask for: air, liquids and blocks nobody
+         *                                  can break ask for nothing
          */
         public Build {
             Objects.requireNonNull(world, "world");
             blocks = List.copyOf(blocks);
-            if (blocks.isEmpty()) throw new IllegalArgumentException("A blueprint needs at least one block");
+            if (blocks.stream().noneMatch(Build::asked)) {
+                throw new IllegalArgumentException(
+                        "A blueprint needs at least one block that is not air, a liquid or" + " unbreakable");
+            }
+        }
+
+        private static boolean asked(BuildBlock block) {
+            var type = block.type();
+            return !type.isAir()
+                    && type != Material.WATER
+                    && type != Material.LAVA
+                    && type != Material.BUBBLE_COLUMN
+                    && type.getHardness() >= 0;
         }
     }
 }

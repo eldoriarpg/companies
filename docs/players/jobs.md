@@ -80,11 +80,14 @@ blocks cost, the question says so, as companies may pass such a job by; you can 
 schematic covers there, and it must lie on your land like any other job. The cost of its blocks is shown on the job in
 game and on the dashboard too.
 
-The job is done when enough of the schematic's blocks are in place: `buildMatchPercent` (95 % by default) in
-[jobs.yml](../admin/configuration/jobs-yml.md). A block counts when its type is right and it is turned as the schematic
-has it: which way it faces, its top or bottom half, its axis, a door's hinge, a slab's half. How a fence or wall
-connects and the corner shape of a stair are left to the neighbours and never count. Where the schematic has air,
-anything goes, so terrain and furniture never hold the job up.
+The job is done when enough of the schematic's blocks are in place and its spots to dig are clear: `buildMatchPercent`
+(95 % by default) in [jobs.yml](../admin/configuration/jobs-yml.md). A block counts when its type is right and it is
+turned as the schematic has it: which way it faces, its top or bottom half, its axis, a door's hinge, a slab's half. How
+a fence or wall connects and the corner shape of a stair are left to the neighbours and never count. Where the schematic
+has air, anything goes, so terrain and furniture never hold the job up. A schematic may reach into the ground, such as a
+house with a cellar: where the schematic has air or water and solid ground lies there when you post it, below the
+surface of its column, that block must be dug out; plants, snow and leaves stay. The preview marks those spots red and
+says how many there are; digging them counts as work, and the company keeps what it digs.
 
 While the company builds, its members may place only the block the schematic asks for at a spot, plus the blocks of
 `buildWhitelist` (scaffolding by default) anywhere to build up; anything else is refused with what the spot asks for.

@@ -678,6 +678,27 @@ class JobAccessTest {
         assertEquals(Map.of(worker.getUniqueId(), 1), jobs.workOf(id));
     }
 
+    @Test
+    void groundTheBlueprintDigsOutCountsAsWorkAndTakesNoBlocks() {
+        var worker = server.addPlayer();
+        world.getBlockAt(1, 60, 0).setType(Material.DIRT);
+        var blueprint = Blueprint.of(List.of(new Blueprint.Cell(0, 0, 0, Material.STONE)), List.of(new int[] {1, 0, 0}))
+                .dug("world", 0, 60, 0, BuildCheck.of(world), (x, z) -> 60);
+        var id = buildJob(blueprint);
+        members.put(3, Set.of(worker.getUniqueId()));
+        sync.check();
+
+        var cobble = placing(worker, world.getBlockAt(1, 60, 0), Material.COBBLESTONE);
+        world.getBlockAt(1, 60, 0).setType(Material.DIRT);
+        breakBlock(worker, world.getBlockAt(1, 60, 0));
+        world.getBlockAt(1, 60, 0).setType(Material.SAND);
+        breakBlock(worker, world.getBlockAt(1, 60, 0));
+        sync.flush();
+
+        assertTrue(cobble.isCancelled());
+        assertEquals(Map.of(worker.getUniqueId(), 1), jobs.workOf(id));
+    }
+
     private int buildJob(Blueprint blueprint) {
         var id = jobs.create(Job.draft(
                         UUID.randomUUID(),

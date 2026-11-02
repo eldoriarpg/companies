@@ -22,6 +22,7 @@ import de.eldoria.companies.data.wrapper.job.JobReview;
 import de.eldoria.companies.data.wrapper.job.JobReviewEntry;
 import de.eldoria.companies.data.wrapper.job.JobTarget;
 import de.eldoria.companies.jobs.Blueprint;
+import de.eldoria.companies.jobs.BuildCheck;
 import de.eldoria.companies.jobs.DigCheck;
 import de.eldoria.companies.jobs.JobService;
 import de.eldoria.companies.jobs.JobServices;
@@ -48,8 +49,10 @@ import net.strokkur.commands.arguments.DoubleArg;
 import net.strokkur.commands.arguments.IntArg;
 import net.strokkur.commands.arguments.StringArg;
 import net.strokkur.commands.arguments.StringArgType;
+import org.bukkit.HeightMap;
 import org.bukkit.Material;
 import org.bukkit.Particle;
+import org.bukkit.block.Block;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
@@ -315,7 +318,9 @@ public final class JobCommand {
             CommandSender sender, @StringArg(StringArgType.STRING) String schematic, @IntArg int rotation) {
         var player = Senders.player(sender);
         var at = player.getLocation().getBlock();
-        blueprintOf(player, schematic, rotation, (blueprint, cost) -> {
+        blueprintOf(player, schematic, rotation, (read, cost) -> {
+            var blueprint = placed(player, schematic, read, at);
+            if (blueprint == null) return;
             var area = blueprint.area(at.getWorld().getName(), at.getX(), at.getY(), at.getZ());
             outline(player, area);
             preview(player, area, blueprint);
@@ -328,6 +333,9 @@ public final class JobCommand {
                             Values.number("height", area.maxY() - area.minY() + 1),
                             Values.number("length", area.maxZ() - area.minZ() + 1),
                             Values.number("blocks", blueprint.blocks()));
+            if (blueprint.digs() > 0) {
+                deps.messages().sendMessage(player, PREFIX + "blueprintDigs", Values.number("digs", blueprint.digs()));
+            }
             sendCost(player, cost);
         });
     }
@@ -355,7 +363,9 @@ public final class JobCommand {
             @StringArg(StringArgType.GREEDY) String title) {
         var player = Senders.player(sender);
         var at = player.getLocation().getBlock();
-        blueprintOf(player, schematic, rotation, (blueprint, cost) -> {
+        blueprintOf(player, schematic, rotation, (read, cost) -> {
+            var blueprint = placed(player, schematic, read, at);
+            if (blueprint == null) return;
             var area = blueprint.area(at.getWorld().getName(), at.getX(), at.getY(), at.getZ());
             outline(player, area);
             preview(player, area, blueprint);
@@ -381,6 +391,36 @@ public final class JobCommand {
                             },
                             look);
         });
+    }
+
+    /**
+     * @param player    the player placing it, told when it asks for nothing there
+     * @param schematic name of the schematic
+     * @param blueprint a blueprint as read from its schematic
+     * @param at        the block the player stands on, where it is placed
+     * @return the blueprint placed there, with the ground it reaches into to be dug out; null when it asks for nothing
+     *     there
+     */
+    private @Nullable Blueprint placed(Player player, String schematic, Blueprint blueprint, Block at) {
+        var world = at.getWorld();
+        try {
+            return blueprint.dug(
+                    world.getName(),
+                    at.getX(),
+                    at.getY(),
+                    at.getZ(),
+                    BuildCheck.of(world),
+                    (x, z) -> world.getHighestBlockYAt(x, z, HeightMap.MOTION_BLOCKING_NO_LEAVES));
+        } catch (IllegalArgumentException e) {
+            deps.messages()
+                    .sendError(
+                            player,
+                            PREFIX + "error.schematic",
+                            Values.text("schematic", schematic),
+                            Values.number(
+                                    "max", deps.configuration().jobSettings().buildMaxVolume()));
+            return null;
+        }
     }
 
     /**
@@ -427,13 +467,13 @@ public final class JobCommand {
             return;
         }
         ghosts.preview(player, area, blueprint).ifPresent(shown -> {
-            if (shown < blueprint.blocks()) {
+            if (shown < blueprint.blocks() + blueprint.digs()) {
                 deps.messages()
                         .sendMessage(
                                 player,
                                 PREFIX + "previewPartial",
                                 Values.number("shown", shown),
-                                Values.number("blocks", blueprint.blocks()));
+                                Values.number("blocks", blueprint.blocks() + blueprint.digs()));
             }
         });
     }

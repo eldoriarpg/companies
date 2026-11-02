@@ -8,6 +8,8 @@ package de.eldoria.companies.jobs;
 import de.eldoria.companies.data.wrapper.job.Job;
 import de.eldoria.companies.data.wrapper.job.JobArea;
 import org.bukkit.Bukkit;
+import org.bukkit.Color;
+import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.data.BlockData;
@@ -108,9 +110,10 @@ public final class BuildGhosts implements Listener {
          * @param y     y of the block
          * @param z     z of the block
          * @param data  the block shown
+         * @param dig   whether it marks a position to dig out, which glows red
          * @return the ghost
          */
-        Entity spawn(World world, int x, int y, int z, BlockData data);
+        Entity spawn(World world, int x, int y, int z, BlockData data, boolean dig);
     }
 
     /**
@@ -359,9 +362,11 @@ public final class BuildGhosts implements Listener {
 
     /**
      * @param want what a blueprint asks for
-     * @return its block data, or the type alone when this server can not read the data
+     * @return its block data, or the type alone when this server can not read the data; red glass marks a position to
+     *     dig out
      */
     static BlockData data(Blueprint.Want want) {
+        if (want.type().isAir()) return Material.RED_STAINED_GLASS.createBlockData();
         try {
             return Bukkit.createBlockData(want.data());
         } catch (IllegalArgumentException e) {
@@ -370,17 +375,18 @@ public final class BuildGhosts implements Listener {
     }
 
     private void spawn(Player player, World world, Shown current, int x, int y, int z, Blueprint.Want wanted) {
-        var ghost = spawner.spawn(world, x, y, z, data(wanted));
+        var ghost = spawner.spawn(world, x, y, z, data(wanted), wanted.type().isAir());
         player.showEntity(plugin, ghost);
         current.ghosts().put(key(x, y, z), ghost);
     }
 
-    private static Entity display(World world, int x, int y, int z, BlockData data) {
+    private static Entity display(World world, int x, int y, int z, BlockData data, boolean dig) {
         return world.spawn(world.getBlockAt(x, y, z).getLocation(), BlockDisplay.class, display -> {
             display.setBlock(data);
             display.setVisibleByDefault(false);
             display.setPersistent(false);
             display.setGlowing(true);
+            if (dig) display.setGlowColorOverride(Color.RED);
             display.setTransformation(new Transformation(
                     new Vector3f(0.2f, 0.2f, 0.2f),
                     new AxisAngle4f(),

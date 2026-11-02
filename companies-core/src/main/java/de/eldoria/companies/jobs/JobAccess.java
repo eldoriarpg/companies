@@ -912,9 +912,27 @@ public final class JobAccess implements Listener {
                 }
                 return;
             }
+            if (dug(entry.job(), block)) return;
             pending.merge(new Work(entry.job().id(), company, worker), 1, Integer::sum);
             return;
         }
+    }
+
+    /**
+     * @param job   a taken job
+     * @param block a block of its area a member breaks where the job asks for it to go
+     * @return true when it lies where a build job digs out and that position was counted before, so a block that fell or
+     *     grew there earns nothing; the position is noted as counted otherwise
+     */
+    private boolean dug(Job job, Block block) {
+        if (job.kind() != JobKind.BUILD) return false;
+        var wanted = wanted(job, block);
+        if (wanted == null || !wanted.type().isAir()) return false;
+        var key = key(block);
+        if (!filled.computeIfAbsent(job.id(), id -> ConcurrentHashMap.newKeySet())
+                .add(key)) return true;
+        mark(job, JobMark.Kind.FILLED, key, true);
+        return false;
     }
 
     /**

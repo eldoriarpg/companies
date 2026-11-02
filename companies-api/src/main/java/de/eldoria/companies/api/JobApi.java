@@ -76,6 +76,8 @@ public interface JobApi {
      * Reads the blocks a build job asks for.
      *
      * @param id id of the job
+     * Positions the job digs out, where its blueprint reaches into the ground, are listed as air.
+     *
      * @return future of the blocks, at offsets from the lowest corner of the job's area, empty for a job that is not a
      *     build job or does not exist
      */

@@ -12,7 +12,8 @@ import org.jetbrains.annotations.Nullable;
 import java.util.Objects;
 
 /**
- * A block a build job asks for, relative to the point the blueprint is placed at.
+ * A block a build job asks for, relative to the point the blueprint is placed at. Air marks a position the job digs
+ * out, where the blueprint reaches into the ground; air in a request asks for nothing.
  *
  * @param x    x offset
  * @param y    y offset

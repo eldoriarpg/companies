@@ -25,6 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -249,5 +250,64 @@ class BlueprintTest {
 
         assertFalse(BuildCheck.progress(area, blueprint, facingWest, 100).done());
         assertTrue(BuildCheck.progress(area, blueprint, facingEast, 100).done());
+    }
+
+    @Test
+    void airBelowTheGroundIsDugOutAndTheRestAsksForNothing() {
+        var cellar = Blueprint.of(
+                List.of(new Blueprint.Cell(0, 0, 0, Material.STONE)),
+                List.of(new int[] {0, -1, 0}, new int[] {0, -2, 0}, new int[] {1, 0, 0}, new int[] {0, 3, 0}));
+        BuildCheck.Types ground = (x, y, z) -> y < 64 ? Material.DIRT : Material.AIR;
+
+        var placed = cellar.dug("world", 0, 64, 0, ground, (x, z) -> 63);
+        var area = placed.area("world", 0, 64, 0);
+
+        assertEquals(1, placed.blocks());
+        assertEquals(2, placed.digs());
+        assertEquals(new JobArea("world", 0, 62, 0, 0, 64, 0), area);
+        assertEquals(Blueprint.DIG, placed.want(area, 0, 63, 0));
+        assertEquals(Map.of(Material.STONE, 1), placed.counts());
+        var stored = Blueprint.decode(placed.encode());
+        assertEquals(2, stored.digs());
+        assertEquals(placed, stored);
+        assertFalse(BuildCheck.progress(area, placed, (x, y, z) -> y == 64 ? Material.STONE : Material.DIRT, 100)
+                .done());
+        assertTrue(BuildCheck.progress(area, placed, (x, y, z) -> y == 64 ? Material.STONE : Material.AIR, 100)
+                .done());
+    }
+
+    @Test
+    void onlySolidGroundBelowTheSurfaceIsDugOut() {
+        var house = Blueprint.of(
+                List.of(new Blueprint.Cell(0, 0, 0, Material.STONE)),
+                List.of(new int[] {0, -1, 0}, new int[] {1, 0, 0}, new int[] {2, 0, 0}, new int[] {0, 2, 0}));
+        BuildCheck.Types world = (x, y, z) -> {
+            if (y < 64) return x == 0 ? Material.WATER : Material.DIRT;
+            if (x == 1) return Material.SHORT_GRASS;
+            return y == 66 ? Material.OAK_LOG : Material.AIR;
+        };
+
+        var placed = house.dug("world", 0, 64, 0, world, (x, z) -> 63);
+
+        assertEquals(0, placed.digs());
+        assertEquals(1, placed.blocks());
+    }
+
+    @Test
+    void aSchematicThatAsksForNothingIsRefused() {
+        var pond = List.of(new Blueprint.Cell(0, 0, 0, Material.WATER), new Blueprint.Cell(1, 0, 0, Material.BEDROCK));
+
+        assertThrows(IllegalArgumentException.class, () -> Blueprint.of(pond));
+    }
+
+    @Test
+    void aHillTheBlueprintIsBuiltIntoIsDugOut() {
+        var house = Blueprint.of(List.of(new Blueprint.Cell(0, 0, 0, Material.STONE)), List.of(new int[] {1, 1, 0}));
+        BuildCheck.Types hill = (x, y, z) -> y <= 66 ? Material.DIRT : Material.AIR;
+
+        var placed = house.dug("world", 0, 64, 0, hill, (x, z) -> 66);
+
+        assertEquals(1, placed.digs());
+        assertEquals(Blueprint.DIG, placed.want(placed.area("world", 0, 64, 0), 1, 65, 0));
     }
 }

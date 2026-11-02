@@ -222,6 +222,18 @@ class JobApiImplTest {
     }
 
     @Test
+    void aBuildThatAsksForNoBlockIsRefusedWhenItIsMade() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new JobRequest.Build(
+                        "world",
+                        0,
+                        64,
+                        0,
+                        List.of(new BuildBlock(0, 0, 0, Material.AIR), new BuildBlock(1, 0, 0, Material.WATER))));
+    }
+
+    @Test
     void aBuildBlockTakesOnlyDataOfItsOwnType() {
         var stone = Bukkit.createBlockData(Material.STONE);
 

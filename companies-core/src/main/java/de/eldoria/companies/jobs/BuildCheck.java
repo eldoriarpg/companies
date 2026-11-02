@@ -12,7 +12,8 @@ import org.jetbrains.annotations.Nullable;
 
 /**
  * Checks a build job: the share of its blueprint's blocks that match, by type and the states the blueprint fixes, must
- * reach the match percent. Positions the blueprint leaves as air do not count either way.
+ * reach the match percent. Positions the blueprint leaves as air do not count either way, except those it digs out of
+ * the ground, which count once they hold air, water or lava.
  */
 public final class BuildCheck {
     private BuildCheck() {}
@@ -45,10 +46,12 @@ public final class BuildCheck {
          * @param x    x of the block
          * @param y    y of the block
          * @param z    z of the block
-         * @return whether the block there is as asked, its block data read only when the blueprint fixes states
+         * @return whether the block there is as asked, its block data read only when the blueprint fixes states; a
+         *     position to dig out is done when it holds air, water or lava
          */
         default boolean matches(Blueprint.Want want, int x, int y, int z) {
             var type = at(x, y, z);
+            if (want.type().isAir()) return type.isAir() || type == Material.WATER || type == Material.LAVA;
             if (type != want.type()) return false;
             return want.fixed().isEmpty() || want.matches(type, data(x, y, z));
         }

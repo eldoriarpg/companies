@@ -659,7 +659,7 @@ public class Companies extends EldoPlugin {
         jobs = jobServices;
         var jobMessages = MessageSender.getPluginMessageSender(this);
         jobServices.access().building(() -> configuration.jobSettings().buildWhitelist(), (player, want) -> {
-            if (want != null) {
+            if (want != null && !want.type().isAir()) {
                 jobMessages.sendErrorActionBar(
                         player,
                         "company.job.error.blueprintBlock",

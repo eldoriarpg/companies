@@ -543,13 +543,15 @@ the economy is set up, like the other writes.
 | `approve(int id, UUID owner)` | `CompletableFuture<JobChange>` | **Write.** Pays the company of a held job in full, as it stands |
 | `reject(int id, UUID owner, String reason)` | `CompletableFuture<JobChange>` | **Write.** Sends such a contract back to work |
 
-`post` checks like `/order job`: the area lies on this server and within the world's height, on land the owner owns
-(or on unowned land where `jobs.yml` allows jobs in that world), and within the size and count limits. Start a
-request from the factory of its kind: `JobRequest.dig`, `terraform`, `harvest`, `build` or `contract`. A build job
-takes its blueprint as `BuildBlock`s relative to the point it is placed at, so your plugin needs no WorldEdit. A
-`BuildBlock` made from `BlockData` fixes how the block is turned (facing, half, axis, rotation, hinge, attached face, a
-slab's half); one made from a `Material` asks for the type alone. `BuildBlock` has five components since it carries
-the data, so a record pattern needs all five; the constructor from a position and a `Material` still works.
+`post` checks like `/order job`: the area lies on this server and within the world's height, on land the owner owns (or
+on unowned land where `jobs.yml` allows jobs in that world), and within the size and count limits. Start a request from
+the factory of its kind: `JobRequest.dig`, `terraform`, `harvest`, `build` or `contract`. A build job takes its
+blueprint as `BuildBlock`s relative to the point it is placed at, so your plugin needs no WorldEdit. A `BuildBlock` made
+from `BlockData` fixes how the block is turned (facing, half, axis, rotation, hinge, attached face, a slab's half); one
+made from a `Material` asks for the type alone. `blueprint(id)` also lists the positions the job digs out where it
+reaches into the ground, as air; air in a request asks for nothing, and a `JobRequest.Build` made only of air, liquids
+or unbreakable blocks throws an `IllegalArgumentException` when it is created. `BuildBlock` has five components since it
+carries the data, so a record pattern needs all five; the constructor from a position and a `Material` still works.
 
 With `charge(false)` the owner pays nothing: the job takes no fee, its company is still paid when the work checks out,
 and nothing goes back to the owner when it ends unfinished. `IJob.charged()` tells the two apart.
