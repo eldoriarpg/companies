@@ -831,7 +831,7 @@ public final class DashboardWorld implements AutoCloseable {
                     public void overdue(int company, Job job) {}
 
                     @Override
-                    public void landLost(int company, Job job) {}
+                    public void landLost(int company, Job job, JobService.@Nullable Worked worked) {}
 
                     @Override
                     public void rejected(int company, Job job, String reason) {}
@@ -872,6 +872,7 @@ public final class DashboardWorld implements AutoCloseable {
                         node,
                         Runnable::run,
                         job -> {},
+                        job -> CompletableFuture.completedFuture(null),
                         (job, company, worker, items) -> {},
                         blueprints,
                         logger),

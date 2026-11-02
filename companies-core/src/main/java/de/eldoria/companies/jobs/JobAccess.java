@@ -9,6 +9,7 @@ import de.eldoria.companies.components.job.JobKind;
 import de.eldoria.companies.components.job.JobState;
 import de.eldoria.companies.data.repository.AJobData;
 import de.eldoria.companies.data.wrapper.job.Job;
+import de.eldoria.companies.data.wrapper.job.JobMark;
 import de.eldoria.companies.jobs.hooks.JobHooks;
 import de.eldoria.companies.util.Permission;
 import org.bukkit.Material;
@@ -51,6 +52,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.IntFunction;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -77,7 +79,12 @@ import java.util.logging.Logger;
  * target height and top layer blocks that are not its surface block. Placing a block that fills a position as the target
  * asks counts too, once for each position, and never where a member broke a block that already filled it, so taking
  * out a solid block and putting it back earns nothing. Counts are written every {@value #FLUSH_SECONDS} seconds, before a job is finished and when
- * the plugin stops, and only while the company they were counted for still has the job. Only the working company may
+ * the plugin stops, and only while the company they were counted for still has the job. The placed and filled
+ * positions are written with them, for the company they were counted for, and read back when a job becomes active on
+ * this server again, so a restart never lets a position count twice; they are dropped once the job is neither taken
+ * nor disputed by that company, and a company that takes a job over starts with none. A failed write is tried again
+ * with the next one. A dig job nobody worked on yet is handed to {@code untouched}, so the blocks already cleared when
+ * it was posted can be noted; a taken one gets its access only once that measuring ended. Only the working company may
  * place blocks or empty buckets in a taken job's area, so nobody fills it up while it is worked on. A land hook whose
  * access reaches beyond the job's area, such as the trust on a whole plot, is held to the area: players who only have
  * access through a job may not break, place, use buckets, use blocks or touch entities outside the areas of the jobs
@@ -109,6 +116,7 @@ public final class JobAccess implements Listener {
     private final UUID node;
     private final Executor mainThread;
     private final Consumer<Job> landLost;
+    private final Function<Job, CompletableFuture<?>> untouched;
     private final Harvests harvests;
     private final Blueprints blueprints;
     private final Logger logger;
@@ -116,6 +124,13 @@ public final class JobAccess implements Listener {
     private final Map<Work, Map<String, Integer>> harvested = new ConcurrentHashMap<>();
     private final Map<Integer, Set<Long>> placed = new ConcurrentHashMap<>();
     private final Map<Integer, Set<Long>> filled = new ConcurrentHashMap<>();
+    private final Map<JobMark, Boolean> marks = new ConcurrentHashMap<>();
+    private final Set<Integer> cleared = ConcurrentHashMap.newKeySet();
+    private final Set<Integer> measured = ConcurrentHashMap.newKeySet();
+    private final Set<Integer> tried = ConcurrentHashMap.newKeySet();
+    private final Map<Integer, CompletableFuture<?>> measuring = new ConcurrentHashMap<>();
+    private final Map<Integer, Integer> owners = new ConcurrentHashMap<>();
+    private final Object writing = new Object();
     private final AtomicBoolean queued = new AtomicBoolean();
     private volatile List<Active> active = List.of();
     private volatile ScheduledExecutorService executor;
@@ -127,6 +142,8 @@ public final class JobAccess implements Listener {
      * @param node       this server
      * @param mainThread runs the hooks on the main thread
      * @param landLost   closes a job whose land changed hands
+     * @param untouched  notes the blocks already cleared in the area of a dig job nobody worked on yet, completing when
+     *                   it is done
      * @param harvests   stores and pays what a member harvested
      * @param blueprints the blueprints of build jobs, read for taken ones at each check
      * @param logger     reports failures
@@ -138,6 +155,7 @@ public final class JobAccess implements Listener {
             UUID node,
             Executor mainThread,
             Consumer<Job> landLost,
+            Function<Job, CompletableFuture<?>> untouched,
             Harvests harvests,
             Blueprints blueprints,
             Logger logger) {
@@ -147,6 +165,7 @@ public final class JobAccess implements Listener {
         this.node = node;
         this.mainThread = mainThread;
         this.landLost = landLost;
+        this.untouched = untouched;
         this.harvests = harvests;
         this.blueprints = blueprints;
         this.logger = logger;
@@ -193,8 +212,16 @@ public final class JobAccess implements Listener {
         try {
             List<Plan> plans = new ArrayList<>();
             Set<Integer> building = new HashSet<>();
+            Set<Integer> digging = new HashSet<>();
+            Set<Integer> held = new HashSet<>();
+            Set<Integer> waiting = new HashSet<>();
             for (var job : jobs.access(node)) {
                 if (job.kind() == JobKind.BUILD && !job.state().closed()) building.add(job.id());
+                if (job.state() == JobState.TAKEN || job.state() == JobState.DISPUTED) held.add(job.id());
+                if (fresh(job)) {
+                    digging.add(job.id());
+                    if (measure(job)) waiting.add(job.id());
+                }
                 if (job.kind() == JobKind.BUILD && job.state() == JobState.TAKEN) blueprints.of(job.id());
                 var company = job.company();
                 var taken = job.state() == JobState.TAKEN && company != null;
@@ -215,6 +242,7 @@ public final class JobAccess implements Listener {
                     lost(plan.job());
                     running = false;
                 }
+                if (waiting.contains(plan.job().id())) continue;
                 if (running
                         && plan.job().state() == JobState.TAKEN
                         && plan.job().company() != null) {
@@ -242,15 +270,83 @@ public final class JobAccess implements Listener {
                 now.add(new Active(plan.job(), plan.members(), given));
             }
             for (var job : frozen) now.add(new Active(job, Set.of(), Set.of()));
+            for (var entry : now) load(entry.job());
             active = List.copyOf(now);
             blueprints.prune(building::contains);
-            filled.keySet()
-                    .removeIf(id -> now.stream().noneMatch(entry -> entry.job().id() == id));
-            placed.keySet()
-                    .removeIf(id -> now.stream().noneMatch(entry -> entry.job().id() == id));
+            measured.retainAll(digging);
+            tried.retainAll(digging);
+            filled.keySet().retainAll(held);
+            placed.keySet().retainAll(held);
+            owners.keySet().retainAll(held);
+            marks.keySet().removeIf(mark -> !held.contains(mark.job()));
+            jobs.pruneMarks();
         } catch (RuntimeException e) {
             logger.log(Level.SEVERE, "Could not check the access to the areas of jobs", e);
         }
+    }
+
+    /**
+     * @param job a job of this server
+     * @return whether it is a dig job nobody may work on yet: open, or taken before its access was given
+     */
+    private static boolean fresh(Job job) {
+        return job.kind() == JobKind.DIG
+                && (job.state() == JobState.OPEN || job.state() == JobState.TAKEN && !job.granted());
+    }
+
+    /**
+     * Measures a fresh dig job once its blocks are not noted yet. An open job is measured at each check until it is; a
+     * taken one is measured once and waits for its access while that runs.
+     *
+     * @param job a fresh dig job
+     * @return whether the job waits for its measuring before it gets its access
+     */
+    private boolean measure(Job job) {
+        var id = job.id();
+        if (measured.contains(id)) return false;
+        var running = measuring.get(id);
+        if (running != null) return job.state() == JobState.TAKEN;
+        if (jobs.airAtPost(id).isPresent()) {
+            measured.add(id);
+            return false;
+        }
+        if (job.state() == JobState.TAKEN && !tried.add(id)) return false;
+        try {
+            var started = untouched.apply(job);
+            measuring.put(id, started);
+            started.whenComplete((result, err) -> {
+                measuring.remove(id);
+                if (err != null) logger.log(Level.WARNING, "Could not measure the area of job " + id, err);
+                checkSoon();
+            });
+            return job.state() == JobState.TAKEN && measuring.containsKey(id);
+        } catch (RuntimeException e) {
+            logger.log(Level.WARNING, "Could not measure the area of job " + id, e);
+            return false;
+        }
+    }
+
+    /**
+     * Reads the remembered positions of an active job when they are not read yet, or were read for a company that no
+     * longer has the job.
+     *
+     * @param job an active job
+     */
+    private void load(Job job) {
+        var company = job.company();
+        if (company == null || company.equals(owners.get(job.id()))) return;
+        var id = job.id();
+        marks.keySet().removeIf(mark -> mark.job() == id && mark.company() != company);
+        var stored = jobs.marks(id, company);
+        placed.put(id, copy(stored.get(JobMark.Kind.PLACED)));
+        filled.put(id, copy(stored.get(JobMark.Kind.FILLED)));
+        owners.put(id, company);
+    }
+
+    private static Set<Long> copy(@Nullable Set<Long> positions) {
+        Set<Long> copy = ConcurrentHashMap.newKeySet();
+        if (positions != null) copy.addAll(positions);
+        return copy;
     }
 
     private Map<Integer, Answer> ask(List<Plan> plans) {
@@ -303,6 +399,7 @@ public final class JobAccess implements Listener {
     }
 
     private void flush(Predicate<Work> which) {
+        writeMarks();
         Map<Work, Map<String, Integer>> crops = new HashMap<>();
         for (var key : List.copyOf(harvested.keySet())) {
             if (!which.test(key)) continue;
@@ -331,15 +428,49 @@ public final class JobAccess implements Listener {
         });
     }
 
+    private void writeMarks() {
+        synchronized (writing) {
+            for (var job : List.copyOf(cleared)) {
+                try {
+                    jobs.clearMarks(job);
+                    cleared.remove(job);
+                } catch (RuntimeException e) {
+                    logger.log(Level.WARNING, "Could not forget the positions of job " + job, e);
+                }
+            }
+            Map<JobMark, Boolean> changes = new HashMap<>();
+            for (var mark : List.copyOf(marks.keySet())) {
+                var change = marks.remove(mark);
+                if (change != null) changes.put(mark, change);
+            }
+            var written = false;
+            try {
+                written = jobs.marks(changes);
+            } catch (RuntimeException e) {
+                logger.log(Level.WARNING, "Could not write the positions of jobs", e);
+            }
+            if (!written) changes.forEach(marks::putIfAbsent);
+        }
+    }
+
+    private void mark(Job job, JobMark.Kind kind, long pos, boolean add) {
+        var company = job.company();
+        if (company != null) marks.put(new JobMark(job.id(), company, kind, pos), add);
+    }
+
     /**
-     * Drops the work counted for a job that is no longer the company's, such as one given back on this server.
+     * Drops the work counted for a job that is no longer the company's, such as one given back on this server, and the
+     * positions remembered for it.
      *
      * @param job id of the job
      */
     public void forget(int job) {
         pending.keySet().removeIf(work -> work.job() == job);
+        marks.keySet().removeIf(mark -> mark.job() == job);
         placed.remove(job);
         filled.remove(job);
+        owners.remove(job);
+        cleared.add(job);
     }
 
     /**
@@ -375,8 +506,10 @@ public final class JobAccess implements Listener {
             var job = entry.job();
             if (!job.area().contains(world, block.getX(), block.getY(), block.getZ())) continue;
             var key = key(block);
-            placed.computeIfAbsent(job.id(), id -> ConcurrentHashMap.newKeySet())
-                    .add(key);
+            if (placed.computeIfAbsent(job.id(), id -> ConcurrentHashMap.newKeySet())
+                    .add(key)) {
+                mark(job, JobMark.Kind.PLACED, key, true);
+            }
             var company = job.company();
             if (company == null
                     || !fills(job, block, block.getType())
@@ -385,6 +518,7 @@ public final class JobAccess implements Listener {
             }
             if (filled.computeIfAbsent(job.id(), id -> ConcurrentHashMap.newKeySet())
                     .add(key)) {
+                mark(job, JobMark.Kind.FILLED, key, true);
                 pending.merge(new Work(job.id(), company, worker), 1, Integer::sum);
             }
             return;
@@ -514,9 +648,9 @@ public final class JobAccess implements Listener {
         var company = entry.job().company();
         if (company == null || !entry.members().contains(player.getUniqueId())) return;
         event.setCancelled(true);
-        var marks = placed.getOrDefault(entry.job().id(), Set.of());
+        var placedHere = placed.getOrDefault(entry.job().id(), Set.of());
         var type = block.getType();
-        if (HarvestRules.crop(type) != HarvestRules.Crop.FIELD && marks.contains(key(block))) return;
+        if (HarvestRules.crop(type) != HarvestRules.Crop.FIELD && placedHere.contains(key(block))) return;
         var tool = player.getInventory().getItemInMainHand();
         Map<String, Integer> items =
                 switch (HarvestRules.crop(type)) {
@@ -535,7 +669,7 @@ public final class JobAccess implements Listener {
                         var top = entry.job().area().maxY() - block.getY();
                         while (height <= top
                                 && block.getRelative(BlockFace.UP, height).getType() == type
-                                && !marks.contains(key(block.getRelative(BlockFace.UP, height)))) {
+                                && !placedHere.contains(key(block.getRelative(BlockFace.UP, height)))) {
                             height++;
                         }
                         for (var up = height - 1; up >= 0; up--) {
@@ -639,15 +773,19 @@ public final class JobAccess implements Listener {
         var world = block.getWorld().getName();
         for (var entry : active) {
             if (!entry.job().area().contains(world, block.getX(), block.getY(), block.getZ())) continue;
-            var marks = placed.get(entry.job().id());
-            if (marks != null && marks.remove(key(block))) return;
+            var positions = placed.get(entry.job().id());
+            if (positions != null && positions.remove(key(block))) {
+                mark(entry.job(), JobMark.Kind.PLACED, key(block), false);
+                return;
+            }
             if (!entry.members().contains(worker)) return;
             var company = entry.job().company();
             if (company == null) return;
             if (!removing(entry.job(), block)) {
-                if (fills(entry.job(), block, block.getType())) {
-                    filled.computeIfAbsent(entry.job().id(), id -> ConcurrentHashMap.newKeySet())
-                            .add(key(block));
+                if (fills(entry.job(), block, block.getType())
+                        && filled.computeIfAbsent(entry.job().id(), id -> ConcurrentHashMap.newKeySet())
+                                .add(key(block))) {
+                    mark(entry.job(), JobMark.Kind.FILLED, key(block), true);
                 }
                 return;
             }

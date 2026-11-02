@@ -74,11 +74,14 @@ Jobs need a land plugin to know whose land an area is, and give the working comp
 
 Switch each hook with `generalSettings.hooks.worldguard`, `plotsquared` and `worldedit` in
 [config.yml](./config-yml.md#generalsettings); `providers` in [areas.yml](./areas-yml.md) switches an area provider off
-for jobs as well. The server that holds a job's world gives and takes the access; it checks
-every 30 seconds, so members who join or leave the company are added or removed, and access of jobs that ended while
-the server was off is taken back when it starts. Access that can not be taken back yet, such as while the world is not
-loaded, is tried again. The same check cancels a job whose land changed hands, such as a plot that was sold or a region
-that lost its owner or was removed: a waiting job gives its price back; a job a company works on pays the company for
-the share of the area it cleared and gives the rest back. While a company works on a job, only its members may place
-blocks or empty buckets in the area, so nobody fills it up again. The primary server expires jobs and opens jobs whose
-time ran out again, every minute.
+for jobs as well. for jobs as well. The server that holds a job's world gives and takes the access; it checks every 30
+seconds, so members who join or leave the company are added or removed, and access of jobs that ended while the server
+was off is taken back when it starts. Access that can not be taken back yet, such as while the world is not loaded, is
+tried again. The same check cancels a job whose land changed hands, such as a plot that was sold or a region that lost
+its owner or was removed: a waiting job gives its price back; a job a company works on pays the company for the share of
+the area it cleared and gives the rest back. Blocks of a dig job's area that were already clear when it was posted earn
+nothing in that share; the server measures them while the job waits, and a job taken before that gives its company
+access only once they are measured. Both sides are told the share done and how many blocks were left. Blocks placed and
+positions filled while a job runs are stored, so after a restart a position never counts twice. While a company works on
+a job, only its members may place blocks or empty buckets in the area, so nobody fills it up again. The primary server
+expires jobs and opens jobs whose time ran out again, every minute.

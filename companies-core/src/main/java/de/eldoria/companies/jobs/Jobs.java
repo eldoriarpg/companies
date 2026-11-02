@@ -163,7 +163,12 @@ public final class Jobs {
                                 if (detail instanceof Double amount) args.money("amount", economy.format(amount));
                                 yield NotificationType.MY_JOB_EXPIRED;
                             }
-                            case LAND_LOST -> NotificationType.MY_JOB_LAND_LOST;
+                            case LAND_LOST -> {
+                                if (!(detail instanceof JobService.Worked worked))
+                                    yield NotificationType.MY_JOB_LAND_LOST;
+                                worked(args, worked, worked.back());
+                                yield NotificationType.MY_JOB_LAND_LOST_WORKED;
+                            }
                             case AWAITING -> {
                                 if (detail instanceof LocalDateTime at)
                                     args.text("time", EventTimes.show(at, Times.zone()));
@@ -257,10 +262,17 @@ public final class Jobs {
             }
 
             @Override
-            public void landLost(int company, Job job) {
-                profile(companies, company)
-                        .ifPresent(
-                                found -> notifications.sendCompany(found, NotificationType.JOB_LAND_LOST, args(job)));
+            public void landLost(int company, Job job, JobService.@Nullable Worked worked) {
+                var args = args(job);
+                if (worked != null) worked(args, worked, worked.paid());
+                var type = worked == null ? NotificationType.JOB_LAND_LOST : NotificationType.JOB_LAND_LOST_WORKED;
+                profile(companies, company).ifPresent(found -> notifications.sendCompany(found, type, args));
+            }
+
+            private void worked(NotificationArgs args, JobService.Worked worked, double amount) {
+                args.number("percent", worked.percent())
+                        .number("blocks", worked.left())
+                        .money("amount", economy.format(amount));
             }
         };
         JobService.Penalties penalties =
@@ -308,6 +320,12 @@ public final class Jobs {
                 job -> service.landLost(
                         job,
                         job.state() == JobState.TAKEN && job.kind() != JobKind.HARVEST ? checked(progress, job) : null),
+                job -> progress.of(job, true)
+                        .copy()
+                        .orTimeout(JobAccess.MAIN_THREAD_SECONDS * 3L, TimeUnit.SECONDS)
+                        .thenAcceptAsync(
+                                found -> found.ifPresent(scan -> jobs.airAtPost(job.id(), scan.cleared())),
+                                Threading.VIRTUAL),
                 service::harvested,
                 blueprints,
                 plugin.getLogger());
@@ -416,6 +434,7 @@ public final class Jobs {
         return switch (type) {
             case MY_JOB_EXPIRED -> NotificationType.MY_JOB_EXPIRED_UNCHARGED;
             case MY_JOB_LAND_LOST -> NotificationType.MY_JOB_LAND_LOST_UNCHARGED;
+            case MY_JOB_LAND_LOST_WORKED -> NotificationType.MY_JOB_LAND_LOST_WORKED_UNCHARGED;
             case MY_JOB_HARVEST_ENDED -> NotificationType.MY_JOB_HARVEST_ENDED_UNCHARGED;
             case MY_JOB_SETTLED -> NotificationType.MY_JOB_SETTLED_UNCHARGED;
             default -> type;

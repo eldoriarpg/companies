@@ -13,6 +13,7 @@ import de.eldoria.companies.data.wrapper.job.Job;
 import de.eldoria.companies.data.wrapper.job.JobArea;
 import de.eldoria.companies.data.wrapper.job.JobHarvest;
 import de.eldoria.companies.data.wrapper.job.JobLand;
+import de.eldoria.companies.data.wrapper.job.JobMark;
 import de.eldoria.companies.data.wrapper.job.JobTarget;
 import de.eldoria.companies.jobs.hooks.Claim;
 import de.eldoria.companies.jobs.hooks.JobHooks;
@@ -44,6 +45,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.logging.Logger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -67,6 +69,8 @@ class JobAccessTest {
     private final Map<Integer, Set<UUID>> access = new HashMap<>();
     private final List<Integer> revoked = new ArrayList<>();
     private final List<Job> lost = new ArrayList<>();
+    private final List<Job> measuring = new ArrayList<>();
+    private CompletableFuture<?> scan = CompletableFuture.completedFuture(null);
     private final List<String> harvests = new ArrayList<>();
     private boolean owned = true;
     private boolean loaded = true;
@@ -74,6 +78,7 @@ class JobAccessTest {
     private ServerMock server;
     private WorldMock world;
     private JobAccess sync;
+    private JobHooks hooks;
 
     @BeforeEach
     void setUp() throws Exception {
@@ -84,16 +89,170 @@ class JobAccessTest {
         var hooks = new JobHooks(name -> false, className -> new Object(), Logger.getAnonymousLogger());
         hooks.load();
         addHook(hooks);
-        sync = new JobAccess(
+        this.hooks = hooks;
+        sync = access();
+    }
+
+    private JobAccess access() {
+        return new JobAccess(
                 jobs,
                 company -> members.getOrDefault(company, Set.of()),
                 hooks,
                 NODE,
                 Runnable::run,
                 lost::add,
+                job -> {
+                    measuring.add(job);
+                    return scan;
+                },
                 (job, company, worker, items) -> harvests.add(job + " " + worker + " " + items),
                 new Blueprints(jobs, Logger.getAnonymousLogger()),
                 Logger.getAnonymousLogger());
+    }
+
+    @Test
+    void placedAndFilledPositionsCountNoMoreAfterARestart() {
+        var worker = server.addPlayer();
+        var id = terraformJob();
+        members.put(3, Set.of(worker.getUniqueId()));
+        sync.check();
+        place(worker, world.getBlockAt(3, 60, 3));
+        place(worker, world.getBlockAt(2, 64, 2));
+        sync.stop();
+
+        sync = access();
+        sync.check();
+        breakBlock(worker, world.getBlockAt(2, 64, 2));
+        breakBlock(worker, world.getBlockAt(3, 60, 3));
+        place(worker, world.getBlockAt(3, 60, 3));
+        sync.flush();
+
+        assertEquals(Map.of(worker.getUniqueId(), 1), jobs.workOf(id));
+    }
+
+    @Test
+    void aGivenBackOrEndedJobForgetsItsPositions() {
+        var worker = server.addPlayer();
+        var given = terraformJob();
+        var ended = taken(3);
+        members.put(3, Set.of(worker.getUniqueId()));
+        sync.check();
+        place(worker, world.getBlockAt(3, 60, 3));
+        sync.flush();
+        assertFalse(jobs.marks(given, 3).get(JobMark.Kind.FILLED).isEmpty());
+
+        sync.forget(given);
+        jobs.marks(Map.of(new JobMark(ended, 3, JobMark.Kind.PLACED, 7L), true));
+        jobs.close(ended, JobState.TAKEN, JobState.CANCELLED, "test", NOW);
+        sync.flush();
+        sync.check();
+
+        assertTrue(jobs.marks(given, 3).get(JobMark.Kind.FILLED).isEmpty());
+        assertTrue(jobs.marks(ended, 3).get(JobMark.Kind.PLACED).isEmpty());
+    }
+
+    @Test
+    void aTakenJobThatBrieflyLeavesTheActiveListKeepsItsPositions() {
+        var worker = server.addPlayer();
+        var id = terraformJob();
+        members.put(3, Set.of(worker.getUniqueId()));
+        sync.check();
+        place(worker, world.getBlockAt(3, 60, 3));
+        owned = false;
+        sync.check();
+        owned = true;
+        sync.check();
+        breakBlock(worker, world.getBlockAt(3, 60, 3));
+        place(worker, world.getBlockAt(3, 60, 3));
+        sync.flush();
+
+        assertEquals(Map.of(worker.getUniqueId(), 1), jobs.workOf(id));
+    }
+
+    @Test
+    void aCompanyThatTakesAJobOverStartsWithoutThePositionsOfThePreviousOne() {
+        var ada = server.addPlayer();
+        var bea = server.addPlayer();
+        var id = terraformJob();
+        members.put(3, Set.of(ada.getUniqueId()));
+        members.put(4, Set.of(bea.getUniqueId()));
+        sync.check();
+        place(ada, world.getBlockAt(2, 64, 2));
+        sync.flush();
+        jobs.release(id, 3);
+        jobs.take(id, 4, NOW, NOW.plusDays(1));
+        sync.check();
+        breakBlock(bea, world.getBlockAt(2, 64, 2));
+        sync.flush();
+
+        assertEquals(1, jobs.workOf(id).getOrDefault(bea.getUniqueId(), 0));
+        assertTrue(jobs.marks(id, 3).get(JobMark.Kind.PLACED).isEmpty());
+    }
+
+    @Test
+    void aTakenDigJobGetsItsAccessOnlyOnceItsAreaWasMeasured() {
+        var waiting = new CompletableFuture<Void>();
+        scan = waiting;
+        members.put(3, Set.of(ada));
+        var id = taken(3);
+
+        sync.check();
+        assertTrue(access.getOrDefault(id, Set.of()).isEmpty());
+        assertTrue(sync.active().isEmpty());
+
+        jobs.airAtPost(id, 3);
+        waiting.complete(null);
+        sync.check();
+
+        assertEquals(Set.of(ada), access.get(id));
+        assertEquals(1, measuring.size());
+    }
+
+    @Test
+    void aDigJobNobodyWorksOnYetIsMeasuredUntilItsAirIsNoted() {
+        var open = jobs.create(Job.draft(
+                        UUID.randomUUID(),
+                        JobKind.DIG,
+                        "Pit",
+                        100,
+                        5,
+                        NODE,
+                        new JobArea("world", 0, 60, 0, 4, 64, 4),
+                        JobLand.AREA,
+                        "plotsquared:plots|1;1",
+                        24,
+                        NOW,
+                        NOW.plusDays(7)))
+                .orElseThrow();
+        var worked = taken(3);
+        jobs.granted(worked, true);
+
+        sync.check();
+        jobs.airAtPost(open, 12);
+        sync.check();
+        sync.check();
+
+        assertEquals(List.of(open), measuring.stream().map(Job::id).toList());
+    }
+
+    private int terraformJob() {
+        var id = jobs.create(Job.draft(
+                                UUID.randomUUID(),
+                                JobKind.TERRAFORM,
+                                "Flat",
+                                100,
+                                5,
+                                NODE,
+                                new JobArea("world", 0, 60, 0, 4, 64, 4),
+                                JobLand.AREA,
+                                "plotsquared:plots|1;1",
+                                24,
+                                NOW,
+                                NOW.plusDays(7))
+                        .withTarget(new JobTarget(62, Material.GRASS_BLOCK.name())))
+                .orElseThrow();
+        jobs.take(id, 3, NOW, NOW.plusDays(1));
+        return id;
     }
 
     @Test

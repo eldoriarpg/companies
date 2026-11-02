@@ -430,7 +430,8 @@ public final class JobService {
      * Closes a job whose land changed hands, such as a plot that was sold. A waiting job gives its price back and keeps
      * the fee. A job a company works on pays the company for the share of the area it cleared, as a finished job pays,
      * and gives the rest of the price back, so an owner can not keep the work by giving the land away; without counted
-     * work the company's owner gets the share. No penalty applies.
+     * work the company's owner gets the share. Blocks of a dig job's area that were already cleared when it was posted
+     * are no work of the company. Both sides hear the share done and how many blocks were left. No penalty applies.
      *
      * @param job      the job as read
      * @param progress how far the work on a taken job is; a taken job without it is left alone, so it is tried again
@@ -451,7 +452,8 @@ public final class JobService {
         }
         if (job.state() != JobState.TAKEN || company == null || progress == null) return false;
         var profile = companies.apply(company).orElse(null);
-        var earned = profile == null ? 0 : earned(job.price(), progress);
+        var air = job.kind() == JobKind.DIG ? jobs.airAtPost(job.id()).orElse(0) : 0;
+        var earned = profile == null ? 0 : earned(job.price(), progress, air);
         var parts = earned > 0 && profile != null
                 ? parts(earned, jobs.workOf(job.id()), head(profile))
                 : Map.<UUID, Double>of();
@@ -465,22 +467,27 @@ public final class JobService {
         } else {
             money.collect(job.fee());
         }
-        notices.owner(job.owner(), Notice.LAND_LOST, job, null);
-        notices.landLost(company, job);
+        var worked = new Worked(progress, air, earned, rest);
+        notices.owner(job.owner(), Notice.LAND_LOST, job, worked);
+        notices.landLost(company, job, worked);
         return true;
     }
 
     /**
      * @param price    the price of a job
      * @param progress how far its work is
+     * @param air      the blocks of the area that were cleared before any work, which earn nothing
      * @return the share of the price the cleared blocks earned, rounded down to the cent
      */
-    static double earned(double price, DigCheck.Progress progress) {
+    static double earned(double price, DigCheck.Progress progress, long air) {
         if (progress.total() <= 0) return 0;
         if (progress.done()) return price;
+        var total = progress.total() - air;
+        var cleared = progress.cleared() - air;
+        if (total <= 0 || cleared <= 0) return 0;
         return BigDecimal.valueOf(price)
-                .multiply(BigDecimal.valueOf(progress.cleared()))
-                .divide(BigDecimal.valueOf(progress.total()), 2, RoundingMode.FLOOR)
+                .multiply(BigDecimal.valueOf(cleared))
+                .divide(BigDecimal.valueOf(total), 2, RoundingMode.FLOOR)
                 .doubleValue();
     }
 
@@ -675,7 +682,7 @@ public final class JobService {
                 .sum();
         if (to == JobState.CANCELLED) {
             notices.owner(job.owner(), Notice.LAND_LOST, job, null);
-            notices.landLost(company, job);
+            notices.landLost(company, job, null);
         } else {
             notices.owner(job.owner(), Notice.HARVEST_ENDED, job, new Harvested(rest, stocked));
             companies.apply(company).ifPresent(profile -> notices.paid(profile, job, paid));
@@ -1305,8 +1312,9 @@ public final class JobService {
         /**
          * @param company id of the company that lost the job, since its land changed hands
          * @param job     the job
+         * @param worked  how far the work on an area was and what it was paid, null for a harvest job
          */
-        void landLost(int company, Job job);
+        void landLost(int company, Job job, @Nullable Worked worked);
 
         /**
          * @param company id of the company whose work the owner rejected
@@ -1384,7 +1392,8 @@ public final class JobService {
          */
         EXPIRED,
         /**
-         * The job's land changed hands, so it was cancelled.
+         * The job's land changed hands, so it was cancelled. The detail is how far the work on its area was, a
+         * {@link Worked}, when a company worked on it.
          */
         LAND_LOST,
         /**
@@ -1434,6 +1443,35 @@ public final class JobService {
      * @param left   how long its time still runs
      */
     public record Asked(int hours, String reason, Duration left) {}
+
+    /**
+     * How far the work on an area was when its land changed hands.
+     *
+     * @param progress how far the blocks were as asked
+     * @param air      the blocks of the area that were cleared before any work
+     * @param paid     what the company was paid for its share
+     * @param back     what went back to the owner
+     */
+    public record Worked(DigCheck.Progress progress, long air, double paid, double back) {
+        /**
+         * @return the share of the work done, from 0 to 100, rounded down, leaving out the blocks cleared before any
+         *     work; 100 only when done
+         */
+        public int percent() {
+            if (progress.done()) return 100;
+            var total = progress.total() - air;
+            var cleared = progress.cleared() - air;
+            if (total <= 0 || cleared <= 0) return 0;
+            return (int) Math.min(99, cleared * 100 / total);
+        }
+
+        /**
+         * @return the blocks still to do
+         */
+        public long left() {
+            return Math.max(0, progress.total() - progress.cleared());
+        }
+    }
 
     /**
      * Why a job was not posted.

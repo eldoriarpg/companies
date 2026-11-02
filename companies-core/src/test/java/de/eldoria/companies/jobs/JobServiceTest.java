@@ -484,8 +484,34 @@ class JobServiceTest {
         assertEquals(JobState.CANCELLED, jobs.job(job.id()).orElseThrow().state());
         assertEquals(790.0 + 80.0, balances.get(owner), 0.001);
         assertEquals(86.4, balances.get(worker), 0.001);
-        assertTrue(notices.contains("company LAND_LOST " + job.id()));
+        assertTrue(notices.contains("company LAND_LOST " + job.id() + " 60% 200 120.0"), notices.toString());
         assertEquals(List.of(), penalties);
+    }
+
+    @Test
+    void blocksAlreadyClearedWhenADigJobWasPostedEarnNothingWhenItsLandChangesHands() {
+        var job = posted(200);
+        jobs.airAtPost(job.id(), 100);
+        service.take(company, manager, job.id());
+        jobs.work(job.id(), company.id(), worker, 10);
+        var taken = jobs.job(job.id()).orElseThrow();
+
+        assertTrue(service.landLost(taken, new DigCheck.Progress(300, 500, new int[] {0, 64, 0})));
+
+        assertEquals(790.0 + 100.0, balances.get(owner), 0.001);
+        assertEquals(72.0, balances.get(worker), 0.001);
+        assertTrue(notices.contains("company LAND_LOST " + job.id() + " 50% 200 100.0"), notices.toString());
+    }
+
+    @Test
+    void theEarnedShareLeavesOutTheBlocksClearedBeforeAnyWork() {
+        var progress = new DigCheck.Progress(300, 500, new int[] {0, 64, 0});
+
+        assertEquals(120.0, JobService.earned(200, progress, 0), 0.001);
+        assertEquals(100.0, JobService.earned(200, progress, 100), 0.001);
+        assertEquals(0.0, JobService.earned(200, progress, 300), 0.001);
+        assertEquals(0.0, JobService.earned(200, progress, 500), 0.001);
+        assertEquals(200.0, JobService.earned(200, new DigCheck.Progress(500, 500, null), 100), 0.001);
     }
 
     @Test
@@ -1120,8 +1146,9 @@ class JobServiceTest {
             }
 
             @Override
-            public void landLost(int company, Job job) {
-                notices.add("company LAND_LOST " + job.id());
+            public void landLost(int company, Job job, JobService.@Nullable Worked worked) {
+                notices.add("company LAND_LOST " + job.id()
+                        + (worked == null ? "" : " " + worked.percent() + "% " + worked.left() + " " + worked.paid()));
             }
 
             @Override

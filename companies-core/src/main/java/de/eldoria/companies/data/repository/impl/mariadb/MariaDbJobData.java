@@ -18,6 +18,7 @@ import de.eldoria.companies.data.wrapper.job.JobArea;
 import de.eldoria.companies.data.wrapper.job.JobExtension;
 import de.eldoria.companies.data.wrapper.job.JobHarvest;
 import de.eldoria.companies.data.wrapper.job.JobLand;
+import de.eldoria.companies.data.wrapper.job.JobMark;
 import de.eldoria.companies.data.wrapper.job.JobReview;
 import de.eldoria.companies.data.wrapper.job.JobTarget;
 import org.intellij.lang.annotations.Language;
@@ -26,11 +27,13 @@ import org.jetbrains.annotations.Nullable;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalLong;
 import java.util.Set;
 import java.util.UUID;
 
@@ -520,6 +523,98 @@ public class MariaDbJobData extends AJobData {
             }
             if (!errors.isEmpty()) Transactions.rollback(conf, errors);
         }
+    }
+
+    @Override
+    public Map<JobMark.Kind, Set<Long>> marks(int job, int company) {
+        Map<JobMark.Kind, Set<Long>> marks = new EnumMap<>(JobMark.Kind.class);
+        for (var kind : JobMark.Kind.values()) marks.put(kind, new HashSet<>());
+        query("SELECT kind, pos FROM job_marks WHERE job_id = ? AND company_id = ?")
+                .single(call().bind(job).bind(company))
+                .map(row -> new JobMark(job, company, JobMark.Kind.of(row.getInt("kind")), row.getLong("pos")))
+                .all()
+                .forEach(mark -> marks.get(mark.kind()).add(mark.pos()));
+        return marks;
+    }
+
+    @Override
+    public boolean marks(Map<JobMark, Boolean> changes) {
+        if (changes.isEmpty()) return true;
+        @Language("mariadb")
+        var insert = """
+                INSERT INTO job_marks(job_id, company_id, kind, pos)
+                SELECT id, company_id, ?, ?
+                FROM jobs
+                WHERE id = ?
+                  AND company_id = ?
+                  AND state IN (?, ?)""";
+        var errors = new ArrayList<SQLException>();
+        var conf = Transactions.open(errors);
+        try (conf) {
+            conf.query("DELETE FROM job_marks WHERE job_id = ? AND kind = ? AND pos = ?")
+                    .batch(changes.keySet().stream().map(mark -> call().bind(mark.job())
+                            .bind(mark.kind().code())
+                            .bind(mark.pos())))
+                    .delete();
+            var added = changes.entrySet().stream()
+                    .filter(Map.Entry::getValue)
+                    .map(Map.Entry::getKey)
+                    .toList();
+            if (!added.isEmpty()) {
+                conf.query(insert)
+                        .batch(added.stream()
+                                .map(mark -> call().bind(mark.kind().code())
+                                        .bind(mark.pos())
+                                        .bind(mark.job())
+                                        .bind(mark.company())
+                                        .bind(JobState.TAKEN.name())
+                                        .bind(JobState.DISPUTED.name())))
+                        .insert();
+            }
+            if (!errors.isEmpty()) {
+                Transactions.rollback(conf, errors);
+                return false;
+            }
+        }
+        return true;
+    }
+
+    @Override
+    public void clearMarks(int job) {
+        query("DELETE FROM job_marks WHERE job_id = ?").single(call().bind(job)).delete();
+    }
+
+    @Override
+    public void pruneMarks() {
+        @Language("mariadb")
+        var prune = """
+                DELETE FROM job_marks
+                WHERE NOT EXISTS (SELECT 1
+                                  FROM jobs
+                                  WHERE jobs.id = job_marks.job_id
+                                    AND jobs.company_id = job_marks.company_id
+                                    AND jobs.state IN (?, ?))""";
+        query(prune)
+                .single(call().bind(JobState.TAKEN.name()).bind(JobState.DISPUTED.name()))
+                .delete();
+    }
+
+    @Override
+    public OptionalLong airAtPost(int job) {
+        return query("SELECT air_at_post FROM jobs WHERE id = ? AND air_at_post IS NOT NULL")
+                .single(call().bind(job))
+                .map(row -> row.getLong("air_at_post"))
+                .first()
+                .map(OptionalLong::of)
+                .orElse(OptionalLong.empty());
+    }
+
+    @Override
+    public boolean airAtPost(int job, long blocks) {
+        return query("UPDATE jobs SET air_at_post = ? WHERE id = ? AND air_at_post IS NULL")
+                .single(call().bind(blocks).bind(job))
+                .update()
+                .changed();
     }
 
     @Override

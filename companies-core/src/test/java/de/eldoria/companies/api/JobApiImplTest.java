@@ -266,7 +266,7 @@ class JobApiImplTest {
         public void overdue(int company, Job job) {}
 
         @Override
-        public void landLost(int company, Job job) {}
+        public void landLost(int company, Job job, JobService.@Nullable Worked worked) {}
 
         @Override
         public void rejected(int company, Job job, String reason) {}

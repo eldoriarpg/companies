@@ -48,8 +48,9 @@ can break count as done. The company brings the blocks it fills with and keeps w
 
 When your land changes hands while a job waits or is worked on, for example a plot you sold, the job is cancelled. A
 waiting job gives its price back to you. A job a company works on pays the company for the share of the area it cleared,
-and the rest of the price comes back to you. The fee is kept either way. While a company works on your job, only its
-members may place blocks or pour buckets in the area.
+and the rest of the price comes back to you. Blocks of a dig area that were already clear when you posted it do not
+count as cleared. You and the company are told the share done and how many blocks were left. The fee is kept either way.
+While a company works on your job, only its members may place blocks or pour buckets in the area.
 
 ## Build jobs
 

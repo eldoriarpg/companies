@@ -510,7 +510,25 @@ public enum NotificationType {
      * {@code order_name}.
      */
     MY_ORDER_CANCELLED_BY_ADMIN_UNCHARGED(
-            84, "notification.ownerOrderCancelledByAdminUncharged", NotificationCategory.MY_ORDERS, true, null);
+            84, "notification.ownerOrderCancelledByAdminUncharged", NotificationCategory.MY_ORDERS, true, null),
+    /**
+     * The land of the player's job changed hands while a company worked on it, so the job was cancelled; the company
+     * was paid for its share and the rest went back. Arguments: {@code job_title}, {@code job_id}, {@code percent}
+     * (done), {@code blocks} (left), {@code amount} (back).
+     */
+    MY_JOB_LAND_LOST_WORKED(85, "notification.myJobLandLostWorked", NotificationCategory.MY_ORDERS, true, null),
+    /**
+     * As {@link #MY_JOB_LAND_LOST_WORKED}, for a job posted without charge, so nothing went back. Arguments:
+     * {@code job_title}, {@code job_id}, {@code percent} (done), {@code blocks} (left).
+     */
+    MY_JOB_LAND_LOST_WORKED_UNCHARGED(
+            86, "notification.myJobLandLostWorkedUncharged", NotificationCategory.MY_ORDERS, true, null),
+    /**
+     * The land of a job the company worked on changed hands, so the job was cancelled; the company was paid for the
+     * share it did and the access is gone. Arguments: {@code job_title}, {@code job_id}, {@code percent} (done),
+     * {@code blocks} (left), {@code amount} (paid).
+     */
+    JOB_LAND_LOST_WORKED(87, "notification.jobLandLostWorked", NotificationCategory.ORDERS, true, null);
 
     private final int id;
     private final String key;

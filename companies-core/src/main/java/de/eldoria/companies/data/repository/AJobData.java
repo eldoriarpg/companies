@@ -8,12 +8,14 @@ package de.eldoria.companies.data.repository;
 import de.eldoria.companies.components.job.JobState;
 import de.eldoria.companies.data.wrapper.job.Job;
 import de.eldoria.companies.data.wrapper.job.JobArea;
+import de.eldoria.companies.data.wrapper.job.JobMark;
 import org.jetbrains.annotations.Nullable;
 
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalLong;
 import java.util.Set;
 import java.util.UUID;
 
@@ -260,6 +262,50 @@ public abstract class AJobData {
      * @param blocks  how many
      */
     public abstract void work(int job, int company, UUID worker, int blocks);
+
+    /**
+     * @param job     id of the job
+     * @param company id of the company working on it
+     * @return the positions remembered for the job and company, by what is remembered about them
+     */
+    public abstract Map<JobMark.Kind, Set<Long>> marks(int job, int company);
+
+    /**
+     * Writes changes to the remembered positions: true remembers a position, false forgets it. A position is only
+     * remembered while its job is taken or disputed by the company it was remembered for.
+     *
+     * @param changes the changes
+     * @return true when they were written, false when nothing was
+     */
+    public abstract boolean marks(Map<JobMark, Boolean> changes);
+
+    /**
+     * Forgets every position remembered for a job.
+     *
+     * @param job id of the job
+     */
+    public abstract void clearMarks(int job);
+
+    /**
+     * Forgets the positions remembered for jobs that are neither taken nor disputed, or for a company that no longer
+     * has the job.
+     */
+    public abstract void pruneMarks();
+
+    /**
+     * @param job id of the job
+     * @return how many blocks of a dig job's area were already cleared when it was posted, empty when unknown
+     */
+    public abstract OptionalLong airAtPost(int job);
+
+    /**
+     * Notes how many blocks of a dig job's area were already cleared when it was posted, once.
+     *
+     * @param job    id of the job
+     * @param blocks the cleared blocks
+     * @return true when it was not noted before
+     */
+    public abstract boolean airAtPost(int job, long blocks);
 
     /**
      * @param area an area
