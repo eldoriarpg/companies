@@ -267,6 +267,21 @@ test.describe('admin', () => {
         await expect(page.getByTestId('admin-offers').getByRole('listitem')).toHaveCount(3)
     })
 
+    test('creates a goal of a saved item', async ({page}, info) => {
+        await openDashboard(page, 'ADMN01')
+        await openAdmin(page, info)
+        await page.getByRole('tab', {name: 'Event offers'}).click()
+        await page.getByTestId('admin-offer-new').click()
+
+        const form = page.getByTestId('admin-offer-form')
+        await form.getByLabel('Name').fill('Royal blades')
+        await form.getByLabel('Ordered as').selectOption('saved')
+        await form.getByLabel('Saved item').selectOption({label: 'blade · Diamond Sword'})
+        await form.getByTestId('admin-offer-create').click()
+
+        await expect(page.getByTestId('admin-offer-record').getByText('#43 Royal blades · Goal · Running')).toBeVisible()
+    })
+
     test('shows a server event with its offers, extends it and ends it', async ({page}, info) => {
         await openDashboard(page, 'ADMN01')
         await openAdmin(page, info)

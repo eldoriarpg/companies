@@ -302,7 +302,7 @@ function createOffer(state, args) {
     const prizes = args.prizes ?? []
     const budget = args.budget ?? args.amount * args.price + prizes.reduce((sum, prize) => sum + prize, 0)
     offers[id] = {
-        id, kind: args.kind, name: args.name, item: {name: args.material ?? args.criteria, icon: args.material ?? null}, line: args.material ? 'material' : 'criteria',
+        id, kind: args.kind, name: args.name, item: {name: args.saved ? 'Diamond Sword' : args.material ?? args.criteria, icon: args.material ?? null}, line: args.saved ? 'item' : args.material ? 'material' : 'criteria',
         state: args.start > 0 ? 'scheduled' : 'active', amount: args.amount, delivered: 0, percent: 0, unitPrice: args.price,
         chunkSize: args.chunk ?? null, openChunks: args.open ?? null, waiting: 0, taken: 0, source: args.money === 'minted' ? 'minted' : 'account',
         account: args.money === 'minted' ? null : args.money, budget, spent: 0, left: budget, prizeMoney: prizes, prizeTotal: prizes.reduce((sum, prize) => sum + prize, 0),

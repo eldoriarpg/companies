@@ -51,6 +51,7 @@ import de.eldoria.companies.dashboard.market.MarketHistory;
 import de.eldoria.companies.dashboard.views.DashboardReads;
 import de.eldoria.companies.dashboard.views.OrderCatalogue;
 import de.eldoria.companies.dashboard.views.OrderEventPreviews;
+import de.eldoria.companies.dashboard.views.PlainText;
 import de.eldoria.companies.dashboard.views.Views;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteAdapter;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteAlertData;
@@ -305,7 +306,8 @@ public final class DashboardWorld implements AutoCloseable {
         Function<ItemStack, Optional<OrderDraftService.RequestedItem>> requests =
                 item -> item.getType() == Material.BEDROCK
                         ? Optional.empty()
-                        : Optional.of(new OrderDraftService.RequestedItem(item.asOne(), item.hasItemMeta()));
+                        : Optional.of(new OrderDraftService.RequestedItem(
+                                item.asOne(), !item.asOne().isSimilar(new ItemStack(item.getType()))));
         savedItems = new SavedItemService(
                 new SqLiteSavedItemData(SqLiteTestDatabase.mapper(), executor), requests, orderSettings::savedItems);
         catalogue = new OrderCatalogue(requests, savedItems, history);
@@ -738,6 +740,9 @@ public final class DashboardWorld implements AutoCloseable {
                                 if (offer != null) endedOffers.add(offer.id());
                             }
                         },
+                        catalogue::saved,
+                        requests,
+                        stack -> PlainText.materialName(stack.getType()),
                         this::name,
                         views::instant,
                         Times::now,

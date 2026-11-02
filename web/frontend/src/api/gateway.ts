@@ -973,6 +973,8 @@ export interface AdminOfferDraft {
     material?: string
     /** Criteria in the text form players type. */
     criteria?: string
+    /** The ref of an item the admin saved, such as `saved:12`, ordered exactly. */
+    saved?: string
     amount: number
     price: number
     /** Items per chunk of a goal. */

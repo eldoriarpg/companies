@@ -14,7 +14,9 @@ import de.eldoria.companies.data.wrapper.offer.EventOffer;
 import de.eldoria.companies.data.wrapper.offer.OfferKind;
 import de.eldoria.companies.data.wrapper.offer.OfferLine;
 import de.eldoria.companies.data.wrapper.offer.OfferState;
+import de.eldoria.companies.data.wrapper.saved.SavedItem;
 import de.eldoria.companies.menus.Values;
+import de.eldoria.companies.orders.OrderDraftService;
 import de.eldoria.companies.orders.offers.EventOfferService;
 import de.eldoria.companies.orders.offers.GoalDraft;
 import de.eldoria.companies.orders.offers.OfferEdits;
@@ -26,6 +28,7 @@ import de.eldoria.companies.web.api.Actions;
 import de.eldoria.companies.web.api.action.ActionRequest;
 import de.eldoria.companies.web.api.action.ActionResult;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
+import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.Nullable;
 import tools.jackson.databind.JsonNode;
 
@@ -39,6 +42,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.logging.Level;
@@ -170,7 +175,7 @@ public final class AdminOfferWrites {
         var open = args.path("open").asInt(GoalDraft.OPEN_CHUNKS);
         EventOffer offer;
         try {
-            var line = line(args);
+            var line = line(session.player(), args);
             var name = args.path("name").asString("");
             var money = args.path("money").asString("");
             var amount = args.path("amount").asInt(0);
@@ -228,10 +233,24 @@ public final class AdminOfferWrites {
     }
 
     /**
-     * What a new offer orders: {@code material} names a material, {@code criteria} holds criteria in the text form
-     * players type.
+     * What a new offer orders: {@code saved} is the ref of an item the admin saved, such as {@code saved:12}, ordered
+     * as {@code goal hand} orders a held item: exactly when it has data, otherwise any item of its material;
+     * {@code material} names a material, {@code criteria} holds criteria in the text form players type.
      */
-    private static OfferLine line(JsonNode args) {
+    private OfferLine line(UUID admin, JsonNode args) {
+        if (args.has("saved")) {
+            var item = sources.savedItem()
+                    .apply(admin, args.path("saved").asString("").trim())
+                    .join()
+                    .orElseThrow(() -> CommandFailure.of("dashboard.item.unknownItem"));
+            var requested = sources.requests()
+                    .apply(item.stack())
+                    .orElseThrow(() -> CommandFailure.of("order.draft.error.notOrderable"));
+            var template = requested.template();
+            return requested.exact()
+                    ? OfferLine.item(template, sources.label().apply(template))
+                    : OfferLine.material(template.getType().name());
+        }
         var criteria = args.path("criteria").asString("");
         if (!criteria.isBlank()) return GoalDraft.criteria(criteria);
         var material = args.path("material").asString("").trim();
@@ -494,6 +513,9 @@ public final class AdminOfferWrites {
      * @param funding   gives a failed prize back to the account that paid it
      * @param checkSoon asks the primary to place and withdraw chunks soon
      * @param announcer told when an admin closed an offer
+     * @param savedItem an item a player saved, by its ref such as {@code saved:12}
+     * @param requests  turns an item into the template of an order line, empty when it can not be ordered
+     * @param label     the name of an exact item as players see it
      * @param names     a player's name by id, for players who delivered to a goal alone
      * @param instant   turns stored times into instants
      * @param now       the current time as stored
@@ -506,6 +528,9 @@ public final class AdminOfferWrites {
             SystemOrderService.Funding funding,
             Runnable checkSoon,
             EventOfferService.Announcer announcer,
+            BiFunction<UUID, String, CompletableFuture<Optional<SavedItem>>> savedItem,
+            Function<ItemStack, Optional<OrderDraftService.RequestedItem>> requests,
+            Function<ItemStack, String> label,
             Function<UUID, String> names,
             Function<LocalDateTime, Instant> instant,
             Supplier<LocalDateTime> now,

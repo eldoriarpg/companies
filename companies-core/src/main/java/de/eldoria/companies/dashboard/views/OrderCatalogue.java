@@ -7,6 +7,7 @@ package de.eldoria.companies.dashboard.views;
 
 import de.eldoria.companies.data.repository.AHistoryData;
 import de.eldoria.companies.data.wrapper.history.HistoryEntry;
+import de.eldoria.companies.data.wrapper.saved.SavedItem;
 import de.eldoria.companies.orders.OrderDraftService;
 import de.eldoria.companies.orders.SavedItemService;
 import de.eldoria.companies.orders.criteria.CriteriaText;
@@ -165,6 +166,22 @@ public final class OrderCatalogue {
                                         .map(item -> known(SAVED + item.id(), item.name(), item.stack()))
                                         .toList(),
                                 earlier(orders)));
+    }
+
+    /**
+     * Finds an item a player saved.
+     *
+     * @param player the player
+     * @param ref    the ref of a saved item, such as {@code saved:12}
+     * @return the saved item, empty when the ref names none of the player's saved items
+     */
+    public CompletableFuture<Optional<SavedItem>> saved(UUID player, String ref) {
+        if (!ref.startsWith(SAVED)) return CompletableFuture.completedFuture(Optional.empty());
+        try {
+            return saved.item(player, Integer.parseInt(ref.substring(SAVED.length())));
+        } catch (NumberFormatException e) {
+            return CompletableFuture.completedFuture(Optional.empty());
+        }
     }
 
     /**
