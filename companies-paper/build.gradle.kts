@@ -1,9 +1,10 @@
 import net.minecrell.pluginyml.bukkit.BukkitPluginDescription.Permission.Default
+import net.minecrell.pluginyml.paper.PaperPluginDescription.RelativeLoadOrder
 
 plugins {
     id("companies.publishing-conventions")
     id("de.chojo.publishdata.manifest")
-    alias(libs.plugins.pluginyml.bukkit)
+    alias(libs.plugins.pluginyml.paper)
     alias(libs.plugins.shadow)
     alias(libs.plugins.runserver)
 }
@@ -28,9 +29,9 @@ dependencies {
     }
     implementation(platform(libs.jackson.bom))
     implementation(libs.bundles.jackson)
-    bukkitLibrary(libs.bundles.database)
-    bukkitLibrary(libs.bundles.sadu)
-    bukkitLibrary(libs.jedis)
+    paperLibrary(libs.bundles.database)
+    paperLibrary(libs.bundles.sadu)
+    paperLibrary(libs.jedis)
 }
 
 publishData {
@@ -132,36 +133,101 @@ tasks {
     }
 }
 
-bukkit {
+paper {
     name = "Companies"
     main = "de.eldoria.companies.Companies"
+    loader = "de.eldoria.companies.CompaniesLoader"
+    generateLibrariesJson = true
     description = "Order and deliver items"
     apiVersion = "1.21.11"
     version = project.version.toString()
     authors = listOf("RainbowDashLabs")
-    depend = listOf("Vault")
-    softDepend = listOf(
-        "PlaceholderAPI",
-        "ProtocolLib",
-        "Citizens",
-        "FancyNpcs",
-        "WorldEdit",
-        "FastAsyncWorldEdit",
-        "WorldGuard",
-        "PlotSquared",
-        "GriefPrevention",
-        "HuskClaims",
-        "Lands",
-        "Towny",
-        "EconomyShopGUI",
-        "EconomyShopGUI-Premium",
-        "ShopGUIPlus",
-        "zShop",
-        "zMenu",
-        "ChestShop",
-        "Shopkeepers",
-        "zAuctionHouse"
-    )
+    serverDependencies {
+        register("Vault") {
+            required = true
+            load = RelativeLoadOrder.BEFORE
+        }
+        register("PlaceholderAPI") {
+            required = false
+            load = RelativeLoadOrder.BEFORE
+        }
+        register("ProtocolLib") {
+            required = false
+            load = RelativeLoadOrder.BEFORE
+        }
+        register("Citizens") {
+            required = false
+            load = RelativeLoadOrder.BEFORE
+        }
+        register("FancyNpcs") {
+            required = false
+            load = RelativeLoadOrder.BEFORE
+        }
+        register("WorldEdit") {
+            required = false
+            load = RelativeLoadOrder.BEFORE
+        }
+        register("FastAsyncWorldEdit") {
+            required = false
+            load = RelativeLoadOrder.BEFORE
+        }
+        register("WorldGuard") {
+            required = false
+            load = RelativeLoadOrder.BEFORE
+        }
+        register("PlotSquared") {
+            required = false
+            load = RelativeLoadOrder.BEFORE
+        }
+        register("GriefPrevention") {
+            required = false
+            load = RelativeLoadOrder.BEFORE
+        }
+        register("HuskClaims") {
+            required = false
+            load = RelativeLoadOrder.BEFORE
+        }
+        register("Lands") {
+            required = false
+            load = RelativeLoadOrder.BEFORE
+        }
+        register("Towny") {
+            required = false
+            load = RelativeLoadOrder.BEFORE
+        }
+        register("EconomyShopGUI") {
+            required = false
+            load = RelativeLoadOrder.BEFORE
+        }
+        register("EconomyShopGUI-Premium") {
+            required = false
+            load = RelativeLoadOrder.BEFORE
+        }
+        register("ShopGUIPlus") {
+            required = false
+            load = RelativeLoadOrder.BEFORE
+        }
+        register("zShop") {
+            required = false
+            load = RelativeLoadOrder.BEFORE
+        }
+        register("zMenu") {
+            required = false
+            load = RelativeLoadOrder.BEFORE
+        }
+        register("ChestShop") {
+            required = false
+            load = RelativeLoadOrder.BEFORE
+        }
+        register("Shopkeepers") {
+            required = false
+            load = RelativeLoadOrder.BEFORE
+        }
+        register("zAuctionHouse") {
+            required = false
+            load = RelativeLoadOrder.BEFORE
+        }
+    }
 
     permissions {
         register("companies.*") {
