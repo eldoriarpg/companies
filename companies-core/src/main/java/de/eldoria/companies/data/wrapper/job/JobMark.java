@@ -26,7 +26,12 @@ public record JobMark(int job, int company, Kind kind, long pos) {
         /**
          * The position was filled as the job asks and counted, so filling it again is no work.
          */
-        FILLED(1);
+        FILLED(1),
+        /**
+         * A block was placed there from the stock of a job whose owner supplies the materials. The position counts as
+         * placed until a member of the company breaks the block again, whoever else breaks it.
+         */
+        SUPPLIED(2);
 
         private final int code;
 

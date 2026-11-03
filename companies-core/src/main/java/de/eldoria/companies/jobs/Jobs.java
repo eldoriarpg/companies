@@ -357,6 +357,14 @@ public final class Jobs {
         var supplies = new Supplies(jobs, blueprints);
         service.supplies(supplies);
         var barTexts = MessageSender.getPluginMessageSender(plugin);
+        var magicItems = new MagicItems(plugin);
+        var stocks = new JobStocks(jobs, plugin.getLogger());
+        var magic = new MagicBuilding(plugin, access, blueprints, stocks, magicItems, ghosts, barTexts);
+        plugin.getServer().getPluginManager().registerEvents(magic, plugin);
+        service.closing(stocks::close);
+        stocks.late(service::returnLate);
+        progress.counted(access::counted);
+        ghosts.counted(access::counted);
         var bars = new ProgressBars(
                 plugin,
                 access::active,
@@ -393,7 +401,10 @@ public final class Jobs {
                 checks,
                 schematics,
                 new AreaWorld(plugin.getServer(), mainThread),
-                supplies);
+                supplies,
+                magicItems,
+                stocks,
+                magic);
     }
 
     private static double price(AOrderData orders, Material type, Plugin plugin) {
@@ -417,6 +428,7 @@ public final class Jobs {
     public static void schedule(
             JobServices services, boolean primary, ScheduledExecutorService executor, Plugin plugin) {
         services.access().schedule(executor);
+        services.magic().schedule();
         plugin.getServer()
                 .getScheduler()
                 .runTaskTimer(

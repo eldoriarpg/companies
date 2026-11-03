@@ -117,6 +117,23 @@ nobody can place by hand, such as spawners, are left out of the schematic; the p
 missing, and no warning about the cost of its blocks is shown. When the job ends, however it ends, what is left of its
 stock goes to your item returns; a job given back or overdue keeps its stock for the next company.
 
+The company working a supplied job builds it from the stock only. A member gets the job chest with `/company job chest
+<id>` and places it in the job's area where the schematic asks for nothing. Using it lists every item the schematic
+takes with what the stock still holds; a click gives a **magic block** of that type. Using a magic block on a block
+puts exactly the block the schematic asks for where it would be placed, turned and connected as it has it, and takes the
+item from the stock; the magic block stays in the hand. A door, bed or tall plant is placed whole from its lower or
+first half for one item. Magic water pours a source wherever the schematic has one once the stock holds two water
+buckets; magic lava takes a lava bucket per source, and nobody of the company can fill a bucket there. Besides magic
+blocks only the blocks of `buildWhitelist` (scaffolding by default) may be placed in the area. Magic blocks are worth
+nothing anywhere else and can not be dropped or stored; they go when their holder dies, quits, leaves the company,
+walks more than 8 blocks away from the area, or the job is no longer worked on. The job chest goes with the job.
+
+A member who breaks a block the schematic asks for, or one placed from the stock, gets no drop and no experience: the
+item goes back into the stock and the spot is open again. When anyone else breaks a block placed from the stock, you as
+the owner included, the spot still counts as placed for the job and for the member's work, and the block drops for
+whoever broke it. A block placed from the stock that pops off or is washed away goes back into the stock; explosions,
+pistons and gravity leave such blocks where they are.
+
 The job is done when enough of the schematic's blocks are in place and its spots to dig are clear: `buildMatchPercent`
 (95 % by default) in [jobs.yml](../admin/configuration/jobs-yml.md). A block counts when its type is right and it is
 turned as the schematic has it: which way it faces, its top or bottom half, its axis, a door's hinge, a slab's half. How
@@ -285,6 +302,7 @@ area:
 |---|---|
 | `/company job done <id>` | Checks the area of a dig, terraform or build job and, when the work is done, pays the job. |
 | `/company job ghosts <id>` | Shows the missing and wrong blocks of a build job, one layer at a time. Add `next` or `previous` before the id to move a layer; `/company job ghosts off` hides them. |
+| `/company job chest <id>` | Gives you the job chest of a supplied build job, to pick its magic blocks. |
 
 `/company job` lists the open jobs in game, and the [Commands](../reference/commands.md) page has the rest.
 

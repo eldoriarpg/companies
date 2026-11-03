@@ -47,6 +47,7 @@ public final class JobProgress {
     private final UUID node;
     private final Blueprints blueprints;
     private final IntSupplier matchPercent;
+    private volatile BuildCheck.Counted counted = BuildCheck.Counted.NONE;
     private final Map<Integer, Cached> cache = new ConcurrentHashMap<>();
     private final Map<Integer, DigCheck.Progress> last = new ConcurrentHashMap<>();
     private final Map<Integer, CompletableFuture<Optional<DigCheck.Progress>>> running = new ConcurrentHashMap<>();
@@ -62,6 +63,15 @@ public final class JobProgress {
         this.node = node;
         this.blueprints = blueprints;
         this.matchPercent = matchPercent;
+    }
+
+    /**
+     * Sets the positions of supplied jobs that count as placed whatever stands there.
+     *
+     * @param counted the positions
+     */
+    public void counted(BuildCheck.Counted counted) {
+        this.counted = counted;
     }
 
     /**
@@ -108,7 +118,11 @@ public final class JobProgress {
                 .thenApplyAsync(
                         ignored -> blueprint == null
                                 ? DigCheck.progress(area, blocks(job, world))
-                                : BuildCheck.progress(area, blueprint, BuildCheck.of(world), percent),
+                                : BuildCheck.progress(
+                                        area,
+                                        blueprint,
+                                        BuildCheck.counting(BuildCheck.of(world), job.id(), counted),
+                                        percent),
                         mainThread)
                 .whenCompleteAsync(
                         (result, err) -> {

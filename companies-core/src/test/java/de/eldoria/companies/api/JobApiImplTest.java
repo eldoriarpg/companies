@@ -138,6 +138,9 @@ class JobApiImplTest {
                         null,
                         null,
                         null,
+                        null,
+                        null,
+                        null,
                         null),
                 () -> settings,
                 Runnable::run));

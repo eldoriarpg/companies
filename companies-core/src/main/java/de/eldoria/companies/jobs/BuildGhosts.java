@@ -80,12 +80,22 @@ public final class BuildGhosts implements Listener {
     private final Spawner spawner;
     private final Map<UUID, Shown> shown = new ConcurrentHashMap<>();
     private final Map<UUID, Instant> previewed = new ConcurrentHashMap<>();
+    private volatile BuildCheck.Counted counted = BuildCheck.Counted.NONE;
 
     /**
      * @param plugin the plugin owning the ghost blocks
      */
     public BuildGhosts(Plugin plugin) {
         this(plugin, InstantSource.system(), BuildGhosts::display);
+    }
+
+    /**
+     * Sets the positions of supplied jobs that count as placed whatever stands there, which show no ghost.
+     *
+     * @param counted the positions
+     */
+    public void counted(BuildCheck.Counted counted) {
+        this.counted = counted;
     }
 
     /**
@@ -174,7 +184,7 @@ public final class BuildGhosts implements Listener {
         var world = plugin.getServer().getWorld(area.world());
         if (world == null) return Optional.empty();
         var layerY = Math.clamp(y, area.minY(), area.maxY());
-        var types = BuildCheck.of(world);
+        var types = BuildCheck.counting(BuildCheck.of(world), job.id(), counted);
         var current = new Shown(job.id(), layerY, area, blueprint, new HashMap<>(), null);
         for (var x = area.minX(); x <= area.maxX() && current.ghosts().size() < MAX_GHOSTS; x++) {
             for (var z = area.minZ(); z <= area.maxZ() && current.ghosts().size() < MAX_GHOSTS; z++) {
@@ -337,12 +347,13 @@ public final class BuildGhosts implements Listener {
     void refresh(Block block) {
         var world = block.getWorld();
         int x = block.getX(), y = block.getY(), z = block.getZ();
-        var types = BuildCheck.of(world);
+        var read = BuildCheck.of(world);
         for (var entry : shown.entrySet()) {
             var current = entry.getValue();
             if (current.job() == PREVIEW || current.y() != y || !current.area().contains(world.getName(), x, y, z)) {
                 continue;
             }
+            var types = BuildCheck.counting(read, current.job(), counted);
             var wanted = current.blueprint().want(current.area(), x, y, z);
             if (wanted == null) continue;
             var key = key(x, y, z);

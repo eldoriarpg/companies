@@ -951,7 +951,10 @@ public final class DashboardWorld implements AutoCloseable {
                 new AreaChecks(plugin.getServer(), hooks, () -> jobSettings, Runnable::run),
                 new BuildSchematics(directory.resolve("schematics"), uploads, hooks, logger),
                 new AreaWorld(plugin.getServer(), Runnable::run),
-                new Supplies(jobs, blueprints));
+                new Supplies(jobs, blueprints),
+                null,
+                null,
+                null);
     }
 
     private AdminServerWrites adminServers(SqLiteOrderData orders) {

@@ -299,6 +299,7 @@ See [Event offers](../players/event-offers.md#contests) for a guide.
 | `/company job ghosts <id>` | none | none | Shows the missing and wrong blocks of a build job of the company, one layer at a time. |
 | `/company job ghosts next <id>` / `ghosts previous <id>` | none | none | Moves the ghost blocks a layer up or down. |
 | `/company job ghosts off` | none | none | Hides the ghost blocks. |
+| `/company job chest <id>` | none | none | Gives the job chest of a supplied build job of the company, which hands out the magic blocks that build it from its stock. |
 | `/company job withdraw <id>` | none | `manage_orders` | Withdraws a dispute the company opened. |
 | `/company job cancel accept <id>` | none | `manage_orders` | Lets the owner cancel a job of the company, as they asked; the price goes back to them and the company is not penalized. |
 | `/company job cancel refuse <id>` | none | `manage_orders` | Refuses the owner's request to cancel a job; the company keeps working on it. |

@@ -392,6 +392,57 @@ public final class CompanyJobCommand {
     }
 
     /**
+     * Gives the player the job chest of a build job of their company whose owner supplies the materials.
+     *
+     * @param sender sender of the command
+     * @param id     id of the job
+     */
+    @Executes("chest")
+    public void chest(CommandSender sender, @IntArg(min = 0) int id) {
+        var player = Senders.player(sender);
+        run(
+                player,
+                () -> {
+                    var company = company(player);
+                    var job = jobs().data().job(id).orElseThrow(() -> unknown(id));
+                    if (job.state() != JobState.TAKEN
+                            || !Integer.valueOf(company.id()).equals(job.company())) {
+                        throw CommandFailure.of(PREFIX + "error.notYours", Values.number("id", id));
+                    }
+                    if (job.kind() != JobKind.BUILD || !job.supplied()) {
+                        throw CommandFailure.of(PREFIX + "error.notSupplied", Values.number("id", id));
+                    }
+                    if (!job.node().equals(jobs().node())) {
+                        throw CommandFailure.of(PREFIX + "error.otherServer", Values.number("id", id));
+                    }
+                    return job;
+                },
+                job -> Threading.mainThread(deps.plugin()).execute(() -> giveChest(player, job.id())));
+    }
+
+    private void giveChest(Player player, int id) {
+        if (!player.isOnline()) return;
+        var components = new MenuComponents(deps.messages(), player);
+        var magic = jobs().magicItems();
+        var chest = magic.chest(
+                id,
+                components.locale(PREFIX + "chest.name", Values.number("id", id)),
+                List.of(components.locale(PREFIX + "chest.lore")));
+        var inventory = player.getInventory();
+        for (var slot = 0; slot < inventory.getSize(); slot++) {
+            if (magic.chest(inventory.getItem(slot)).orElse(-1) == id) {
+                deps.messages().sendError(player, PREFIX + "chest.held", Values.number("id", id));
+                return;
+            }
+        }
+        if (!inventory.addItem(chest).isEmpty()) {
+            deps.messages().sendError(player, PREFIX + "magic.full");
+            return;
+        }
+        deps.messages().sendMessage(player, PREFIX + "chest.given", Values.number("id", id));
+    }
+
+    /**
      * Removes the ghost blocks the player sees.
      *
      * @param sender sender of the command
@@ -435,7 +486,11 @@ public final class CompanyJobCommand {
         var current = jobs().ghosts().layerOf(player, job.id());
         var y =
                 switch (shift) {
-                    case FIRST -> BuildGhosts.firstOpen(job.area(), building.blueprint(), BuildCheck.of(world));
+                    case FIRST ->
+                        BuildGhosts.firstOpen(
+                                job.area(),
+                                building.blueprint(),
+                                BuildCheck.counting(BuildCheck.of(world), job.id(), jobs().access()::counted));
                     case UP -> current.map(at -> at + 1).orElse(job.area().minY());
                     case DOWN -> current.map(at -> at - 1).orElse(job.area().minY());
                 };

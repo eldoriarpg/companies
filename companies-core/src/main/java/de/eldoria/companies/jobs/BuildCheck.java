@@ -58,6 +58,52 @@ public final class BuildCheck {
     }
 
     /**
+     * Knows the positions of jobs whose owner supplies the materials where a block was placed from the stock, which
+     * count as placed whatever stands there now.
+     */
+    @FunctionalInterface
+    public interface Counted {
+        /**
+         * Counts no position.
+         */
+        Counted NONE = (job, key) -> false;
+
+        /**
+         * @param job id of a job
+         * @param key a position, packed as {@code JobAccess.key}
+         * @return whether a block placed from the job's stock counts there
+         */
+        boolean counted(int job, long key);
+    }
+
+    /**
+     * @param types   reads a world
+     * @param job     id of a job
+     * @param counted the positions that count as placed
+     * @return the reader, with every block the blueprint asks for matching where a block placed from the job's stock
+     *     counts
+     */
+    public static Types counting(Types types, int job, Counted counted) {
+        return new Types() {
+            @Override
+            public Material at(int x, int y, int z) {
+                return types.at(x, y, z);
+            }
+
+            @Override
+            public String data(int x, int y, int z) {
+                return types.data(x, y, z);
+            }
+
+            @Override
+            public boolean matches(Blueprint.Want want, int x, int y, int z) {
+                return (!want.type().isAir() && counted.counted(job, JobAccess.key(x, y, z)))
+                        || types.matches(want, x, y, z);
+            }
+        };
+    }
+
+    /**
      * Counts the matching blocks, from the top layer down, and notes the highest block that does not match.
      *
      * @param area      the job's area

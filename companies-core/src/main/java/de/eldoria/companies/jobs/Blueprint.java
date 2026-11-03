@@ -490,6 +490,22 @@ public final class Blueprint {
     }
 
     /**
+     * @param area the area the blueprint was placed on
+     * @param x    x of a block
+     * @param y    y of a block
+     * @param z    z of a block
+     * @return the fluid whose source the schematic has there, {@link Material#WATER} or {@link Material#LAVA}; null for
+     *     none
+     */
+    public @Nullable Material fluid(JobArea area, int x, int y, int z) {
+        int dx = x - area.minX(), dy = y - area.minY(), dz = z - area.minZ();
+        for (var fluid : fluids) {
+            if (fluid.x() == dx && fluid.y() == dy && fluid.z() == dz) return fluid.type();
+        }
+        return null;
+    }
+
+    /**
      * @return how many positions ask for each block, the positions to dig out left out
      */
     public Map<Want, Integer> wants() {

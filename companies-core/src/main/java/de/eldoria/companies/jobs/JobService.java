@@ -39,6 +39,7 @@ import java.util.UUID;
 import java.util.function.BiFunction;
 import java.util.function.BooleanSupplier;
 import java.util.function.DoubleUnaryOperator;
+import java.util.function.IntConsumer;
 import java.util.function.IntFunction;
 import java.util.function.Supplier;
 import java.util.function.ToIntFunction;
@@ -112,6 +113,7 @@ public final class JobService {
     private final Clock clock;
     private final Logger logger;
     private volatile @Nullable BiFunction<UUID, Map<String, Integer>, Map<String, Integer>> stockReturns;
+    private volatile IntConsumer closing = job -> {};
     private volatile @Nullable Supplies supplies;
     private volatile Events events = Events.NONE;
 
@@ -566,21 +568,49 @@ public final class JobService {
     private void endEvent(Job job, JobEndEvent.Reason reason) {
         fire(() -> events.ended(job, reason));
         if (!job.supplied() || reason == JobEndEvent.Reason.GIVEN_BACK || reason == JobEndEvent.Reason.OVERDUE) return;
-        var returns = stockReturns;
-        if (returns == null) return;
+        try {
+            closing.accept(job.id());
+        } catch (RuntimeException e) {
+            logger.log(Level.WARNING, "Could not close the stock of job " + job.id(), e);
+        }
         Map<String, Integer> taken = new LinkedHashMap<>();
         jobs.stock(job.id()).forEach((material, amount) -> {
             if (jobs.takeStock(job.id(), material, amount)) taken.put(material, amount);
         });
-        if (taken.isEmpty()) return;
-        Map<String, Integer> left;
+        var left = toOwner(job, taken);
+        if (!left.isEmpty()) jobs.stock(job.id(), left);
+    }
+
+    /**
+     * @param job   a job whose owner supplied its materials
+     * @param items items of its stock
+     * @return what the owner's item returns could not store
+     */
+    private Map<String, Integer> toOwner(Job job, Map<String, Integer> items) {
+        var returns = stockReturns;
+        if (returns == null || items.isEmpty()) return items;
         try {
-            left = returns.apply(job.owner(), taken);
+            return returns.apply(job.owner(), items);
         } catch (RuntimeException e) {
             logger.log(Level.WARNING, "Could not return the stock of job " + job.id(), e);
-            left = taken;
+            return items;
         }
-        if (!left.isEmpty()) jobs.stock(job.id(), left);
+    }
+
+    /**
+     * Sends items that came back to the stock of a supplied job after it ended to its owner's item returns.
+     *
+     * @param id    id of the job
+     * @param items the items, as amounts by material name
+     */
+    public void returnLate(int id, Map<String, Integer> items) {
+        var found = jobs.job(id);
+        if (found.isEmpty()) {
+            logger.warning("Job " + id + " is gone, so " + items + " can not go back to its owner");
+            return;
+        }
+        var left = toOwner(found.get(), items);
+        if (!left.isEmpty()) logger.warning("Could not return " + left + " to the owner of job " + id);
     }
 
     /**
@@ -591,6 +621,16 @@ public final class JobService {
      */
     public void stockReturns(BiFunction<UUID, Map<String, Integer>, Map<String, Integer>> returns) {
         this.stockReturns = returns;
+    }
+
+    /**
+     * Sets what closes the stock of a supplied job on this server before it goes back to the owner, so nothing is
+     * taken from it or put into it any more.
+     *
+     * @param closing closes the stock of a job, by its id
+     */
+    public void closing(IntConsumer closing) {
+        this.closing = closing;
     }
 
     /**

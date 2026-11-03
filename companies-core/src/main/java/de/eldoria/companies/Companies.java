@@ -701,6 +701,16 @@ public class Companies extends EldoPlugin {
                     "company.job.error.blueprintNone",
                     Replacement.create("blocks", blocks.isEmpty() ? "-" : String.join(", ", blocks)));
         });
+        jobServices.access().supplying(player -> {
+            var blocks = configuration.jobSettings().buildWhitelist().stream()
+                    .map(type -> PlainText.keyName(type.getKey()))
+                    .sorted()
+                    .toList();
+            jobMessages.sendErrorActionBar(
+                    player,
+                    "company.job.error.onlyMagic",
+                    Replacement.create("blocks", blocks.isEmpty() ? "-" : String.join(", ", blocks)));
+        });
         var homeTeleports = homeTeleports(economy, treasuryService);
         homes = homeTeleports;
         var areaSync = new AreaSync(
@@ -1452,6 +1462,7 @@ public class Companies extends EldoPlugin {
         var runningJobs = jobs;
         if (runningJobs != null) {
             runningJobs.access().stop();
+            runningJobs.stocks().stop();
             runningJobs.ghosts().stop();
             runningJobs.bars().stop();
         }
