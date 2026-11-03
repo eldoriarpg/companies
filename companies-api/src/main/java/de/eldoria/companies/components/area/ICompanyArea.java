@@ -44,6 +44,14 @@ public interface ICompanyArea {
     String ref();
 
     /**
+     * The name of the area for display, as the provider gave it when the area was last stored or checked on its
+     * server.
+     *
+     * @return the name, empty when it is not known yet
+     */
+    String name();
+
+    /**
      * The world the area lies in.
      *
      * @return the name of the world

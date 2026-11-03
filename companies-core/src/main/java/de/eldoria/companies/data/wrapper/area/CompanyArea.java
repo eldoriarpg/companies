@@ -31,6 +31,7 @@ import java.util.UUID;
  * @param renew      whether a rented area is paid for another period when it is due
  * @param rentWarned whether the company was told that the rent is due soon
  * @param rentEnded  whether the rent ended, so the area goes back to the server
+ * @param name       the provider's name of the area for display, empty when it is not known yet
  */
 public record CompanyArea(
         int id,
@@ -47,7 +48,8 @@ public record CompanyArea(
         int offer,
         boolean renew,
         boolean rentWarned,
-        boolean rentEnded)
+        boolean rentEnded,
+        String name)
         implements ICompanyArea {
     /**
      * An area without an offer, such as a linked one.
@@ -78,7 +80,31 @@ public record CompanyArea(
             LocalDateTime created) {
         this(
                 id, company, provider, ref, world, node, source, linkedBy, price, rentUntil, created, 0, true, false,
-                false);
+                false, "");
+    }
+
+    /**
+     * @param name the provider's name of the area for display
+     * @return this area under that name
+     */
+    public CompanyArea named(String name) {
+        return new CompanyArea(
+                id,
+                company,
+                provider,
+                ref,
+                world,
+                node,
+                source,
+                linkedBy,
+                price,
+                rentUntil,
+                created,
+                offer,
+                renew,
+                rentWarned,
+                rentEnded,
+                name);
     }
 
     @Override

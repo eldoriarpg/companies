@@ -65,8 +65,8 @@ public final class CompanyPlaceholderCache {
      * @return completes when the reload is done
      */
     public CompletableFuture<Void> invalidate(int company) {
-        if (!cache.contains(company)) return CompletableFuture.completedFuture(null);
-        return cache.reload(company);
+        if (!cache.known(company)) return CompletableFuture.completedFuture(null);
+        return cache.changed(company);
     }
 
     /**

@@ -95,4 +95,47 @@ class LeaderboardCacheTest {
         assertEquals(
                 "C2", cache.at(TopOrder.ORDERS, TimeRange.ALL, 2).orElseThrow().name());
     }
+
+    @Test
+    void aRefreshStartsOnlyAfterTheOneBeforeItSoTheNewerRankingStays() {
+        List<CompletableFuture<List<CompanyRank>>> first = new ArrayList<>();
+        var second = new AtomicBoolean();
+        var cache = new LeaderboardCache(
+                (order, range) -> {
+                    if (second.get()) return CompletableFuture.completedFuture(ranking(2));
+                    var load = new CompletableFuture<List<CompanyRank>>();
+                    first.add(load);
+                    return load;
+                },
+                3);
+        var older = cache.refresh();
+        second.set(true);
+        var newer = cache.refresh();
+
+        first.forEach(load -> load.complete(ranking(1)));
+        older.join();
+        newer.join();
+
+        assertTrue(cache.at(TopOrder.ORDERS, TimeRange.ALL, 2).isPresent());
+    }
+
+    @Test
+    void asksForARefreshAreGatheredIntoOne() {
+        var loads = new AtomicInteger();
+        List<Runnable> later = new ArrayList<>();
+        var cache = new LeaderboardCache(
+                (order, range) -> {
+                    loads.incrementAndGet();
+                    return CompletableFuture.completedFuture(List.of());
+                },
+                () -> 3,
+                later::add);
+
+        cache.refreshSoon();
+        cache.refreshSoon();
+        later.forEach(Runnable::run);
+
+        assertEquals(1, later.size());
+        assertEquals(TopOrder.values().length * TimeRange.values().length, loads.get());
+    }
 }

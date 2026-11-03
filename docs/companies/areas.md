@@ -59,10 +59,12 @@ trusted; Companies only takes back what it gave.
 
 ## Containers
 
-Inside a company's area, its members open containers, take books out of chiseled bookshelves and items out of decorated
-pots only with `containers`. The owner of the company and the owner of the area always may. Players outside the company
-are kept out by the plot or region itself, as before.
+Inside a company's area, its members open containers, take books out of chiseled bookshelves and items off shelves and
+out of decorated pots only with `containers`. This covers chest and hopper minecarts, chest boats and the chests of
+donkeys, mules and llamas as well; riding them stays allowed. The owner of the company and the owner of the area always
+may. Players outside the company are kept out by the plot or region itself, as before. The rule guards opening, not
+breaking: whoever may break a chest or a chest minecart in the area gets its contents, as the land plugin allows.
 
 `containers` only narrows what members may. The plot, region or claim still decides first: on most land plugins a
 member opens containers only as a builder, so `containers` without `build` lets nobody in. Permission changes made on
-another server reach this rule within half a minute. Containers in minecarts, boats and on animals are not covered.
+another server reach this rule within half a minute.

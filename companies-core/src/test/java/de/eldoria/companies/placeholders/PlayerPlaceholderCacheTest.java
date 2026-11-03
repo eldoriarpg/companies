@@ -145,6 +145,22 @@ class PlayerPlaceholderCacheTest {
     }
 
     @Test
+    void aChangeDuringALoadIsLoadedOnceMoreAfterIt() {
+        var cache = cache(10);
+        var player = UUID.randomUUID();
+        var running = new CompletableFuture<Optional<PlayerView>>();
+        pending.put(player, running);
+        cache.get(player);
+
+        var changed = cache.invalidate(player);
+        running.complete(Optional.of(view(player, 1)));
+        changed.join();
+
+        assertEquals(2, loads.get());
+        assertEquals(2, cache.get(player).orElseThrow().openOrders());
+    }
+
+    @Test
     void disbandingReloadsTheMembers() {
         var cache = cache(10);
         var online = UUID.randomUUID();

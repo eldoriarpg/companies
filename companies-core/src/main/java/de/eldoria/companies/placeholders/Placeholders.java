@@ -165,7 +165,7 @@ public final class Placeholders {
      * Reloads the leaderboards, after a node changed the ranking. Thread safe.
      */
     public void rankingChanged() {
-        onMainThread(leaderboards::refresh);
+        if (plugin.isEnabled()) leaderboards.refreshSoon();
     }
 
     /**
@@ -203,7 +203,7 @@ public final class Placeholders {
      * @return the listener keeping the caches current
      */
     public Listener events() {
-        return new PlaceholderEvents(players, companies, offers);
+        return new PlaceholderEvents(players, companies, offers, leaderboards);
     }
 
     private void refresh() {

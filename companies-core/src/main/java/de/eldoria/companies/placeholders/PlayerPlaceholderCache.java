@@ -109,8 +109,8 @@ public final class PlayerPlaceholderCache {
      * @return completes when the reload is done
      */
     public CompletableFuture<Void> invalidate(UUID player) {
-        if (present.contains(player)) return online.reload(player);
-        if (offline.contains(player)) return offline.reload(player);
+        if (present.contains(player)) return online.changed(player);
+        if (offline.known(player)) return offline.changed(player);
         return CompletableFuture.completedFuture(null);
     }
 
@@ -123,10 +123,10 @@ public final class PlayerPlaceholderCache {
     public CompletableFuture<Void> invalidateCompany(int company) {
         var members = new ArrayList<CompletableFuture<Void>>();
         for (var player : present) {
-            if (isMember(online.peek(player), company)) members.add(online.reload(player));
+            if (isMember(online.peek(player), company)) members.add(online.changed(player));
         }
         for (var player : offline.keys()) {
-            if (isMember(offline.peek(player), company)) members.add(offline.reload(player));
+            if (isMember(offline.peek(player), company)) members.add(offline.changed(player));
         }
         return CompletableFuture.allOf(members.toArray(CompletableFuture[]::new));
     }

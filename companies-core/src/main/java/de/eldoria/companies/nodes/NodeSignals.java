@@ -9,6 +9,7 @@ import de.eldoria.companies.components.order.ISimpleOrder;
 import de.eldoria.companies.events.company.CompanyApplicationAnswerEvent;
 import de.eldoria.companies.events.company.CompanyApplicationEvent;
 import de.eldoria.companies.events.company.CompanyApplicationWithdrawEvent;
+import de.eldoria.companies.events.company.CompanyAreasChangeEvent;
 import de.eldoria.companies.events.company.CompanyCreateEvent;
 import de.eldoria.companies.events.company.CompanyDisbandEvent;
 import de.eldoria.companies.events.company.CompanyEvent;
@@ -28,6 +29,7 @@ import de.eldoria.companies.events.order.OrderCanceledEvent;
 import de.eldoria.companies.events.order.OrderCreatedEvent;
 import de.eldoria.companies.events.order.OrderDoneEvent;
 import de.eldoria.companies.events.order.OrderExpiredEvent;
+import de.eldoria.companies.events.order.OrderReceivedEvent;
 import de.eldoria.companies.events.order.OrderRemovedEvent;
 import de.eldoria.companies.events.order.SoloOrderAbortEvent;
 import de.eldoria.companies.events.order.SoloOrderAcceptEvent;
@@ -35,6 +37,7 @@ import de.eldoria.companies.events.order.SoloOrderDeliveryEvent;
 import de.eldoria.companies.events.order.SoloOrderDoneEvent;
 import de.eldoria.companies.events.order.SoloOrderExpiredEvent;
 import de.eldoria.companies.events.order.SoloOrderReceivedEvent;
+import de.eldoria.companies.events.player.ItemsReturnedEvent;
 import de.eldoria.companies.nodes.NodeMessage.BoardsChanged;
 import de.eldoria.companies.nodes.NodeMessage.CacheInvalidate;
 import de.eldoria.companies.nodes.NodeMessage.PlayerPresence;
@@ -51,12 +54,13 @@ import java.util.UUID;
 /**
  * Tells the other nodes about the changes made on this node, by turning the plugin's events into node messages.
  * <p>
- * Events stay node-local; only the signals cross: a changed company invalidates its cached values, order changes
- * outdate the board sign counts, completed orders and level changes outdate the rankings, orders worked on alone
- * outdate the values of their owner and worker, invites and applications outdate the values of the invited or applying
- * player, and joins and quits keep the presence of players current. A changed join mode is announced as a profile edit.
- * Changed single orders are announced by the order repository itself. On the {@link DatabaseBus} every message is
- * dropped.
+ * Events stay node-local; only the signals cross: a changed company, its areas included, invalidates its cached
+ * values, order changes outdate the board sign counts, completed orders, level changes, new companies, joins, leaves,
+ * renames, profile edits and disbands outdate the rankings, orders worked on alone outdate the values of their owner
+ * and worker, collected orders and returned items outdate the values of the player who waits for items, invites and
+ * applications outdate the values of the invited or applying player, and joins and quits keep the presence of players
+ * current. A changed join mode is announced as a profile edit. Changed single orders are announced by the order
+ * repository itself. On the {@link DatabaseBus} every message is dropped.
  */
 public final class NodeSignals implements Listener {
     private final NodeBus bus;
@@ -81,11 +85,13 @@ public final class NodeSignals implements Listener {
     @EventHandler(priority = EventPriority.MONITOR)
     public void onCompanyCreate(CompanyCreateEvent event) {
         companyChanged(event);
+        bus.publish(new RankingChanged());
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
     public void onCompanyJoin(CompanyJoinEvent event) {
         companyChanged(event);
+        bus.publish(new RankingChanged());
     }
 
     /**
@@ -96,6 +102,7 @@ public final class NodeSignals implements Listener {
     @EventHandler(priority = EventPriority.MONITOR)
     public void onCompanyLeave(CompanyLeaveEvent event) {
         companyChanged(event);
+        bus.publish(new RankingChanged());
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
@@ -113,10 +120,16 @@ public final class NodeSignals implements Listener {
     @EventHandler(priority = EventPriority.MONITOR)
     public void onProfileEdit(CompanyProfileEditEvent event) {
         companyChanged(event);
+        bus.publish(new RankingChanged());
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
     public void onMemberPermission(CompanyMemberPermissionEvent event) {
+        companyChanged(event);
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onAreas(CompanyAreasChangeEvent event) {
         companyChanged(event);
     }
 
@@ -192,6 +205,16 @@ public final class NodeSignals implements Listener {
     public void onOrderExpired(OrderExpiredEvent event) {
         companyChanged(event.company().id());
         bus.publish(new BoardsChanged());
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onOrderReceived(OrderReceivedEvent event) {
+        playerChanged(event.order().owner());
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onItemsReturned(ItemsReturnedEvent event) {
+        playerChanged(event.player().getUniqueId());
     }
 
     @EventHandler(priority = EventPriority.MONITOR)

@@ -63,7 +63,7 @@ function detail(area: AreaView): string {
     <PlainList v-else data-testid="areas">
       <li v-for="area in areas" :key="area.id" class="flex flex-col gap-0.5 border-b border-line-soft px-3 py-2.5 last:border-b-0 md:px-4">
         <span class="flex justify-between gap-2">
-          <span class="truncate text-sm font-semibold">#{{ area.id }} {{ area.ref }}</span>
+          <span class="truncate text-sm font-semibold" :title="area.ref">#{{ area.id }} {{ area.name || area.ref }}</span>
           <span class="shrink-0 text-xs text-ink-muted">{{ area.world }}</span>
         </span>
         <MutedText tag="span">{{ detail(area) }}</MutedText>

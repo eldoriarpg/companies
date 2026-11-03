@@ -33,6 +33,7 @@ import java.util.function.Supplier;
 final class StaleCache<K, V> {
     private final Cache<K, Entry<V>> cache;
     private final Map<K, CompletableFuture<Void>> loading = new ConcurrentHashMap<>();
+    private final Set<K> outdated = ConcurrentHashMap.newKeySet();
     private final Function<K, CompletableFuture<Optional<V>>> loader;
     private final Supplier<Duration> refresh;
     private final Ticker ticker;
@@ -92,6 +93,16 @@ final class StaleCache<K, V> {
     }
 
     /**
+     * Whether a key is kept or loading for the first time.
+     *
+     * @param key key
+     * @return true when a change of the key has to be loaded
+     */
+    boolean known(K key) {
+        return contains(key) || loading.containsKey(key);
+    }
+
+    /**
      * Stores a value as freshly loaded.
      *
      * @param key   key of the value
@@ -120,9 +131,25 @@ final class StaleCache<K, V> {
         load.whenComplete((value, error) -> {
             if (error == null) cache.put(key, new Entry<>(value, ticker.read()));
             loading.remove(key, done);
-            done.complete(null);
+            if (outdated.remove(key)) {
+                reload(key).whenComplete((any, failure) -> done.complete(null));
+            } else {
+                done.complete(null);
+            }
         });
         return done;
+    }
+
+    /**
+     * Loads a key again after it changed. A load already running may have read the value before the change, so it is
+     * followed by one more load.
+     *
+     * @param key key that changed
+     * @return completes when a load started after the change is done
+     */
+    CompletableFuture<Void> changed(K key) {
+        if (loading.containsKey(key)) outdated.add(key);
+        return reload(key);
     }
 
     /**

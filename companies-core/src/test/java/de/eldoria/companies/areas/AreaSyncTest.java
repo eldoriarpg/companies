@@ -19,6 +19,14 @@ import de.eldoria.companies.data.wrapper.company.CompanyDetails;
 import de.eldoria.companies.data.wrapper.company.CompanyMember;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import org.bukkit.Location;
+import org.bukkit.Material;
+import org.bukkit.block.Chest;
+import org.bukkit.entity.Donkey;
+import org.bukkit.entity.Horse;
+import org.bukkit.entity.Llama;
+import org.bukkit.entity.boat.OakChestBoat;
+import org.bukkit.entity.minecart.HopperMinecart;
+import org.bukkit.entity.minecart.StorageMinecart;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -39,6 +47,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Consumer;
 import java.util.logging.Logger;
 
 import static de.chojo.sadu.queries.api.query.Query.query;
@@ -95,7 +104,11 @@ class AreaSyncTest {
         members.add(CompanyMember.of(company, worker, 0));
         plot.owners.add(owner);
         plot.builders.add(friend);
-        sync = new AreaSync(
+        sync = sync(ignored -> {});
+    }
+
+    private AreaSync sync(Consumer<CompanyProfile> changed) {
+        return new AreaSync(
                 providers,
                 areas,
                 id -> gone
@@ -112,7 +125,7 @@ class AreaSyncTest {
                 NODE,
                 Runnable::run,
                 Logger.getAnonymousLogger(),
-                ignored -> {},
+                changed,
                 () -> working);
     }
 
@@ -239,6 +252,23 @@ class AreaSyncTest {
     }
 
     @Test
+    void theCheckStoresTheNameTheProviderShowsUnderTheCurrentReference() {
+        var id = linked();
+        List<Integer> told = new ArrayList<>();
+        sync = sync(profile -> told.add(profile.id()));
+
+        sync.check();
+        assertEquals("Plot " + REF, areas.area(id).orElseThrow().name());
+        assertEquals(List.of(company), told);
+        sync.check();
+        assertEquals(List.of(company), told);
+
+        plot.canonical = "plots|0;1";
+        sync.check();
+        assertEquals("Plot plots|0;1", areas.area(id).orElseThrow().name());
+    }
+
+    @Test
     void theContainerRuleLetsOnlyMembersWithContainersAndOwnersIn() {
         linked();
         sync.check();
@@ -254,6 +284,28 @@ class AreaSyncTest {
 
         assertFalse(rule.allowed(member, spot));
         assertTrue(rule.allowed(trusted, spot));
+    }
+
+    @Test
+    void theContainerRuleGuardsMinecartsBoatsAndAnimalsCarryingChests() {
+        var spot = new Location(world, 1, 64, 1);
+        var donkey = world.spawn(spot, Donkey.class);
+        spot.getBlock().setType(Material.CHEST);
+        var chest = (Chest) spot.getBlock().getState();
+
+        assertEquals(Optional.of(spot), AreaContainers.guarded(world.spawn(spot, StorageMinecart.class), null));
+        assertEquals(Optional.of(spot), AreaContainers.guarded(world.spawn(spot, HopperMinecart.class), null));
+        assertEquals(Optional.of(spot), AreaContainers.guarded(world.spawn(spot, OakChestBoat.class), null));
+        assertEquals(Optional.empty(), AreaContainers.guarded(donkey, null));
+        donkey.setCarryingChest(true);
+        assertEquals(Optional.of(spot), AreaContainers.guarded(donkey, null));
+        var llama = world.spawn(spot, Llama.class);
+        llama.setCarryingChest(true);
+        assertEquals(Optional.of(spot), AreaContainers.guarded(llama, null));
+        assertEquals(Optional.empty(), AreaContainers.guarded(world.spawn(spot, Horse.class), null));
+        assertEquals(Optional.of(spot), AreaContainers.guarded(chest, spot));
+        assertEquals(Optional.empty(), AreaContainers.guarded(chest, null));
+        assertEquals(Optional.empty(), AreaContainers.guarded(server.addPlayer(), spot));
     }
 
     @Test
@@ -363,7 +415,8 @@ class AreaSyncTest {
                         offer,
                         true,
                         false,
-                        false))
+                        false,
+                        ""))
                 .orElseThrow();
     }
 
@@ -437,7 +490,7 @@ class AreaSyncTest {
 
         @Override
         public String name(String ref) {
-            return ref;
+            return "Plot " + ref;
         }
 
         @Override

@@ -107,7 +107,7 @@ public final class CompanyAreaCommand {
                                                 .call(
                                                         area.provider(),
                                                         provider -> provider.name(area.ref()),
-                                                        area.ref())),
+                                                        area.name().isEmpty() ? area.ref() : area.name())),
                                 Values.text("provider", area.provider()),
                                 Values.text("world", area.world()),
                                 Values.component(
@@ -272,7 +272,8 @@ public final class CompanyAreaCommand {
                 offer.id(),
                 true,
                 false,
-                false);
+                false,
+                "");
         synchronized (linking) {
             var max = deps.configuration()
                     .companySettings()
@@ -319,19 +320,22 @@ public final class CompanyAreaCommand {
         var id = areas().areas().add(area);
         if (id.isEmpty()) return false;
         var providers = areas().providers();
-        var moved = CompletableFuture.supplyAsync(
+        var name = CompletableFuture.supplyAsync(
                         () -> providers.call(
-                                area.provider(),
-                                provider -> provider.capabilities().contains(AreaCapability.TRANSFER)
-                                        && provider.exists(area.ref())
-                                        && provider.transferTo(area.ref(), owner),
-                                false),
+                                        area.provider(),
+                                        provider -> provider.capabilities().contains(AreaCapability.TRANSFER)
+                                                && provider.exists(area.ref())
+                                                && provider.transferTo(area.ref(), owner),
+                                        false)
+                                ? Optional.of(name(area.provider(), area.ref()))
+                                : Optional.<String>empty(),
                         Threading.mainThread(deps.plugin()))
                 .join();
-        if (!moved) {
+        if (name.isEmpty()) {
             areas().areas().remove(id.get());
             return false;
         }
+        areas().areas().name(id.get(), name.get());
         stored.set(new CompanyArea(
                 id.get(),
                 area.company(),
@@ -347,7 +351,8 @@ public final class CompanyAreaCommand {
                 area.offer(),
                 area.renew(),
                 area.rentWarned(),
-                area.rentEnded()));
+                area.rentEnded(),
+                name.get()));
         return true;
     }
 
@@ -405,7 +410,7 @@ public final class CompanyAreaCommand {
         var ref = owned.get();
         var name = providers.call(ref.provider(), provider -> provider.name(ref.ref()), ref.ref());
         var world = player.getWorld().getName();
-        run(player, () -> linked(player, ref, world), id -> {
+        run(player, () -> linked(player, ref, world, name), id -> {
             areas().sync().checkSoon();
             deps.messages().sendMessage(player, PREFIX + "linked", Values.number("id", id), Values.text("area", name));
         });
@@ -473,7 +478,7 @@ public final class CompanyAreaCommand {
      * Links an area after the checks that need the database. Counting the company's areas and adding one hold a lock,
      * so two links on this server at once can not pass the limit together.
      */
-    private int linked(Player player, AreaRef ref, String world) {
+    private int linked(Player player, AreaRef ref, String world, String name) {
         var settings = deps.configuration().areaSettings();
         if (!settings.enabled()) throw CommandFailure.of(PREFIX + "error.disabled");
         var company = company(player);
@@ -484,27 +489,29 @@ public final class CompanyAreaCommand {
                 .maxAreas();
         var store = areas().areas();
         synchronized (linking) {
-            return add(store, player, company, max, ref, world);
+            return add(store, player, company, max, ref, world, name);
         }
     }
 
-    private int add(AAreaData store, Player player, CompanyProfile company, int max, AreaRef ref, String world) {
+    private int add(
+            AAreaData store, Player player, CompanyProfile company, int max, AreaRef ref, String world, String name) {
         if (store.ofCompany(company.id()).size() >= max) {
             throw CommandFailure.of(PREFIX + "error.limit", Values.number("max", max));
         }
         if (store.byRef(ref.provider(), ref.ref()).isPresent()) throw CommandFailure.of(PREFIX + "error.taken");
         var area = new CompanyArea(
-                0,
-                company.id(),
-                ref.provider(),
-                ref.ref(),
-                world,
-                areas().node(),
-                AreaSource.LINKED,
-                player.getUniqueId(),
-                0,
-                null,
-                Times.now());
+                        0,
+                        company.id(),
+                        ref.provider(),
+                        ref.ref(),
+                        world,
+                        areas().node(),
+                        AreaSource.LINKED,
+                        player.getUniqueId(),
+                        0,
+                        null,
+                        Times.now())
+                .named(name);
         var id = store.add(area).orElseThrow(() -> CommandFailure.of(PREFIX + "error.taken"));
         changed(company);
         return id;

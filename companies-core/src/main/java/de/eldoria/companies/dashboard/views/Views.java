@@ -275,6 +275,7 @@ public final class Views {
                 area.id(),
                 area.provider(),
                 area.ref(),
+                area.name(),
                 area.world(),
                 areaSource(area.source()),
                 area.price(),

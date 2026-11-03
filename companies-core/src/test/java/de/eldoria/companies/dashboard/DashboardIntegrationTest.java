@@ -8,6 +8,7 @@ package de.eldoria.companies.dashboard;
 import de.eldoria.companies.components.area.AreaSource;
 import de.eldoria.companies.components.company.CompanyPermission;
 import de.eldoria.companies.configuration.elements.DashboardSettings;
+import de.eldoria.companies.dashboard.feed.FeedListener;
 import de.eldoria.companies.dashboard.feed.PatchFeed;
 import de.eldoria.companies.dashboard.gateway.FakeGateway;
 import de.eldoria.companies.dashboard.gateway.GatewayConnection;
@@ -18,7 +19,10 @@ import de.eldoria.companies.dashboard.sessions.DashboardSessions;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteDashboardData;
 import de.eldoria.companies.data.wrapper.area.CompanyArea;
 import de.eldoria.companies.data.wrapper.area.CompanyHome;
+import de.eldoria.companies.data.wrapper.company.CompanyDetails;
+import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.dashboard.StoredKey;
+import de.eldoria.companies.events.company.CompanyAreasChangeEvent;
 import de.eldoria.companies.web.api.Actions;
 import de.eldoria.companies.web.api.Protocol;
 import de.eldoria.companies.web.api.action.ActionRequest;
@@ -48,6 +52,8 @@ import de.eldoria.companies.web.api.snapshot.AreaView;
 import de.eldoria.companies.web.api.snapshot.HomeView;
 import de.eldoria.companies.web.api.snapshot.Snapshot;
 import de.eldoria.companies.web.api.snapshot.SnapshotRequest;
+import de.eldoria.companies.web.api.update.Patch;
+import de.eldoria.companies.web.api.update.Subscribe;
 import de.eldoria.companies.web.api.update.Unsubscribe;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -108,6 +114,7 @@ class DashboardIntegrationTest {
     private DashboardKeys keys;
     private GatewayStatus status;
     private int miners;
+    private PatchFeed feed;
 
     @BeforeEach
     void setUp() throws Exception {
@@ -138,7 +145,7 @@ class DashboardIntegrationTest {
                 () -> Optional.of(new Branding("Test Server", "aWNvbg==", "abc123")));
         var link = new LinkProxy();
         presence = new PresenceReporter(link::send, sessions, NODE, world.executor, logger);
-        var feed = new PatchFeed(world.views, link, NODE, Runnable::run, logger);
+        feed = new PatchFeed(world.views, link, NODE, Runnable::run, logger);
         var router = new DashboardRouter(new DashboardRouter.Parts(
                 link,
                 status,
@@ -520,6 +527,53 @@ class DashboardIntegrationTest {
         assertEquals(1, disconnects.get());
         assertTrue(status.lynaKeyWithheld());
         assertTrue(status.refusal().orElseThrow().contains("self-hosted"));
+    }
+
+    @Test
+    void aSessionOpenedOnAnotherServerGetsTheAreaChangesOfThisOne() throws Exception {
+        connect(supported());
+        var session = login();
+        new DashboardSessions(
+                        world.dashboard,
+                        () -> new DashboardSettings(true, gateway.uri().toString()),
+                        UUID.randomUUID(),
+                        Clock.systemUTC())
+                .open(session, wren, null);
+
+        gateway.send(new Subscribe("sub", Protocol.VERSION, session, wren));
+        var end = System.nanoTime() + WAIT.toNanos();
+        while (dashboard.status().get().subscriptions() == 0 && System.nanoTime() < end) {
+            TimeUnit.MILLISECONDS.sleep(20);
+        }
+        assertEquals(1, dashboard.status().get().subscriptions());
+        world.areas.add(new CompanyArea(
+                        0,
+                        miners,
+                        "plotsquared",
+                        "plots;1;1",
+                        "plots",
+                        NODE,
+                        AreaSource.LINKED,
+                        wren,
+                        0,
+                        null,
+                        LocalDateTime.of(2026, 10, 31, 12, 0))
+                .named("1;1"));
+        new FeedListener(feed)
+                .onAreas(new CompanyAreasChangeEvent(
+                        new CompanyProfile(
+                                miners,
+                                "Miners",
+                                LocalDateTime.of(2026, 1, 1, 0, 0),
+                                1,
+                                CompanyDetails.NONE,
+                                List.of()),
+                        CompanyAreasChangeEvent.Change.AREAS));
+
+        var patch = gateway.next(Patch.class, WAIT);
+        assertEquals(List.of(session), patch.sessions());
+        assertEquals("company", patch.path());
+        assertEquals("1;1", patch.value().path("areas").get(0).path("name").asString());
     }
 
     @Test

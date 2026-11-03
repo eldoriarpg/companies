@@ -187,7 +187,8 @@ class AreaRentsTest {
                         offer,
                         true,
                         false,
-                        false))
+                        false,
+                        ""))
                 .orElseThrow();
     }
 }

@@ -97,6 +97,17 @@ public abstract class AreaDataContract {
         assertEquals(LINKER, area.linkedBy());
         assertEquals(NOW, area.created());
         assertEquals(area, areas.byRef("plotsquared", "plots|1;2").orElseThrow());
+        assertEquals("", area.name());
+    }
+
+    @Test
+    void anAreaKeepsItsNameUntilANewOneIsStored() {
+        var company = company("Builders");
+        var id = areas.add(linked(company, "plots|1;2", NODE).named("1;2")).orElseThrow();
+
+        assertEquals("1;2", areas.area(id).orElseThrow().name());
+        areas.name(id, "1;2 (merged)");
+        assertEquals("1;2 (merged)", areas.area(id).orElseThrow().name());
     }
 
     @Test
@@ -237,7 +248,8 @@ public abstract class AreaDataContract {
                 offer.id(),
                 true,
                 false,
-                false);
+                false,
+                "");
     }
 
     private static CompanyArea linked(int company, String ref, UUID node) {

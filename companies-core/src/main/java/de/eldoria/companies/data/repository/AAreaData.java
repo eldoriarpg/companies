@@ -77,6 +77,14 @@ public abstract class AAreaData {
     public abstract boolean rename(int id, String ref);
 
     /**
+     * Stores the provider's name of an area for display.
+     *
+     * @param id   id of the area
+     * @param name the name
+     */
+    public abstract void name(int id, String name);
+
+    /**
      * @param area id of an area
      * @return the players Companies gave the right to build there, which it takes back again
      */

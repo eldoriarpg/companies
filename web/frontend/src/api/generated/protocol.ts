@@ -324,6 +324,7 @@ export interface AreaView {
   id: number;
   provider: string;
   ref: string;
+  name: string;
   world: string;
   source: AreaSourceView;
   price: number;

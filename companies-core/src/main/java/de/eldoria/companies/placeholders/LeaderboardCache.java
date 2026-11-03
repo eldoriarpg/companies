@@ -9,6 +9,7 @@ import de.eldoria.companies.components.ranking.TimeRange;
 import de.eldoria.companies.components.ranking.TopOrder;
 import de.eldoria.companies.data.wrapper.company.CompanyRank;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -17,6 +18,9 @@ import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.IntSupplier;
 
 /**
@@ -24,12 +28,26 @@ import java.util.function.IntSupplier;
  * <p>
  * Each ranking keeps its first places for the leaderboard placeholders and the place of every ranked company for the
  * rank placeholders. Rankings are replaced as a whole by {@link #refresh()}; until the first refresh of a ranking it
- * reads as not loaded.
+ * reads as not loaded. Refreshes run one after the other, so an older one never replaces the result of a newer one, and
+ * the changes of a moment are gathered into one refresh by {@link #refreshSoon()}.
  */
 public final class LeaderboardCache {
+    /**
+     * How long asks for a refresh are gathered.
+     */
+    public static final Duration DELAY = Duration.ofSeconds(1);
+
+    /**
+     * How long a refresh may take before the next one starts without it.
+     */
+    public static final Duration TIMEOUT = Duration.ofMinutes(1);
+
     private final Map<Board, Ranking> rankings = new ConcurrentHashMap<>();
     private final Loader loader;
     private final IntSupplier size;
+    private final Executor later;
+    private final AtomicBoolean pending = new AtomicBoolean();
+    private CompletableFuture<Void> last = CompletableFuture.completedFuture(null);
 
     /**
      * @param loader loads a complete ranking
@@ -44,26 +62,62 @@ public final class LeaderboardCache {
      * @param size   places kept for the leaderboards, read on every refresh
      */
     public LeaderboardCache(Loader loader, IntSupplier size) {
-        this.loader = loader;
-        this.size = size;
+        this(loader, size, CompletableFuture.delayedExecutor(DELAY.toMillis(), TimeUnit.MILLISECONDS));
     }
 
     /**
-     * Reloads every ranking. A ranking that fails to load keeps its previous state.
+     * @param loader loads a complete ranking
+     * @param size   places kept for the leaderboards, read on every refresh
+     * @param later  runs a gathered refresh after {@link #DELAY}
+     */
+    public LeaderboardCache(Loader loader, IntSupplier size, Executor later) {
+        this.loader = loader;
+        this.size = size;
+        this.later = later;
+    }
+
+    /**
+     * Refreshes the rankings soon: one refresh after {@link #DELAY} for every ask until then.
+     */
+    public void refreshSoon() {
+        if (!pending.compareAndSet(false, true)) return;
+        later.execute(() -> {
+            pending.set(false);
+            refresh();
+        });
+    }
+
+    /**
+     * Reloads every ranking once the refresh before it is done, or took longer than {@link #TIMEOUT}. A ranking that
+     * fails to load keeps its previous state.
      *
      * @return completes when every ranking is loaded
      */
-    public CompletableFuture<Void> refresh() {
+    public synchronized CompletableFuture<Void> refresh() {
+        last = last.exceptionally(error -> null)
+                .thenCompose(done -> load().orTimeout(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS));
+        return last;
+    }
+
+    private CompletableFuture<Void> load() {
         List<CompletableFuture<Void>> loads = new ArrayList<>();
         for (var order : TopOrder.values()) {
             for (var range : TimeRange.values()) {
                 var board = new Board(order, range);
-                loads.add(loader.ranking(order, range)
+                loads.add(ranking(order, range)
                         .thenAccept(ranks -> rankings.put(board, Ranking.of(ranks, size.getAsInt())))
                         .exceptionally(error -> null));
             }
         }
         return CompletableFuture.allOf(loads.toArray(CompletableFuture[]::new));
+    }
+
+    private CompletableFuture<List<CompanyRank>> ranking(TopOrder order, TimeRange range) {
+        try {
+            return loader.ranking(order, range);
+        } catch (RuntimeException e) {
+            return CompletableFuture.failedFuture(e);
+        }
     }
 
     /**
