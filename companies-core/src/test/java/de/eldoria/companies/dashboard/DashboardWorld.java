@@ -99,6 +99,7 @@ import de.eldoria.companies.jobs.JobServices;
 import de.eldoria.companies.jobs.MaterialCosts;
 import de.eldoria.companies.jobs.SchematicUploads;
 import de.eldoria.companies.jobs.StoredAreas;
+import de.eldoria.companies.jobs.Supplies;
 import de.eldoria.companies.jobs.hooks.JobHooks;
 import de.eldoria.companies.orders.CompanyOrderService;
 import de.eldoria.companies.orders.DeliveryResult;
@@ -824,7 +825,8 @@ public final class DashboardWorld implements AutoCloseable {
                                 return all;
                             });
                             return Map.of();
-                        })),
+                        },
+                        orders)),
                 new AdminJobWrites(new AdminJobWrites.Sources(
                         () -> jobServices,
                         this::name,
@@ -948,7 +950,8 @@ public final class DashboardWorld implements AutoCloseable {
                 null,
                 new AreaChecks(plugin.getServer(), hooks, () -> jobSettings, Runnable::run),
                 new BuildSchematics(directory.resolve("schematics"), uploads, hooks, logger),
-                new AreaWorld(plugin.getServer(), Runnable::run));
+                new AreaWorld(plugin.getServer(), Runnable::run),
+                new Supplies(jobs, blueprints));
     }
 
     private AdminServerWrites adminServers(SqLiteOrderData orders) {

@@ -284,10 +284,11 @@ public abstract class AJobData {
     public abstract boolean editDraft(int id, String title, @Nullable String description, double price, int dueHours);
 
     /**
-     * Deletes a draft with its blueprint and stock; take the stock out first.
+     * Deletes a draft with its blueprint, only once its stock is empty. The draft is locked meanwhile, so items handed
+     * in after the stock was taken out keep it from being deleted rather than being deleted with it.
      *
      * @param id id of the draft
-     * @return true when it was still a draft and is gone
+     * @return true when it was still a draft with an empty stock and is gone
      */
     public abstract boolean deleteDraft(int id);
 
@@ -421,6 +422,19 @@ public abstract class AJobData {
      * @param items the items, as amounts by material name
      */
     public abstract void stock(int job, Map<String, Integer> items);
+
+    /**
+     * Puts what a supplied draft still lacks of the offered items into its stock, while it is a supplied draft. The
+     * draft is locked meanwhile, so hand-ins, posting and deleting it run one after the other and nothing is taken
+     * beyond what is needed.
+     *
+     * @param job     id of the draft
+     * @param needs   what its blueprint takes, as amounts by material name
+     * @param offered the items offered, as amounts by material name
+     * @return what was taken, by material name; empty when it is no supplied draft or the items could not be stored
+     */
+    public abstract Optional<Map<String, Integer>> supply(
+            int job, Map<String, Integer> needs, Map<String, Integer> offered);
 
     /**
      * Stores the blueprint of a build job.

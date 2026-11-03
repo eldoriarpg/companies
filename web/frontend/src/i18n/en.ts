@@ -1616,6 +1616,8 @@ export default {
             rotation: "Turned",
             fit: "{width}×{height}×{length}, {blocks} blocks, about {cost} in blocks. It stands on the ground as if you stood at its origin in game.",
             belowCost: "Post it below what its blocks cost; companies may pass it by",
+            supplied: 'I supply the materials (saved as a draft)',
+            unmakeable: "If you supply the materials, nobody can place these blocks and they are left out: {types}.",
             explain: {
                 dig: "A company digs out every block of the area.",
                 terraform: "A company makes every column solid up to the height and empty above it, with the top layer of the block when you name one.",
@@ -1666,6 +1668,9 @@ export default {
         },
         saveDraft: 'Save as draft',
         draftNote: 'A draft: companies do not see it and nothing is charged. Post it when it is ready.',
+        nothingMissing: 'Nothing is missing. Post the job.',
+        missing: 'Still missing',
+        suppliedNote: 'A draft whose materials you supply: hand them in with /order job draft {id} in game or take them from your item returns here. It can be posted once nothing is missing.',
         kind: {
             dig: "Dig",
             terraform: "Terraform",
@@ -1691,6 +1696,7 @@ export default {
             blocks: "Blocks",
         },
         step: {
+            supply: 'Take from item returns',
             remove: 'Delete draft',
             edit: 'Edit',
             post: 'Post',

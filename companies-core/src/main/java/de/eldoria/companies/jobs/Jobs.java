@@ -354,6 +354,8 @@ public final class Jobs {
         var ghosts = new BuildGhosts(plugin);
         plugin.getServer().getPluginManager().registerEvents(ghosts, plugin);
         var costs = new MaterialCosts(blueprints, type -> price(orders, type, plugin));
+        var supplies = new Supplies(jobs, blueprints);
+        service.supplies(supplies);
         var barTexts = MessageSender.getPluginMessageSender(plugin);
         var bars = new ProgressBars(
                 plugin,
@@ -390,7 +392,8 @@ public final class Jobs {
                 tool,
                 checks,
                 schematics,
-                new AreaWorld(plugin.getServer(), mainThread));
+                new AreaWorld(plugin.getServer(), mainThread),
+                supplies);
     }
 
     private static double price(AOrderData orders, Material type, Plugin plugin) {

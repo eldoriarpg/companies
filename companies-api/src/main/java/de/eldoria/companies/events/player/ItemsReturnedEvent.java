@@ -146,7 +146,12 @@ public class ItemsReturnedEvent extends Event implements PlayerProvider<OfflineP
         /**
          * The owner of a harvest job collected its stock on the dashboard.
          */
-        JOB_STOCK
+        JOB_STOCK,
+        /**
+         * The owner of a supplied build job handed in items the job did not take, and left or the server stopped
+         * before they could be given back in game.
+         */
+        JOB_HAND_IN
     }
 
     /**

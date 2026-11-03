@@ -1,0 +1,2 @@
+ALTER TABLE companies_schema.jobs
+    ADD COLUMN IF NOT EXISTS supplied BOOLEAN NOT NULL DEFAULT FALSE;

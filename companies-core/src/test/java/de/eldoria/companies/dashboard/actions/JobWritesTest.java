@@ -15,6 +15,8 @@ import de.eldoria.companies.data.wrapper.job.JobArea;
 import de.eldoria.companies.data.wrapper.job.JobHarvest;
 import de.eldoria.companies.data.wrapper.job.JobLand;
 import de.eldoria.companies.data.wrapper.job.StoredArea;
+import de.eldoria.companies.data.wrapper.order.ReturnKind;
+import de.eldoria.companies.jobs.Blueprint;
 import de.eldoria.companies.jobs.JobService;
 import de.eldoria.companies.util.Permission;
 import de.eldoria.companies.util.Times;
@@ -22,6 +24,8 @@ import de.eldoria.companies.web.api.Actions;
 import de.eldoria.companies.web.api.Protocol;
 import de.eldoria.companies.web.api.action.ActionRequest;
 import de.eldoria.companies.web.api.action.ActionResult;
+import org.bukkit.Material;
+import org.bukkit.inventory.ItemStack;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -121,6 +125,39 @@ class JobWritesTest {
                 "order.job.error.noDraft",
                 perform(owner, Actions.JOBS_DRAFTS_POST, "{\"id\":" + second + "}", jobs)
                         .reason());
+    }
+
+    @Test
+    void aSuppliedDraftTakesItsMaterialsFromTheItemReturns() {
+        var blueprint = Blueprint.of(
+                List.of(new Blueprint.Cell(0, 0, 0, Material.STONE), new Blueprint.Cell(1, 0, 0, Material.STONE)));
+        var draft = ((JobService.Posted.Done) world.jobServices
+                        .service()
+                        .saveDraft(
+                                owner,
+                                JobKind.BUILD,
+                                "Wall",
+                                100,
+                                24,
+                                world.jobServices.node(),
+                                new JobArea("world", 0, 64, 0, 1, 64, 0),
+                                JobService.Details.build(blueprint),
+                                true))
+                .job();
+        var jobs = Set.of(Permission.Orders.JOBS);
+        var info = perform(owner, Actions.JOBS_INFO, "{\"job\":" + draft.id() + "}", jobs);
+        assertTrue(info.data().path("supplied").asBoolean());
+        assertEquals(2, info.data().path("missing").path("STONE").asInt());
+        world.orders
+                .submitItemReturn(owner, ReturnKind.OWNER, new ItemStack(Material.STONE), 5)
+                .asFuture()
+                .join();
+
+        var supplied = perform(owner, Actions.JOBS_DRAFTS_SUPPLY, "{\"id\":" + draft.id() + "}", jobs);
+
+        assertTrue(supplied.ok(), supplied.message());
+        assertTrue(supplied.data().path("missing").isEmpty());
+        assertEquals(2, supplied.data().path("stock").path("STONE").asInt());
     }
 
     private static String draft(String args) {

@@ -736,6 +736,11 @@ public final class Actions {
     public static final String JOBS_DRAFTS_DELETE = "jobs.drafts.delete";
 
     /**
+     * Takes what one of the player's supplied drafts still lacks from the player's item returns into its stock.
+     */
+    public static final String JOBS_DRAFTS_SUPPLY = "jobs.drafts.supply";
+
+    /**
      * Draws the top layer of a stored area and lists the schematics a build job on it may use, on the server whose
      * world holds it.
      */
@@ -909,6 +914,7 @@ public final class Actions {
             JOBS_DRAFTS_POST,
             JOBS_DRAFTS_EDIT,
             JOBS_DRAFTS_DELETE,
+            JOBS_DRAFTS_SUPPLY,
             JOBS_AREAS_PREVIEW,
             JOBS_AREAS_SCHEMATIC,
             JOBS_AREAS_BUILD,

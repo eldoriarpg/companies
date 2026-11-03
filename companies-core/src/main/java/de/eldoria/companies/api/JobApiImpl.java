@@ -373,7 +373,7 @@ final class JobApiImpl implements JobApi {
             case UNIT_PRICE -> JobProblem.UNIT_PRICE;
             case STRANDED -> JobProblem.STRANDED;
             case REFUSED -> JobProblem.REFUSED;
-            case KIND, STORAGE, BLUEPRINT, DRAFTS, NO_DRAFT -> JobProblem.FAILED;
+            case KIND, STORAGE, BLUEPRINT, DRAFTS, NO_DRAFT, MATERIALS -> JobProblem.FAILED;
         };
     }
 

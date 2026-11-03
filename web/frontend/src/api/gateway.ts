@@ -1259,7 +1259,7 @@ export interface JobDetails {
     requestsLeft?: number
     /** The company's open request for more time, none without one. */
     request?: ExtensionRequest | null
-    /** What the blocks of a build job's blueprint cost; missing for other kinds and from older plugins. */
+    /** What the blocks of a build job's blueprint cost; missing for other kinds, for jobs whose owner supplies the materials and from older plugins. */
     materialCost?: MaterialCost | null
     /** How far the work was at the last check of its area; only from the server holding the area. */
     progress?: JobProgress | null
@@ -1267,6 +1267,10 @@ export interface JobDetails {
     cancelAsked?: boolean
     /** The steps of the review of its work, oldest first; only for the owner and its company. */
     reviews?: JobReview[]
+    /** Whether the owner supplies the materials through the stock; missing from older plugins. */
+    supplied?: boolean
+    /** What the stock of the owner's supplied draft still lacks, as amounts by material name. */
+    missing?: Record<string, number> | null
 }
 
 /** The schematics a player uploaded for build jobs. */
@@ -1344,6 +1348,8 @@ export interface SchematicFit {
     cost: number
     /** How many block types have no known price and are left out. */
     unpriced: number
+    /** The block types nobody can place, left out when the owner supplies the materials; missing from older plugins. */
+    unmakeable?: string[]
 }
 
 /** The kinds of job posted on a stored area. */
@@ -1373,6 +1379,8 @@ export interface MaterialCost {
     total: number
     /** How many block types have no known price and are left out. */
     unpriced: number
+    /** The block types nobody can place, left out when the owner supplies the materials; missing from older plugins. */
+    unmakeable?: string[]
 }
 
 /** The open request of the company working on a job for more time. */
@@ -1496,6 +1504,7 @@ export interface WriteActions {
     'jobs.drafts.post': {args: {id: number, node?: string}, result: JobDetails}
     'jobs.drafts.edit': {args: {id: number, title: string, description: string, price: number, hours: number}, result: JobDetails}
     'jobs.drafts.delete': {args: {id: number}, result: {id: number}}
+    'jobs.drafts.supply': {args: {id: number}, result: JobDetails}
     'jobs.describe': {args: JobRef & {text: string}, result: JobDetails}
     'jobs.approve': {args: JobRef, result: JobDetails}
     'jobs.reject': {args: JobRef & {reason: string}, result: JobDetails}
@@ -1520,7 +1529,7 @@ export interface WriteActions {
     'jobs.areas.delete': {args: {name: string}, result: AreaList}
     'jobs.areas.preview': {args: {node: string, area: string}, result: AreaPreview}
     'jobs.areas.schematic': {args: {node: string, area: string, schematic: string, rotation: number}, result: SchematicFit}
-    'jobs.areas.build': {args: {node: string, area: string, schematic: string, rotation: number, x: number, z: number, title: string, price: number, hours: number, confirm: boolean, draft?: boolean}, result: JobDetails}
+    'jobs.areas.build': {args: {node: string, area: string, schematic: string, rotation: number, x: number, z: number, title: string, price: number, hours: number, confirm: boolean, draft?: boolean, supplied?: boolean}, result: JobDetails}
     'jobs.areas.post': {args: {node: string, area: string, kind: AreaJobKind, title: string, price: number, hours: number, y?: number, surface?: string, unitPrice?: number, draft?: boolean}, result: JobDetails}
     'admin.jobs.disputes': {args: Record<string, never>, result: {disputes: DisputeRow[]}}
     'admin.jobs.settle': {args: JobRef & {percent: number}, result: {disputes: DisputeRow[]}}

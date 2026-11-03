@@ -141,7 +141,7 @@ public final class CompanyJobCommand {
                     if (job.state() != JobState.OPEN && !ours) throw unknown(id);
                     var checked =
                             ours && job.state() == JobState.TAKEN && job.kind().area();
-                    var cost = job.kind() == JobKind.BUILD
+                    var cost = job.kind() == JobKind.BUILD && !job.supplied()
                             ? jobs().costs().of(job.id())
                             : Optional.<MaterialCosts.Cost>empty();
                     var reviews = ours ? jobs().data().reviews(job.id()) : List.<JobReviewEntry>of();

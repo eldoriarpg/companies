@@ -43,6 +43,7 @@ const rotation = ref('0')
 const fit = ref<SchematicFit | null>(null)
 const place = ref<MapCorner>({x: 0, z: 0})
 const belowCost = ref(false)
+const supplied = ref(false)
 const rotations = ['0', '90', '180', '270'].map(value => ({value, label: `${value}°`}))
 const schematics = computed(() => [
   {value: '', label: t('jobs.areas.chooseSchematic')},
@@ -68,7 +69,7 @@ const ready = computed(() => chosen.value !== null
     && (hours.value ?? 0) >= 1
     && (kind.value !== 'terraform' || y.value !== undefined)
     && (kind.value !== 'harvest' || (unitPrice.value ?? 0) > 0)
-    && (kind.value !== 'build' || (fit.value !== null && (!(fit.value.cost > (price.value ?? 0)) || belowCost.value))))
+    && (kind.value !== 'build' || (fit.value !== null && (!(fit.value.cost > (price.value ?? 0)) || belowCost.value || supplied.value))))
 
 onMounted(async () => {
   list.value = await loading.run('jobs.areas.list', {})
@@ -156,6 +157,7 @@ async function post(draft = false): Promise<void> {
       hours: hours.value ?? 0,
       confirm: belowCost.value,
       draft,
+      supplied: supplied.value,
     })
     : await action.run('jobs.areas.post', {
     node: area.node,
@@ -226,7 +228,9 @@ async function remove(area: AreaRow): Promise<void> {
           </div>
           <MutedText v-if="fit" tag="p" data-testid="job-areas-fit">{{ t('jobs.areas.fit', {width: fit.width, height: fit.height, length: fit.length, blocks: fit.blocks, cost: money(fit.cost, locale)}) }}</MutedText>
           <MutedText v-if="fit && fit.unpriced > 0" tag="p">{{ t('jobs.areas.fitUnpriced', {count: fit.unpriced}) }}</MutedText>
-          <CheckboxInput v-if="fit && fit.cost > (price ?? 0)" v-model="belowCost" :label="t('jobs.areas.belowCost')" data-testid="job-areas-below"/>
+          <CheckboxInput v-model="supplied" :label="t('jobs.areas.supplied')" data-testid="job-areas-supplied"/>
+          <MutedText v-if="supplied && fit?.unmakeable?.length" tag="p" data-testid="job-areas-unmakeable">{{ t('jobs.areas.unmakeable', {types: fit.unmakeable.join(', ')}) }}</MutedText>
+          <CheckboxInput v-if="!supplied && fit && fit.cost > (price ?? 0)" v-model="belowCost" :label="t('jobs.areas.belowCost')" data-testid="job-areas-below"/>
         </template>
         <MutedText tag="p">{{ t('jobs.contract.charged') }}</MutedText>
         <PostButtons :disabled="!ready || action.busy.value" test-id="job-areas" @post="post" @back="chosen = null"/>

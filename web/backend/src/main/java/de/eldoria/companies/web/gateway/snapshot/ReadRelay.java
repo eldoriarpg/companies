@@ -177,6 +177,7 @@ public final class ReadRelay {
             Actions.JOBS_DRAFTS_POST,
             Actions.JOBS_DRAFTS_EDIT,
             Actions.JOBS_DRAFTS_DELETE,
+            Actions.JOBS_DRAFTS_SUPPLY,
             Actions.JOBS_DESCRIBE,
             Actions.JOBS_APPROVE,
             Actions.JOBS_REJECT,

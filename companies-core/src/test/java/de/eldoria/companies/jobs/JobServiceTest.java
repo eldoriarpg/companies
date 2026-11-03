@@ -170,6 +170,86 @@ class JobServiceTest {
     }
 
     @Test
+    void aSuppliedBuildIsPostedOnlyWithItsMaterialsAndGivesItsStockBackWhenItEnds() {
+        var blueprint = Blueprint.of(
+                List.of(new Blueprint.Cell(0, 0, 0, Material.STONE), new Blueprint.Cell(1, 0, 0, Material.SPAWNER)));
+        var area = new JobArea("world", 0, 64, 0, 1, 64, 0);
+        service.supplies(new Supplies(jobs, new Blueprints(jobs, Logger.getAnonymousLogger())));
+        Map<UUID, Map<String, Integer>> returned = new HashMap<>();
+        service.stockReturns((player, items) -> {
+            returned.put(player, items);
+            return Map.of();
+        });
+        var draft = assertInstanceOf(
+                        JobService.Posted.Done.class,
+                        service.saveDraft(
+                                owner,
+                                JobKind.BUILD,
+                                "Wall",
+                                100,
+                                24,
+                                NODE,
+                                area,
+                                JobService.Details.build(blueprint),
+                                true))
+                .job();
+
+        assertTrue(draft.supplied());
+        assertEquals(
+                1, Blueprint.decode(jobs.blueprint(draft.id()).orElseThrow()).blocks());
+        assertEquals(JobService.Refusal.MATERIALS, refusal(service.publish(owner, draft.id(), JobLand.REGION, "home")));
+        jobs.stock(draft.id(), Map.of("STONE", 3));
+        var posted = assertInstanceOf(
+                        JobService.Posted.Done.class, service.publish(owner, draft.id(), JobLand.REGION, "home"))
+                .job();
+        assertTrue(posted.supplied());
+
+        assertEquals(JobService.Change.DONE, service.cancel(owner, "Owner", posted.id()));
+        assertEquals(Map.of(owner, Map.of("STONE", 3)), returned);
+        assertEquals(Map.of(), jobs.stock(posted.id()));
+        assertEquals(
+                JobService.Refusal.BLUEPRINT,
+                refusal(service.saveDraft(
+                        owner, JobKind.DIG, "Hole", 100, 24, NODE, AREA, JobService.Details.NONE, true)));
+    }
+
+    @Test
+    void aSuppliedBuildGivenBackKeepsItsStockForTheNextCompany() {
+        var blueprint = Blueprint.of(List.of(new Blueprint.Cell(0, 0, 0, Material.STONE)));
+        var area = new JobArea("world", 0, 64, 0, 0, 64, 0);
+        service.supplies(new Supplies(jobs, new Blueprints(jobs, Logger.getAnonymousLogger())));
+        Map<UUID, Map<String, Integer>> returned = new HashMap<>();
+        service.stockReturns((player, items) -> {
+            returned.put(player, items);
+            return Map.of();
+        });
+        var draft = assertInstanceOf(
+                        JobService.Posted.Done.class,
+                        service.saveDraft(
+                                owner,
+                                JobKind.BUILD,
+                                "Post",
+                                100,
+                                24,
+                                NODE,
+                                area,
+                                JobService.Details.build(blueprint),
+                                true))
+                .job();
+        jobs.stock(draft.id(), Map.of("STONE", 1));
+        var posted = assertInstanceOf(
+                        JobService.Posted.Done.class, service.publish(owner, draft.id(), JobLand.REGION, "home"))
+                .job();
+        slots = 2;
+
+        assertEquals(JobService.Change.DONE, service.take(company, manager, posted.id()));
+        assertEquals(JobService.Change.DONE, service.giveBack(company, manager, posted.id()));
+
+        assertEquals(Map.of(), returned);
+        assertEquals(Map.of("STONE", 1), jobs.stock(posted.id()));
+    }
+
+    @Test
     void aDraftCanOnlyBePostedOrDeleted() {
         var draft = drafted(200);
 
@@ -224,6 +304,22 @@ class JobServiceTest {
             return Map.of();
         }));
         assertEquals(Map.of(owner, Map.of("STONE", 5)), returned);
+        assertTrue(jobs.job(draft.id()).isEmpty());
+    }
+
+    @Test
+    void itemsHandedInWhileADraftIsDeletedGoBackToo() {
+        var draft = drafted(200);
+        jobs.stock(draft.id(), Map.of("STONE", 5));
+        List<Map<String, Integer>> returned = new ArrayList<>();
+
+        assertTrue(service.deleteDraft(owner, draft.id(), (player, items) -> {
+            if (returned.isEmpty()) jobs.stock(draft.id(), Map.of("GLASS", 2));
+            returned.add(items);
+            return Map.of();
+        }));
+
+        assertEquals(List.of(Map.of("STONE", 5), Map.of("GLASS", 2)), returned);
         assertTrue(jobs.job(draft.id()).isEmpty());
     }
 

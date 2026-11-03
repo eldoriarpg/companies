@@ -172,6 +172,7 @@ class ProgressBarsTest {
                 null,
                 null,
                 draft.extension(),
-                true);
+                true,
+                false);
     }
 }

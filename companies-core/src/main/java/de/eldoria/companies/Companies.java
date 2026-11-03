@@ -140,6 +140,7 @@ import de.eldoria.companies.events.company.CompanyAreasChangeEvent;
 import de.eldoria.companies.integrations.discord.DiscordWebhook;
 import de.eldoria.companies.jobs.JobServices;
 import de.eldoria.companies.jobs.Jobs;
+import de.eldoria.companies.jobs.StockReturns;
 import de.eldoria.companies.menus.MenuComponents;
 import de.eldoria.companies.menus.MenuService;
 import de.eldoria.companies.menus.MenuText;
@@ -675,6 +676,7 @@ public class Companies extends EldoPlugin {
                 feeReductions,
                 api.areaProviders());
         jobs = jobServices;
+        jobServices.service().stockReturns(StockReturns.of(itemReturnService, getLogger()));
         JobProviders.useAreas(
                 player -> jobServices.areas().areas(player).stream()
                         .map(StoredArea::name)

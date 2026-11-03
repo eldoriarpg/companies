@@ -106,6 +106,17 @@ the server's schematics or your own, turn it, and place it on the map of the are
 column from above. It must lie inside the area, and it stands on the ground of its origin's column as if you stood there
 in game. A price below what its blocks cost needs a tick to confirm. Areas of up to 128 by 128 columns are drawn.
 
+### Supplied materials
+
+You can also hand the materials of a build job over yourself: `/order job build supplied` at the confirm step, or the
+tick *I supply the materials* under **Your areas**. Such a job is saved as a [draft](#drafts) and its materials go into
+its stock. `/order job draft <id>` opens a chest whose top rows show what the stock still lacks; put the items into
+the rows below and close it. What is needed goes into the stock, everything else comes back, and full buckets come
+back empty. On the dashboard, **Take from item returns** fills the stock from your item returns (`/order returns`). Blocks
+nobody can place by hand, such as spawners, are left out of the schematic; the preview lists them. The job can be posted once nothing is
+missing, and no warning about the cost of its blocks is shown. When the job ends, however it ends, what is left of its
+stock goes to your item returns; a job given back or overdue keeps its stock for the next company.
+
 The job is done when enough of the schematic's blocks are in place and its spots to dig are clear: `buildMatchPercent`
 (95 % by default) in [jobs.yml](../admin/configuration/jobs-yml.md). A block counts when its type is right and it is
 turned as the schematic has it: which way it faces, its top or bottom half, its axis, a door's hinge, a slab's half. How
@@ -233,7 +244,9 @@ for what happens only in game:
 | `/order job build <schematic> <rotation> <price> <hours> <title>` | Previews a build job of a schematic placed where you stand and asks to confirm it. |
 | `/order job build confirm` | Posts the build job you were asked to confirm. |
 | `/order job build draft` | Saves the build job you were asked to confirm as a draft instead. |
+| `/order job build supplied` | Saves the build job you were asked to confirm as a draft whose materials you supply. |
 | `/order job post <id>` | Posts one of your drafts, on the server of its area. |
+| `/order job draft <id>` | Opens the chest to hand in the materials of a supplied draft. |
 | `/order job draft delete <id>` | Deletes one of your drafts. |
 | `/order job terraform plot [surface <block>] <price> <hours> <y> <title>` | Posts a terraform job on your whole plot, dug out down to `y` when that lies below the ground. |
 | `/order job harvest <price per item> <budget> <hours> <title>` | Posts a harvest job on the field you marked. |

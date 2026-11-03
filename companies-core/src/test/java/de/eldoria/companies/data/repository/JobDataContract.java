@@ -133,6 +133,40 @@ public abstract class JobDataContract {
     }
 
     @Test
+    void aSuppliedDraftTakesOnlyWhatItStillNeedsAndIsDeletedOnlyEmpty() {
+        var base = Job.draft(
+                        OWNER,
+                        JobKind.BUILD,
+                        "Wall",
+                        500,
+                        0,
+                        NODE,
+                        new JobArea("world", 0, 60, 0, 5, 70, 5),
+                        JobLand.NONE,
+                        null,
+                        48,
+                        NOW,
+                        NOW)
+                .withState(JobState.DRAFT);
+        var supplied = jobs.create(base.withSupplied(true)).orElseThrow();
+        var plain = jobs.create(base).orElseThrow();
+        var needs = Map.of("STONE", 5, "GLASS", 2);
+
+        assertEquals(Optional.of(Map.of("STONE", 3)), jobs.supply(supplied, needs, Map.of("STONE", 3, "DIRT", 4)));
+        assertEquals(
+                Optional.of(Map.of("STONE", 2, "GLASS", 2)),
+                jobs.supply(supplied, needs, Map.of("STONE", 9, "GLASS", 2)));
+        assertEquals(Optional.of(Map.of()), jobs.supply(supplied, needs, Map.of("STONE", 1)));
+        assertEquals(Map.of("GLASS", 2, "STONE", 5), jobs.stock(supplied));
+        assertEquals(Optional.empty(), jobs.supply(plain, needs, Map.of("STONE", 1)));
+        assertFalse(jobs.deleteDraft(supplied));
+        assertTrue(jobs.takeStock(supplied, "STONE", 5));
+        assertTrue(jobs.takeStock(supplied, "GLASS", 2));
+        assertTrue(jobs.deleteDraft(supplied));
+        assertEquals(Optional.empty(), jobs.supply(supplied, needs, Map.of("STONE", 1)));
+    }
+
+    @Test
     void theTargetOfATerraformJobIsStored() {
         var id = jobs.create(Job.draft(
                                 OWNER,

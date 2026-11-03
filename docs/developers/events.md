@@ -329,6 +329,7 @@ There is no treasury share. Cancel the event and the player is neither paid nor 
 | `ADMIN_GRANT`               | An admin granted the items with a command                                                        |
 | `API`                       | A plugin granted the items with `players().grantItems(...)`                                      |
 | `JOB_STOCK`                 | The owner of a harvest job collected its stock on the dashboard                                  |
+| `JOB_HAND_IN`               | The owner of a supplied build job left before the items the job did not take were given back     |
 
 ## Several servers
 

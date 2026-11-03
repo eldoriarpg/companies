@@ -25,6 +25,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.IntBinaryOperator;
+import java.util.function.Predicate;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
@@ -465,6 +466,19 @@ public final class Blueprint {
     @Override
     public int hashCode() {
         return Objects.hash(width, height, length, blocks, fluids);
+    }
+
+    /**
+     * @param left the block types to leave out
+     * @return this blueprint with the positions of those types asking for nothing, as when the schematic had them as
+     *     air above the ground
+     */
+    public Blueprint without(Predicate<Material> left) {
+        var kept = cells.clone();
+        for (var i = 0; i < kept.length; i++) {
+            if (kept[i] > 0 && left.test(palette.get(kept[i] - 1).type())) kept[i] = 0;
+        }
+        return new Blueprint(width, height, length, palette, kept, new int[] {offsetX, offsetY, offsetZ}, fluids);
     }
 
     /**

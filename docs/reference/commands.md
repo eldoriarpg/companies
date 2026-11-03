@@ -115,7 +115,9 @@ See [Jobs](../players/jobs.md).
 | `/order job build <schematic> <rotation> <price> <hours> <title>` | `companies.orders.jobs` | Previews a build job of a schematic placed where you stand and asks to confirm it, warning when the price is below what its blocks cost. |
 | `/order job build confirm` | `companies.orders.jobs` | Posts the build job you were asked to confirm. You pay the price and the order fee at once. |
 | `/order job build draft` | `companies.orders.jobs` | Saves the build job you were asked to confirm as a draft. Nothing is charged. |
+| `/order job build supplied` | `companies.orders.jobs` | Saves the build job you were asked to confirm as a draft whose materials you hand in to its stock. |
 | `/order job post <id>` | `companies.orders.jobs` | Posts one of your drafts on the server of its area, charging price and fee. |
+| `/order job draft <id>` | `companies.orders.jobs` | Opens the chest to hand in the materials of a supplied draft; what is not needed comes back. |
 | `/order job draft delete <id>` | `companies.orders.jobs` | Deletes one of your drafts; its stock goes to your item returns. |
 | `/order job harvest <price per item> <budget> <hours> <title>` | `companies.orders.jobs` | Posts a harvest job on the field you marked or selected with WorldEdit. You pay the budget and the order fee at once. |
 | `/order job harvest plot <price per item> <budget> <hours> <height> <title>` | `companies.orders.jobs` | Posts a harvest job on the whole plot you stand on, from the block below your feet up `height` layers. |

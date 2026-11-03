@@ -22,8 +22,10 @@ import de.eldoria.companies.data.wrapper.job.JobReviewEntry;
 import de.eldoria.companies.data.wrapper.job.JobTarget;
 import de.eldoria.companies.jobs.AreaChecks;
 import de.eldoria.companies.jobs.Blueprint;
+import de.eldoria.companies.jobs.BlueprintItems;
 import de.eldoria.companies.jobs.BuildCheck;
 import de.eldoria.companies.jobs.DigCheck;
+import de.eldoria.companies.jobs.HandIns;
 import de.eldoria.companies.jobs.JobService;
 import de.eldoria.companies.jobs.JobServices;
 import de.eldoria.companies.jobs.MaterialCosts;
@@ -74,6 +76,7 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.logging.Level;
+import java.util.stream.Collectors;
 
 /**
  * {@code /order job}: the player's jobs, work in an area of their land that a company takes like an order.
@@ -123,6 +126,7 @@ public final class JobCommand {
     private final CommandDependencies deps;
     private final ConfirmFlow<PendingBuild> builds;
     private final JobListMenu listMenu;
+    private final HandIns handIns;
     private final JobMenu jobMenu;
 
     @Subcommand
@@ -141,6 +145,13 @@ public final class JobCommand {
         this.area = new JobAreaCommand(deps, this);
         this.builds = ConfirmFlow.create(deps.plugin(), this::buildConfirmed);
         this.listMenu = new JobListMenu(deps.messages());
+        this.handIns = new HandIns(
+                deps.plugin(),
+                () -> jobs().supplies(),
+                () -> deps.services().itemReturnService(),
+                deps.messages(),
+                this::handed);
+        deps.plugin().getServer().getPluginManager().registerEvents(handIns, deps.plugin());
         this.jobMenu = new JobMenu(
                 deps.messages(),
                 () -> deps.services().menus(),
@@ -376,6 +387,7 @@ public final class JobCommand {
             var area = blueprint.area(at.getWorld().getName(), at.getX(), at.getY(), at.getZ());
             outline(player, area);
             preview(player, area, blueprint);
+            sendUnmakeable(player, blueprint);
             var economy = deps.services().economy();
             var question = MenuText.create()
                     .locale(
@@ -488,6 +500,86 @@ public final class JobCommand {
     }
 
     /**
+     * Saves the build job the sender was asked to confirm as a draft whose materials the sender supplies, and opens
+     * its hand-in.
+     *
+     * @param sender sender of the command
+     */
+    @Executes("build supplied")
+    public void supplyBuild(CommandSender sender) {
+        var player = Senders.player(sender);
+        var pending = asked.remove(player.getUniqueId());
+        if (pending == null) {
+            deps.messages().sendErrorActionBar(player, "error.confirmationExpired");
+            return;
+        }
+        jobs().ghosts().hidePreview(player.getUniqueId());
+        var owner = player.getUniqueId();
+        var node = jobs().node();
+        run(
+                player,
+                () -> jobs().service()
+                        .saveDraft(
+                                owner,
+                                JobKind.BUILD,
+                                pending.title(),
+                                pending.price(),
+                                pending.hours(),
+                                node,
+                                pending.area(),
+                                JobService.Details.build(pending.blueprint()),
+                                true),
+                drafted -> {
+                    drafted(player, JobKind.BUILD, drafted);
+                    if (drafted instanceof JobService.Posted.Done done) {
+                        Threading.mainThread(deps.plugin())
+                                .execute(() -> handIns.open(player, done.job().id()));
+                    }
+                });
+    }
+
+    /**
+     * Opens the hand-in of one of the sender's drafts whose materials they supply.
+     *
+     * @param sender sender of the command
+     * @param id     id of the draft
+     */
+    @Executes("draft")
+    public void supply(CommandSender sender, @IntArg(min = 1) int id) {
+        var player = Senders.player(sender);
+        var owner = player.getUniqueId();
+        run(player, () -> draftOf(owner, id), draft -> {
+            if (draft.isEmpty()) {
+                deps.messages().sendError(player, PREFIX + "error.noDraft");
+                return;
+            }
+            if (!draft.get().supplied()) {
+                deps.messages().sendError(player, PREFIX + "error.notSupplied", Values.number("id", id));
+                return;
+            }
+            Threading.mainThread(deps.plugin()).execute(() -> handIns.open(player, id));
+        });
+    }
+
+    private void handed(Player player, int job, @Nullable Map<Material, Integer> missing) {
+        if (missing == null) {
+            deps.messages().sendMessage(player, PREFIX + "handIn.closed", Values.number("id", job));
+            return;
+        }
+        if (missing.isEmpty()) {
+            deps.messages().sendMessage(player, PREFIX + "handIn.complete");
+            return;
+        }
+        var total = missing.values().stream().mapToInt(Integer::intValue).sum();
+        deps.messages()
+                .sendMessage(
+                        player,
+                        PREFIX + "handIn.left",
+                        Values.number("types", missing.size()),
+                        Values.number("amount", total));
+    }
+
+    /**
      * Posts one of the sender's drafts: its land is checked again where it lies now, and price and fee are charged.
      *
      * @param sender sender of the command
@@ -597,6 +689,14 @@ public final class JobCommand {
                                 Values.number("blocks", blueprint.blocks() + blueprint.digs()));
             }
         });
+    }
+
+    private void sendUnmakeable(Player player, Blueprint blueprint) {
+        var unmakeable = BlueprintItems.of(blueprint).unmakeable();
+        if (unmakeable.isEmpty()) return;
+        var names =
+                unmakeable.stream().map(type -> type.getKey().getKey()).sorted().collect(Collectors.joining(", "));
+        deps.messages().sendMessage(player, PREFIX + "unmakeable", Values.text("types", names));
     }
 
     private void sendCost(Player player, MaterialCosts.Cost cost) {
@@ -1415,7 +1515,7 @@ public final class JobCommand {
      * @return what the blocks of a build job's blueprint cost, empty for other kinds; blocks
      */
     private Optional<MaterialCosts.Cost> cost(Job job) {
-        return job.kind() == JobKind.BUILD ? jobs().costs().of(job.id()) : Optional.empty();
+        return job.kind() == JobKind.BUILD && !job.supplied() ? jobs().costs().of(job.id()) : Optional.empty();
     }
 
     private record Info(Job job, Optional<MaterialCosts.Cost> cost, List<JobReviewEntry> reviews) {}
@@ -1600,6 +1700,10 @@ public final class JobCommand {
                 }
             }
             case DRAFT -> {
+                if (job.supplied()) {
+                    actions.add(new JobMenu.Action(
+                            PREFIX + "handInButton", "show", "order job draft " + id, JobMenu.Kind.RUN));
+                }
                 actions.add(
                         new JobMenu.Action(PREFIX + "postButton", "add", "order job post " + id, JobMenu.Kind.CHECK));
                 actions.add(new JobMenu.Action(

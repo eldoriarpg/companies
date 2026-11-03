@@ -1616,6 +1616,8 @@ export default {
             rotation: "Tournée",
             fit: "{width}×{height}×{length}, {blocks} blocs, environ {cost} en blocs. Elle se pose sur le sol comme si tu te tenais à son origine en jeu.",
             belowCost: "La publier sous le coût de ses blocs ; les entreprises pourraient l'ignorer",
+            supplied: 'Je fournis les matériaux (enregistré comme brouillon)',
+            unmakeable: "Si tu fournis les matériaux, ces blocs sont laissés de côté, car personne ne peut les poser : {types}.",
             explain: {
                 dig: "Une entreprise creuse chaque bloc de la zone.",
                 terraform: "Une entreprise rend chaque colonne solide jusqu'à la hauteur et vide au-dessus, avec la couche supérieure du bloc si tu en nommes un.",
@@ -1666,6 +1668,9 @@ export default {
         },
         saveDraft: 'Enregistrer comme brouillon',
         draftNote: 'Un brouillon : les entreprises ne le voient pas et rien n’est prélevé. Publie-le quand il est prêt.',
+        nothingMissing: 'Il ne manque rien. Publie le travail.',
+        missing: 'Manque encore',
+        suppliedNote: 'Un brouillon dont tu fournis les matériaux : dépose-les en jeu avec /order job draft {id} ou prends-les ici dans tes retours. Il peut être publié dès qu’il ne manque plus rien.',
         kind: {
             dig: "Creusage",
             terraform: "Terrassement",
@@ -1691,6 +1696,7 @@ export default {
             blocks: "Blocs",
         },
         step: {
+            supply: 'Prendre dans les retours',
             remove: 'Supprimer le brouillon',
             edit: 'Modifier',
             post: 'Publier',

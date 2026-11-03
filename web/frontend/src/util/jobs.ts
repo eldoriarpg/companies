@@ -28,6 +28,7 @@ export type JobStep =
     | 'post'
     | 'edit'
     | 'remove'
+    | 'supply'
 
 /** The states in which a job is over for good. */
 const CLOSED: readonly JobState[] = ['paid', 'settled', 'cancelled', 'expired']
@@ -38,6 +39,14 @@ const CLOSED: readonly JobState[] = ['paid', 'settled', 'cancelled', 'expired']
  */
 export function closedJob(state: JobState): boolean {
     return CLOSED.includes(state)
+}
+
+/**
+ * @param details a job with what its page shows
+ * @returns whether it is a supplied draft whose stock still lacks materials
+ */
+export function lacking(details: JobDetails): boolean {
+    return Boolean(details.supplied) && Object.keys(details.missing ?? {}).length > 0
 }
 
 /**
@@ -58,7 +67,7 @@ export function jobSteps(details: JobDetails): JobStep[] {
     const steps: JobStep[] = []
     const harvest = job.kind === 'harvest'
     if (job.mine) {
-        if (job.state === 'draft') return ['post', 'edit', 'remove']
+        if (job.state === 'draft') return lacking(details) ? ['supply', 'post', 'edit', 'remove'] : ['post', 'edit', 'remove']
         if (job.state === 'open') steps.push('describe', 'cancel')
         if (job.state === 'done') steps.push('approve', 'reject')
         if (job.state === 'taken' && !harvest) steps.push('approve')

@@ -10,6 +10,7 @@ import de.eldoria.companies.components.company.CompanyPermission;
 import de.eldoria.companies.components.job.JobKind;
 import de.eldoria.companies.components.job.JobState;
 import de.eldoria.companies.configuration.elements.jobs.JobSettings;
+import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.dashboard.StoredSession;
 import de.eldoria.companies.data.wrapper.job.Job;
@@ -21,6 +22,7 @@ import de.eldoria.companies.data.wrapper.job.StoredArea;
 import de.eldoria.companies.jobs.AreaChecks;
 import de.eldoria.companies.jobs.AreaWorld;
 import de.eldoria.companies.jobs.Blueprint;
+import de.eldoria.companies.jobs.BlueprintItems;
 import de.eldoria.companies.jobs.JobService;
 import de.eldoria.companies.jobs.JobServices;
 import de.eldoria.companies.jobs.SchematicUploads;
@@ -97,7 +99,8 @@ public final class JobWrites {
             Actions.JOBS_AREAS_BUILD,
             Actions.JOBS_DRAFTS_POST,
             Actions.JOBS_DRAFTS_EDIT,
-            Actions.JOBS_DRAFTS_DELETE);
+            Actions.JOBS_DRAFTS_DELETE,
+            Actions.JOBS_DRAFTS_SUPPLY);
 
     /**
      * The most jobs of each list.
@@ -213,6 +216,7 @@ public final class JobWrites {
             case Actions.JOBS_DRAFTS_POST -> postDraft(request, jobs, session, args);
             case Actions.JOBS_DRAFTS_EDIT -> editDraft(request, jobs, player, args);
             case Actions.JOBS_DRAFTS_DELETE -> deleteDraft(request, jobs, player, args);
+            case Actions.JOBS_DRAFTS_SUPPLY -> supply(request, jobs, player, args);
             case Actions.JOBS_CANCEL_ACCEPT ->
                 forCompany(
                         request,
@@ -537,7 +541,11 @@ public final class JobWrites {
                         size[2],
                         read.blocks(),
                         cost.total(),
-                        cost.unpriced().size()));
+                        cost.unpriced().size(),
+                        BlueprintItems.of(read).unmakeable().stream()
+                                .map(type -> type.getKey().getKey())
+                                .sorted()
+                                .toList()));
     }
 
     /**
@@ -574,7 +582,9 @@ public final class JobWrites {
             case AreaWorld.Placed.Done done -> {
                 var cost = jobs.costs().of(done.blueprint());
                 var price = args.path("price").asDouble(0);
-                if (cost.above(price) && !args.path("confirm").asBoolean(false)) {
+                if (cost.above(price)
+                        && !args.path("confirm").asBoolean(false)
+                        && !args.path("supplied").asBoolean(false)) {
                     yield answers.refused(
                             request, CommandFailure.of(OWNER + "error.belowCost", Values.number("cost", cost.total())));
                 }
@@ -601,7 +611,8 @@ public final class JobWrites {
             JobArea area,
             JsonNode args,
             JobService.Details details) {
-        if (args.path("draft").asBoolean(false)) {
+        var supplied = args.path("supplied").asBoolean(false);
+        if (supplied || args.path("draft").asBoolean(false)) {
             return posted(
                     request,
                     jobs,
@@ -616,7 +627,8 @@ public final class JobWrites {
                                     args.path("hours").asInt(0),
                                     jobs.node(),
                                     area,
-                                    details));
+                                    details,
+                                    supplied));
         }
         return withLand(
                 request,
@@ -1020,8 +1032,9 @@ public final class JobWrites {
         var target = job.target();
         var doneAt = review.doneAt();
         var disputeBy = review.disputeBy();
-        Map<String, Integer> stock =
-                mine && job.kind() == JobKind.HARVEST ? jobs.data().stock(job.id()) : Map.of();
+        Map<String, Integer> stock = mine && (job.kind() == JobKind.HARVEST || job.supplied())
+                ? jobs.data().stock(job.id())
+                : Map.of();
         var settings = sources.settings().get();
         var extension = job.extension();
         var asked = job.state() == JobState.TAKEN ? extension.askedHours() : null;
@@ -1054,7 +1067,7 @@ public final class JobWrites {
                                 asked,
                                 Objects.requireNonNullElse(extension.reason(), ""),
                                 instant(extension.askedAt())),
-                job.kind() == JobKind.BUILD
+                job.kind() == JobKind.BUILD && !job.supplied()
                         ? jobs.costs()
                                 .of(job.id())
                                 .map(cost -> new MaterialCost(
@@ -1075,7 +1088,27 @@ public final class JobWrites {
                                         entry.reason(),
                                         instant(entry.at())))
                                 .toList()
-                        : List.of());
+                        : List.of(),
+                job.supplied(),
+                job.supplied() && mine && job.state() == JobState.DRAFT ? missing(jobs, job.id()) : null);
+    }
+
+    private static Map<String, Integer> missing(JobServices jobs, int id) {
+        Map<String, Integer> missing = new LinkedHashMap<>();
+        jobs.supplies().missing(id).forEach((type, amount) -> missing.put(type.name(), amount));
+        return missing;
+    }
+
+    private ActionResult supply(ActionRequest request, JobServices jobs, UUID player, JsonNode args) {
+        var id = args.path("id").asInt(0);
+        var draft = jobs.data().job(id).filter(job -> job.owner().equals(player) && job.state() == JobState.DRAFT);
+        if (draft.isEmpty()) return answers.refused(request, OWNER + "error.noDraft");
+        if (!draft.get().supplied()) {
+            return answers.refused(request, CommandFailure.of(OWNER + "error.notSupplied", number(id)));
+        }
+        jobs.supplies().fromReturns(player, id, sources.orders());
+        var company = sources.companyOf().apply(player).join();
+        return answers.data(request, details(jobs, jobs.data().job(id).orElse(draft.get()), player, company));
     }
 
     private static boolean ours(Job job, Optional<CompanyProfile> company) {
@@ -1118,6 +1151,7 @@ public final class JobWrites {
      * @param lastPlace where a player was last seen, as a block; empty when it is not known
      * @param returns   puts items into a player's item returns, as amounts by material name, and answers what could
      *                  not be stored
+     * @param orders    the item returns materials are taken from
      */
     public record Sources(
             Supplier<@Nullable JobServices> jobs,
@@ -1127,7 +1161,8 @@ public final class JobWrites {
             Supplier<LocalDateTime> now,
             Function<CommandFailure, String> render,
             Function<UUID, Optional<JobArea>> lastPlace,
-            BiFunction<UUID, Map<String, Integer>, Map<String, Integer>> returns) {}
+            BiFunction<UUID, Map<String, Integer>, Map<String, Integer>> returns,
+            AOrderData orders) {}
 
     /**
      * A job as listed.
@@ -1212,6 +1247,8 @@ public final class JobWrites {
      * @param progress       how far the work was at the last check of its area, null when this server did not check it
      * @param cancelAsked    whether the owner asks the company working on it to let it be cancelled
      * @param reviews        the steps of the review of its work, oldest first; only for the owner and its company
+     * @param supplied       whether the owner supplies the materials through the stock
+     * @param missing        what the stock of a supplied draft still lacks, by material; only for its owner
      */
     public record JobDetails(
             JobRow job,
@@ -1233,7 +1270,9 @@ public final class JobWrites {
             @Nullable MaterialCost materialCost,
             @Nullable Progress progress,
             boolean cancelAsked,
-            List<Review> reviews) {}
+            List<Review> reviews,
+            boolean supplied,
+            @Nullable Map<String, Integer> missing) {}
 
     /**
      * A step of the review of a job's work.
@@ -1308,9 +1347,11 @@ public final class JobWrites {
      * @param length   its size along z
      * @param blocks   how many blocks it asks for
      * @param cost     what its blocks cost at the server's prices
-     * @param unpriced how many block types have no known price and are left out
+     * @param unpriced   how many block types have no known price and are left out
+     * @param unmakeable the block types nobody can place, left out when the owner supplies the materials
      */
-    public record SchematicFit(int width, int height, int length, int blocks, double cost, int unpriced) {}
+    public record SchematicFit(
+            int width, int height, int length, int blocks, double cost, int unpriced, List<String> unmakeable) {}
 
     /**
      * A stored area.

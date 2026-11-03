@@ -459,7 +459,8 @@ public final class DashboardModule {
                         Times::now,
                         failure -> PlainText.of(failure.render(null, messages)),
                         player -> lastPlace(plugin, player),
-                        StockReturns.of(data.items().returns(), plugin.getLogger()))),
+                        StockReturns.of(data.items().returns(), plugin.getLogger()),
+                        data.items().orders())),
                 new AdminJobWrites(new AdminJobWrites.Sources(
                         data.jobs(),
                         names,

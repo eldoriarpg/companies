@@ -1616,6 +1616,8 @@ export default {
             rotation: "Gedreht",
             fit: "{width}×{height}×{length}, {blocks} Blöcke, etwa {cost} an Blöcken. Sie steht auf dem Boden, als stündest du im Spiel an ihrem Ursprung.",
             belowCost: "Unter dem anlegen, was ihre Blöcke kosten; Firmen könnten ihn liegen lassen",
+            supplied: 'Ich stelle das Material (als Entwurf gespeichert)',
+            unmakeable: "Wenn du das Material lieferst, werden diese Blöcke weggelassen, da niemand sie setzen kann: {types}.",
             explain: {
                 dig: "Eine Firma gräbt jeden Block des Gebiets ab.",
                 terraform: "Eine Firma macht jede Säule bis zur Höhe fest und darüber leer, mit der obersten Schicht aus dem Block, wenn du einen nennst.",
@@ -1666,6 +1668,9 @@ export default {
         },
         saveDraft: 'Als Entwurf speichern',
         draftNote: 'Ein Entwurf: Firmen sehen ihn nicht und nichts wird abgebucht. Veröffentliche ihn, wenn er fertig ist.',
+        nothingMissing: 'Es fehlt nichts. Veröffentliche den Job.',
+        missing: 'Fehlt noch',
+        suppliedNote: 'Ein Entwurf, dessen Material du stellst: gib es im Spiel mit /order job draft {id} ab oder nimm es hier aus deinen Rückgaben. Er kann veröffentlicht werden, sobald nichts mehr fehlt.',
         kind: {
             dig: "Graben",
             terraform: "Terraform",
@@ -1691,6 +1696,7 @@ export default {
             blocks: "Blöcke",
         },
         step: {
+            supply: 'Aus den Rückgaben nehmen',
             remove: 'Entwurf löschen',
             edit: 'Bearbeiten',
             post: 'Veröffentlichen',

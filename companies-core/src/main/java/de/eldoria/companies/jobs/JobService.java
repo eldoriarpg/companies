@@ -88,6 +88,8 @@ public final class JobService {
      */
     public static final String AUTO_APPROVED_BY = "#auto";
 
+    private static final int DELETE_ATTEMPTS = 3;
+
     /**
      * What a harvest job ended because its time ran out notes as who closed it. It names no person.
      */
@@ -109,6 +111,8 @@ public final class JobService {
     private final ToIntFunction<CompanyProfile> maxOrders;
     private final Clock clock;
     private final Logger logger;
+    private volatile @Nullable BiFunction<UUID, Map<String, Integer>, Map<String, Integer>> stockReturns;
+    private volatile @Nullable Supplies supplies;
     private volatile Events events = Events.NONE;
 
     /**
@@ -350,7 +354,38 @@ public final class JobService {
             UUID node,
             JobArea area,
             Details details) {
-        var blueprint = details.blueprint();
+        return saveDraft(owner, kind, title, price, dueHours, node, area, details, false);
+    }
+
+    /**
+     * Saves a job as a draft as {@link #saveDraft(UUID, JobKind, String, double, int, UUID, JobArea, Details)} does,
+     * optionally as a build job whose owner supplies the materials through its stock. A supplied blueprint leaves out
+     * the blocks no player can make, so the match never waits for them.
+     *
+     * @param owner    the player saving it
+     * @param kind     what work it asks for
+     * @param title    title shown to companies once posted
+     * @param price    what the company is paid
+     * @param dueHours how long a company has to finish it
+     * @param node     the server whose world holds the area
+     * @param area     the area of the work
+     * @param details  what the kind of job asks for besides its area
+     * @param supplied whether the owner supplies the materials, for a build job only
+     * @return the stored draft, or why it was not saved
+     */
+    public Posted saveDraft(
+            UUID owner,
+            JobKind kind,
+            String title,
+            double price,
+            int dueHours,
+            UUID node,
+            JobArea area,
+            Details details,
+            boolean supplied) {
+        if (supplied && kind != JobKind.BUILD) return new Posted.Refused(Refusal.BLUEPRINT);
+        var given = details.blueprint();
+        var blueprint = supplied && given != null ? given.without(BlueprintItems::unmakeable) : given;
         var shape = shape(kind, title, price, dueHours, area, details, blueprint != null);
         if (shape != null) return new Posted.Refused(shape);
         if (jobs.countOf(owner, JobState.DRAFT) >= settings.get().maxDrafts()) {
@@ -363,7 +398,8 @@ public final class JobService {
                 .withTarget(details.target())
                 .withHarvest(unitPrice == null ? null : new JobHarvest(cents(unitPrice), 0))
                 .withDescription(details.description())
-                .withState(JobState.DRAFT);
+                .withState(JobState.DRAFT)
+                .withSupplied(supplied);
         Optional<Integer> id;
         try {
             id = jobs.create(draft);
@@ -406,6 +442,10 @@ public final class JobService {
                 jobs.blueprint(id).isPresent());
         if (shape != null) return new Posted.Refused(shape);
         var current = settings.get();
+        var known = supplies;
+        if (job.supplied() && (known == null || !known.missing(id).isEmpty())) {
+            return new Posted.Refused(Refusal.MATERIALS);
+        }
         if (jobs.openOf(owner) >= current.maxOpenPerOwner()) return new Posted.Refused(Refusal.TOO_MANY);
         if (job.kind().area() && !jobs.overlapping(job.area()).isEmpty()) {
             return new Posted.Refused(Refusal.OVERLAP);
@@ -429,6 +469,7 @@ public final class JobService {
                 .withTarget(job.target())
                 .withHarvest(harvest)
                 .withDescription(job.description())
+                .withSupplied(job.supplied())
                 .withId(id);
         if (!allows(() -> events.allowsPost(posted))) return new Posted.Refused(Refusal.REFUSED);
         if (!money.withdraw(owner, total)) return new Posted.Refused(Refusal.FUNDS);
@@ -481,7 +522,7 @@ public final class JobService {
 
     /**
      * Deletes a draft. Its stock goes to the owner's item returns first; what can not be stored there stays and the
-     * draft is kept.
+     * draft is kept. Items handed in meanwhile are taken out too, a few times at most, before the draft is kept.
      *
      * @param owner   the player who saved it
      * @param id      id of the draft
@@ -490,26 +531,75 @@ public final class JobService {
      */
     public boolean deleteDraft(
             UUID owner, int id, BiFunction<UUID, Map<String, Integer>, Map<String, Integer>> returns) {
-        var found = jobs.job(id).filter(job -> job.owner().equals(owner) && job.state() == JobState.DRAFT);
-        if (found.isEmpty()) return false;
+        for (var attempt = 0; attempt < DELETE_ATTEMPTS; attempt++) {
+            var found = jobs.job(id).filter(job -> job.owner().equals(owner) && job.state() == JobState.DRAFT);
+            if (found.isEmpty()) return false;
+            if (!emptyStock(owner, id, returns)) return false;
+            if (jobs.deleteDraft(id)) return true;
+        }
+        return false;
+    }
+
+    private boolean emptyStock(
+            UUID owner, int id, BiFunction<UUID, Map<String, Integer>, Map<String, Integer>> returns) {
         Map<String, Integer> taken = new LinkedHashMap<>();
         jobs.stock(id).forEach((material, amount) -> {
             if (jobs.takeStock(id, material, amount)) taken.put(material, amount);
         });
-        if (!taken.isEmpty()) {
-            Map<String, Integer> left;
-            try {
-                left = returns.apply(owner, taken);
-            } catch (RuntimeException e) {
-                logger.log(Level.WARNING, "Could not return the stock of draft " + id, e);
-                left = taken;
-            }
-            if (!left.isEmpty()) {
-                jobs.stock(id, left);
-                return false;
-            }
+        if (taken.isEmpty()) return true;
+        Map<String, Integer> left;
+        try {
+            left = returns.apply(owner, taken);
+        } catch (RuntimeException e) {
+            logger.log(Level.WARNING, "Could not return the stock of draft " + id, e);
+            left = taken;
         }
-        return jobs.deleteDraft(id);
+        if (left.isEmpty()) return true;
+        jobs.stock(id, left);
+        return false;
+    }
+
+    /**
+     * Tells who listens that a job ended or went back to the companies, and, once a job whose owner supplied its
+     * materials is over for good, sends what its stock still holds to the owner's item returns.
+     */
+    private void endEvent(Job job, JobEndEvent.Reason reason) {
+        fire(() -> events.ended(job, reason));
+        if (!job.supplied() || reason == JobEndEvent.Reason.GIVEN_BACK || reason == JobEndEvent.Reason.OVERDUE) return;
+        var returns = stockReturns;
+        if (returns == null) return;
+        Map<String, Integer> taken = new LinkedHashMap<>();
+        jobs.stock(job.id()).forEach((material, amount) -> {
+            if (jobs.takeStock(job.id(), material, amount)) taken.put(material, amount);
+        });
+        if (taken.isEmpty()) return;
+        Map<String, Integer> left;
+        try {
+            left = returns.apply(job.owner(), taken);
+        } catch (RuntimeException e) {
+            logger.log(Level.WARNING, "Could not return the stock of job " + job.id(), e);
+            left = taken;
+        }
+        if (!left.isEmpty()) jobs.stock(job.id(), left);
+    }
+
+    /**
+     * Sets where the stock of a job whose owner supplied its materials goes once the job is over: the owner's item
+     * returns.
+     *
+     * @param returns stores items for a player and answers what it could not store
+     */
+    public void stockReturns(BiFunction<UUID, Map<String, Integer>, Map<String, Integer>> returns) {
+        this.stockReturns = returns;
+    }
+
+    /**
+     * Sets what tells the materials a supplied job still lacks.
+     *
+     * @param supplies the supplies of build jobs
+     */
+    public void supplies(Supplies supplies) {
+        this.supplies = supplies;
     }
 
     /**
@@ -661,7 +751,7 @@ public final class JobService {
         if (!jobs.release(id, company.id())) return Change.CLOSED;
         notices.owner(job.owner(), Notice.RELEASED, job, null);
         penalties.penalize(company.id(), false);
-        fire(() -> events.ended(job, JobEndEvent.Reason.GIVEN_BACK));
+        endEvent(job, JobEndEvent.Reason.GIVEN_BACK);
         return Change.DONE;
     }
 
@@ -676,7 +766,7 @@ public final class JobService {
         for (var job : jobs.ofCompany(company)) {
             if (!jobs.release(job.id(), company)) continue;
             notices.owner(job.owner(), Notice.RELEASED, job, null);
-            fire(() -> events.ended(job, JobEndEvent.Reason.GIVEN_BACK));
+            endEvent(job, JobEndEvent.Reason.GIVEN_BACK);
             released.add(job.id());
         }
         return released;
@@ -701,7 +791,7 @@ public final class JobService {
             refund(job, cents(job.unpaid()));
             money.collect(job.fee());
             notices.owner(job.owner(), Notice.LAND_LOST, job, null);
-            fire(() -> events.ended(job, JobEndEvent.Reason.LAND_LOST));
+            endEvent(job, JobEndEvent.Reason.LAND_LOST);
             return true;
         }
         if (job.state() == JobState.TAKEN && job.kind() == JobKind.HARVEST) {
@@ -727,7 +817,7 @@ public final class JobService {
         var worked = new Worked(progress, air, earned, rest);
         notices.owner(job.owner(), Notice.LAND_LOST, job, worked);
         notices.landLost(company, job, worked);
-        fire(() -> events.ended(job, JobEndEvent.Reason.LAND_LOST));
+        endEvent(job, JobEndEvent.Reason.LAND_LOST);
         return true;
     }
 
@@ -797,7 +887,7 @@ public final class JobService {
         if (!jobs.close(id, JobState.OPEN, JobState.CANCELLED, by, now())) return Change.CLOSED;
         refund(job, cents(job.unpaid()));
         money.collect(job.fee());
-        fire(() -> events.ended(job, JobEndEvent.Reason.CANCELLED));
+        endEvent(job, JobEndEvent.Reason.CANCELLED);
         return Change.DONE;
     }
 
@@ -831,7 +921,7 @@ public final class JobService {
         refund(job, back);
         money.collect(job.fee());
         notices.owner(job.owner(), Notice.CANCEL_ACCEPTED, job, back);
-        fire(() -> events.ended(job, JobEndEvent.Reason.CANCELLED));
+        endEvent(job, JobEndEvent.Reason.CANCELLED);
         return Change.DONE;
     }
 
@@ -875,7 +965,7 @@ public final class JobService {
         notices.owner(job.owner(), Notice.DONE, job, null);
         notices.paid(company, job, paid);
         fire(() -> events.finished(job, paid));
-        fire(() -> events.ended(job, JobEndEvent.Reason.PAID));
+        endEvent(job, JobEndEvent.Reason.PAID);
         return new Finished.Paid(paid);
     }
 
@@ -1058,11 +1148,11 @@ public final class JobService {
         if (to == JobState.CANCELLED) {
             notices.owner(job.owner(), Notice.LAND_LOST, job, null);
             notices.landLost(company, job, null);
-            fire(() -> events.ended(job, JobEndEvent.Reason.LAND_LOST));
+            endEvent(job, JobEndEvent.Reason.LAND_LOST);
         } else {
             notices.owner(job.owner(), Notice.HARVEST_ENDED, job, new Harvested(rest, stocked));
             companies.apply(company).ifPresent(profile -> notices.paid(profile, job, paid));
-            fire(() -> events.ended(job, JobEndEvent.Reason.PAID));
+            endEvent(job, JobEndEvent.Reason.PAID);
         }
         return true;
     }
@@ -1431,7 +1521,7 @@ public final class JobService {
         }
         notices.owner(job.owner(), Notice.SETTLED, job, rest);
         if (company != null) notices.settled(company, job, paid);
-        fire(() -> events.ended(job, JobEndEvent.Reason.SETTLED));
+        endEvent(job, JobEndEvent.Reason.SETTLED);
         return Change.DONE;
     }
 
@@ -1453,7 +1543,7 @@ public final class JobService {
         if (!jobs.closeHeld(job.id(), company, job.state(), JobState.PAID, by, now())) return false;
         var paid = pay(job, profile, parts, tax, cut);
         notices.paid(profile, job, paid);
-        fire(() -> events.ended(job, JobEndEvent.Reason.PAID));
+        endEvent(job, JobEndEvent.Reason.PAID);
         return true;
     }
 
@@ -1506,7 +1596,7 @@ public final class JobService {
                 var back = cents(job.unpaid() + job.fee());
                 refund(job, back);
                 notices.owner(job.owner(), Notice.EXPIRED, job, back);
-                fire(() -> events.ended(job, JobEndEvent.Reason.EXPIRED));
+                endEvent(job, JobEndEvent.Reason.EXPIRED);
                 expired.add(job.id());
             } catch (RuntimeException e) {
                 logger.log(Level.SEVERE, "Could not expire job " + job.id(), e);
@@ -1524,7 +1614,7 @@ public final class JobService {
                 notices.owner(job.owner(), Notice.RELEASED, job, null);
                 notices.overdue(company, job);
                 penalties.penalize(company, true);
-                fire(() -> events.ended(job, JobEndEvent.Reason.OVERDUE));
+                endEvent(job, JobEndEvent.Reason.OVERDUE);
                 reopened.add(job.id());
             } catch (RuntimeException e) {
                 logger.log(Level.SEVERE, "Could not open overdue job " + job.id() + " again", e);
@@ -1967,6 +2057,10 @@ public final class JobService {
          * The owner has no draft with this id.
          */
         NO_DRAFT,
+        /**
+         * The owner supplies the materials and the stock still lacks some.
+         */
+        MATERIALS,
         /**
          * The kind of job can not be posted yet.
          */
