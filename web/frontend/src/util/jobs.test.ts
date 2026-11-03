@@ -22,6 +22,7 @@ describe('jobSteps', () => {
     it('lets the owner only post, edit or delete a draft', () => {
         expect(jobSteps(details({state: 'draft', mine: true}))).toEqual(['post', 'edit', 'remove'])
         expect(jobSteps(details({state: 'draft', mine: false}, {canManage: true}))).toEqual([])
+        expect(jobSteps(details({state: 'draft', mine: true}, {supplied: true, missing: {STONE: 3}}), true)).toEqual(['inventory', 'supply', 'post', 'edit', 'remove'])
         expect(jobSteps(details({state: 'draft', mine: true}, {supplied: true, missing: {STONE: 3}}))).toEqual(['supply', 'post', 'edit', 'remove'])
         expect(jobSteps(details({state: 'draft', mine: true}, {supplied: true, missing: {}}))).toEqual(['post', 'edit', 'remove'])
     })

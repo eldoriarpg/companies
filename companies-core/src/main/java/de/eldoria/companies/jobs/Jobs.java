@@ -407,7 +407,8 @@ public final class Jobs {
                 supplies,
                 magicItems,
                 stocks,
-                magic);
+                magic,
+                new InventoryHandIn(plugin, () -> supplies));
     }
 
     private static double price(AOrderData orders, Material type, Plugin plugin) {

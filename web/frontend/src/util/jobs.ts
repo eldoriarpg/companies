@@ -29,6 +29,7 @@ export type JobStep =
     | 'edit'
     | 'remove'
     | 'supply'
+    | 'inventory'
 
 /** The states in which a job is over for good. */
 const CLOSED: readonly JobState[] = ['paid', 'settled', 'cancelled', 'expired']
@@ -60,14 +61,15 @@ export function lacking(details: JobDetails): boolean {
  * refuses. The owner of a harvest job collects its stock into their item returns.
  *
  * @param details the job
+ * @param online whether the player is online on a server, where their inventory can be read
  * @returns the steps, in the order the page shows them
  */
-export function jobSteps(details: JobDetails): JobStep[] {
+export function jobSteps(details: JobDetails, online = false): JobStep[] {
     const {job} = details
     const steps: JobStep[] = []
     const harvest = job.kind === 'harvest'
     if (job.mine) {
-        if (job.state === 'draft') return lacking(details) ? ['supply', 'post', 'edit', 'remove'] : ['post', 'edit', 'remove']
+        if (job.state === 'draft') return lacking(details) ? [...(online ? ['inventory' as const] : []), 'supply', 'post', 'edit', 'remove'] : ['post', 'edit', 'remove']
         if (job.state === 'open') steps.push('describe', 'cancel')
         if (job.state === 'done') steps.push('approve', 'reject')
         if (job.state === 'taken' && !harvest) steps.push('approve')

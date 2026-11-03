@@ -1678,7 +1678,7 @@ export default {
         draftNote: 'Ein Entwurf: Firmen sehen ihn nicht und nichts wird abgebucht. Veröffentliche ihn, wenn er fertig ist.',
         nothingMissing: 'Es fehlt nichts. Veröffentliche den Job.',
         missing: 'Fehlt noch',
-        suppliedNote: 'Ein Entwurf, dessen Material du stellst: gib es im Spiel mit /order job draft {id} ab oder nimm es hier aus deinen Rückgaben. Er kann veröffentlicht werden, sobald nichts mehr fehlt.',
+        suppliedNote: 'Ein Entwurf, dessen Material du stellst: gib es im Spiel mit /order job draft {id} ab, oder nimm es hier aus deinem Inventar, solange du online bist, oder aus deinen Rückgaben. Er kann veröffentlicht werden, sobald nichts mehr fehlt.',
         dugNote: 'Die Blöcke, die die Firma abbaut, kommen ins Lager und gehen am Ende des Jobs an den Besitzer.',
         fillNote: 'Der Besitzer liefert das Füllmaterial: {block}.',
         kind: {
@@ -1707,6 +1707,7 @@ export default {
         },
         step: {
             supply: 'Aus den Rückgaben nehmen',
+            inventory: 'Aus meinem Inventar nehmen',
             remove: 'Entwurf löschen',
             edit: 'Bearbeiten',
             post: 'Veröffentlichen',

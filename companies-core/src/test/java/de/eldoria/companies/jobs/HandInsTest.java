@@ -18,6 +18,7 @@ import de.eldoria.companies.data.wrapper.order.ReturnKind;
 import de.eldoria.companies.services.ItemReturnService;
 import de.eldoria.companies.util.StyledMessageSender;
 import de.eldoria.eldoutilities.localization.ILocalizer;
+import net.kyori.adventure.text.Component;
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
@@ -35,11 +36,14 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -60,6 +64,8 @@ class HandInsTest {
     private SqLiteJobData jobs;
     private SqLiteOrderData orders;
     private HandIns handIns;
+    private InventoryHandIn inventory;
+    private Supplies supplies;
     private final List<@Nullable Map<Material, Integer>> told = new ArrayList<>();
     private int job;
 
@@ -95,10 +101,12 @@ class HandInsTest {
                                 new Blueprint.Cell(0, 0, 0, Material.STONE),
                                 new Blueprint.Cell(1, 0, 0, Material.STONE)))
                         .encode());
-        var supplies = new Supplies(jobs, new Blueprints(jobs, Logger.getAnonymousLogger()));
+        supplies = new Supplies(jobs, new Blueprints(jobs, Logger.getAnonymousLogger()));
         var returns = new ItemReturnService(plugin, orders);
+        inventory = new InventoryHandIn(plugin, () -> supplies);
+        inventory.returns(() -> returns);
         handIns = new HandIns(
-                plugin, () -> supplies, () -> returns, messages, (player, id, missing) -> told.add(missing));
+                plugin, () -> supplies, () -> inventory, messages, (player, id, missing) -> told.add(missing));
     }
 
     @AfterEach
@@ -111,9 +119,7 @@ class HandInsTest {
     void anOnlinePlayerGetsBackWhatTheJobDoesNotTake() {
         var player = server.addPlayer();
 
-        handIns.close(player, job, List.of(new ItemStack(Material.STONE, 5), new ItemStack(Material.DIRT, 3)))
-                .join();
-        server.getScheduler().performOneTick();
+        await(handIns.close(player, job, List.of(new ItemStack(Material.STONE, 5), new ItemStack(Material.DIRT, 3))));
 
         assertEquals(Map.of("STONE", 2), jobs.stock(job));
         assertTrue(player.getInventory().containsAtLeast(new ItemStack(Material.STONE), 3));
@@ -126,8 +132,7 @@ class HandInsTest {
         var player = server.addPlayer();
         player.disconnect();
 
-        handIns.close(player, job, List.of(new ItemStack(Material.STONE, 5))).join();
-        server.getScheduler().performOneTick();
+        await(handIns.close(player, job, List.of(new ItemStack(Material.STONE, 5))));
 
         assertEquals(Map.of("STONE", 2), jobs.stock(job));
         assertEquals(3, returned(player.getUniqueId(), Material.STONE, 3));
@@ -139,12 +144,113 @@ class HandInsTest {
         var player = server.addPlayer();
         jobs.deleteDraft(job);
 
-        handIns.close(player, job, List.of(new ItemStack(Material.STONE, 5))).join();
-        server.getScheduler().performOneTick();
+        await(handIns.close(player, job, List.of(new ItemStack(Material.STONE, 5))));
 
         assertTrue(player.getInventory().containsAtLeast(new ItemStack(Material.STONE), 5));
         assertEquals(1, told.size());
         assertNull(told.getFirst());
+    }
+
+    @Test
+    void takingFromTheInventoryTakesOnlyThePlainItemsTheDraftLacks() {
+        var player = server.addPlayer();
+        var named = new ItemStack(Material.STONE, 4);
+        named.editMeta(meta -> meta.displayName(Component.text("Shiny")));
+        player.getInventory().setItem(0, named);
+        player.getInventory().setItem(1, new ItemStack(Material.STONE, 5));
+        player.getInventory().setItem(2, new ItemStack(Material.DIRT, 3));
+
+        var handed = await(inventory.take(player.getUniqueId(), job));
+
+        assertTrue(handed.online());
+        assertEquals(Map.of(Material.STONE, 2), handed.taken());
+        assertEquals(Map.of(), handed.missing());
+        assertEquals(Map.of("STONE", 2), jobs.stock(job));
+        assertEquals(named, player.getInventory().getItem(0));
+        assertEquals(new ItemStack(Material.STONE, 3), player.getInventory().getItem(1));
+        assertEquals(new ItemStack(Material.DIRT, 3), player.getInventory().getItem(2));
+    }
+
+    @Test
+    void takingFromTheInventoryOfAPlayerNotOnlineTakesNothing() {
+        var handed = await(inventory.take(UUID.randomUUID(), job));
+
+        assertFalse(handed.online());
+        assertEquals(Map.of(), jobs.stock(job));
+    }
+
+    @Test
+    void takingFromTheInventoryLeavesArmourAndOffhandAlone() {
+        var player = server.addPlayer();
+        player.getInventory().setItem(36, new ItemStack(Material.STONE, 5));
+        player.getInventory().setItemInOffHand(new ItemStack(Material.STONE, 5));
+
+        var handed = await(inventory.take(player.getUniqueId(), job));
+
+        assertTrue(handed.taken().isEmpty());
+        assertEquals(new ItemStack(Material.STONE, 5), player.getInventory().getItem(36));
+        assertEquals(new ItemStack(Material.STONE, 5), player.getInventory().getItemInOffHand());
+        assertEquals(Map.of(), jobs.stock(job));
+    }
+
+    @Test
+    void aDraftDeletedWhileTakingGivesEverythingBack() {
+        var player = server.addPlayer();
+        player.getInventory().setItem(0, new ItemStack(Material.STONE, 5));
+        supplies.missing(job);
+        jobs.deleteDraft(job);
+
+        var handed = await(inventory.take(player.getUniqueId(), job));
+
+        assertFalse(handed.stored());
+        assertTrue(player.getInventory().containsAtLeast(new ItemStack(Material.STONE), 5));
+    }
+
+    @Test
+    void aFullBucketTakenComesBackEmpty() {
+        var player = server.addPlayer();
+        var area = new JobArea("world", 10, 64, 0, 10, 64, 0);
+        var pond = jobs.create(Job.draft(
+                                UUID.randomUUID(),
+                                JobKind.BUILD,
+                                "Pond",
+                                100,
+                                0,
+                                UUID.randomUUID(),
+                                area,
+                                JobLand.NONE,
+                                null,
+                                24,
+                                NOW,
+                                NOW)
+                        .withState(JobState.DRAFT)
+                        .withSupplied(true))
+                .orElseThrow();
+        jobs.blueprint(
+                pond,
+                Blueprint.of(List.of(
+                                new Blueprint.Cell(0, 0, 0, Material.WATER, "minecraft:water[level=0]"),
+                                new Blueprint.Cell(1, 0, 0, Material.STONE)))
+                        .encode());
+        player.getInventory().setItem(0, new ItemStack(Material.WATER_BUCKET));
+
+        var handed = await(inventory.take(player.getUniqueId(), pond));
+
+        assertEquals(Map.of(Material.WATER_BUCKET, 1), handed.taken());
+        assertEquals(Map.of("WATER_BUCKET", 1), jobs.stock(pond));
+        assertTrue(player.getInventory().contains(Material.BUCKET));
+    }
+
+    private <T> T await(CompletableFuture<T> future) {
+        for (var tick = 0; tick < 500 && !future.isDone(); tick++) {
+            server.getScheduler().performOneTick();
+            try {
+                Thread.sleep(10);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
+        return future.orTimeout(1, TimeUnit.SECONDS).join();
     }
 
     @Test

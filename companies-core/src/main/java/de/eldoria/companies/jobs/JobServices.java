@@ -37,6 +37,7 @@ import java.util.concurrent.TimeUnit;
  * @param magicItems makes and reads job chests and magic blocks
  * @param stocks     the stock of the supplied jobs worked on this server
  * @param magic      builds supplied jobs from their stock
+ * @param handIns    hands the materials of supplied drafts in from players
  */
 public record JobServices(
         AJobData data,
@@ -58,7 +59,8 @@ public record JobServices(
         Supplies supplies,
         MagicItems magicItems,
         JobStocks stocks,
-        MagicBuilding magic) {
+        MagicBuilding magic,
+        InventoryHandIn handIns) {
     /**
      * Finishes a job for a member's company: a harvest job ends, a contract is said to be done and waits for its owner,
      * and a dig, terraform or build job has its area checked on this server and is paid when it is done. Blocks; call

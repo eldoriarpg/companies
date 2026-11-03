@@ -1800,6 +1800,9 @@
     "jobs.drafts.supply" : {
       "feature" : "jobs"
     },
+    "jobs.drafts.take" : {
+      "feature" : "jobs"
+    },
     "jobs.areas.preview" : {
       "feature" : "jobs"
     },

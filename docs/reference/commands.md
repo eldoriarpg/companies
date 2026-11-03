@@ -118,6 +118,7 @@ See [Jobs](../players/jobs.md).
 | `/order job build supplied` | `companies.orders.jobs` | Saves the build job you were asked to confirm as a draft whose materials you hand in to its stock. |
 | `/order job post <id>` | `companies.orders.jobs` | Posts one of your drafts on the server of its area, charging price and fee. |
 | `/order job draft <id>` | `companies.orders.jobs` | Opens the chest to hand in the materials of a supplied draft; what is not needed comes back. |
+| `/order job draft take <id>` | `companies.orders.jobs` | Takes what a supplied draft still lacks out of your inventory and hotbar into its stock; plain items only, full buckets come back empty. |
 | `/order job draft delete <id>` | `companies.orders.jobs` | Deletes one of your drafts; its stock goes to your item returns. |
 | `/order job harvest <price per item> <budget> <hours> <title>` | `companies.orders.jobs` | Posts a harvest job on the field you marked or selected with WorldEdit. You pay the budget and the order fee at once. |
 | `/order job harvest plot <price per item> <budget> <hours> <height> <title>` | `companies.orders.jobs` | Posts a harvest job on the whole plot you stand on, from the block below your feet up `height` layers. |

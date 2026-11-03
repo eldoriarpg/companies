@@ -182,6 +182,8 @@ test.describe('jobs', () => {
         const detail = jobPage(page, info)
         await expect(detail.getByTestId('job-missing')).toContainText('40')
         await expect(detail.getByTestId('job-post')).toBeDisabled()
+        await detail.getByTestId('job-inventory').click()
+        await expect(detail.getByTestId('job-missing')).not.toContainText('glass')
         await detail.getByTestId('job-supply').click()
         await expect(detail.getByTestId('job-missing')).toContainText('Nothing is missing')
         await expect(detail.getByTestId('job-supply')).toBeHidden()

@@ -1678,7 +1678,7 @@ export default {
         draftNote: 'A draft: companies do not see it and nothing is charged. Post it when it is ready.',
         nothingMissing: 'Nothing is missing. Post the job.',
         missing: 'Still missing',
-        suppliedNote: 'A draft whose materials you supply: hand them in with /order job draft {id} in game or take them from your item returns here. It can be posted once nothing is missing.',
+        suppliedNote: 'A draft whose materials you supply: hand them in with /order job draft {id} in game, or take them here from your inventory while you are online, or from your item returns. It can be posted once nothing is missing.',
         dugNote: 'The blocks the company digs go into the stock and come back to the owner when the job ends.',
         fillNote: 'The owner supplies the fill: {block}.',
         kind: {
@@ -1707,6 +1707,7 @@ export default {
         },
         step: {
             supply: 'Take from item returns',
+            inventory: 'Take from my inventory',
             remove: 'Delete draft',
             edit: 'Edit',
             post: 'Post',

@@ -686,6 +686,7 @@ public class Companies extends EldoPlugin {
                 api.areaProviders());
         jobs = jobServices;
         jobServices.service().stockReturns(StockReturns.of(itemReturnService, getLogger()));
+        jobServices.handIns().returns(() -> itemReturnService);
         JobProviders.useAreas(
                 player -> jobServices.areas().areas(player).stream()
                         .map(StoredArea::name)

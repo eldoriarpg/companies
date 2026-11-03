@@ -129,6 +129,38 @@ class JobWritesTest {
     }
 
     @Test
+    void aSuppliedDraftTakesItsMaterialsFromTheInventoryOfItsOwnerWhileOnline() {
+        var player = world.server.addPlayer();
+        var blueprint = Blueprint.of(
+                List.of(new Blueprint.Cell(0, 0, 0, Material.STONE), new Blueprint.Cell(1, 0, 0, Material.STONE)));
+        var draft = ((JobService.Posted.Done) world.jobServices
+                        .service()
+                        .saveDraft(
+                                player.getUniqueId(),
+                                JobKind.BUILD,
+                                "Wall",
+                                100,
+                                24,
+                                world.jobServices.node(),
+                                new JobArea("world", 0, 64, 0, 1, 64, 0),
+                                JobService.Details.build(blueprint),
+                                true))
+                .job();
+        var jobs = Set.of(Permission.Orders.JOBS);
+        player.getInventory().setItem(0, new ItemStack(Material.STONE, 5));
+
+        var taken = perform(player.getUniqueId(), Actions.JOBS_DRAFTS_TAKE, "{\"id\":" + draft.id() + "}", jobs);
+        player.disconnect();
+        var offline = perform(player.getUniqueId(), Actions.JOBS_DRAFTS_TAKE, "{\"id\":" + draft.id() + "}", jobs);
+
+        assertTrue(taken.ok(), taken.message());
+        assertTrue(taken.data().path("missing").isEmpty());
+        assertEquals(2, taken.data().path("stock").path("STONE").asInt());
+        assertEquals(new ItemStack(Material.STONE, 3), player.getInventory().getItem(0));
+        assertEquals("dashboard.notOnline", offline.reason());
+    }
+
+    @Test
     void aSuppliedDraftTakesItsMaterialsFromTheItemReturns() {
         var blueprint = Blueprint.of(
                 List.of(new Blueprint.Cell(0, 0, 0, Material.STONE), new Blueprint.Cell(1, 0, 0, Material.STONE)));

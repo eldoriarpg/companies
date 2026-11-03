@@ -92,6 +92,7 @@ import de.eldoria.companies.jobs.AreaWorld;
 import de.eldoria.companies.jobs.Blueprints;
 import de.eldoria.companies.jobs.BuildGhosts;
 import de.eldoria.companies.jobs.BuildSchematics;
+import de.eldoria.companies.jobs.InventoryHandIn;
 import de.eldoria.companies.jobs.JobAccess;
 import de.eldoria.companies.jobs.JobProgress;
 import de.eldoria.companies.jobs.JobService;
@@ -924,6 +925,7 @@ public final class DashboardWorld implements AutoCloseable {
         var blueprints = new Blueprints(jobs, logger);
         var node = new UUID(0, 1);
         var uploads = new SchematicUploads(jobs, hooks, () -> jobSettings, Times::now, logger);
+        var supplies = new Supplies(jobs, blueprints);
         return new JobServices(
                 jobs,
                 service,
@@ -954,10 +956,11 @@ public final class DashboardWorld implements AutoCloseable {
                         plugin.getServer(),
                         Runnable::run,
                         (world, x, z) -> CompletableFuture.completedFuture(world.getChunkAt(x, z))),
-                new Supplies(jobs, blueprints),
+                supplies,
                 null,
                 null,
-                null);
+                null,
+                new InventoryHandIn(plugin, () -> supplies, Runnable::run));
     }
 
     private AdminServerWrites adminServers(SqLiteOrderData orders) {

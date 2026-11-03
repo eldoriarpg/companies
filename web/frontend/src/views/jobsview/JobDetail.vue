@@ -40,7 +40,8 @@ const emit = defineEmits<{
 const {t, locale} = useI18n()
 const action = useAction()
 const job = computed(() => props.details.job)
-const steps = computed(() => jobSteps(props.details))
+const {playerOnline} = useDashboard()
+const steps = computed(() => jobSteps(props.details, playerOnline.value))
 const writing = ref<JobStep | null>(null)
 const text = ref('')
 const hours = ref<number | undefined>()
@@ -123,6 +124,8 @@ function send(step: JobStep, id: number, written: string): Promise<JobDetails | 
       return action.run('jobs.drafts.delete', {id}).then(() => null)
     case 'supply':
       return action.run('jobs.drafts.supply', {id})
+    case 'inventory':
+      return action.run('jobs.drafts.take', {id})
   }
 }
 

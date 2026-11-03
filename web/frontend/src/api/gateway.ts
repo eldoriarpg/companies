@@ -1531,6 +1531,7 @@ export interface WriteActions {
     'jobs.drafts.edit': {args: {id: number, title: string, description: string, price: number, hours: number}, result: JobDetails}
     'jobs.drafts.delete': {args: {id: number}, result: {id: number}}
     'jobs.drafts.supply': {args: {id: number}, result: JobDetails}
+    'jobs.drafts.take': {args: {id: number}, result: JobDetails}
     'jobs.describe': {args: JobRef & {text: string}, result: JobDetails}
     'jobs.approve': {args: JobRef, result: JobDetails}
     'jobs.reject': {args: JobRef & {reason: string}, result: JobDetails}
