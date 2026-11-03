@@ -19,6 +19,14 @@ import de.eldoria.companies.data.wrapper.company.CompanyDetails;
 import de.eldoria.companies.data.wrapper.company.CompanyMember;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import org.bukkit.Location;
+import org.bukkit.Material;
+import org.bukkit.block.Chest;
+import org.bukkit.entity.Donkey;
+import org.bukkit.entity.Horse;
+import org.bukkit.entity.Llama;
+import org.bukkit.entity.boat.OakChestBoat;
+import org.bukkit.entity.minecart.HopperMinecart;
+import org.bukkit.entity.minecart.StorageMinecart;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -254,6 +262,28 @@ class AreaSyncTest {
 
         assertFalse(rule.allowed(member, spot));
         assertTrue(rule.allowed(trusted, spot));
+    }
+
+    @Test
+    void theContainerRuleGuardsMinecartsBoatsAndAnimalsCarryingChests() {
+        var spot = new Location(world, 1, 64, 1);
+        var donkey = world.spawn(spot, Donkey.class);
+        spot.getBlock().setType(Material.CHEST);
+        var chest = (Chest) spot.getBlock().getState();
+
+        assertEquals(Optional.of(spot), AreaContainers.guarded(world.spawn(spot, StorageMinecart.class), null));
+        assertEquals(Optional.of(spot), AreaContainers.guarded(world.spawn(spot, HopperMinecart.class), null));
+        assertEquals(Optional.of(spot), AreaContainers.guarded(world.spawn(spot, OakChestBoat.class), null));
+        assertEquals(Optional.empty(), AreaContainers.guarded(donkey, null));
+        donkey.setCarryingChest(true);
+        assertEquals(Optional.of(spot), AreaContainers.guarded(donkey, null));
+        var llama = world.spawn(spot, Llama.class);
+        llama.setCarryingChest(true);
+        assertEquals(Optional.of(spot), AreaContainers.guarded(llama, null));
+        assertEquals(Optional.empty(), AreaContainers.guarded(world.spawn(spot, Horse.class), null));
+        assertEquals(Optional.of(spot), AreaContainers.guarded(chest, spot));
+        assertEquals(Optional.empty(), AreaContainers.guarded(chest, null));
+        assertEquals(Optional.empty(), AreaContainers.guarded(server.addPlayer(), spot));
     }
 
     @Test
