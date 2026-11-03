@@ -26,6 +26,7 @@ import de.eldoria.companies.jobs.BlueprintItems;
 import de.eldoria.companies.jobs.BuildCheck;
 import de.eldoria.companies.jobs.DigCheck;
 import de.eldoria.companies.jobs.HandIns;
+import de.eldoria.companies.jobs.InventoryHandIn;
 import de.eldoria.companies.jobs.JobService;
 import de.eldoria.companies.jobs.JobServices;
 import de.eldoria.companies.jobs.MaterialCosts;
@@ -146,11 +147,7 @@ public final class JobCommand {
         this.builds = ConfirmFlow.create(deps.plugin(), this::buildConfirmed);
         this.listMenu = new JobListMenu(deps.messages());
         this.handIns = new HandIns(
-                deps.plugin(),
-                () -> jobs().supplies(),
-                () -> deps.services().itemReturnService(),
-                deps.messages(),
-                this::handed);
+                deps.plugin(), () -> jobs().supplies(), () -> jobs().handIns(), deps.messages(), this::handed);
         deps.plugin().getServer().getPluginManager().registerEvents(handIns, deps.plugin());
         this.jobMenu = new JobMenu(
                 deps.messages(),
@@ -559,6 +556,46 @@ public final class JobCommand {
             }
             Threading.mainThread(deps.plugin()).execute(() -> handIns.open(player, id));
         });
+    }
+
+    /**
+     * Takes what a supplied draft of the player still lacks out of their inventory into its stock.
+     *
+     * @param sender sender of the command
+     * @param id     id of the draft
+     */
+    @Executes("draft take")
+    public void take(CommandSender sender, @IntArg(min = 1) int id) {
+        var player = Senders.player(sender);
+        var owner = player.getUniqueId();
+        run(player, () -> draftOf(owner, id), draft -> {
+            if (draft.isEmpty()) {
+                deps.messages().sendError(player, PREFIX + "error.noDraft");
+                return;
+            }
+            if (!draft.get().supplied()) {
+                deps.messages().sendError(player, PREFIX + "error.notSupplied", Values.number("id", id));
+                return;
+            }
+            jobs().handIns()
+                    .take(owner, id)
+                    .thenAccept(result -> taken(player, id, result))
+                    .exceptionally(err -> {
+                        deps.plugin().getLogger().log(Level.SEVERE, "Could not take the materials of job " + id, err);
+                        if (player.isOnline()) deps.messages().sendError(player, PREFIX + "error.failed");
+                        return null;
+                    });
+        });
+    }
+
+    private void taken(Player player, int job, InventoryHandIn.Handed result) {
+        if (!result.online() || !player.isOnline()) return;
+        var missing = result.missing();
+        if (result.stored() && result.taken().isEmpty() && missing != null && !missing.isEmpty()) {
+            deps.messages().sendError(player, PREFIX + "handIn.nothingMatching", Values.number("id", job));
+            return;
+        }
+        handed(player, job, result.stored() ? result.missing() : null);
     }
 
     private void handed(Player player, int job, @Nullable Map<Material, Integer> missing) {
@@ -1597,6 +1634,9 @@ public final class JobCommand {
         if (job.state() == JobState.OPEN) {
             lines.add(MenuText.create().locale(PREFIX + "info.open", Values.text("time", left(job.expires()))));
         }
+        if (job.state() == JobState.DRAFT) {
+            lines.add(MenuText.create().locale(PREFIX + "info.draftExpires", Values.text("time", left(job.expires()))));
+        }
         var due = job.due();
         if (job.state() == JobState.TAKEN && due != null) {
             lines.add(MenuText.create().locale(PREFIX + "info.taken", Values.text("time", left(due))));
@@ -1722,6 +1762,8 @@ public final class JobCommand {
                 if (job.supplied()) {
                     actions.add(new JobMenu.Action(
                             PREFIX + "handInButton", "show", "order job draft " + id, JobMenu.Kind.RUN));
+                    actions.add(new JobMenu.Action(
+                            PREFIX + "takeButton", "add", "order job draft take " + id, JobMenu.Kind.RUN));
                 }
                 actions.add(
                         new JobMenu.Action(PREFIX + "postButton", "add", "order job post " + id, JobMenu.Kind.CHECK));

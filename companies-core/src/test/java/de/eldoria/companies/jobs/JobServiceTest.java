@@ -39,6 +39,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -311,6 +312,128 @@ class JobServiceTest {
         jobs.stock(posted.id(), Map.of("STONE", 3));
         assertEquals(JobService.Change.DONE, service.cancel(owner, "Owner", posted.id()));
         assertEquals(Map.of(owner, Map.of("DIRT", 4, "STONE", 3)), returned);
+    }
+
+    @Test
+    void aDraftIsToldADayBeforeAndDeletedAfterDraftDaysWithItsStockReturned() {
+        var moving = new MovingClock(NOW);
+        clock = moving;
+        service();
+        Map<UUID, Map<String, Integer>> returned = new HashMap<>();
+        service.stockReturns((player, items) -> {
+            returned.put(player, items);
+            return Map.of();
+        });
+        var draft = drafted(200);
+        jobs.stock(draft.id(), Map.of("STONE", 3));
+        assertEquals(local(NOW).plusDays(14), draft.expires());
+
+        moving.advance(Duration.ofDays(12));
+        service.check();
+        assertFalse(notices.contains("owner DRAFT_EXPIRING " + draft.id()));
+        moving.advance(Duration.ofDays(1).plusHours(1));
+        service.check();
+        service.check();
+        moving.advance(Duration.ofDays(1));
+        service.check();
+
+        assertEquals(
+                1,
+                notices.stream()
+                        .filter(("owner DRAFT_EXPIRING " + draft.id())::equals)
+                        .count());
+        assertTrue(notices.contains("owner DRAFT_EXPIRED " + draft.id()));
+        assertTrue(jobs.job(draft.id()).isEmpty());
+        assertEquals(Map.of(owner, Map.of("STONE", 3)), returned);
+        assertEquals(2, new JobSettings().maxDrafts());
+    }
+
+    @Test
+    void aDueDraftNobodyWasWarnedAboutGetsADayMore() {
+        var draft = drafted(200);
+        clock = Clock.offset(clock, Duration.ofDays(20));
+        service();
+        service.stockReturns((player, items) -> Map.of());
+
+        service.check();
+
+        assertTrue(notices.contains("owner DRAFT_EXPIRING " + draft.id()));
+        assertFalse(notices.contains("owner DRAFT_EXPIRED " + draft.id()));
+        assertEquals(local(NOW).plusDays(21), jobs.job(draft.id()).orElseThrow().expires());
+    }
+
+    @Test
+    void aDraftWhoseStockCanNotGoBackIsKeptAndADraftPostedLateDoesNotExpire() {
+        var moving = new MovingClock(NOW);
+        clock = moving;
+        service();
+        service.stockReturns((player, items) -> items);
+        var kept = drafted(200);
+        jobs.stock(kept.id(), Map.of("STONE", 3));
+        moving.advance(Duration.ofDays(13).plusHours(1));
+        service.check();
+        var late = posted(200);
+        moving.advance(Duration.ofDays(1));
+        service.check();
+
+        assertTrue(jobs.job(kept.id()).isPresent());
+        assertEquals(Map.of("STONE", 3), jobs.stock(kept.id()));
+        assertFalse(notices.contains("owner DRAFT_EXPIRED " + kept.id()));
+        assertEquals(JobState.OPEN, jobs.job(late.id()).orElseThrow().state());
+    }
+
+    @Test
+    void theStockOfAJobThatIsNoDraftAnyMoreIsNotTakenAsADraftsStock() {
+        var draft = drafted(200);
+        jobs.stock(draft.id(), Map.of("STONE", 3));
+        assertTrue(jobs.takeDraftStock(draft.id(), "STONE", 1));
+        assertInstanceOf(JobService.Posted.Done.class, service.publish(owner, draft.id(), JobLand.REGION, "home"));
+
+        assertFalse(jobs.takeDraftStock(draft.id(), "STONE", 1));
+        assertEquals(Map.of("STONE", 2), jobs.stock(draft.id()));
+    }
+
+    @Test
+    void editingADraftKeepsWhenItIsDeleted() {
+        var draft = drafted(200);
+        clock = Clock.offset(clock, Duration.ofDays(10));
+        service();
+
+        var edited = assertInstanceOf(
+                        JobService.Posted.Done.class, service.editDraft(owner, draft.id(), "Cellar", null, 200, 24))
+                .job();
+
+        assertEquals(local(NOW).plusDays(14), edited.expires());
+    }
+
+    /**
+     * A clock the test moves forward.
+     */
+    private static final class MovingClock extends Clock {
+        private Instant now;
+
+        private MovingClock(Instant now) {
+            this.now = now;
+        }
+
+        void advance(Duration by) {
+            now = now.plus(by);
+        }
+
+        @Override
+        public ZoneId getZone() {
+            return ZoneOffset.UTC;
+        }
+
+        @Override
+        public Clock withZone(ZoneId zone) {
+            return this;
+        }
+
+        @Override
+        public Instant instant() {
+            return now;
+        }
     }
 
     @Test

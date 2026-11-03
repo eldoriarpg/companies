@@ -1063,6 +1063,7 @@ export default {
                     maxSchematics: 'Nombre maximal de schématiques téléversées par joueur',
                     maxAreas: "Nombre maximal de zones qu'un joueur peut garder pour les travaux",
                     maxDrafts: 'Nombre maximal de brouillons de travaux par joueur',
+                    draftDays: "Jours pendant lesquels un brouillon attend d'être publié avant d'être supprimé",
                     buildGhostRadius: "Distance autour d'un membre à laquelle les blocs manquants d'un travail de construction apparaissent en fantômes, en blocs",
                     dugToStock: "Les propriétaires peuvent faire aller les blocs qu'une entreprise creuse dans le stock du travail",
                     suppliedFill: 'Les propriétaires peuvent fournir les blocs de remplissage des travaux de terrassement',
@@ -1655,6 +1656,7 @@ export default {
         },
         progress: "Dernière vérification : {percent} % fait, {done} blocs sur {total}",
         expires: "Attend une entreprise jusqu'au {time}",
+        draftExpires: "Supprimé le {time} si tu ne le publies pas",
         due: "Le temps de l'entreprise court jusqu'au {time}",
         approveAt: "Accepté sans réponse le {time}",
         rejected: "Le propriétaire a refusé le travail : {reason}",
@@ -1678,7 +1680,7 @@ export default {
         draftNote: 'Un brouillon : les entreprises ne le voient pas et rien n’est prélevé. Publie-le quand il est prêt.',
         nothingMissing: 'Il ne manque rien. Publie le travail.',
         missing: 'Manque encore',
-        suppliedNote: 'Un brouillon dont tu fournis les matériaux : dépose-les en jeu avec /order job draft {id} ou prends-les ici dans tes retours. Il peut être publié dès qu’il ne manque plus rien.',
+        suppliedNote: 'Un brouillon dont tu fournis les matériaux : dépose-les en jeu avec /order job draft {id}, ou prends-les ici dans ton inventaire tant que tu es en ligne, ou dans tes retours. Il peut être publié dès qu’il ne manque plus rien.',
         dugNote: "Les blocs que l'entreprise creuse vont dans le stock et reviennent au propriétaire à la fin du travail.",
         fillNote: 'Le propriétaire fournit le remplissage : {block}.',
         kind: {
@@ -1707,6 +1709,7 @@ export default {
         },
         step: {
             supply: 'Prendre dans les retours',
+            inventory: 'Prendre dans mon inventaire',
             remove: 'Supprimer le brouillon',
             edit: 'Modifier',
             post: 'Publier',

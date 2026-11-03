@@ -5,11 +5,8 @@
  */
 package de.eldoria.companies.jobs;
 
-import de.eldoria.companies.data.wrapper.order.ReturnKind;
-import de.eldoria.companies.events.player.ItemsReturnedEvent;
 import de.eldoria.companies.menus.MenuComponents;
 import de.eldoria.companies.menus.Values;
-import de.eldoria.companies.services.ItemReturnService;
 import de.eldoria.companies.util.Threading;
 import de.eldoria.eldoutilities.messages.MessageSender;
 import net.kyori.adventure.text.Component;
@@ -23,7 +20,6 @@ import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.plugin.IllegalPluginAccessException;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -53,7 +49,7 @@ public final class HandIns implements Listener {
 
     private final Plugin plugin;
     private final Supplier<Supplies> supplies;
-    private final Supplier<ItemReturnService> returns;
+    private final Supplier<InventoryHandIn> handIns;
     private final MessageSender messages;
     private final Handed handed;
 
@@ -74,19 +70,19 @@ public final class HandIns implements Listener {
     /**
      * @param plugin   the plugin
      * @param supplies the supplies of build jobs, asked when a hand-in opens or closes
-     * @param returns  keeps what can not be given back in game
+     * @param handIns  hands the items in and gives back what the job did not take
      * @param messages renders the names and lore
      * @param handed   tells the player how the hand-in went
      */
     public HandIns(
             Plugin plugin,
             Supplier<Supplies> supplies,
-            Supplier<ItemReturnService> returns,
+            Supplier<InventoryHandIn> handIns,
             MessageSender messages,
             Handed handed) {
         this.plugin = plugin;
         this.supplies = supplies;
-        this.returns = returns;
+        this.handIns = handIns;
         this.messages = messages;
         this.handed = handed;
     }
@@ -234,8 +230,7 @@ public final class HandIns implements Listener {
     }
 
     /**
-     * Hands items in off the main thread, then gives back what the job did not take and tells the player. Items go back
-     * only as {@link Supplies#handIn} says, so what reached the stock is never given back too.
+     * Hands items in, then tells the player how it went, once what the job did not take is given back.
      *
      * @param player the player
      * @param job    id of the job
@@ -243,66 +238,16 @@ public final class HandIns implements Listener {
      * @return completes once the items are given back
      */
     CompletableFuture<Void> close(Player player, int job, List<ItemStack> items) {
-        return CompletableFuture.supplyAsync(() -> handIn(job, items), Threading.VIRTUAL)
-                .thenAccept(result -> giveBack(player, job, result));
+        return handIns.get().handIn(player, job, items).thenAccept(result -> tell(player, job, result));
     }
 
-    /**
-     * What came of a hand-in.
-     *
-     * @param handed  what was taken and what goes back
-     * @param missing what the stock still lacks, null when the job took nothing
-     * @param tell    whether the player is told; false when what is missing could not be read after storing
-     */
-    private record Result(Supplies.Handed handed, @Nullable Map<Material, Integer> missing, boolean tell) {}
-
-    private Result handIn(int job, List<ItemStack> items) {
-        var known = supplies.get();
-        Supplies.Handed done;
-        try {
-            done = known.handIn(job, items);
-        } catch (RuntimeException e) {
-            plugin.getLogger().log(Level.SEVERE, "Could not hand in the materials of job " + job, e);
-            done = new Supplies.Handed(false, Map.of(), List.copyOf(items));
+    private void tell(Player player, int job, InventoryHandIn.Handed result) {
+        if (!player.isOnline()) return;
+        if (!result.stored()) {
+            handed.handed(player, job, null);
+            return;
         }
-        if (!done.stored()) return new Result(done, null, true);
-        try {
-            return new Result(done, known.missing(job), true);
-        } catch (RuntimeException e) {
-            plugin.getLogger().log(Level.WARNING, "Could not read what job " + job + " still lacks", e);
-            return new Result(done, Map.of(), false);
-        }
-    }
-
-    private void giveBack(Player player, int job, Result result) {
-        var back = result.handed().back();
-        try {
-            Threading.mainThread(plugin).execute(() -> {
-                if (!player.isOnline()) {
-                    keep(player, back);
-                    return;
-                }
-                for (var item : back) {
-                    player.getInventory().addItem(item).values().forEach(left -> player.getWorld()
-                            .dropItemNaturally(player.getLocation(), left));
-                }
-                if (result.tell()) handed.handed(player, job, result.missing());
-            });
-        } catch (IllegalPluginAccessException e) {
-            keep(player, back);
-        }
-    }
-
-    private void keep(Player player, List<ItemStack> items) {
-        List<ItemsReturnedEvent.ReturnedStack> stacks = new ArrayList<>();
-        for (var item : items) {
-            if (item.getAmount() > 0) stacks.add(new ItemsReturnedEvent.ReturnedStack(item, item.getAmount()));
-        }
-        returns.get()
-                .storeAll(player.getUniqueId(), ReturnKind.OWNER, stacks, ItemsReturnedEvent.Reason.JOB_HAND_IN, null)
-                .exceptionally(err -> {
-                    plugin.getLogger().log(Level.SEVERE, "Could not keep the hand-in of " + player.getName(), err);
-                    return false;
-                });
+        var missing = result.missing();
+        if (missing != null) handed.handed(player, job, missing);
     }
 }

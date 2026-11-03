@@ -37,7 +37,7 @@ import java.util.UUID;
  * @param landRef     the plot or region the land check found, null for unowned land
  * @param dueHours    how long a company has to finish once it took the job
  * @param created     when it was created
- * @param expires     when it expires while nobody took it
+ * @param expires     when it expires while nobody took it; for a draft, when it is deleted unless posted
  * @param taken       when the company took it, null while open
  * @param due         when the company's time runs out, null while open
  * @param closed      when it reached a final state, null while it runs

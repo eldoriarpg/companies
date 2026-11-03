@@ -25,6 +25,7 @@ import de.eldoria.companies.jobs.AreaMaterials;
 import de.eldoria.companies.jobs.AreaWorld;
 import de.eldoria.companies.jobs.Blueprint;
 import de.eldoria.companies.jobs.BlueprintItems;
+import de.eldoria.companies.jobs.InventoryHandIn;
 import de.eldoria.companies.jobs.JobService;
 import de.eldoria.companies.jobs.JobServices;
 import de.eldoria.companies.jobs.SchematicUploads;
@@ -53,9 +54,13 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * The dashboard's Jobs page, as {@code /order job} and {@code /company job} offer it: the open jobs, the player's own
@@ -104,7 +109,8 @@ public final class JobWrites {
             Actions.JOBS_DRAFTS_POST,
             Actions.JOBS_DRAFTS_EDIT,
             Actions.JOBS_DRAFTS_DELETE,
-            Actions.JOBS_DRAFTS_SUPPLY);
+            Actions.JOBS_DRAFTS_SUPPLY,
+            Actions.JOBS_DRAFTS_TAKE);
 
     /**
      * The most jobs of each list.
@@ -115,6 +121,7 @@ public final class JobWrites {
     private static final JobArea NOWHERE = new JobArea("", 0, 0, 0, 0, 0, 0);
     private static final String COMPANY = "company.job.";
     private static final long WORLD_SECONDS = 15;
+    private static final Logger LOGGER = Logger.getLogger(JobWrites.class.getName());
 
     private final Sources sources;
     private final Answers answers;
@@ -222,6 +229,7 @@ public final class JobWrites {
             case Actions.JOBS_DRAFTS_EDIT -> editDraft(request, jobs, player, args);
             case Actions.JOBS_DRAFTS_DELETE -> deleteDraft(request, jobs, player, args);
             case Actions.JOBS_DRAFTS_SUPPLY -> supply(request, jobs, player, args);
+            case Actions.JOBS_DRAFTS_TAKE -> take(request, jobs, player, args);
             case Actions.JOBS_CANCEL_ACCEPT ->
                 forCompany(
                         request,
@@ -1265,6 +1273,36 @@ public final class JobWrites {
         return answers.data(request, details(jobs, jobs.data().job(id).orElse(draft.get()), player, company));
     }
 
+    private ActionResult take(ActionRequest request, JobServices jobs, UUID player, JsonNode args) {
+        var id = args.path("id").asInt(0);
+        var draft = jobs.data().job(id).filter(job -> job.owner().equals(player) && job.state() == JobState.DRAFT);
+        if (draft.isEmpty()) return answers.refused(request, OWNER + "error.noDraft");
+        if (!draft.get().supplied()) {
+            return answers.refused(request, CommandFailure.of(OWNER + "error.notSupplied", number(id)));
+        }
+        var waiting = new AtomicBoolean(true);
+        InventoryHandIn.Handed handed = null;
+        try {
+            handed = jobs.handIns()
+                    .take(player, id, waiting::get)
+                    .orTimeout(WORLD_SECONDS, TimeUnit.SECONDS)
+                    .join();
+        } catch (CompletionException e) {
+            waiting.set(false);
+            if (!(e.getCause() instanceof TimeoutException)) {
+                LOGGER.log(Level.SEVERE, "Could not take the materials of job " + id, e);
+                return answers.refused(request, OWNER + "error.failed");
+            }
+        }
+        if (handed != null && !handed.online()) return answers.refused(request, "dashboard.notOnline");
+        var missing = handed == null ? null : handed.missing();
+        if (handed != null && handed.stored() && handed.taken().isEmpty() && missing != null && !missing.isEmpty()) {
+            return answers.refused(request, CommandFailure.of(OWNER + "handIn.nothingMatching", number(id)));
+        }
+        var company = sources.companyOf().apply(player).join();
+        return answers.data(request, details(jobs, jobs.data().job(id).orElse(draft.get()), player, company));
+    }
+
     private static boolean ours(Job job, Optional<CompanyProfile> company) {
         return company.map(found -> Integer.valueOf(found.id()).equals(job.company()))
                 .orElse(false);
@@ -1328,7 +1366,7 @@ public final class JobWrites {
      * @param price     its price, the budget of a harvest job
      * @param fee       the fee its owner paid
      * @param due       when the company's time runs out, null while nobody holds it
-     * @param expires   when it expires while nobody takes it
+     * @param expires   when it expires while nobody takes it; for a draft, when it is deleted unless posted
      * @param blocks    the blocks of its area, 0 for a contract
      * @param world     the world of its area, null for a contract
      * @param center    the center of its area, null for a contract

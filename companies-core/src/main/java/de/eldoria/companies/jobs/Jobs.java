@@ -210,6 +210,12 @@ public final class Jobs {
                                 yield NotificationType.MY_JOB_CANCEL_ACCEPTED;
                             }
                             case CANCEL_REFUSED -> NotificationType.MY_JOB_CANCEL_REFUSED;
+                            case DRAFT_EXPIRING -> {
+                                if (detail instanceof LocalDateTime at)
+                                    args.text("time", EventTimes.show(at, Times.zone()));
+                                yield NotificationType.MY_JOB_DRAFT_EXPIRING;
+                            }
+                            case DRAFT_EXPIRED -> NotificationType.MY_JOB_DRAFT_EXPIRED;
                         };
                 if (type != null) notifications.send(owner, job.charged() ? type : uncharged(type), args);
             }
@@ -407,7 +413,8 @@ public final class Jobs {
                 supplies,
                 magicItems,
                 stocks,
-                magic);
+                magic,
+                new InventoryHandIn(plugin, () -> supplies));
     }
 
     private static double price(AOrderData orders, Material type, Plugin plugin) {

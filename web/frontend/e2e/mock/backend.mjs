@@ -970,6 +970,15 @@ function action(name, args, state, story = {}) {
             draft.missing = {}
             return done(jobDetails(draft))
         }
+        case 'jobs.drafts.take': {
+            const draft = jobsOf(state)[args.id]
+            if (draft?.state !== 'draft') return refused('You have no draft with this number.')
+            if (!draft.supplied) return refused(`Job #${args.id} does not take its materials from you.`)
+            const left = {...draft.missing}
+            if (left.GLASS) delete left.GLASS
+            draft.missing = left
+            return done(jobDetails(draft))
+        }
         case 'jobs.drafts.delete':
             if (jobsOf(state)[args.id]?.state !== 'draft') return refused('You have no draft with this number.')
             delete jobsOf(state)[args.id]

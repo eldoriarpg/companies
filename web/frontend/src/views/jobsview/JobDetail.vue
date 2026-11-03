@@ -40,7 +40,8 @@ const emit = defineEmits<{
 const {t, locale} = useI18n()
 const action = useAction()
 const job = computed(() => props.details.job)
-const steps = computed(() => jobSteps(props.details))
+const {playerOnline} = useDashboard()
+const steps = computed(() => jobSteps(props.details, playerOnline.value))
 const writing = ref<JobStep | null>(null)
 const text = ref('')
 const hours = ref<number | undefined>()
@@ -123,6 +124,8 @@ function send(step: JobStep, id: number, written: string): Promise<JobDetails | 
       return action.run('jobs.drafts.delete', {id}).then(() => null)
     case 'supply':
       return action.run('jobs.drafts.supply', {id})
+    case 'inventory':
+      return action.run('jobs.drafts.take', {id})
   }
 }
 
@@ -172,6 +175,7 @@ async function take(step: JobStep): Promise<void> {
     <MutedText v-if="details.materialCost" tag="p" data-testid="job-material-cost">{{ t(details.materialCost.unpriced > 0 ? 'jobs.materialCostUnpriced' : 'jobs.materialCost', {cost: money(details.materialCost.total, locale), unpriced: details.materialCost.unpriced}) }}</MutedText>
     <MutedText v-if="details.targetY != null" tag="p">{{ details.surface ? t('jobs.targetSurface', {y: details.targetY, block: details.surface.toLowerCase()}) : t('jobs.target', {y: details.targetY}) }}</MutedText>
     <MutedText v-if="job.state === 'open' && job.expires" tag="p">{{ t('jobs.expires', {time: dateTime(job.expires, locale)}) }}</MutedText>
+    <MutedText v-if="job.state === 'draft' && job.expires" tag="p" data-testid="job-draft-expires">{{ t('jobs.draftExpires', {time: dateTime(job.expires, locale)}) }}</MutedText>
     <MutedText v-if="job.due && (job.state === 'taken' || job.state === 'done')" tag="p">{{ t('jobs.due', {time: dateTime(job.due, locale)}) }}</MutedText>
     <MutedText v-if="job.state === 'done' && details.approveAt" tag="p" data-testid="job-approve-at">{{ t('jobs.approveAt', {time: dateTime(details.approveAt, locale)}) }}</MutedText>
     <MutedText v-if="(details.extendedHours ?? 0) > 0 && job.state === 'taken'" tag="p" data-testid="job-extended">{{ t('jobs.extended', {hours: details.extendedHours}) }}</MutedText>

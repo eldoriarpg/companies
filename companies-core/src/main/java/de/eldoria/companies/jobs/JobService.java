@@ -31,12 +31,15 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiFunction;
 import java.util.function.BooleanSupplier;
 import java.util.function.DoubleUnaryOperator;
@@ -115,6 +118,8 @@ public final class JobService {
     private final Logger logger;
     private volatile @Nullable BiFunction<UUID, Map<String, Integer>, Map<String, Integer>> stockReturns;
     private volatile IntConsumer closing = job -> {};
+    private final Set<Integer> warned = ConcurrentHashMap.newKeySet();
+    private final Set<Integer> stuck = ConcurrentHashMap.newKeySet();
     private volatile @Nullable Supplies supplies;
     private volatile Events events = Events.NONE;
 
@@ -422,7 +427,18 @@ public final class JobService {
         var now = now();
         var unitPrice = details.unitPrice();
         var draft = Job.draft(
-                        owner, kind, title.strip(), cents(price), 0, node, area, JobLand.NONE, null, dueHours, now, now)
+                        owner,
+                        kind,
+                        title.strip(),
+                        cents(price),
+                        0,
+                        node,
+                        area,
+                        JobLand.NONE,
+                        null,
+                        dueHours,
+                        now,
+                        now.plusDays(settings.get().draftDays()))
                 .withTarget(details.target())
                 .withHarvest(unitPrice == null ? null : new JobHarvest(cents(unitPrice), 0))
                 .withDescription(details.description())
@@ -519,7 +535,7 @@ public final class JobService {
     }
 
     /**
-     * Changes the title, description, price and time of a draft.
+     * Changes the title, description, price and time of a draft; when it is deleted stays as it was.
      *
      * @param owner       the player who saved it
      * @param id          id of the draft
@@ -576,7 +592,7 @@ public final class JobService {
             UUID owner, int id, BiFunction<UUID, Map<String, Integer>, Map<String, Integer>> returns) {
         Map<String, Integer> taken = new LinkedHashMap<>();
         jobs.stock(id).forEach((material, amount) -> {
-            if (jobs.takeStock(id, material, amount)) taken.put(material, amount);
+            if (jobs.takeDraftStock(id, material, amount)) taken.put(material, amount);
         });
         if (taken.isEmpty()) return true;
         Map<String, Integer> left;
@@ -589,6 +605,53 @@ public final class JobService {
         if (left.isEmpty()) return true;
         jobs.stock(id, left);
         return false;
+    }
+
+    /**
+     * Tells the owners of drafts that expire soon, once each, and deletes the drafts that expired, their stock going
+     * to the owner's item returns. Soon is within a day, or within half of {@code draftDays} when that is shorter. A
+     * draft that is due, or has less than half of that left, but was never warned about, as after the primary was down
+     * or restarted, is warned about and kept for that whole time instead. One whose stock can not be stored is kept, logged once, and tried again next time.
+     *
+     * @param now the current time
+     */
+    private void expireDrafts(LocalDateTime now) {
+        var window = Duration.ofHours(Math.min(24, 12L * settings.get().draftDays()));
+        List<Job> soon;
+        try {
+            soon = jobs.expiringDrafts(now.plus(window));
+        } catch (RuntimeException e) {
+            logger.log(Level.SEVERE, "Could not read the drafts that expire", e);
+            return;
+        }
+        Set<Integer> listed = new HashSet<>();
+        var returns = stockReturns;
+        for (var draft : soon) {
+            listed.add(draft.id());
+            try {
+                if (!warned.contains(draft.id())) {
+                    var expires =
+                            draft.expires().isAfter(now.plus(window.dividedBy(2))) ? draft.expires() : now.plus(window);
+                    if (!expires.equals(draft.expires()) && !jobs.postponeDraft(draft.id(), expires)) continue;
+                    warned.add(draft.id());
+                    notices.owner(draft.owner(), Notice.DRAFT_EXPIRING, draft, expires);
+                    continue;
+                }
+                if (draft.expires().isAfter(now)) continue;
+                if (returns == null || !deleteDraft(draft.owner(), draft.id(), returns)) {
+                    if (stuck.add(draft.id()))
+                        logger.warning("Draft " + draft.id() + " expired but could not be deleted");
+                    continue;
+                }
+                warned.remove(draft.id());
+                stuck.remove(draft.id());
+                notices.owner(draft.owner(), Notice.DRAFT_EXPIRED, draft, null);
+            } catch (RuntimeException e) {
+                logger.log(Level.SEVERE, "Could not expire draft " + draft.id(), e);
+            }
+        }
+        warned.retainAll(listed);
+        stuck.retainAll(listed);
     }
 
     /**
@@ -1722,6 +1785,7 @@ public final class JobService {
                 logger.log(Level.SEVERE, "Could not open overdue job " + job.id() + " again", e);
             }
         }
+        expireDrafts(now);
         return new Check(expired, reopened, approved, ended);
     }
 
@@ -2024,7 +2088,16 @@ public final class JobService {
         /**
          * The company refused to let the job be cancelled.
          */
-        CANCEL_REFUSED
+        CANCEL_REFUSED,
+        /**
+         * The draft is deleted shortly unless it is posted: within a day, or half of {@code draftDays} when that is
+         * shorter. The detail is when.
+         */
+        DRAFT_EXPIRING,
+        /**
+         * The draft waited too long and was deleted; its stock went to the owner's item returns.
+         */
+        DRAFT_EXPIRED
     }
 
     /**

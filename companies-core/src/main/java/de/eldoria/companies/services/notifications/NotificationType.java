@@ -559,7 +559,23 @@ public enum NotificationType {
             "notification.myJobCancelRefused",
             NotificationCategory.MY_ORDERS,
             true,
-            new Action("/order job info <job_id>", "words.info"));
+            new Action("/order job info <job_id>", "words.info")),
+    /**
+     * A draft of the player is deleted shortly unless they post it: within a day, or half of {@code draftDays} when that
+     * is shorter. Arguments: {@code job_title}, {@code job_id},
+     * {@code time}.
+     */
+    MY_JOB_DRAFT_EXPIRING(
+            92,
+            "notification.myJobDraftExpiring",
+            NotificationCategory.MY_ORDERS,
+            true,
+            new Action("/order job info <job_id>", "words.info")),
+    /**
+     * A draft of the player waited too long and was deleted; its stock went to their item returns. Arguments:
+     * {@code job_title}, {@code job_id}.
+     */
+    MY_JOB_DRAFT_EXPIRED(93, "notification.myJobDraftExpired", NotificationCategory.MY_ORDERS, true, null);
 
     private final int id;
     private final String key;

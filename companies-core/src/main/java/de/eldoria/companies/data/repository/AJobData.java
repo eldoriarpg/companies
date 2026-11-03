@@ -284,6 +284,25 @@ public abstract class AJobData {
     public abstract boolean editDraft(int id, String title, @Nullable String description, double price, int dueHours);
 
     /**
+     * Moves the time a draft is deleted at.
+     *
+     * @param id      id of the draft
+     * @param expires when it is deleted unless posted
+     * @return true when it was still a draft
+     */
+    public abstract boolean postponeDraft(int id, LocalDateTime expires);
+
+    /**
+     * Takes items out of a draft's stock, only while it is a draft.
+     *
+     * @param job      id of the draft
+     * @param material the material name
+     * @param amount   how many
+     * @return true when it was a draft whose stock held that many and they are taken
+     */
+    public abstract boolean takeDraftStock(int job, String material, int amount);
+
+    /**
      * Deletes a draft with its blueprint, only once its stock is empty. The draft is locked meanwhile, so items handed
      * in after the stock was taken out keep it from being deleted rather than being deleted with it.
      *
@@ -297,6 +316,12 @@ public abstract class AJobData {
      * @return the open jobs that expired
      */
     public abstract List<Job> expired(LocalDateTime now);
+
+    /**
+     * @param before a time
+     * @return the drafts that expire at or before it, soonest first
+     */
+    public abstract List<Job> expiringDrafts(LocalDateTime before);
 
     /**
      * @param now the current time

@@ -1208,6 +1208,7 @@ export interface JobRow {
     fee: number
     /** When the company's time runs out, as an ISO instant; none while nobody holds the job. */
     due?: string | null
+    /** When it expires while nobody takes it; for a draft, when it is deleted unless posted. */
     expires?: string | null
     /** The blocks of the area; 0 for a contract. */
     blocks: number
@@ -1531,6 +1532,7 @@ export interface WriteActions {
     'jobs.drafts.edit': {args: {id: number, title: string, description: string, price: number, hours: number}, result: JobDetails}
     'jobs.drafts.delete': {args: {id: number}, result: {id: number}}
     'jobs.drafts.supply': {args: {id: number}, result: JobDetails}
+    'jobs.drafts.take': {args: {id: number}, result: JobDetails}
     'jobs.describe': {args: JobRef & {text: string}, result: JobDetails}
     'jobs.approve': {args: JobRef, result: JobDetails}
     'jobs.reject': {args: JobRef & {reason: string}, result: JobDetails}

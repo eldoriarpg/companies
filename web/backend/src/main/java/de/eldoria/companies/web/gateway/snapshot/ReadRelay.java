@@ -179,6 +179,7 @@ public final class ReadRelay {
             Actions.JOBS_DRAFTS_EDIT,
             Actions.JOBS_DRAFTS_DELETE,
             Actions.JOBS_DRAFTS_SUPPLY,
+            Actions.JOBS_DRAFTS_TAKE,
             Actions.JOBS_DESCRIBE,
             Actions.JOBS_APPROVE,
             Actions.JOBS_REJECT,
@@ -235,7 +236,8 @@ public final class ReadRelay {
             Actions.ORDERS_DELIVER_LINE,
             Actions.ORDERS_DELIVER_ALL,
             Actions.ORDERS_DELIVER_RECEIVE,
-            Actions.ORDERS_DELIVER_COLLECT);
+            Actions.ORDERS_DELIVER_COLLECT,
+            Actions.JOBS_DRAFTS_TAKE);
 
     private static final long CACHE_SECONDS = 30;
     private static final Set<String> SESSION_ROOTS = Set.of("player", "company", "orders");

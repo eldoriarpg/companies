@@ -1063,6 +1063,7 @@ export default {
                     maxSchematics: 'Höchstzahl hochgeladener Schematics pro Spieler',
                     maxAreas: 'Höchstzahl gespeicherter Gebiete pro Spieler für Jobs',
                     maxDrafts: 'Höchstzahl an Job-Entwürfen pro Spieler',
+                    draftDays: 'Tage, die ein Entwurf auf das Veröffentlichen wartet, bevor er gelöscht wird',
                     buildGhostRadius: 'Wie weit um ein Mitglied herum fehlende Blöcke eines Bau-Jobs als Geister erscheinen, in Blöcken',
                     dugToStock: 'Besitzer dürfen die Blöcke, die eine Firma abbaut, ins Lager des Jobs gehen lassen',
                     suppliedFill: 'Besitzer dürfen die Füllblöcke von Terraform-Jobs selbst liefern',
@@ -1655,6 +1656,7 @@ export default {
         },
         progress: "Letzte Prüfung: {percent} % erledigt, {done} von {total} Blöcken",
         expires: "Wartet bis {time} auf eine Firma",
+        draftExpires: "Wird am {time} gelöscht, wenn du ihn nicht veröffentlichst",
         due: "Die Zeit der Firma läuft bis {time}",
         approveAt: "Ohne Antwort angenommen um {time}",
         rejected: "Der Besitzer hat die Arbeit abgelehnt: {reason}",
@@ -1678,7 +1680,7 @@ export default {
         draftNote: 'Ein Entwurf: Firmen sehen ihn nicht und nichts wird abgebucht. Veröffentliche ihn, wenn er fertig ist.',
         nothingMissing: 'Es fehlt nichts. Veröffentliche den Job.',
         missing: 'Fehlt noch',
-        suppliedNote: 'Ein Entwurf, dessen Material du stellst: gib es im Spiel mit /order job draft {id} ab oder nimm es hier aus deinen Rückgaben. Er kann veröffentlicht werden, sobald nichts mehr fehlt.',
+        suppliedNote: 'Ein Entwurf, dessen Material du stellst: gib es im Spiel mit /order job draft {id} ab, oder nimm es hier aus deinem Inventar, solange du online bist, oder aus deinen Rückgaben. Er kann veröffentlicht werden, sobald nichts mehr fehlt.',
         dugNote: 'Die Blöcke, die die Firma abbaut, kommen ins Lager und gehen am Ende des Jobs an den Besitzer.',
         fillNote: 'Der Besitzer liefert das Füllmaterial: {block}.',
         kind: {
@@ -1707,6 +1709,7 @@ export default {
         },
         step: {
             supply: 'Aus den Rückgaben nehmen',
+            inventory: 'Aus meinem Inventar nehmen',
             remove: 'Entwurf löschen',
             edit: 'Bearbeiten',
             post: 'Veröffentlichen',

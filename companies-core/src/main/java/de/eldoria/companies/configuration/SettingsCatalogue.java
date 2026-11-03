@@ -400,6 +400,7 @@ public final class SettingsCatalogue {
         jobs.whole("maxSchematics");
         jobs.whole("maxAreas");
         jobs.whole("maxDrafts");
+        jobs.whole("draftDays");
         jobs.whole("buildGhostRadius");
         jobs.flag("dugToStock");
         jobs.flag("suppliedFill");

@@ -632,6 +632,14 @@ public class MariaDbJobData extends AJobData {
     }
 
     @Override
+    public List<Job> expiringDrafts(LocalDateTime before) {
+        return query(JOB + "WHERE state = ? AND expires <= ? ORDER BY expires, id")
+                .single(call().bind(JobState.DRAFT.name()).bind(before, time()))
+                .map(this::parse)
+                .all();
+    }
+
+    @Override
     public List<Job> overdue(LocalDateTime now) {
         return query(JOB + "WHERE state = ? AND due <= ? ORDER BY id")
                 .single(call().bind(JobState.TAKEN.name()).bind(now, time()))
@@ -1001,6 +1009,34 @@ public class MariaDbJobData extends AJobData {
     public boolean takeStock(int job, String material, int amount) {
         return query("UPDATE job_stock SET amount = amount - ? WHERE job_id = ? AND material = ? AND amount >= ?")
                 .single(call().bind(amount).bind(job).bind(material).bind(amount))
+                .update()
+                .changed();
+    }
+
+    @Override
+    public boolean postponeDraft(int id, LocalDateTime expires) {
+        return query("UPDATE jobs SET expires = ? WHERE id = ? AND state = ?")
+                .single(call().bind(expires, time()).bind(id).bind(JobState.DRAFT.name()))
+                .update()
+                .changed();
+    }
+
+    @Override
+    public boolean takeDraftStock(int job, String material, int amount) {
+        @Language("mariadb")
+        var update = """
+                UPDATE job_stock
+                SET amount = amount - ?
+                WHERE job_id = ?
+                  AND material = ?
+                  AND amount >= ?
+                  AND EXISTS (SELECT 1 FROM jobs WHERE jobs.id = job_stock.job_id AND jobs.state = ?)""";
+        return query(update)
+                .single(call().bind(amount)
+                        .bind(job)
+                        .bind(material)
+                        .bind(amount)
+                        .bind(JobState.DRAFT.name()))
                 .update()
                 .changed();
     }

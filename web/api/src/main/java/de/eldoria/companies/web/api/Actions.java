@@ -741,6 +741,12 @@ public final class Actions {
     public static final String JOBS_DRAFTS_SUPPLY = "jobs.drafts.supply";
 
     /**
+     * Takes what one of the player's supplied drafts still lacks from the player's inventory into its stock, on the
+     * server the player is online on.
+     */
+    public static final String JOBS_DRAFTS_TAKE = "jobs.drafts.take";
+
+    /**
      * Draws the top layer of a stored area and lists the schematics a build job on it may use, on the server whose
      * world holds it.
      */
@@ -921,6 +927,7 @@ public final class Actions {
             JOBS_DRAFTS_EDIT,
             JOBS_DRAFTS_DELETE,
             JOBS_DRAFTS_SUPPLY,
+            JOBS_DRAFTS_TAKE,
             JOBS_AREAS_PREVIEW,
             JOBS_AREAS_SCHEMATIC,
             JOBS_AREAS_MATERIALS,

@@ -108,9 +108,9 @@ public interface IJob {
     LocalDateTime created();
 
     /**
-     * When it expires while nobody takes it.
+     * When it expires while nobody takes it; for a draft, when it is deleted unless posted.
      *
-     * @return when it expires while nobody takes it
+     * @return when it expires while nobody takes it, or a draft is deleted
      */
     LocalDateTime expires();
 

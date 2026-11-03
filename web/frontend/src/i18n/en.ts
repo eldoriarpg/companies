@@ -1063,6 +1063,7 @@ export default {
                     maxSchematics: 'Most schematics a player may keep uploaded',
                     maxAreas: 'Most areas a player may keep stored for jobs',
                     maxDrafts: 'Most drafts of jobs a player may keep',
+                    draftDays: 'Days a draft waits to be posted before it is deleted',
                     buildGhostRadius: 'How far around a member the missing blocks of a build job show as ghosts, in blocks',
                     dugToStock: "Owners may have the blocks a company digs go into the job's stock",
                     suppliedFill: 'Owners may supply the fill blocks of terraform jobs',
@@ -1655,6 +1656,7 @@ export default {
         },
         progress: "Last check: {percent} % done, {done} of {total} blocks",
         expires: "Waits for a company until {time}",
+        draftExpires: "Deleted on {time} unless you post it",
         due: "The company's time runs until {time}",
         approveAt: "Approved without an answer at {time}",
         rejected: "The owner rejected the work: {reason}",
@@ -1678,7 +1680,7 @@ export default {
         draftNote: 'A draft: companies do not see it and nothing is charged. Post it when it is ready.',
         nothingMissing: 'Nothing is missing. Post the job.',
         missing: 'Still missing',
-        suppliedNote: 'A draft whose materials you supply: hand them in with /order job draft {id} in game or take them from your item returns here. It can be posted once nothing is missing.',
+        suppliedNote: 'A draft whose materials you supply: hand them in with /order job draft {id} in game, or take them here from your inventory while you are online, or from your item returns. It can be posted once nothing is missing.',
         dugNote: 'The blocks the company digs go into the stock and come back to the owner when the job ends.',
         fillNote: 'The owner supplies the fill: {block}.',
         kind: {
@@ -1707,6 +1709,7 @@ export default {
         },
         step: {
             supply: 'Take from item returns',
+            inventory: 'Take from my inventory',
             remove: 'Delete draft',
             edit: 'Edit',
             post: 'Post',
