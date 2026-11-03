@@ -362,6 +362,9 @@ public final class Jobs {
         var magic = new MagicBuilding(plugin, access, blueprints, stocks, magicItems, ghosts, barTexts);
         plugin.getServer().getPluginManager().registerEvents(magic, plugin);
         service.closing(stocks::close);
+        var dug = new DugStocks(plugin.getServer(), stocks);
+        plugin.getServer().getPluginManager().registerEvents(dug, plugin);
+        access.digging(dug::dug);
         stocks.late(service::returnLate);
         progress.counted(access::counted);
         ghosts.counted(access::counted);

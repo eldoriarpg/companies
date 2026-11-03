@@ -19,6 +19,7 @@ import de.eldoria.companies.data.wrapper.job.JobReviewEntry;
 import de.eldoria.companies.jobs.Blueprint;
 import de.eldoria.companies.jobs.BuildGhosts;
 import de.eldoria.companies.jobs.DigCheck;
+import de.eldoria.companies.jobs.JobAccess;
 import de.eldoria.companies.jobs.JobService;
 import de.eldoria.companies.jobs.JobServices;
 import de.eldoria.companies.jobs.MaterialCosts;
@@ -398,7 +399,7 @@ public final class CompanyJobCommand {
                             || !Integer.valueOf(company.id()).equals(job.company())) {
                         throw CommandFailure.of(PREFIX + "error.notYours", Values.number("id", id));
                     }
-                    if (job.kind() != JobKind.BUILD || !job.supplied()) {
+                    if (!JobAccess.blueprinted(job) || !job.supplied()) {
                         throw CommandFailure.of(PREFIX + "error.notSupplied", Values.number("id", id));
                     }
                     if (!job.node().equals(jobs().node())) {
@@ -453,7 +454,7 @@ public final class CompanyJobCommand {
                             || !Integer.valueOf(company.id()).equals(job.company())) {
                         throw CommandFailure.of(PREFIX + "error.notYours", Values.number("id", id));
                     }
-                    if (job.kind() != JobKind.BUILD) {
+                    if (!JobAccess.blueprinted(job)) {
                         throw CommandFailure.of(PREFIX + "error.noBlueprint", Values.number("id", id));
                     }
                     if (!job.node().equals(jobs().node())) {
@@ -632,6 +633,12 @@ public final class CompanyJobCommand {
                                 Values.number("y", target.y()),
                                 Values.text("block", surface.toLowerCase(Locale.ROOT))));
             }
+        }
+        if (job.materials().dugToStock()) lines.add(MenuText.create().locale(PREFIX + "info.dugToStock"));
+        var fill = job.materials().fill();
+        if (fill != null) {
+            lines.add(MenuText.create()
+                    .locale(PREFIX + "info.fill", Values.text("block", fill.toLowerCase(Locale.ROOT))));
         }
         if (job.state() == JobState.TAKEN) {
             lines.add(MenuText.create().locale(PREFIX + "info.due", Values.text("time", left(job.due()))));

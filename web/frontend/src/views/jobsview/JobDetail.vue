@@ -186,7 +186,7 @@ async function take(step: JobStep): Promise<void> {
     </section>
     <MutedText v-if="job.state === 'disputed'" tag="p" data-testid="job-dispute-reason">{{ t('jobs.dispute', {reason: details.dispute ?? ''}) }}</MutedText>
     <MutedText v-if="job.state === 'settled' && details.settled != null" tag="p">{{ t('jobs.settled', {percent: details.settled}) }}</MutedText>
-    <section v-if="stock.length > 0 && job.kind === 'harvest'" class="flex flex-col gap-2" data-testid="job-stock">
+    <section v-if="stock.length > 0 && (job.kind === 'harvest' || details.dugToStock)" class="flex flex-col gap-2" data-testid="job-stock">
       <SectionHeader>{{ t('jobs.stock') }}</SectionHeader>
       <ul class="m-0 list-none border border-line bg-ground px-3 py-0.5">
         <li v-for="[material, amount] in stock" :key="material" class="flex justify-between gap-3 border-b border-line-soft py-2 text-sm last:border-b-0">
@@ -212,6 +212,7 @@ async function take(step: JobStep): Promise<void> {
       <NumberInput v-model="hours" :label="t('jobs.contract.hours')" :min="1" data-testid="draft-hours"/>
       <TextAreaInput v-model="text" :label="t('jobs.contract.description')" :maxlength="512" :rows="3" data-testid="draft-description"/>
     </template>
+    <MutedText v-if="details.dugToStock || details.fill" tag="p" data-testid="job-materials">{{ [details.dugToStock ? t('jobs.dugNote') : '', details.fill ? t('jobs.fillNote', {block: details.fill.toLowerCase()}) : ''].filter(Boolean).join(' ') }}</MutedText>
     <MutedText v-if="job.state === 'draft'" tag="p" data-testid="job-draft">{{ t(details.supplied ? 'jobs.suppliedNote' : 'jobs.draftNote', {id: job.id}) }}</MutedText>
     <MaterialList v-if="details.missing" :title="t('jobs.missing')" :items="missing" :empty="t('jobs.nothingMissing')" test-id="job-missing"/>
     <TextAreaInput

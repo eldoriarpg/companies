@@ -950,7 +950,10 @@ public final class DashboardWorld implements AutoCloseable {
                 null,
                 new AreaChecks(plugin.getServer(), hooks, () -> jobSettings, Runnable::run),
                 new BuildSchematics(directory.resolve("schematics"), uploads, hooks, logger),
-                new AreaWorld(plugin.getServer(), Runnable::run),
+                new AreaWorld(
+                        plugin.getServer(),
+                        Runnable::run,
+                        (world, x, z) -> CompletableFuture.completedFuture(world.getChunkAt(x, z))),
                 new Supplies(jobs, blueprints),
                 null,
                 null,

@@ -121,7 +121,7 @@ See [Jobs](../players/jobs.md).
 | `/order job draft delete <id>` | `companies.orders.jobs` | Deletes one of your drafts; its stock goes to your item returns. |
 | `/order job harvest <price per item> <budget> <hours> <title>` | `companies.orders.jobs` | Posts a harvest job on the field you marked or selected with WorldEdit. You pay the budget and the order fee at once. |
 | `/order job harvest plot <price per item> <budget> <hours> <height> <title>` | `companies.orders.jobs` | Posts a harvest job on the whole plot you stand on, from the block below your feet up `height` layers. |
-| `/order job stock <id>` | `companies.orders.jobs` | Lists the stock of a harvest job. |
+| `/order job stock <id>` | `companies.orders.jobs` | Lists the stock of one of your jobs: what a harvest job harvested, the materials you supply, or the blocks dug for you. |
 | `/order job collect <id>` | `companies.orders.jobs` | Takes the stock of a harvest job into your inventory; what does not fit stays. |
 | `/order job end <id>` | `companies.orders.jobs` | Ends a harvest job a company works on; the rest of the budget comes back. |
 | `/order job contract <price> <hours> <title>` | `companies.orders.jobs` | Posts a contract, work described in words, at the place you stand. You pay the price and the order fee at once. |
@@ -299,7 +299,7 @@ See [Event offers](../players/event-offers.md#contests) for a guide.
 | `/company job ghosts <id>` | none | none | Shows the missing and wrong blocks of a build job of the company around the player, following them. |
 | `/company job ghosts highlight <id>` | none | none | Makes every missing and wrong block of a build job of the company glow for 30 seconds, the nearest 2048 first. |
 | `/company job ghosts off` | none | none | Hides the ghost blocks. |
-| `/company job chest <id>` | none | none | Gives the job chest of a supplied build job of the company, which hands out the magic blocks that build it from its stock. |
+| `/company job chest <id>` | none | none | Gives the job chest of a supplied build or terraform job of the company, which hands out the magic blocks that build it from its stock. |
 | `/company job withdraw <id>` | none | `manage_orders` | Withdraws a dispute the company opened. |
 | `/company job cancel accept <id>` | none | `manage_orders` | Lets the owner cancel a job of the company, as they asked; the price goes back to them and the company is not penalized. |
 | `/company job cancel refuse <id>` | none | `manage_orders` | Refuses the owner's request to cancel a job; the company keeps working on it. |

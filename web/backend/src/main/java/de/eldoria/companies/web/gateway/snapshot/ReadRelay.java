@@ -71,7 +71,8 @@ public final class ReadRelay {
             Actions.JOBS_SCHEMATICS_LIST,
             Actions.JOBS_AREAS_LIST,
             Actions.JOBS_AREAS_PREVIEW,
-            Actions.JOBS_AREAS_SCHEMATIC);
+            Actions.JOBS_AREAS_SCHEMATIC,
+            Actions.JOBS_AREAS_MATERIALS);
 
     /**
      * The actions that change something and may be forwarded. They are never cached, and a write drops every cached
@@ -217,6 +218,7 @@ public final class ReadRelay {
             Actions.JOBS_AREAS_POST,
             Actions.JOBS_AREAS_PREVIEW,
             Actions.JOBS_AREAS_SCHEMATIC,
+            Actions.JOBS_AREAS_MATERIALS,
             Actions.JOBS_AREAS_BUILD,
             Actions.JOBS_DRAFTS_POST);
 

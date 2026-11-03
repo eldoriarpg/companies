@@ -1064,6 +1064,8 @@ export default {
                     maxAreas: 'Höchstzahl gespeicherter Gebiete pro Spieler für Jobs',
                     maxDrafts: 'Höchstzahl an Job-Entwürfen pro Spieler',
                     buildGhostRadius: 'Wie weit um ein Mitglied herum fehlende Blöcke eines Bau-Jobs als Geister erscheinen, in Blöcken',
+                    dugToStock: 'Besitzer dürfen die Blöcke, die eine Firma abbaut, ins Lager des Jobs gehen lassen',
+                    suppliedFill: 'Besitzer dürfen die Füllblöcke von Terraform-Jobs selbst liefern',
                 },
                 areas: {
                     enabled: 'Firmen dürfen neue Gebiete bekommen',
@@ -1619,6 +1621,11 @@ export default {
             belowCost: "Unter dem anlegen, was ihre Blöcke kosten; Firmen könnten ihn liegen lassen",
             supplied: 'Ich stelle das Material (als Entwurf gespeichert)',
             unmakeable: "Wenn du das Material lieferst, werden diese Blöcke weggelassen, da niemand sie setzen kann: {types}.",
+            dugToStock: 'Die Blöcke, die die Firma abbaut, kommen in mein Lager',
+            suppliedFill: 'Ich liefere das Füllmaterial (als Entwurf gespeichert)',
+            fillBlock: 'Füllblock unter der Oberfläche',
+            materials: 'Baut {dug} Blöcke im Wert von etwa {dugValue} ab; füllt {fill} Blöcke für etwa {fillCost} auf.',
+            belowMaterials: 'Trotzdem veröffentlichen, obwohl das, was die Firma mitbringt, abzüglich dessen, was sie behält, etwa {cost} wert ist, mehr als der Preis',
             explain: {
                 dig: "Eine Firma gräbt jeden Block des Gebiets ab.",
                 terraform: "Eine Firma macht jede Säule bis zur Höhe fest und darüber leer, mit der obersten Schicht aus dem Block, wenn du einen nennst.",
@@ -1672,6 +1679,8 @@ export default {
         nothingMissing: 'Es fehlt nichts. Veröffentliche den Job.',
         missing: 'Fehlt noch',
         suppliedNote: 'Ein Entwurf, dessen Material du stellst: gib es im Spiel mit /order job draft {id} ab oder nimm es hier aus deinen Rückgaben. Er kann veröffentlicht werden, sobald nichts mehr fehlt.',
+        dugNote: 'Die Blöcke, die die Firma abbaut, kommen ins Lager und gehen am Ende des Jobs an den Besitzer.',
+        fillNote: 'Der Besitzer liefert das Füllmaterial: {block}.',
         kind: {
             dig: "Graben",
             terraform: "Terraform",

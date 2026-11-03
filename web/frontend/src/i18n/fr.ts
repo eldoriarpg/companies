@@ -1064,6 +1064,8 @@ export default {
                     maxAreas: "Nombre maximal de zones qu'un joueur peut garder pour les travaux",
                     maxDrafts: 'Nombre maximal de brouillons de travaux par joueur',
                     buildGhostRadius: "Distance autour d'un membre à laquelle les blocs manquants d'un travail de construction apparaissent en fantômes, en blocs",
+                    dugToStock: "Les propriétaires peuvent faire aller les blocs qu'une entreprise creuse dans le stock du travail",
+                    suppliedFill: 'Les propriétaires peuvent fournir les blocs de remplissage des travaux de terrassement',
                 },
                 areas: {
                     enabled: 'Les entreprises peuvent obtenir de nouvelles zones',
@@ -1619,6 +1621,11 @@ export default {
             belowCost: "La publier sous le coût de ses blocs ; les entreprises pourraient l'ignorer",
             supplied: 'Je fournis les matériaux (enregistré comme brouillon)',
             unmakeable: "Si tu fournis les matériaux, ces blocs sont laissés de côté, car personne ne peut les poser : {types}.",
+            dugToStock: "Les blocs que l'entreprise creuse vont dans mon stock",
+            suppliedFill: 'Je fournis le remplissage (enregistré comme brouillon)',
+            fillBlock: 'Bloc de remplissage sous la surface',
+            materials: 'Creuse {dug} blocs valant environ {dugValue} ; remplit {fill} blocs coûtant environ {fillCost}.',
+            belowMaterials: "Publier même si ce que l'entreprise apporte, moins ce qu'elle garde, vaut environ {cost}, plus que le prix",
             explain: {
                 dig: "Une entreprise creuse chaque bloc de la zone.",
                 terraform: "Une entreprise rend chaque colonne solide jusqu'à la hauteur et vide au-dessus, avec la couche supérieure du bloc si tu en nommes un.",
@@ -1672,6 +1679,8 @@ export default {
         nothingMissing: 'Il ne manque rien. Publie le travail.',
         missing: 'Manque encore',
         suppliedNote: 'Un brouillon dont tu fournis les matériaux : dépose-les en jeu avec /order job draft {id} ou prends-les ici dans tes retours. Il peut être publié dès qu’il ne manque plus rien.',
+        dugNote: "Les blocs que l'entreprise creuse vont dans le stock et reviennent au propriétaire à la fin du travail.",
+        fillNote: 'Le propriétaire fournit le remplissage : {block}.',
         kind: {
             dig: "Creusage",
             terraform: "Terrassement",

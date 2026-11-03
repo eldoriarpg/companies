@@ -17,6 +17,7 @@ import de.eldoria.companies.data.wrapper.job.JobArea;
 import de.eldoria.companies.data.wrapper.job.JobExtension;
 import de.eldoria.companies.data.wrapper.job.JobHarvest;
 import de.eldoria.companies.data.wrapper.job.JobLand;
+import de.eldoria.companies.data.wrapper.job.JobMaterials;
 import de.eldoria.companies.data.wrapper.job.JobReview;
 import de.eldoria.companies.data.wrapper.job.JobReviewEntry;
 import de.eldoria.companies.data.wrapper.job.JobTarget;
@@ -248,6 +249,9 @@ public final class JobService {
         var current = settings.get();
         var shape = shape(kind, title, price, dueHours, area, details, blueprint != null);
         if (shape != null) return new Posted.Refused(shape);
+        if (details.materials().fill() != null || !allowed(details.materials())) {
+            return new Posted.Refused(Refusal.CHOICE);
+        }
         var name = title.strip();
         var rounded = cents(price);
         if (jobs.openOf(owner) >= current.maxOpenPerOwner()) return new Posted.Refused(Refusal.TOO_MANY);
@@ -271,7 +275,8 @@ public final class JobService {
                 .withTarget(target)
                 .withHarvest(unitPrice == null ? null : new JobHarvest(cents(unitPrice), 0))
                 .withDescription(description)
-                .withCharged(charge);
+                .withCharged(charge)
+                .withMaterials(details.materials());
         if (!allows(() -> events.allowsPost(draft))) return new Posted.Refused(Refusal.REFUSED);
         if (charge && !money.withdraw(owner, total)) return new Posted.Refused(Refusal.FUNDS);
         Optional<Integer> id;
@@ -298,6 +303,16 @@ public final class JobService {
     }
 
     /**
+     * @param materials the material choices of a new job or draft
+     * @return whether the server allows them; drafts saved before a choice was turned off keep it
+     */
+    private boolean allowed(JobMaterials materials) {
+        var current = settings.get();
+        return (!materials.dugToStock() || current.dugToStock())
+                && (materials.fill() == null || current.suppliedFill());
+    }
+
+    /**
      * Checks what a job asks for, without its owner's limits, land or money.
      *
      * @return why it can not be posted, null when it can
@@ -315,7 +330,12 @@ public final class JobService {
         var description = details.description();
         var current = settings.get();
         if (!current.enabled()) return Refusal.DISABLED;
-        if ((kind == JobKind.BUILD) != hasBlueprint) return Refusal.BLUEPRINT;
+        var materials = details.materials();
+        var fill = materials.fill();
+        var filled = kind == JobKind.TERRAFORM && fill != null;
+        if ((kind == JobKind.BUILD || filled) != hasBlueprint) return Refusal.BLUEPRINT;
+        if (materials.dugToStock() && (!kind.area() || kind == JobKind.HARVEST)) return Refusal.CHOICE;
+        if (fill != null && (kind != JobKind.TERRAFORM || TerraformCheck.block(fill) == null)) return Refusal.CHOICE;
         if ((kind == JobKind.HARVEST) != (unitPrice != null)) return Refusal.UNIT_PRICE;
         if (unitPrice != null && (!(cents(unitPrice) >= MIN_PRICE) || cents(unitPrice) > cents(price))) {
             return Refusal.UNIT_PRICE;
@@ -372,7 +392,8 @@ public final class JobService {
      * @param node     the server whose world holds the area
      * @param area     the area of the work
      * @param details  what the kind of job asks for besides its area
-     * @param supplied whether the owner supplies the materials, for a build job only
+     * @param supplied whether the owner supplies the materials of a build job, or the fill of a terraform job, which
+     *                 then names its fill block
      * @return the stored draft, or why it was not saved
      */
     public Posted saveDraft(
@@ -385,11 +406,16 @@ public final class JobService {
             JobArea area,
             Details details,
             boolean supplied) {
-        if (supplied && kind != JobKind.BUILD) return new Posted.Refused(Refusal.BLUEPRINT);
+        var filling = details.materials().fill() != null;
+        if (supplied != filling && kind == JobKind.TERRAFORM) return new Posted.Refused(Refusal.CHOICE);
+        if (supplied && kind != JobKind.BUILD && kind != JobKind.TERRAFORM) {
+            return new Posted.Refused(Refusal.BLUEPRINT);
+        }
         var given = details.blueprint();
         var blueprint = supplied && given != null ? given.without(BlueprintItems::unmakeable) : given;
         var shape = shape(kind, title, price, dueHours, area, details, blueprint != null);
         if (shape != null) return new Posted.Refused(shape);
+        if (!allowed(details.materials())) return new Posted.Refused(Refusal.CHOICE);
         if (jobs.countOf(owner, JobState.DRAFT) >= settings.get().maxDrafts()) {
             return new Posted.Refused(Refusal.DRAFTS);
         }
@@ -401,7 +427,8 @@ public final class JobService {
                 .withHarvest(unitPrice == null ? null : new JobHarvest(cents(unitPrice), 0))
                 .withDescription(details.description())
                 .withState(JobState.DRAFT)
-                .withSupplied(supplied);
+                .withSupplied(supplied)
+                .withMaterials(details.materials());
         Optional<Integer> id;
         try {
             id = jobs.create(draft);
@@ -433,7 +460,8 @@ public final class JobService {
         if (found.isEmpty()) return new Posted.Refused(Refusal.NO_DRAFT);
         var job = found.get();
         var harvest = job.harvest();
-        var details = new Details(job.target(), harvest == null ? null : harvest.unitPrice(), null, job.description());
+        var details = new Details(
+                job.target(), harvest == null ? null : harvest.unitPrice(), null, job.description(), job.materials());
         var shape = shape(
                 job.kind(),
                 job.title(),
@@ -472,6 +500,7 @@ public final class JobService {
                 .withHarvest(harvest)
                 .withDescription(job.description())
                 .withSupplied(job.supplied())
+                .withMaterials(job.materials())
                 .withId(id);
         if (!allows(() -> events.allowsPost(posted))) return new Posted.Refused(Refusal.REFUSED);
         if (!money.withdraw(owner, total)) return new Posted.Refused(Refusal.FUNDS);
@@ -506,7 +535,8 @@ public final class JobService {
         if (found.isEmpty()) return new Posted.Refused(Refusal.NO_DRAFT);
         var job = found.get();
         var harvest = job.harvest();
-        var details = new Details(job.target(), harvest == null ? null : harvest.unitPrice(), null, description);
+        var details = new Details(
+                job.target(), harvest == null ? null : harvest.unitPrice(), null, description, job.materials());
         var shape = shape(
                 job.kind(),
                 title,
@@ -567,7 +597,11 @@ public final class JobService {
      */
     private void endEvent(Job job, JobEndEvent.Reason reason) {
         fire(() -> events.ended(job, reason));
-        if (!job.supplied() || reason == JobEndEvent.Reason.GIVEN_BACK || reason == JobEndEvent.Reason.OVERDUE) return;
+        if (!(job.supplied() || job.materials().dugToStock())
+                || reason == JobEndEvent.Reason.GIVEN_BACK
+                || reason == JobEndEvent.Reason.OVERDUE) {
+            return;
+        }
         try {
             closing.accept(job.id());
         } catch (RuntimeException e) {
@@ -693,14 +727,42 @@ public final class JobService {
      *
      * @param target      the shape a terraform job asks for, its height within the area
      * @param unitPrice   what a harvest job pays for each item, at most its price, which is its budget
-     * @param blueprint   what a build job asks to build, placed on its area
+     * @param blueprint   what a build job asks to build, placed on its area; for a terraform job whose owner supplies
+     *                    the fill, the blocks it is filled with
      * @param description what the owner writes about the job, stored with it so no company takes it without
+     * @param materials   where dug blocks go and whether the owner supplies the fill of a terraform job
      */
     public record Details(
             @Nullable JobTarget target,
             @Nullable Double unitPrice,
             @Nullable Blueprint blueprint,
-            @Nullable String description) {
+            @Nullable String description,
+            JobMaterials materials) {
+        /**
+         * Details whose company keeps what it digs and brings its fill.
+         *
+         * @param target      the shape a terraform job asks for
+         * @param unitPrice   what a harvest job pays for each item
+         * @param blueprint   what a build job asks to build
+         * @param description what the owner writes about the job
+         */
+        public Details(
+                @Nullable JobTarget target,
+                @Nullable Double unitPrice,
+                @Nullable Blueprint blueprint,
+                @Nullable String description) {
+            this(target, unitPrice, blueprint, description, JobMaterials.COMPANY);
+        }
+
+        /**
+         * @param materials where dug blocks go and whether the owner supplies the fill
+         * @param fill      the blocks a supplied fill puts in place, null when the company brings its fill
+         * @return these details with those choices
+         */
+        public Details with(JobMaterials materials, @Nullable Blueprint fill) {
+            return new Details(target, unitPrice, fill == null ? blueprint : fill, description, materials);
+        }
+
         /**
          * Nothing besides the area: a dig job or a contract.
          */
@@ -2101,6 +2163,10 @@ public final class JobService {
          * The owner supplies the materials and the stock still lacks some.
          */
         MATERIALS,
+        /**
+         * A choice about the materials the server does not allow, or that does not fit the kind of job.
+         */
+        CHOICE,
         /**
          * The kind of job can not be posted yet.
          */

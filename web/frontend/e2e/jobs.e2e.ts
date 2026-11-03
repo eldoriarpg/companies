@@ -108,9 +108,33 @@ test.describe('jobs', () => {
         await form.getByLabel('Title').fill('Level the field')
         await form.getByLabel('Price').fill('120')
         await form.getByLabel('Height of the top solid block').fill('68')
+        await form.getByTestId('job-areas-below-materials').getByRole('checkbox').check()
         await form.getByTestId('job-areas-post').click()
 
         await expect(page.getByTestId('jobs-mine').getByText('Level the field')).toBeVisible()
+    })
+
+    test('post a terraform job whose fill the owner supplies and whose dug blocks go to the stock', async ({page}, info) => {
+        await openDashboard(page, 'JOBS01')
+        await openFromMenu(page, info, 'Jobs')
+        const areas = page.getByTestId('job-areas')
+        await areas.getByTestId('job-areas-open-field').click()
+
+        const form = areas.getByTestId('job-areas-form')
+        await form.getByLabel('Kind').selectOption('terraform')
+        await form.getByLabel('Title').fill('Level the hill')
+        await form.getByLabel('Price').fill('100')
+        await form.getByLabel('Height of the top solid block').fill('68')
+        await expect(form.getByTestId('job-areas-cost')).toContainText('150')
+        await expect(form.getByTestId('job-areas-post')).toBeDisabled()
+        await form.getByTestId('job-areas-fill').getByRole('checkbox').check()
+        await expect(form.getByTestId('job-areas-below-materials')).toBeHidden()
+        await form.getByTestId('job-areas-dug').getByRole('checkbox').check()
+        await form.getByTestId('job-areas-post').click()
+
+        const detail = jobPage(page, info)
+        await expect(detail.getByTestId('job-materials')).toContainText('dirt')
+        await expect(detail.getByTestId('job-missing')).toContainText('150')
     })
 
     test('place a schematic on a stored area and post a build job below its cost', async ({page}, info) => {

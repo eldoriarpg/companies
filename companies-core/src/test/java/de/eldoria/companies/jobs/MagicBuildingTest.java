@@ -15,6 +15,8 @@ import de.eldoria.companies.data.repository.impl.sqlite.SqLiteTestDatabase;
 import de.eldoria.companies.data.wrapper.job.Job;
 import de.eldoria.companies.data.wrapper.job.JobArea;
 import de.eldoria.companies.data.wrapper.job.JobLand;
+import de.eldoria.companies.data.wrapper.job.JobMaterials;
+import de.eldoria.companies.data.wrapper.job.JobTarget;
 import de.eldoria.companies.jobs.hooks.Claim;
 import de.eldoria.companies.jobs.hooks.JobHooks;
 import de.eldoria.companies.jobs.hooks.JobLandHook;
@@ -390,6 +392,29 @@ class MagicBuildingTest {
     }
 
     @Test
+    void aSuppliedTerraformJobKeepsItsFillAndBuildsItWithMagicBlocksOnly() {
+        var area = new JobArea("world", 0, 60, 0, 1, 60, 0);
+        var fill = AreaMaterials.of(
+                        JobKind.TERRAFORM,
+                        area,
+                        new JobTarget(60, null),
+                        Material.DIRT,
+                        (x, y, z) -> x == 0 ? Material.AIR : Material.STONE)
+                .blueprint(area);
+        var id = suppliedJob(JobKind.TERRAFORM, fill, area, Map.of("DIRT", 1));
+        access.check();
+
+        var own = placing(world.getBlockAt(0, 60, 0), Material.DIRT);
+        world.getBlockAt(0, 60, 0).setType(Material.AIR);
+        building.place(worker, world.getBlockAt(0, 60, 0), magic(id, Material.DIRT), EquipmentSlot.HAND);
+
+        assertTrue(own.isCancelled());
+        assertEquals(Material.DIRT, world.getBlockAt(0, 60, 0).getType());
+        assertEquals(Map.of(), jobs.stock(id));
+        assertTrue(access.counted(id, JobAccess.key(world.getBlockAt(0, 60, 0))));
+    }
+
+    @Test
     void magicItemsAndJobChestsKnowTheirJob() {
         var magic = items.magic(7, Material.STONE, Component.text("Stone"), List.of());
         var chest = items.chest(7, Component.text("Chest"), List.of());
@@ -439,21 +464,29 @@ class MagicBuildingTest {
     }
 
     private int suppliedJob(Blueprint blueprint, JobArea area, Map<String, Integer> stock) {
-        var id = jobs.create(Job.draft(
-                                UUID.randomUUID(),
-                                JobKind.BUILD,
-                                "Stairs",
-                                100,
-                                5,
-                                NODE,
-                                area,
-                                JobLand.AREA,
-                                "plotsquared:plots|1;1",
-                                24,
-                                NOW,
-                                NOW.plusDays(7))
-                        .withSupplied(true))
-                .orElseThrow();
+        return suppliedJob(JobKind.BUILD, blueprint, area, stock);
+    }
+
+    private int suppliedJob(JobKind kind, Blueprint blueprint, JobArea area, Map<String, Integer> stock) {
+        var draft = Job.draft(
+                        UUID.randomUUID(),
+                        kind,
+                        "Stairs",
+                        100,
+                        5,
+                        NODE,
+                        area,
+                        JobLand.AREA,
+                        "plotsquared:plots|1;1",
+                        24,
+                        NOW,
+                        NOW.plusDays(7))
+                .withSupplied(true);
+        if (kind == JobKind.TERRAFORM) {
+            draft = draft.withTarget(new JobTarget(area.maxY(), null))
+                    .withMaterials(new JobMaterials(false, Material.DIRT.name()));
+        }
+        var id = jobs.create(draft).orElseThrow();
         jobs.blueprint(id, blueprint.encode());
         jobs.stock(id, stock);
         jobs.take(id, 3, NOW, NOW.plusDays(1));

@@ -12,6 +12,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
@@ -95,6 +96,24 @@ public final class MaterialCosts {
             if (price > 0) {
                 total += price * entry.getValue();
             } else if (!unpriced.contains(entry.getKey())) {
+                unpriced.add(entry.getKey());
+            }
+        }
+        return new Cost(total, unpriced);
+    }
+
+    /**
+     * @param items items by type, such as the blocks an area job digs or fills with
+     * @return what they are worth; types that are no item or have no known price are unpriced
+     */
+    public Cost value(Map<Material, Integer> items) {
+        List<Material> unpriced = new ArrayList<>();
+        var total = 0.0;
+        for (var entry : items.entrySet()) {
+            var price = entry.getKey().isItem() ? prices.applyAsDouble(entry.getKey()) : 0;
+            if (price > 0) {
+                total += price * entry.getValue();
+            } else {
                 unpriced.add(entry.getKey());
             }
         }

@@ -752,6 +752,12 @@ public final class Actions {
     public static final String JOBS_AREAS_SCHEMATIC = "jobs.areas.schematic";
 
     /**
+     * Reads what a dig or terraform job on a stored area would dig out and fill in, and what that is worth, on the
+     * server whose world holds it.
+     */
+    public static final String JOBS_AREAS_MATERIALS = "jobs.areas.materials";
+
+    /**
      * Posts a build job of a schematic the owner placed and turned on a stored area, on the server whose world holds
      * it; its price and fee are taken at once.
      */
@@ -917,6 +923,7 @@ public final class Actions {
             JOBS_DRAFTS_SUPPLY,
             JOBS_AREAS_PREVIEW,
             JOBS_AREAS_SCHEMATIC,
+            JOBS_AREAS_MATERIALS,
             JOBS_AREAS_BUILD,
             ADMIN_JOBS_DISPUTES,
             ADMIN_JOBS_SETTLE);

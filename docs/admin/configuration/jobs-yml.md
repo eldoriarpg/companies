@@ -34,6 +34,8 @@ maxSchematics: 10
 maxAreas: 10
 maxDrafts: 5
 buildGhostRadius: 8
+dugToStock: true
+suppliedFill: true
 ```
 
 | Key | Values | Default | Description | Takes effect |
@@ -59,6 +61,8 @@ buildGhostRadius: 8
 | `maxSchematics` | number | `10` | The most schematics a player may keep uploaded. | reload |
 | `maxAreas` | number | `10` | The most areas a player may keep stored for jobs (`/order job area`). | reload |
 | `maxDrafts` | number | `5` | The most drafts of jobs a player may keep. Drafts are not counted as open jobs. | reload |
+| `dugToStock` | true/false | `true` | The owner of a dig, terraform or build job may have the blocks the company digs go into the job's stock, which comes back to them when the job ends. | reload |
+| `suppliedFill` | true/false | `true` | The owner of a terraform job may supply the blocks it is filled with through the stock, placed with magic blocks. | reload |
 | `buildGhostRadius` | number (blocks) | `8` | How far around a member the missing and wrong blocks of a build job show as ghost blocks, from 1 to 32. | reload |
 
 The fee of a job is the order fee of [order.yml](./order-yml.md), lowered by the fee reductions of server events. A

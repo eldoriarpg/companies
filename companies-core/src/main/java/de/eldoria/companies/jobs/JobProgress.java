@@ -160,12 +160,16 @@ public final class JobProgress {
     /**
      * @param job   a job with an area
      * @param world the world of its area
-     * @return the reader of whether each block is as the job asks
+     * @return the reader of whether each block is as the job asks; a fill block placed from the stock of a terraform
+     *     job counts as placed whatever stands there
      */
-    private static DigCheck.Blocks blocks(Job job, World world) {
+    private DigCheck.Blocks blocks(Job job, World world) {
         var target = job.target();
-        if (job.kind() == JobKind.TERRAFORM && target != null) return TerraformCheck.of(world, target);
-        return DigCheck.of(world);
+        if (job.kind() != JobKind.TERRAFORM || target == null) return DigCheck.of(world);
+        var terraform = TerraformCheck.of(world, target);
+        var known = counted;
+        var id = job.id();
+        return (x, y, z) -> known.counted(id, JobAccess.key(x, y, z)) || terraform.cleared(x, y, z);
     }
 
     private record Cached(DigCheck.Progress progress, Instant at) {}

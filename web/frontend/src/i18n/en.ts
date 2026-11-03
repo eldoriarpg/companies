@@ -1064,6 +1064,8 @@ export default {
                     maxAreas: 'Most areas a player may keep stored for jobs',
                     maxDrafts: 'Most drafts of jobs a player may keep',
                     buildGhostRadius: 'How far around a member the missing blocks of a build job show as ghosts, in blocks',
+                    dugToStock: "Owners may have the blocks a company digs go into the job's stock",
+                    suppliedFill: 'Owners may supply the fill blocks of terraform jobs',
                 },
                 areas: {
                     enabled: 'Let companies get new areas',
@@ -1619,6 +1621,11 @@ export default {
             belowCost: "Post it below what its blocks cost; companies may pass it by",
             supplied: 'I supply the materials (saved as a draft)',
             unmakeable: "If you supply the materials, nobody can place these blocks and they are left out: {types}.",
+            dugToStock: 'The blocks the company digs go into my stock',
+            suppliedFill: 'I supply the fill (saved as a draft)',
+            fillBlock: 'Fill block below the surface',
+            materials: 'Digs out {dug} blocks worth about {dugValue}; fills in {fill} blocks costing about {fillCost}.',
+            belowMaterials: 'Post it although what the company brings, less what it keeps, is worth about {cost}, more than the price',
             explain: {
                 dig: "A company digs out every block of the area.",
                 terraform: "A company makes every column solid up to the height and empty above it, with the top layer of the block when you name one.",
@@ -1672,6 +1679,8 @@ export default {
         nothingMissing: 'Nothing is missing. Post the job.',
         missing: 'Still missing',
         suppliedNote: 'A draft whose materials you supply: hand them in with /order job draft {id} in game or take them from your item returns here. It can be posted once nothing is missing.',
+        dugNote: 'The blocks the company digs go into the stock and come back to the owner when the job ends.',
+        fillNote: 'The owner supplies the fill: {block}.',
         kind: {
             dig: "Dig",
             terraform: "Terraform",

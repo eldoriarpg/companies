@@ -152,6 +152,7 @@ public final class JobAccess implements Listener {
     private volatile BiConsumer<Player, Blueprint.@Nullable Want> refused = (player, want) -> {};
     private volatile Consumer<Player> onlyMagic = player -> {};
     private volatile boolean loaded;
+    private volatile BiConsumer<Job, Block> digging = (job, block) -> {};
 
     /**
      * @param jobs       job repository
@@ -212,6 +213,16 @@ public final class JobAccess implements Listener {
     }
 
     /**
+     * Sets what happens to a block a member broke as the job asks, in a job whose owner has the dug blocks go into its
+     * stock; it is called before the block drops.
+     *
+     * @param digging takes the job and the broken block
+     */
+    public void digging(BiConsumer<Job, Block> digging) {
+        this.digging = digging;
+    }
+
+    /**
      * Checks the access now and then regularly, and writes counted work regularly.
      *
      * @param executor runs the checks
@@ -256,7 +267,7 @@ public final class JobAccess implements Listener {
             Set<Integer> held = new HashSet<>();
             Set<Integer> waiting = new HashSet<>();
             for (var job : jobs.access(node)) {
-                if (job.kind() == JobKind.BUILD && !job.state().closed()) building.add(job.id());
+                if (blueprinted(job) && !job.state().closed()) building.add(job.id());
                 if (job.state() == JobState.TAKEN || job.state() == JobState.DONE || job.state() == JobState.DISPUTED) {
                     held.add(job.id());
                 }
@@ -264,7 +275,7 @@ public final class JobAccess implements Listener {
                     digging.add(job.id());
                     if (measure(job)) waiting.add(job.id());
                 }
-                if (job.kind() == JobKind.BUILD && job.state() == JobState.TAKEN) blueprints.of(job.id());
+                if (blueprinted(job) && job.state() == JobState.TAKEN) blueprints.of(job.id());
                 var company = job.company();
                 var taken = job.state() == JobState.TAKEN && company != null;
                 plans.add(new Plan(
@@ -567,6 +578,11 @@ public final class JobAccess implements Listener {
         var world = block.getWorld().getName();
         for (var entry : active) {
             var job = entry.job();
+            if (job.kind() == JobKind.TERRAFORM && job.supplied()) {
+                var refused = filling(entry, player, block);
+                if (refused != null) return refused;
+                continue;
+            }
             if (job.kind() != JobKind.BUILD
                     || job.state() != JobState.TAKEN
                     || !job.area().contains(world, block.getX(), block.getY(), block.getZ())
@@ -585,6 +601,48 @@ public final class JobAccess implements Listener {
             return new Misplaced(want, false);
         }
         return null;
+    }
+
+    /**
+     * @param entry  a taken terraform job whose owner supplies the fill
+     * @param player a player placing a block
+     * @param block  the block as placed
+     * @return the fill block asked for when a member places anything else than the whitelist where the fill goes or a
+     *     block from the stock counts; null anywhere else, outside the area and with the bypass permission
+     */
+    private @Nullable Misplaced filling(Active entry, Player player, Block block) {
+        var job = entry.job();
+        if (job.state() != JobState.TAKEN
+                || !job.area().contains(block.getWorld().getName(), block.getX(), block.getY(), block.getZ())
+                || !entry.members().contains(player.getUniqueId())
+                || player.hasPermission(Permission.Admin.JOBS_BYPASS)) {
+            return null;
+        }
+        var want = wanted(job, block);
+        if (counted(job.id(), key(block))) return new Misplaced(want, true);
+        if (want == null || whitelist.get().contains(block.getType())) return null;
+        return new Misplaced(want, true);
+    }
+
+    /**
+     * @param job   a job a member broke a block of as it asks
+     * @param block the block, before it is broken
+     * @return whether the block goes into the stock: the job is taken, its owner chose so, and for a build job the
+     *     blueprint digs the position out
+     */
+    private boolean digsToStock(Job job, Block block) {
+        if (!job.materials().dugToStock() || job.state() != JobState.TAKEN) return false;
+        if (job.kind() != JobKind.BUILD) return true;
+        var wanted = wanted(job, block);
+        return wanted != null && wanted.type().isAir();
+    }
+
+    /**
+     * @param job a job
+     * @return whether it has a blueprint: a build job, or a terraform job whose owner supplies the fill
+     */
+    public static boolean blueprinted(Job job) {
+        return job.kind() == JobKind.BUILD || (job.kind() == JobKind.TERRAFORM && job.supplied());
     }
 
     /**
@@ -688,14 +746,14 @@ public final class JobAccess implements Listener {
     /**
      * @param player a player
      * @param block  a block
-     * @return the taken build job whose owner supplies the materials, the player works on and whose area holds the
-     *     block
+     * @return the taken build job whose owner supplies the materials, or terraform job whose owner supplies the fill,
+     *     the player works on and whose area holds the block
      */
     public Optional<Active> supplied(Player player, Block block) {
         var world = block.getWorld().getName();
         for (var entry : active) {
             var job = entry.job();
-            if (job.kind() == JobKind.BUILD
+            if (blueprinted(job)
                     && job.supplied()
                     && job.state() == JobState.TAKEN
                     && job.area().contains(world, block.getX(), block.getY(), block.getZ())
@@ -983,6 +1041,7 @@ public final class JobAccess implements Listener {
             }
             if (dug(entry.job(), block)) return;
             pending.merge(new Work(entry.job().id(), company, worker), 1, Integer::sum);
+            if (digsToStock(entry.job(), block)) digging.accept(entry.job(), block);
             return;
         }
     }

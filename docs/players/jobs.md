@@ -60,7 +60,7 @@ have a few jobs waiting at once.
 [order fee](../companies/claiming-and-delivering.md) at once; the server holds the money until the job is done.
 
 A **dig job** is done when every block of the area is air, water or lava. Blocks nobody can break, such as bedrock,
-count as cleared. The company keeps what it digs.
+count as cleared. The company keeps what it digs, unless you choose otherwise ([Dug blocks and fill](#dug-blocks-and-fill)).
 
 A **terraform job** levels the area: every column must be solid up to a height you choose and empty above it. Mark the
 area so it reaches from the lowest block that must be filled to the highest that must go, then post `/order job
@@ -69,12 +69,36 @@ surface <block> <price> <hours> <y> <title>` the top layer must also be made of 
 the name without `minecraft:`; the command suggests the blocks it takes). Blocks players can not place and keep in
 survival, such as bedrock, spawners or farmland, are refused, and so are blocks that change by themselves, such as
 copper that is not waxed or concrete powder. Above `y` the area must be air, water or lava; at or below it any solid
-block counts. Blocks nobody can break count as done. The company brings the blocks it fills with and keeps what it digs.
+block counts. Blocks nobody can break count as done. The company brings the blocks it fills with and keeps what it digs,
+unless you choose otherwise ([Dug blocks and fill](#dug-blocks-and-fill)).
 
 To level your whole plot, stand on it and post `/order job terraform plot <price> <hours> <y> <title>` (or `terraform
 plot surface <block> ...`). The area is your plot from its lowest ground (or `y`, when that is lower) up to its highest
 block, so `y` may lie below the ground: everything above it is dug out, and every column is made solid up to `y`. The
 plot's own bounds limit how deep it can go, and your land plugin must let the company build that deep.
+
+### Dug blocks and fill
+
+When you post a dig, terraform or build job under **Your areas** on the dashboard, two choices decide where the
+materials go and come from, where the server allows them (`dugToStock` and `suppliedFill` in
+[jobs.yml](../admin/configuration/jobs-yml.md)):
+
+- **The blocks the company digs go into my stock:** what the company digs out as the job asks goes into the job's stock
+  instead of to the company, as plain items; items with contents of their own, such as a filled shulker box, still drop.
+  Blocks the company placed there itself stay its own. The stock comes back to your item returns (`/order returns`)
+  when the job ends; a job given back or overdue keeps it for the next company.
+- **I supply the fill (terraform):** you name a fill block, `dirt` by default. The job is saved as a
+  [draft](#drafts) whose stock takes the blocks to fill the area as it stands now: the surface block for the top layer
+  when you named one, the fill block below it. Hand them in as for a supplied build job and post the draft once nothing
+  is missing; the company fills the area with magic blocks from the job chest, as for a supplied build job, and
+`/company job ghosts <id>` shows the fill still missing. Only magic blocks and `buildWhitelist` go where the fill goes;
+elsewhere the company works as on any terraform job.
+
+For dig and terraform jobs the form shows how many blocks would be dug out and filled in and what they are worth. When
+what the company has to bring, less what it keeps, is worth more than the price, it asks for a tick, as companies may
+pass such a job by. Jobs posted in game keep the default: the company keeps what it digs and brings its fill. The job's
+page and `/order job info <id>` say which choices a job has. A draft keeps its choices even when the server turns one off
+later.
 
 When your land changes hands while a job waits or is worked on, for example a plot you sold, the job is cancelled. A
 waiting job gives its price back to you. A job a company works on pays the company for the share of the area it cleared,
@@ -269,7 +293,7 @@ for what happens only in game:
 | `/order job terraform plot [surface <block>] <price> <hours> <y> <title>` | Posts a terraform job on your whole plot, dug out down to `y` when that lies below the ground. |
 | `/order job harvest <price per item> <budget> <hours> <title>` | Posts a harvest job on the field you marked. |
 | `/order job harvest plot <price per item> <budget> <hours> <height> <title>` | Posts a harvest job on your whole plot. |
-| `/order job stock <id>` | Lists the stock of a harvest job. |
+| `/order job stock <id>` | Lists the stock of one of your jobs: what a harvest job harvested, the materials you supply, or the blocks dug for you. |
 | `/order job collect <id>` | Takes the stock of a harvest job into your inventory. |
 | `/order job area corner <1\|2>`, `/order job area tool` | Marks a corner of an area, at your feet or with the area tool. |
 | `/order job area save <name>`, `/order job area plot <name>` | Stores the marked area or your plot. |
@@ -303,7 +327,7 @@ area:
 |---|---|
 | `/company job done <id>` | Checks the area of a dig, terraform or build job and, when the work is done, pays the job. |
 | `/company job ghosts <id>` | Shows the missing and wrong blocks of a build job around you, following you. Add `highlight` before the id to make all of them glow for a while; `/company job ghosts off` hides them. |
-| `/company job chest <id>` | Gives you the job chest of a supplied build job, to pick its magic blocks. |
+| `/company job chest <id>` | Gives you the job chest of a supplied build or terraform job, to pick its magic blocks. |
 
 `/company job` lists the open jobs in game, and the [Commands](../reference/commands.md) page has the rest.
 

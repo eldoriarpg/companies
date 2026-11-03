@@ -117,7 +117,8 @@ public final class JobStocks {
     }
 
     /**
-     * Puts items back into a job's stock; for a closed job they go where {@link #late} sends them.
+     * Puts items back into a job's stock; for a closed job, or one that ended meanwhile on another server, they go where
+     * {@link #late} sends them.
      *
      * @param job   id of the job
      * @param items the items, as amounts by material name
@@ -141,6 +142,11 @@ public final class JobStocks {
         var given = new LinkedHashMap<>(items);
         writer.execute(() -> {
             try {
+                if (stock == null
+                        && jobs.job(job).map(found -> found.state().closed()).orElse(true)) {
+                    late.accept(job, given);
+                    return;
+                }
                 jobs.stock(job, given);
             } catch (RuntimeException e) {
                 logger.log(Level.SEVERE, "Could not put " + given + " back into the stock of job " + job, e);

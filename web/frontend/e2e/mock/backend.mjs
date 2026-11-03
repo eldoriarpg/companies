@@ -638,7 +638,7 @@ function jobsOf(state) {
  */
 function jobRow(job) {
     const row = {...job}
-    for (const field of ['description', 'missing', 'supplied', 'dispute', 'disputeByOwner', 'rejected', 'request', 'extendedHours', 'requestsLeft', 'cancelAsked']) delete row[field]
+    for (const field of ['description', 'missing', 'supplied', 'dugToStock', 'fill', 'dispute', 'disputeByOwner', 'rejected', 'request', 'extendedHours', 'requestsLeft', 'cancelAsked']) delete row[field]
     return row
 }
 
@@ -666,6 +666,8 @@ function jobDetails(job) {
         progress: job.state === 'taken' && job.kind !== 'contract' && job.kind !== 'harvest' ? {percent: 40, done: 400, total: 1000} : null,
         cancelAsked: job.state === 'taken' && Boolean(job.cancelAsked),
         supplied: Boolean(job.supplied),
+        dugToStock: Boolean(job.dugToStock),
+        fill: job.fill ?? null,
         missing: job.mine && job.supplied && job.state === 'draft' ? job.missing : null,
         reviews: job.rejected ? [{kind: 'done', reason: null, at: '2026-11-01T10:00:00Z'}, {kind: 'rejected', reason: job.rejected, at: '2026-11-01T12:00:00Z'}] : [],
     }
@@ -767,7 +769,7 @@ function schematicList(state) {
  */
 function areaList(state) {
     state.areas ??= [{name: 'field', node: '00000000-0000-0000-0000-000000000001', world: 'world', center: '10 70 -4', width: 9, height: 4, length: 9, blocks: 324}]
-    return {max: 10, areas: state.areas}
+    return {max: 10, areas: state.areas, dugToStock: true, suppliedFill: true}
 }
 
 /**
@@ -1025,11 +1027,16 @@ function action(name, args, state, story = {}) {
             jobsOf(state)[id] = {id, kind: 'build', state: 'open', title: args.title, price: args.price, fee: 5, expires: '2026-11-06T12:00:00Z', blocks: 60, world: 'world', center: '10 70 -4', mine: true, ours: false}
             return done(jobDetails(jobsOf(state)[id]))
         }
+        case 'jobs.areas.materials':
+            return done({dugValue: 40, dugBlocks: 20, fillCost: args.kind === 'terraform' ? 300 : 0, fillBlocks: args.kind === 'terraform' ? 150 : 0, unpriced: 0, dugToStock: true, suppliedFill: true})
         case 'jobs.areas.post': {
             const area = areaList(state).areas.find(stored => stored.name === args.area)
             if (!area) return refused(`You have no area ${args.area}.`)
+            if (args.kind === 'terraform' && !args.fill && !args.confirm && args.price < 260) return refused('What the company has to bring, less what it keeps, is worth more than the price.')
             const id = 21
-            jobsOf(state)[id] = {id, kind: args.kind, state: 'open', title: args.title, price: args.price, fee: 5, expires: '2026-11-06T12:00:00Z', blocks: area.blocks, world: area.world, center: area.center, mine: true, ours: false}
+            const supplied = Boolean(args.fill)
+            jobsOf(state)[id] = {id, kind: args.kind, state: supplied ? 'draft' : 'open', title: args.title, price: args.price, fee: supplied ? 0 : 5, expires: '2026-11-06T12:00:00Z', blocks: area.blocks, world: area.world, center: area.center, mine: true, ours: false,
+                supplied, missing: supplied ? {[args.fill.toUpperCase()]: 150} : undefined, dugToStock: Boolean(args.dugToStock), fill: supplied ? args.fill.toUpperCase() : null}
             return done(jobDetails(jobsOf(state)[id]))
         }
         case 'jobs.collect': {

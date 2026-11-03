@@ -16,10 +16,12 @@ import de.eldoria.companies.data.wrapper.dashboard.StoredSession;
 import de.eldoria.companies.data.wrapper.job.Job;
 import de.eldoria.companies.data.wrapper.job.JobArea;
 import de.eldoria.companies.data.wrapper.job.JobLand;
+import de.eldoria.companies.data.wrapper.job.JobMaterials;
 import de.eldoria.companies.data.wrapper.job.JobReview;
 import de.eldoria.companies.data.wrapper.job.JobTarget;
 import de.eldoria.companies.data.wrapper.job.StoredArea;
 import de.eldoria.companies.jobs.AreaChecks;
+import de.eldoria.companies.jobs.AreaMaterials;
 import de.eldoria.companies.jobs.AreaWorld;
 import de.eldoria.companies.jobs.Blueprint;
 import de.eldoria.companies.jobs.BlueprintItems;
@@ -33,6 +35,7 @@ import de.eldoria.companies.web.api.Actions;
 import de.eldoria.companies.web.api.action.ActionRequest;
 import de.eldoria.companies.web.api.action.ActionResult;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
+import org.bukkit.Material;
 import org.jetbrains.annotations.Nullable;
 import tools.jackson.databind.JsonNode;
 
@@ -96,6 +99,7 @@ public final class JobWrites {
             Actions.JOBS_AREAS_POST,
             Actions.JOBS_AREAS_PREVIEW,
             Actions.JOBS_AREAS_SCHEMATIC,
+            Actions.JOBS_AREAS_MATERIALS,
             Actions.JOBS_AREAS_BUILD,
             Actions.JOBS_DRAFTS_POST,
             Actions.JOBS_DRAFTS_EDIT,
@@ -212,6 +216,7 @@ public final class JobWrites {
             case Actions.JOBS_AREAS_POST -> postOnArea(request, jobs, session, args);
             case Actions.JOBS_AREAS_PREVIEW -> preview(request, jobs, session, args);
             case Actions.JOBS_AREAS_SCHEMATIC -> schematicFit(request, jobs, session, args);
+            case Actions.JOBS_AREAS_MATERIALS -> areaMaterials(request, jobs, session, args);
             case Actions.JOBS_AREAS_BUILD -> build(request, jobs, session, args);
             case Actions.JOBS_DRAFTS_POST -> postDraft(request, jobs, session, args);
             case Actions.JOBS_DRAFTS_EDIT -> editDraft(request, jobs, player, args);
@@ -431,7 +436,9 @@ public final class JobWrites {
                                     area.maxZ() - area.minZ() + 1,
                                     area.volume());
                         })
-                        .toList());
+                        .toList(),
+                sources.settings().get().dugToStock(),
+                sources.settings().get().suppliedFill());
     }
 
     /**
@@ -472,7 +479,136 @@ public final class JobWrites {
                 return answers.refused(request, "dashboard.unsupported");
             }
         }
-        return checkedPost(request, jobs, session.player(), kind, area, args, details);
+        if (kind == JobKind.HARVEST) return checkedPost(request, jobs, session.player(), kind, area, args, details);
+        var fill = fillBlock(args);
+        var unfit = fill.refused();
+        if (unfit != null) return answers.refused(request, unfit);
+        var dugToStock = args.path("dugToStock").asBoolean(false);
+        var supplied = fill.chosen();
+        AreaMaterials scanned = null;
+        if (kind == JobKind.TERRAFORM) {
+            var read = scan(jobs, kind, area, details.target(), fill.block());
+            if (read.failed()) return answers.refused(request, OWNER + "error.failed");
+            scanned = read.materials();
+            if (scanned == null) {
+                return answers.refused(
+                        request, CommandFailure.of(OWNER + "error.noWorld", Values.text("world", area.world())));
+            }
+            var cost = cost(jobs, scanned, dugToStock, supplied);
+            if (cost > args.path("price").asDouble(0) && !args.path("confirm").asBoolean(false)) {
+                return answers.refused(
+                        request, CommandFailure.of(OWNER + "error.belowMaterials", Values.number("cost", cost)));
+            }
+        }
+        var materials = new JobMaterials(dugToStock, supplied ? fill.block().name() : null);
+        var blueprint = supplied && scanned != null ? scanned.blueprint(area) : null;
+        if (supplied && blueprint == null) return answers.refused(request, OWNER + "error.nothingToFill");
+        return checkedPost(
+                request, jobs, session.player(), kind, area, args, details.with(materials, blueprint), supplied);
+    }
+
+    /**
+     * The fill block a terraform job is posted with.
+     *
+     * @param block   the block, the default fill when none was chosen
+     * @param chosen  whether the owner supplies the fill
+     * @param refused why the named block can not fill, null when it can
+     */
+    private record Fill(
+            Material block, boolean chosen, @Nullable CommandFailure refused) {}
+
+    private static Fill fillBlock(JsonNode args) {
+        var name = args.path("fill").asString("");
+        if (name.isEmpty()) return new Fill(AreaMaterials.DEFAULT_FILL, false, null);
+        var material = TerraformCheck.block(name);
+        if (material == null) {
+            return new Fill(
+                    AreaMaterials.DEFAULT_FILL,
+                    false,
+                    CommandFailure.of(OWNER + "error.block", Values.text("block", name)));
+        }
+        return new Fill(material, true, null);
+    }
+
+    /**
+     * What reading an area came to.
+     *
+     * @param materials what the job digs and fills, null when the area's world is not on this server
+     * @param failed    whether the area could not be read in time
+     */
+    private record Scan(@Nullable AreaMaterials materials, boolean failed) {}
+
+    /**
+     * @return what an area job digs and fills, as the area stands
+     */
+    private static Scan scan(JobServices jobs, JobKind kind, JobArea area, @Nullable JobTarget target, Material fill) {
+        try {
+            var types = jobs.world()
+                    .blocks(area)
+                    .orTimeout(WORLD_SECONDS, TimeUnit.SECONDS)
+                    .join();
+            return new Scan(types == null ? null : AreaMaterials.of(kind, area, target, fill, types), false);
+        } catch (CompletionException e) {
+            return new Scan(null, true);
+        }
+    }
+
+    /**
+     * @return what the materials of a job cost the company beyond its price: the fill it brings, less the dug blocks it
+     *     keeps
+     */
+    private static double cost(JobServices jobs, AreaMaterials scanned, boolean dugToStock, boolean supplied) {
+        var fill = supplied ? 0 : jobs.costs().value(scanned.fill()).total();
+        var dug = dugToStock ? 0 : jobs.costs().value(scanned.dug()).total();
+        return fill - dug;
+    }
+
+    /**
+     * Reads what a dig or terraform job on one of the player's stored areas would dig out and fill in.
+     */
+    private ActionResult areaMaterials(ActionRequest request, JobServices jobs, StoredSession session, JsonNode args) {
+        if (!mayPost(session)) return answers.refused(request, "error.permission.postJob");
+        var found = storedHere(request, jobs, session, args);
+        if (found.refused() != null) return found.refused();
+        var area = found.area().area();
+        var kind = "terraform".equals(args.path("kind").asString("")) ? JobKind.TERRAFORM : JobKind.DIG;
+        JobTarget target = null;
+        if (kind == JobKind.TERRAFORM) {
+            if (!args.path("y").isInt()) return answers.refused(request, "dashboard.unsupported");
+            var named = args.path("surface").asString("");
+            var surface = named.isEmpty() ? null : TerraformCheck.block(named);
+            if (!named.isEmpty() && surface == null) {
+                return answers.refused(request, CommandFailure.of(OWNER + "error.block", Values.text("block", named)));
+            }
+            target = new JobTarget(args.path("y").asInt(), surface == null ? null : surface.name());
+        }
+        var fill = fillBlock(args);
+        var unfit = fill.refused();
+        if (unfit != null) return answers.refused(request, unfit);
+        var read = scan(jobs, kind, area, target, fill.block());
+        if (read.failed()) return answers.refused(request, OWNER + "error.failed");
+        var scanned = read.materials();
+        if (scanned == null) {
+            return answers.refused(
+                    request, CommandFailure.of(OWNER + "error.noWorld", Values.text("world", area.world())));
+        }
+        var dug = jobs.costs().value(scanned.dug());
+        var filled = jobs.costs().value(scanned.fill());
+        var settings = sources.settings().get();
+        return answers.data(
+                request,
+                new AreaCost(
+                        dug.total(),
+                        scanned.dug().values().stream()
+                                .mapToInt(Integer::intValue)
+                                .sum(),
+                        filled.total(),
+                        scanned.fill().values().stream()
+                                .mapToInt(Integer::intValue)
+                                .sum(),
+                        dug.unpriced().size() + filled.unpriced().size(),
+                        settings.dugToStock(),
+                        settings.suppliedFill()));
     }
 
     /**
@@ -595,7 +731,9 @@ public final class JobWrites {
                         JobKind.BUILD,
                         done.area(),
                         args,
-                        JobService.Details.build(done.blueprint()));
+                        JobService.Details.build(done.blueprint())
+                                .with(new JobMaterials(args.path("dugToStock").asBoolean(false), null), null),
+                        args.path("supplied").asBoolean(false));
             }
         };
     }
@@ -611,7 +749,18 @@ public final class JobWrites {
             JobArea area,
             JsonNode args,
             JobService.Details details) {
-        var supplied = args.path("supplied").asBoolean(false);
+        return checkedPost(request, jobs, player, kind, area, args, details, false);
+    }
+
+    private ActionResult checkedPost(
+            ActionRequest request,
+            JobServices jobs,
+            UUID player,
+            JobKind kind,
+            JobArea area,
+            JsonNode args,
+            JobService.Details details,
+            boolean supplied) {
         if (supplied || args.path("draft").asBoolean(false)) {
             return posted(
                     request,
@@ -1032,7 +1181,10 @@ public final class JobWrites {
         var target = job.target();
         var doneAt = review.doneAt();
         var disputeBy = review.disputeBy();
-        Map<String, Integer> stock = mine && (job.kind() == JobKind.HARVEST || job.supplied())
+        Map<String, Integer> stock = mine
+                        && (job.kind() == JobKind.HARVEST
+                                || job.supplied()
+                                || job.materials().dugToStock())
                 ? jobs.data().stock(job.id())
                 : Map.of();
         var settings = sources.settings().get();
@@ -1090,7 +1242,9 @@ public final class JobWrites {
                                 .toList()
                         : List.of(),
                 job.supplied(),
-                job.supplied() && mine && job.state() == JobState.DRAFT ? missing(jobs, job.id()) : null);
+                job.supplied() && mine && job.state() == JobState.DRAFT ? missing(jobs, job.id()) : null,
+                job.materials().dugToStock(),
+                job.materials().fill());
     }
 
     private static Map<String, Integer> missing(JobServices jobs, int id) {
@@ -1249,6 +1403,8 @@ public final class JobWrites {
      * @param reviews        the steps of the review of its work, oldest first; only for the owner and its company
      * @param supplied       whether the owner supplies the materials through the stock
      * @param missing        what the stock of a supplied draft still lacks, by material; only for its owner
+     * @param dugToStock     whether the blocks the company digs go into the stock for the owner
+     * @param fill           the block the owner supplies to fill a terraform job, null when the company brings its fill
      */
     public record JobDetails(
             JobRow job,
@@ -1272,7 +1428,9 @@ public final class JobWrites {
             boolean cancelAsked,
             List<Review> reviews,
             boolean supplied,
-            @Nullable Map<String, Integer> missing) {}
+            @Nullable Map<String, Integer> missing,
+            boolean dugToStock,
+            @Nullable String fill) {}
 
     /**
      * A step of the review of a job's work.
@@ -1314,10 +1472,12 @@ public final class JobWrites {
     /**
      * The areas a player stored for area jobs.
      *
-     * @param max   the most areas a player may keep
-     * @param areas the player's areas, sorted by name
+     * @param max          the most areas a player may keep
+     * @param areas        the player's areas, sorted by name
+     * @param dugToStock   whether the owner may have the blocks a company digs go into the stock
+     * @param suppliedFill whether the owner may supply the fill of a terraform job
      */
-    public record AreaList(int max, List<AreaRow> areas) {}
+    public record AreaList(int max, List<AreaRow> areas, boolean dugToStock, boolean suppliedFill) {}
 
     /**
      * The top layer of a stored area and the schematics a build job on it may use.
@@ -1338,6 +1498,26 @@ public final class JobWrites {
             int[] cells,
             List<String> server,
             List<String> own) {}
+
+    /**
+     * What a dig or terraform job on an area digs out and fills in, as the area stands.
+     *
+     * @param dugValue      what the dug blocks are worth at the server's prices
+     * @param dugBlocks     how many blocks are dug out
+     * @param fillCost      what the fill blocks cost at the server's prices
+     * @param fillBlocks    how many blocks are filled in
+     * @param unpriced      how many block types have no known price and are left out
+     * @param dugToStock    whether the owner may have the dug blocks go into the stock
+     * @param suppliedFill  whether the owner may supply the fill of a terraform job
+     */
+    public record AreaCost(
+            double dugValue,
+            int dugBlocks,
+            double fillCost,
+            int fillBlocks,
+            int unpriced,
+            boolean dugToStock,
+            boolean suppliedFill) {}
 
     /**
      * A schematic, turned, as a build job would ask for it.

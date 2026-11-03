@@ -19,6 +19,7 @@ import de.eldoria.companies.data.wrapper.job.JobExtension;
 import de.eldoria.companies.data.wrapper.job.JobHarvest;
 import de.eldoria.companies.data.wrapper.job.JobLand;
 import de.eldoria.companies.data.wrapper.job.JobMark;
+import de.eldoria.companies.data.wrapper.job.JobMaterials;
 import de.eldoria.companies.data.wrapper.job.JobReview;
 import de.eldoria.companies.data.wrapper.job.JobReviewEntry;
 import de.eldoria.companies.data.wrapper.job.JobTarget;
@@ -54,7 +55,7 @@ public class MariaDbJobData extends AJobData {
                    min_z, max_x, max_y, max_z, land, land_ref, due_hours, created, expires, taken, due, closed,
                    closed_by, granted, done_at, done_by, rejected, dispute_by, dispute, disputed_at, settled,
                    target_y, target_block, unit_price, paid_cents, extended_hours, extension_requests, extension_hours,
-                   extension_reason, extension_asked, charged, cancel_asked, supplied
+                   extension_reason, extension_asked, charged, cancel_asked, supplied, dug_to_stock, fill_block
             FROM jobs
             """;
 
@@ -85,8 +86,8 @@ public class MariaDbJobData extends AJobData {
         var insert = """
                 INSERT INTO jobs(owner_uuid, kind, title, description, price, fee, state, node, world, min_x, min_y,
                                  min_z, max_x, max_y, max_z, land, land_ref, due_hours, created, expires, target_y,
-                                 target_block, unit_price, charged, supplied)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                 target_block, unit_price, charged, supplied, dug_to_stock, fill_block)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 RETURNING id""";
         var area = job.area();
         var target = job.target();
@@ -116,7 +117,9 @@ public class MariaDbJobData extends AJobData {
                         .bind(target == null ? null : target.surface())
                         .bind(harvest == null ? null : harvest.unitPrice())
                         .bind(job.charged())
-                        .bind(job.supplied()))
+                        .bind(job.supplied())
+                        .bind(job.materials().dugToStock())
+                        .bind(job.materials().fill()))
                 .map(row -> row.getInt(1))
                 .first();
     }
@@ -1136,7 +1139,8 @@ public class MariaDbJobData extends AJobData {
                         row.getString("extension_reason"),
                         readTime(row, "extension_asked")),
                 row.getBoolean("charged"),
-                row.getBoolean("supplied"));
+                row.getBoolean("supplied"),
+                new JobMaterials(row.getBoolean("dug_to_stock"), row.getString("fill_block")));
     }
 
     @Override

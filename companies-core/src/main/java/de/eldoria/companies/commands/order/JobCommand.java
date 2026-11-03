@@ -805,7 +805,8 @@ public final class JobCommand {
     }
 
     /**
-     * Lists the stock of a harvest job of the player.
+     * Lists the stock of a job of the player: what a harvest job harvested, the materials of a supplied job, or the
+     * blocks dug for a job whose dug blocks go to the owner.
      *
      * @param sender sender of the command
      * @param id     id of the job
@@ -813,33 +814,42 @@ public final class JobCommand {
     @Executes("stock")
     public void stock(CommandSender sender, @IntArg(min = 0) int id) {
         var player = Senders.player(sender);
-        run(player, () -> jobs().data().stock(own(player, id).id()), stock -> {
-            if (stock.isEmpty()) {
-                deps.messages().sendMessage(player, PREFIX + "stock.empty", Values.number("id", id));
-                return;
-            }
-            List<MenuText> lines = new ArrayList<>();
-            stock.forEach((material, amount) -> lines.add(MenuText.create()
-                    .locale(
-                            PREFIX + "stock.entry",
-                            Values.text("item", material.toLowerCase(Locale.ROOT)),
-                            Values.number("amount", amount))));
-            deps.services()
-                    .menus()
-                    .show(
-                            player,
-                            jobMenu,
-                            new JobMenu.Model(
-                                    MenuText.create().locale(PREFIX + "stock.title", Values.number("id", id)),
-                                    MenuText.create().text("#<id>", Values.number("id", id)),
-                                    lines,
-                                    List.of(new JobMenu.Action(
-                                            "words.collect", "add", "order job collect " + id, JobMenu.Kind.RUN))));
-        });
+        run(
+                player,
+                () -> own(player, id),
+                job -> run(player, () -> jobs().data().stock(id), stock -> {
+                    if (stock.isEmpty()) {
+                        deps.messages().sendMessage(player, PREFIX + "stock.empty", Values.number("id", id));
+                        return;
+                    }
+                    List<MenuText> lines = new ArrayList<>();
+                    stock.forEach((material, amount) -> lines.add(MenuText.create()
+                            .locale(
+                                    PREFIX + "stock.entry",
+                                    Values.text("item", material.toLowerCase(Locale.ROOT)),
+                                    Values.number("amount", amount))));
+                    deps.services()
+                            .menus()
+                            .show(
+                                    player,
+                                    jobMenu,
+                                    new JobMenu.Model(
+                                            MenuText.create().locale(PREFIX + "stock.title", Values.number("id", id)),
+                                            MenuText.create().text("#<id>", Values.number("id", id)),
+                                            lines,
+                                            job.kind() == JobKind.HARVEST
+                                                    ? List.of(new JobMenu.Action(
+                                                            "words.collect",
+                                                            "add",
+                                                            "order job collect " + id,
+                                                            JobMenu.Kind.RUN))
+                                                    : List.of()));
+                }));
     }
 
     /**
-     * Gives the player the stock of their harvest job, as much as their inventory holds; the rest stays. The items are
+     * Gives the player the stock of their harvest job, as much as their inventory holds; the rest stays. Other jobs
+     * keep their stock until they end, as the company builds from it. The items are
      * taken from the stock first and handed over on the main thread; what does not fit goes back.
      *
      * @param sender sender of the command
@@ -852,6 +862,9 @@ public final class JobCommand {
                 player,
                 () -> {
                     var job = own(player, id);
+                    if (job.kind() != JobKind.HARVEST) {
+                        throw CommandFailure.of(PREFIX + "error.collectHarvest", Values.number("id", id));
+                    }
                     Map<String, Integer> taken = new LinkedHashMap<>();
                     jobs().data().stock(job.id()).forEach((material, amount) -> {
                         if (jobs().data().takeStock(job.id(), material, amount)) taken.put(material, amount);
@@ -1574,6 +1587,12 @@ public final class JobCommand {
                                 Values.number("y", target.y()),
                                 Values.text("block", surface.toLowerCase(Locale.ROOT))));
             }
+        }
+        if (job.materials().dugToStock()) lines.add(MenuText.create().locale(PREFIX + "info.dugToStock"));
+        var fill = job.materials().fill();
+        if (fill != null) {
+            lines.add(MenuText.create()
+                    .locale(PREFIX + "info.fill", Values.text("block", fill.toLowerCase(Locale.ROOT))));
         }
         if (job.state() == JobState.OPEN) {
             lines.add(MenuText.create().locale(PREFIX + "info.open", Values.text("time", left(job.expires()))));

@@ -14,6 +14,7 @@ import de.eldoria.companies.data.wrapper.job.Job;
 import de.eldoria.companies.data.wrapper.job.JobArea;
 import de.eldoria.companies.data.wrapper.job.JobHarvest;
 import de.eldoria.companies.data.wrapper.job.JobLand;
+import de.eldoria.companies.data.wrapper.job.JobMaterials;
 import de.eldoria.companies.data.wrapper.job.StoredArea;
 import de.eldoria.companies.data.wrapper.order.ReturnKind;
 import de.eldoria.companies.jobs.Blueprint;
@@ -340,6 +341,39 @@ class JobWritesTest {
         assertEquals("error.permission.postJob", forbidden.reason());
         assertEquals(1, deleted.data().path("areas").size());
         assertEquals("error.permission.postJob", hidden.reason());
+    }
+
+    @Test
+    void anAreaJobCountsWhatItDigsAndFillsAndTakesItsMaterialChoices() {
+        world.server.addSimpleWorld("world");
+        world.jobSettings.unownedWorlds(List.of("world"));
+        world.jobs.saveArea(owner, new StoredArea("field", HERE, FIELD), Times.now());
+        var terraform = "\"area\":\"field\",\"kind\":\"terraform\",\"y\":62";
+
+        var counted =
+                perform(owner, Actions.JOBS_AREAS_MATERIALS, "{" + terraform + "}", Set.of(Permission.Orders.JOBS));
+        var posted = perform(
+                owner,
+                Actions.JOBS_AREAS_POST,
+                "{" + terraform + ",\"title\":\"Level\",\"price\":100,\"hours\":24,\"fill\":\"dirt\","
+                        + "\"dugToStock\":true}",
+                Set.of(Permission.Orders.JOBS));
+        world.jobSettings.suppliedFill(false);
+        var refused = perform(
+                owner,
+                Actions.JOBS_AREAS_POST,
+                "{" + terraform + ",\"title\":\"Level\",\"price\":100,\"hours\":24,\"fill\":\"dirt\"}",
+                Set.of(Permission.Orders.JOBS));
+
+        assertEquals(300, counted.data().path("fillBlocks").asInt());
+        assertEquals(0, counted.data().path("dugBlocks").asInt());
+        assertTrue(counted.data().path("suppliedFill").asBoolean());
+        var draft = world.jobs.job(posted.data().path("job").path("id").asInt()).orElseThrow();
+        assertEquals(JobState.DRAFT, draft.state());
+        assertTrue(draft.supplied());
+        assertEquals(new JobMaterials(true, "DIRT"), draft.materials());
+        assertEquals(300, posted.data().path("missing").path("DIRT").asInt());
+        assertEquals("order.job.error.choice", refused.reason());
     }
 
     @Test

@@ -401,6 +401,8 @@ public final class SettingsCatalogue {
         jobs.whole("maxAreas");
         jobs.whole("maxDrafts");
         jobs.whole("buildGhostRadius");
+        jobs.flag("dugToStock");
+        jobs.flag("suppliedFill");
 
         var areas = new Section(fields, AREAS, "areas");
         areas.flag("enabled");

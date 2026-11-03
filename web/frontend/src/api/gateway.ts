@@ -1271,6 +1271,10 @@ export interface JobDetails {
     supplied?: boolean
     /** What the stock of the owner's supplied draft still lacks, as amounts by material name. */
     missing?: Record<string, number> | null
+    /** Whether the blocks the company digs go into the stock for the owner; missing from older plugins. */
+    dugToStock?: boolean
+    /** The block the owner supplies to fill a terraform job, null when the company brings its fill. */
+    fill?: string | null
 }
 
 /** The schematics a player uploaded for build jobs. */
@@ -1303,6 +1307,28 @@ export interface AreaList {
     /** The most areas a player may keep. */
     max: number
     areas: AreaRow[]
+    /** Whether the owner may have the blocks a company digs go into the stock; missing from older plugins. */
+    dugToStock?: boolean
+    /** Whether the owner may supply the fill of a terraform job; missing from older plugins. */
+    suppliedFill?: boolean
+}
+
+/** What a dig or terraform job on an area digs out and fills in, as the area stands. */
+export interface AreaCost {
+    /** What the dug blocks are worth at the server's prices. */
+    dugValue: number
+    /** How many blocks are dug out. */
+    dugBlocks: number
+    /** What the fill blocks cost at the server's prices. */
+    fillCost: number
+    /** How many blocks are filled in. */
+    fillBlocks: number
+    /** How many block types have no known price and are left out. */
+    unpriced: number
+    /** Whether the owner may have the dug blocks go into the stock. */
+    dugToStock: boolean
+    /** Whether the owner may supply the fill of a terraform job. */
+    suppliedFill: boolean
 }
 
 /** An area a player stored in game. */
@@ -1529,8 +1555,9 @@ export interface WriteActions {
     'jobs.areas.delete': {args: {name: string}, result: AreaList}
     'jobs.areas.preview': {args: {node: string, area: string}, result: AreaPreview}
     'jobs.areas.schematic': {args: {node: string, area: string, schematic: string, rotation: number}, result: SchematicFit}
-    'jobs.areas.build': {args: {node: string, area: string, schematic: string, rotation: number, x: number, z: number, title: string, price: number, hours: number, confirm: boolean, draft?: boolean, supplied?: boolean}, result: JobDetails}
-    'jobs.areas.post': {args: {node: string, area: string, kind: AreaJobKind, title: string, price: number, hours: number, y?: number, surface?: string, unitPrice?: number, draft?: boolean}, result: JobDetails}
+    'jobs.areas.materials': {args: {node: string, area: string, kind: 'dig' | 'terraform', y?: number, surface?: string, fill?: string}, result: AreaCost}
+    'jobs.areas.build': {args: {node: string, area: string, schematic: string, rotation: number, x: number, z: number, title: string, price: number, hours: number, confirm: boolean, draft?: boolean, supplied?: boolean, dugToStock?: boolean}, result: JobDetails}
+    'jobs.areas.post': {args: {node: string, area: string, kind: AreaJobKind, title: string, price: number, hours: number, y?: number, surface?: string, unitPrice?: number, draft?: boolean, dugToStock?: boolean, fill?: string, confirm?: boolean}, result: JobDetails}
     'admin.jobs.disputes': {args: Record<string, never>, result: {disputes: DisputeRow[]}}
     'admin.jobs.settle': {args: JobRef & {percent: number}, result: {disputes: DisputeRow[]}}
     'events.leave': {args: OfferRef, result: EventDetails}

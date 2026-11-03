@@ -20,6 +20,7 @@ import de.eldoria.companies.data.wrapper.job.Job;
 import de.eldoria.companies.data.wrapper.job.JobArea;
 import de.eldoria.companies.data.wrapper.job.JobExtension;
 import de.eldoria.companies.data.wrapper.job.JobLand;
+import de.eldoria.companies.data.wrapper.job.JobMaterials;
 import de.eldoria.companies.data.wrapper.job.JobReviewEntry;
 import de.eldoria.companies.data.wrapper.job.JobTarget;
 import de.eldoria.companies.events.job.JobEndEvent;
@@ -247,6 +248,69 @@ class JobServiceTest {
 
         assertEquals(Map.of(), returned);
         assertEquals(Map.of("STONE", 1), jobs.stock(posted.id()));
+    }
+
+    @Test
+    void materialChoicesFollowTheSettingsAndTheKindOfJob() {
+        var dug = JobService.Details.NONE.with(new JobMaterials(true, null), null);
+        var posted = assertInstanceOf(
+                        JobService.Posted.Done.class,
+                        service.post(owner, JobKind.DIG, "Pit", 100, 24, NODE, AREA, JobLand.REGION, "home", dug))
+                .job();
+        assertTrue(jobs.job(posted.id()).orElseThrow().materials().dugToStock());
+
+        var filled = JobService.Details.shape(new JobTarget(62, null))
+                .with(
+                        new JobMaterials(false, "DIRT"),
+                        Blueprint.of(List.of(new Blueprint.Cell(0, 0, 0, Material.DIRT))));
+        var harvest = JobService.Details.harvest(1).with(new JobMaterials(true, null), null);
+        var other = new JobArea("world", 20, 60, 20, 29, 64, 29);
+        assertEquals(
+                JobService.Refusal.CHOICE,
+                refusal(service.post(
+                        owner, JobKind.TERRAFORM, "Flat", 100, 24, NODE, other, JobLand.REGION, "home", filled)));
+        assertEquals(
+                JobService.Refusal.CHOICE,
+                refusal(service.post(
+                        owner, JobKind.HARVEST, "Wheat", 100, 24, NODE, other, JobLand.REGION, "home", harvest)));
+        assertEquals(
+                JobService.Refusal.CHOICE,
+                refusal(service.saveDraft(owner, JobKind.TERRAFORM, "Flat", 100, 24, NODE, other, filled, false)));
+        settings.dugToStock(false);
+        assertEquals(
+                JobService.Refusal.CHOICE,
+                refusal(service.post(owner, JobKind.DIG, "Pit", 100, 24, NODE, other, JobLand.REGION, "home", dug)));
+    }
+
+    @Test
+    void aSuppliedTerraformDraftTakesItsFillAndTheDugStockGoesBackAtTheEnd() {
+        var area = new JobArea("world", 30, 60, 30, 31, 61, 30);
+        service.supplies(new Supplies(jobs, new Blueprints(jobs, Logger.getAnonymousLogger())));
+        Map<UUID, Map<String, Integer>> returned = new HashMap<>();
+        service.stockReturns((player, items) -> {
+            returned.put(player, items);
+            return Map.of();
+        });
+        var scanned = AreaMaterials.of(
+                JobKind.TERRAFORM, area, new JobTarget(61, null), Material.DIRT, (x, y, z) -> Material.AIR);
+        var details = JobService.Details.shape(new JobTarget(61, null))
+                .with(new JobMaterials(true, "DIRT"), scanned.blueprint(area));
+
+        var draft = assertInstanceOf(
+                        JobService.Posted.Done.class,
+                        service.saveDraft(owner, JobKind.TERRAFORM, "Flat", 100, 24, NODE, area, details, true))
+                .job();
+
+        assertTrue(draft.supplied());
+        assertEquals("DIRT", draft.materials().fill());
+        assertEquals(JobService.Refusal.MATERIALS, refusal(service.publish(owner, draft.id(), JobLand.REGION, "home")));
+        jobs.stock(draft.id(), Map.of("DIRT", 4));
+        var posted = assertInstanceOf(
+                        JobService.Posted.Done.class, service.publish(owner, draft.id(), JobLand.REGION, "home"))
+                .job();
+        jobs.stock(posted.id(), Map.of("STONE", 3));
+        assertEquals(JobService.Change.DONE, service.cancel(owner, "Owner", posted.id()));
+        assertEquals(Map.of(owner, Map.of("DIRT", 4, "STONE", 3)), returned);
     }
 
     @Test
