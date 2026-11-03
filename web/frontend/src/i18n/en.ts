@@ -1270,6 +1270,7 @@ export default {
         BUILD: 'Build',
         CONTAINERS: 'Containers',
         MANAGE_AREAS: 'Manage areas',
+        MANAGE_PERKS: 'Manage perks',
     },
     orders: {
         search: 'Search open orders',
@@ -1552,6 +1553,7 @@ export default {
             AREA_BUY: 'Area bought',
             AREA_RENT: 'Area rent',
             AREA_SALE: 'Area sold back',
+            PERK: 'Perk bought',
         },
     },
     jobs: {

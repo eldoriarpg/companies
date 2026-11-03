@@ -106,6 +106,10 @@ Company permissions are given inside a company. They are not server permissions.
 | `manage_permissions` | Give and remove the permissions of other members. Only permissions you hold yourself, and never those of the owner. |
 | `edit_profile` | Change the description, tag, colour and join mode. |
 | `treasury` | Take money out of the treasury and set the payout share. |
+| `build` | Build in the company's [areas](../companies/areas.md). |
+| `containers` | Open chests, barrels, furnaces and other containers in the company's areas. |
+| `manage_areas` | Set the company's home and link, buy, rent and give up areas, paid from the treasury. |
+| `manage_perks` | Buy [perks](../companies/perks.md) for the company, paid from the treasury. |
 
 ### The owner
 

@@ -1270,6 +1270,7 @@ export default {
         BUILD: 'Construire',
         CONTAINERS: 'Conteneurs',
         MANAGE_AREAS: 'Gérer les zones',
+        MANAGE_PERKS: 'Gérer les avantages',
     },
     orders: {
         search: 'Rechercher des commandes ouvertes',
@@ -1552,6 +1553,7 @@ export default {
             AREA_BUY: 'Zone achetée',
             AREA_RENT: 'Loyer de zone',
             AREA_SALE: 'Zone revendue',
+            PERK: 'Avantage acheté',
         },
     },
     jobs: {

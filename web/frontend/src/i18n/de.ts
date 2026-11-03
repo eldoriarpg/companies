@@ -1270,6 +1270,7 @@ export default {
         BUILD: 'Bauen',
         CONTAINERS: 'Behälter',
         MANAGE_AREAS: 'Gebiete verwalten',
+        MANAGE_PERKS: 'Vorteile verwalten',
     },
     orders: {
         search: 'Offene Aufträge durchsuchen',
@@ -1552,6 +1553,7 @@ export default {
             AREA_BUY: 'Gebiet gekauft',
             AREA_RENT: 'Gebietsmiete',
             AREA_SALE: 'Gebiet zurückverkauft',
+            PERK: 'Vorteil gekauft',
         },
     },
     jobs: {

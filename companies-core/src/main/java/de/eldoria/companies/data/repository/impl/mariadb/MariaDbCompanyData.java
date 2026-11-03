@@ -287,6 +287,9 @@ public class MariaDbCompanyData extends ACompanyData {
         var deleteTravels = """
                 DELETE FROM home_teleports WHERE company_id = ?""";
         @Language("mariadb")
+        var deletePerks = """
+                DELETE FROM company_perks WHERE company_id = ?""";
+        @Language("mariadb")
         var deleteCompany = """
                 DELETE FROM companies WHERE id = ?""";
         var conf = QueryConfiguration.getDefault().withSingleTransaction();
@@ -301,6 +304,7 @@ public class MariaDbCompanyData extends ACompanyData {
             conf.query(deleteAlerts).single(call().bind(company.id())).delete();
             conf.query(deleteHome).single(call().bind(company.id())).delete();
             conf.query(deleteTravels).single(call().bind(company.id())).delete();
+            conf.query(deletePerks).single(call().bind(company.id())).delete();
             conf.query(deleteCompany).single(call().bind(company.id())).delete();
         }
         return conf.context().exceptions().isEmpty();

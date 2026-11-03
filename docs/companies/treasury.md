@@ -65,6 +65,7 @@ highest share, your company keeps at most the new highest share from then on.
 | Contest prize | The company's prize of a contest |
 | Home teleport | A teleport home paid from the treasury |
 | Area bought / Area rent / Area sold back | A [company area](./areas.md) bought or rented from the server, or sold back to it |
+| Perk bought | A [perk](./perks.md) the company bought |
 
 Log entries are kept for 365 days by default.
 

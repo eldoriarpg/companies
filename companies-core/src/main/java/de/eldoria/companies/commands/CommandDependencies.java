@@ -48,6 +48,7 @@ import de.eldoria.companies.orders.SoloOrderService;
 import de.eldoria.companies.orders.offers.ContestService;
 import de.eldoria.companies.orders.offers.EventOfferService;
 import de.eldoria.companies.orders.system.SystemFunding;
+import de.eldoria.companies.perks.PerkService;
 import de.eldoria.companies.services.AdminOrderService;
 import de.eldoria.companies.services.CompanyChanges;
 import de.eldoria.companies.services.CompanyService;
@@ -677,6 +678,7 @@ public final class CommandDependencies {
      * @param feeReductions       the fee reductions of the server events running now
      * @param jobs                the jobs: posted by players, taken by companies, checked and paid
      * @param areas               the areas and homes of companies
+     * @param perks               the perks companies buy
      */
     public record Services(
             Economy economy,
@@ -712,5 +714,6 @@ public final class CommandDependencies {
             ActiveEvents activeEvents,
             FeeReductions feeReductions,
             JobServices jobs,
-            AreaServices areas) {}
+            AreaServices areas,
+            PerkService perks) {}
 }

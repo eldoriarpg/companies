@@ -70,7 +70,11 @@ public enum TreasuryKind implements Translatable {
     /**
      * A bought plot or region the company sold back to the server.
      */
-    AREA_SALE(13);
+    AREA_SALE(13),
+    /**
+     * A perk the company bought.
+     */
+    PERK(14);
 
     private final int id;
 

@@ -56,7 +56,11 @@ public enum CompanyPermission implements Translatable {
     /**
      * Sets the company's home and links, buys, rents and gives up areas, paid from the treasury.
      */
-    MANAGE_AREAS(9);
+    MANAGE_AREAS(9),
+    /**
+     * Buys perks for the company, paid from the treasury.
+     */
+    MANAGE_PERKS(10);
 
     private final long mask;
     private final int rawMask;

@@ -16,6 +16,7 @@ export const GRANTABLE: readonly MemberPermission[] = [
     MemberPermission.BUILD,
     MemberPermission.CONTAINERS,
     MemberPermission.MANAGE_AREAS,
+    MemberPermission.MANAGE_PERKS,
 ]
 
 /**

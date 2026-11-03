@@ -45,7 +45,8 @@ export type MemberPermission =
   | 'TREASURY'
   | 'BUILD'
   | 'CONTAINERS'
-  | 'MANAGE_AREAS';
+  | 'MANAGE_AREAS'
+  | 'MANAGE_PERKS';
 export type JoinMode = 'OPEN' | 'APPLICATIONS' | 'INVITE_ONLY';
 export type OrderState = 'UNCLAIMED' | 'CLAIMED' | 'DELIVERED' | 'RECEIVED';
 export type AreaSourceView = 'LINKED' | 'BOUGHT' | 'RENTED';
@@ -473,6 +474,7 @@ export const MemberPermission = {
     KICK: "KICK",
     MANAGE_AREAS: "MANAGE_AREAS",
     MANAGE_ORDERS: "MANAGE_ORDERS",
+    MANAGE_PERKS: "MANAGE_PERKS",
     MANAGE_PERMISSIONS: "MANAGE_PERMISSIONS",
     OWNER: "OWNER",
     TREASURY: "TREASURY",

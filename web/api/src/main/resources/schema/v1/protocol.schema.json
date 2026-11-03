@@ -520,7 +520,7 @@
     },
     "MemberPermission" : {
       "type" : "string",
-      "enum" : [ "OWNER", "INVITE", "KICK", "MANAGE_ORDERS", "MANAGE_PERMISSIONS", "EDIT_PROFILE", "TREASURY", "BUILD", "CONTAINERS", "MANAGE_AREAS" ]
+      "enum" : [ "OWNER", "INVITE", "KICK", "MANAGE_ORDERS", "MANAGE_PERMISSIONS", "EDIT_PROFILE", "TREASURY", "BUILD", "CONTAINERS", "MANAGE_AREAS", "MANAGE_PERKS" ]
     },
     "MemberStatsView" : {
       "type" : "object",
