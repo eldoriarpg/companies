@@ -69,7 +69,7 @@ public final class WorldEditSelections implements SelectionHook {
             var block = clipboard.getBlock(point);
             var turned = turn.apply(point.subtract(origin).toVector3());
             var material = block.getBlockType().getMaterial();
-            if (material.isAir() || material.isLiquid()) {
+            if (material.isAir()) {
                 air.add(new int[] {
                     (int) Math.round(turned.x()), (int) Math.round(turned.y()), (int) Math.round(turned.z())
                 });

@@ -104,6 +104,7 @@ final class JobApiImpl implements JobApi {
 
     @Override
     public CompletableFuture<Optional<List<BuildBlock>>> blueprint(int id) {
+        // TODO: hand out the blueprint's water and lava sources as well
         return CompletableFuture.supplyAsync(
                 () -> jobs.job(id)
                         .filter(job -> job.kind() == JobKind.BUILD)

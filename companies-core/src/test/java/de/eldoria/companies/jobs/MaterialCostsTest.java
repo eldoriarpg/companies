@@ -70,4 +70,18 @@ class MaterialCostsTest {
         assertEquals(12.5, cost.total(), 1e-9);
         assertEquals(List.of(Material.PISTON_HEAD), cost.unpriced());
     }
+
+    @Test
+    void fluidsCostNothingAsCompaniesNeverPourThem() {
+        var costs = new MaterialCosts(null, type -> 1.0, Blueprint.Want::type);
+        var pond = Blueprint.of(List.of(
+                new Blueprint.Cell(0, 0, 0, Material.STONE),
+                new Blueprint.Cell(1, 0, 0, Material.WATER, "minecraft:water[level=0]"),
+                new Blueprint.Cell(2, 0, 0, Material.LAVA, "minecraft:lava[level=0]")));
+
+        var cost = costs.of(pond);
+
+        assertEquals(1.0, cost.total(), 1e-9);
+        assertEquals(List.of(), cost.unpriced());
+    }
 }

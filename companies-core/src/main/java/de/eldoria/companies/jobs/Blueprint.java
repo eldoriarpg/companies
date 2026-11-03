@@ -36,6 +36,9 @@ import java.util.zip.GZIPOutputStream;
  * and its orientation states
  * ({@link #FIXED}) are as the blueprint fixes them; states its neighbours decide, like the connections of a fence or
  * the shape of a stair, are kept for showing the blueprint but never compared.
+ * <p>
+ * The water and lava sources of the schematic are kept apart as {@link #fluids()}: they ask for nothing either, but
+ * a job whose owner supplies the materials stocks and places them.
  */
 public final class Blueprint {
     /**
@@ -46,7 +49,8 @@ public final class Blueprint {
             Set.of("facing", "half", "axis", "rotation", "hinge", "face", "attachment", "orientation");
 
     private static final Set<String> SLAB_TYPES = Set.of("top", "bottom", "double");
-    private static final int FORMAT = -2;
+    private static final int FORMAT = -3;
+    private static final int FORMAT_WITHOUT_FLUIDS = -2;
     private static final int MAX_PALETTE = 0xFFFF;
     private static final int UNPLACED_AIR = -1;
 
@@ -65,8 +69,10 @@ public final class Blueprint {
     private final int offsetX;
     private final int offsetY;
     private final int offsetZ;
+    private final List<Fluid> fluids;
 
-    private Blueprint(int width, int height, int length, List<Want> palette, int[] cells, int[] offset) {
+    private Blueprint(
+            int width, int height, int length, List<Want> palette, int[] cells, int[] offset, List<Fluid> fluids) {
         this.offsetX = offset[0];
         this.offsetY = offset[1];
         this.offsetZ = offset[2];
@@ -75,6 +81,7 @@ public final class Blueprint {
         this.length = length;
         this.palette = List.copyOf(palette);
         this.cells = cells;
+        this.fluids = List.copyOf(fluids);
         var count = 0;
         var dig = 0;
         for (var cell : cells) {
@@ -111,6 +118,16 @@ public final class Blueprint {
             this(x, y, z, type, key(type));
         }
     }
+
+    /**
+     * A water or lava source of a schematic.
+     *
+     * @param x    x offset from the lowest corner of the blueprint
+     * @param y    y offset from the lowest corner
+     * @param z    z offset from the lowest corner
+     * @param type {@link Material#WATER} or {@link Material#LAVA}
+     */
+    public record Fluid(int x, int y, int z, Material type) {}
 
     /**
      * The block a position asks for.
@@ -219,7 +236,8 @@ public final class Blueprint {
     }
 
     /**
-     * @param cells the blocks of a schematic, air left out
+     * @param cells the blocks of a schematic, air left out; its water and lava ask for nothing and their sources are
+     *              kept as {@link #fluids()}
      * @return the blueprint, its corner at the lowest offsets
      * @throws IllegalArgumentException when there are no blocks or more than 65535 different ones
      */
@@ -228,7 +246,8 @@ public final class Blueprint {
     }
 
     /**
-     * @param cells the blocks of a schematic, air left out
+     * @param cells the blocks of a schematic, air left out; its water and lava count as air and their sources are
+     *              kept as {@link #fluids()}
      * @param air   the positions the schematic leaves as air, as x, y and z offsets; dug out where they lie below the
      *              ground once the blueprint is placed, see {@link #dug}
      * @return the blueprint, its corner at the lowest offsets
@@ -261,8 +280,20 @@ public final class Blueprint {
         for (var position : air) {
             grid[((position[1] - minY) * length + (position[2] - minZ)) * width + (position[0] - minX)] = UNPLACED_AIR;
         }
+        List<Fluid> fluids = new ArrayList<>();
         for (var cell : cells) {
-            if (!wanted(cell.type())) continue;
+            if (!wanted(cell.type())) {
+                if (cell.type() == Material.WATER
+                        || cell.type() == Material.LAVA
+                        || cell.type() == Material.BUBBLE_COLUMN) {
+                    grid[((cell.y() - minY) * length + (cell.z() - minZ)) * width + (cell.x() - minX)] = UNPLACED_AIR;
+                }
+                if (source(cell)) {
+                    var type = cell.type() == Material.LAVA ? Material.LAVA : Material.WATER;
+                    fluids.add(new Fluid(cell.x() - minX, cell.y() - minY, cell.z() - minZ, type));
+                }
+                continue;
+            }
             var id = index.computeIfAbsent(cell.data(), data -> {
                 palette.add(new Want(cell.type(), data));
                 return palette.size();
@@ -271,14 +302,25 @@ public final class Blueprint {
             grid[((cell.y() - minY) * length + (cell.z() - minZ)) * width + (cell.x() - minX)] = id;
         }
         if (palette.isEmpty()) throw new IllegalArgumentException("no blocks");
-        return new Blueprint(width, height, length, palette, grid, new int[] {minX, minY, minZ});
+        return new Blueprint(width, height, length, palette, grid, new int[] {minX, minY, minZ}, fluids);
+    }
+
+    /**
+     * @param cell a block of a schematic
+     * @return whether it is a water or lava source; a bubble column stands on a water source
+     */
+    private static boolean source(Cell cell) {
+        if (cell.type() == Material.BUBBLE_COLUMN) return true;
+        if (cell.type() != Material.WATER && cell.type() != Material.LAVA) return false;
+        var level = states(cell.data()).get("level");
+        return level == null || "0".equals(level);
     }
 
     /**
      * Places the blueprint: the positions the schematic leaves as air that hold a solid block at or below the ground of
      * their column, such as the ground a cellar reaches into or a hill it is built into, must be dug out; the other air
      * positions ask for nothing, so plants, snow, leaves and what stands above the ground stay. The blueprint then
-     * covers no more than its blocks and the positions to dig.
+     * covers no more than its blocks, the positions to dig and its fluid sources.
      *
      * @param world   name of the world
      * @param x       x of the point the owner stands on
@@ -328,6 +370,14 @@ public final class Blueprint {
             }
         }
         if (maxX < 0) throw new IllegalArgumentException("nothing to build or dig here");
+        for (var fluid : fluids) {
+            minX = Math.min(minX, fluid.x());
+            minY = Math.min(minY, fluid.y());
+            minZ = Math.min(minZ, fluid.z());
+            maxX = Math.max(maxX, fluid.x());
+            maxY = Math.max(maxY, fluid.y());
+            maxZ = Math.max(maxZ, fluid.z());
+        }
         int w = maxX - minX + 1, h = maxY - minY + 1, l = maxZ - minZ + 1;
         var cropped = new int[w * h * l];
         for (var dy = 0; dy < h; dy++) {
@@ -337,8 +387,12 @@ public final class Blueprint {
                 }
             }
         }
+        List<Fluid> kept = new ArrayList<>();
+        for (var fluid : fluids) {
+            kept.add(new Fluid(fluid.x() - minX, fluid.y() - minY, fluid.z() - minZ, fluid.type()));
+        }
         return new Blueprint(
-                w, h, l, placedPalette, cropped, new int[] {offsetX + minX, offsetY + minY, offsetZ + minZ});
+                w, h, l, placedPalette, cropped, new int[] {offsetX + minX, offsetY + minY, offsetZ + minZ}, kept);
     }
 
     /**
@@ -404,12 +458,21 @@ public final class Blueprint {
                 && width == blueprint.width
                 && height == blueprint.height
                 && length == blueprint.length
-                && cells().equals(blueprint.cells());
+                && cells().equals(blueprint.cells())
+                && fluids.equals(blueprint.fluids);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(width, height, length, blocks);
+        return Objects.hash(width, height, length, blocks, fluids);
+    }
+
+    /**
+     * @return the water and lava sources of the schematic, at offsets from the lowest corner of the area; they ask for
+     *     nothing, but a job whose owner supplies the materials stocks and places them
+     */
+    public List<Fluid> fluids() {
+        return fluids;
     }
 
     /**
@@ -492,6 +555,13 @@ public final class Blueprint {
             out.writeInt(palette.size());
             for (var want : palette) out.writeUTF(want.data());
             for (var cell : cells) out.writeShort(Math.max(0, cell));
+            out.writeInt(fluids.size());
+            for (var fluid : fluids) {
+                out.writeInt(fluid.x());
+                out.writeInt(fluid.y());
+                out.writeInt(fluid.z());
+                out.writeUTF(key(fluid.type()));
+            }
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
@@ -499,15 +569,16 @@ public final class Blueprint {
     }
 
     /**
-     * @param text a blueprint as {@link #encode()} wrote it, or one stored before blueprints kept block data, which
-     *     asks for types alone
+     * @param text a blueprint as {@link #encode()} wrote it, one stored before blueprints kept their fluids, which has
+     *     none, or one stored before blueprints kept block data, which asks for types alone
      * @return the blueprint; a block type this server does not know asks for nothing, and air asks to be dug out
      */
     public static Blueprint decode(String text) {
         try (var in = new DataInputStream(
                 new GZIPInputStream(new ByteArrayInputStream(Base64.getDecoder().decode(text))))) {
             var first = in.readInt();
-            var withData = first == FORMAT;
+            var withFluids = first == FORMAT;
+            var withData = withFluids || first == FORMAT_WITHOUT_FLUIDS;
             int width = withData ? in.readInt() : first, height = in.readInt(), length = in.readInt();
             var size = in.readInt();
             List<Want> palette = new ArrayList<>();
@@ -522,7 +593,14 @@ public final class Blueprint {
                 var id = in.readUnsignedShort();
                 cells[i] = id > 0 && known[id - 1] ? id : 0;
             }
-            return new Blueprint(width, height, length, palette, cells, new int[3]);
+            List<Fluid> fluids = new ArrayList<>();
+            var count = withFluids ? in.readInt() : 0;
+            for (var i = 0; i < count; i++) {
+                int x = in.readInt(), y = in.readInt(), z = in.readInt();
+                var type = Material.matchMaterial(in.readUTF());
+                if (type == Material.WATER || type == Material.LAVA) fluids.add(new Fluid(x, y, z, type));
+            }
+            return new Blueprint(width, height, length, palette, cells, new int[3], fluids);
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
