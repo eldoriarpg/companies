@@ -13,11 +13,14 @@ import de.eldoria.companies.data.wrapper.order.SimpleOrder;
 import de.eldoria.companies.events.company.CompanyApplicationEvent;
 import de.eldoria.companies.events.company.CompanyAreasChangeEvent;
 import de.eldoria.companies.events.company.CompanyInviteEvent;
+import de.eldoria.companies.events.company.CompanyJoinEvent;
 import de.eldoria.companies.events.company.CompanyMemberPermissionEvent;
 import de.eldoria.companies.events.order.OrderRemovedEvent;
+import de.eldoria.companies.events.player.ItemsReturnedEvent;
 import de.eldoria.companies.nodes.NodeMessage.BoardsChanged;
 import de.eldoria.companies.nodes.NodeMessage.CacheInvalidate;
 import de.eldoria.companies.nodes.NodeMessage.PlayerPresence;
+import de.eldoria.companies.nodes.NodeMessage.RankingChanged;
 import de.eldoria.companies.util.Times;
 import net.kyori.adventure.text.Component;
 import org.bukkit.event.player.PlayerJoinEvent;
@@ -91,6 +94,26 @@ class NodeSignalsTest {
         signals.onAreas(new CompanyAreasChangeEvent(company(), CompanyAreasChangeEvent.Change.AREAS));
 
         assertEquals(List.of(new CacheInvalidate(NodeCaches.COMPANY, "7")), bus.published);
+    }
+
+    @Test
+    void joinsOutdateTheCompanyAndTheRankings() {
+        signals.onCompanyJoin(new CompanyJoinEvent(company(), server.addPlayer()));
+
+        assertEquals(List.of(new CacheInvalidate(NodeCaches.COMPANY, "7"), new RankingChanged()), bus.published);
+    }
+
+    @Test
+    void returnedItemsOutdateThePlayerWhoGetsThem() {
+        var player = server.addPlayer();
+
+        signals.onItemsReturned(
+                new ItemsReturnedEvent(player, List.of(), ItemsReturnedEvent.Reason.ORDER_ABORTED, null));
+
+        assertEquals(
+                List.of(new CacheInvalidate(
+                        NodeCaches.PLAYER, player.getUniqueId().toString())),
+                bus.published);
     }
 
     @Test
