@@ -319,7 +319,10 @@ form, in game with `/order job build draft` at the confirm step of a build job. 
 companies do not see it, nothing is charged and its land is not checked or held. Change its title, price and time on the
 dashboard, post it with **Post** or `/order job post <id>`, or delete it. Posting checks everything a new job is checked
 for, its land where it lies now included, and charges price and fee then. Deleting a draft sends what its stock holds to
-your item returns. You keep at most `maxDrafts` drafts ([jobs.yml](../admin/configuration/jobs-yml.md)).
+your item returns. You keep at most `maxDrafts` drafts, 2 by default, and a draft waits `draftDays` (14 by default)
+after it was saved, whatever you edit ([jobs.yml](../admin/configuration/jobs-yml.md)): your inbox tells you a day before,
+then the draft is deleted and its stock goes to your item returns. The draft's page and `/order job info <id>` show
+when.
 
 A job waits for a company for some days (`openDays` in [jobs.yml](../admin/configuration/jobs-yml.md)). When nobody
 takes it, it expires and price and fee come back. The plugin never tells you which company works on your job; your inbox

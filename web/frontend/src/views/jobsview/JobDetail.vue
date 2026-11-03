@@ -175,6 +175,7 @@ async function take(step: JobStep): Promise<void> {
     <MutedText v-if="details.materialCost" tag="p" data-testid="job-material-cost">{{ t(details.materialCost.unpriced > 0 ? 'jobs.materialCostUnpriced' : 'jobs.materialCost', {cost: money(details.materialCost.total, locale), unpriced: details.materialCost.unpriced}) }}</MutedText>
     <MutedText v-if="details.targetY != null" tag="p">{{ details.surface ? t('jobs.targetSurface', {y: details.targetY, block: details.surface.toLowerCase()}) : t('jobs.target', {y: details.targetY}) }}</MutedText>
     <MutedText v-if="job.state === 'open' && job.expires" tag="p">{{ t('jobs.expires', {time: dateTime(job.expires, locale)}) }}</MutedText>
+    <MutedText v-if="job.state === 'draft' && job.expires" tag="p" data-testid="job-draft-expires">{{ t('jobs.draftExpires', {time: dateTime(job.expires, locale)}) }}</MutedText>
     <MutedText v-if="job.due && (job.state === 'taken' || job.state === 'done')" tag="p">{{ t('jobs.due', {time: dateTime(job.due, locale)}) }}</MutedText>
     <MutedText v-if="job.state === 'done' && details.approveAt" tag="p" data-testid="job-approve-at">{{ t('jobs.approveAt', {time: dateTime(details.approveAt, locale)}) }}</MutedText>
     <MutedText v-if="(details.extendedHours ?? 0) > 0 && job.state === 'taken'" tag="p" data-testid="job-extended">{{ t('jobs.extended', {hours: details.extendedHours}) }}</MutedText>

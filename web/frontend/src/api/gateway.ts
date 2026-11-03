@@ -1208,6 +1208,7 @@ export interface JobRow {
     fee: number
     /** When the company's time runs out, as an ISO instant; none while nobody holds the job. */
     due?: string | null
+    /** When it expires while nobody takes it; for a draft, when it is deleted unless posted. */
     expires?: string | null
     /** The blocks of the area; 0 for a contract. */
     blocks: number

@@ -1634,6 +1634,9 @@ public final class JobCommand {
         if (job.state() == JobState.OPEN) {
             lines.add(MenuText.create().locale(PREFIX + "info.open", Values.text("time", left(job.expires()))));
         }
+        if (job.state() == JobState.DRAFT) {
+            lines.add(MenuText.create().locale(PREFIX + "info.draftExpires", Values.text("time", left(job.expires()))));
+        }
         var due = job.due();
         if (job.state() == JobState.TAKEN && due != null) {
             lines.add(MenuText.create().locale(PREFIX + "info.taken", Values.text("time", left(due))));

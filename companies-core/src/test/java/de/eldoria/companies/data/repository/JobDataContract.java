@@ -167,6 +167,56 @@ public abstract class JobDataContract {
     }
 
     @Test
+    void draftsExpireInOrderAndTheirStockIsTakenOnlyWhileTheyAreDrafts() {
+        var base = Job.draft(
+                        OWNER,
+                        JobKind.DIG,
+                        "Pit",
+                        500,
+                        0,
+                        NODE,
+                        new JobArea("world", 0, 60, 0, 5, 70, 5),
+                        JobLand.NONE,
+                        null,
+                        48,
+                        NOW,
+                        NOW.plusDays(3))
+                .withState(JobState.DRAFT);
+        var later = jobs.create(base).orElseThrow();
+        var sooner = jobs.create(base).orElseThrow();
+        var open = jobs.create(Job.draft(
+                        OWNER,
+                        JobKind.DIG,
+                        "Open",
+                        500,
+                        0,
+                        NODE,
+                        new JobArea("world", 10, 60, 10, 15, 70, 15),
+                        JobLand.NONE,
+                        null,
+                        48,
+                        NOW,
+                        NOW))
+                .orElseThrow();
+
+        assertTrue(jobs.postponeDraft(sooner, NOW.plusDays(1)));
+        assertFalse(jobs.postponeDraft(open, NOW.plusDays(1)));
+        assertEquals(
+                List.of(sooner, later),
+                jobs.expiringDrafts(NOW.plusDays(3)).stream().map(Job::id).toList());
+        assertEquals(
+                List.of(sooner),
+                jobs.expiringDrafts(NOW.plusDays(1)).stream().map(Job::id).toList());
+        jobs.stock(sooner, Map.of("STONE", 4));
+        jobs.stock(open, Map.of("STONE", 4));
+        assertTrue(jobs.takeDraftStock(sooner, "STONE", 3));
+        assertFalse(jobs.takeDraftStock(sooner, "STONE", 3));
+        assertFalse(jobs.takeDraftStock(open, "STONE", 1));
+        assertEquals(Map.of("STONE", 1), jobs.stock(sooner));
+        assertEquals(Map.of("STONE", 4), jobs.stock(open));
+    }
+
+    @Test
     void theTargetOfATerraformJobIsStored() {
         var id = jobs.create(Job.draft(
                                 OWNER,

@@ -1366,7 +1366,7 @@ public final class JobWrites {
      * @param price     its price, the budget of a harvest job
      * @param fee       the fee its owner paid
      * @param due       when the company's time runs out, null while nobody holds it
-     * @param expires   when it expires while nobody takes it
+     * @param expires   when it expires while nobody takes it; for a draft, when it is deleted unless posted
      * @param blocks    the blocks of its area, 0 for a contract
      * @param world     the world of its area, null for a contract
      * @param center    the center of its area, null for a contract

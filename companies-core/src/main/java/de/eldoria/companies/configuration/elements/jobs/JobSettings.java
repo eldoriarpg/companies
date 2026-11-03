@@ -41,7 +41,8 @@ public class JobSettings {
     private boolean schematicUploads = false;
     private int maxSchematics = 10;
     private int maxAreas = 10;
-    private int maxDrafts = 5;
+    private int maxDrafts = 2;
+    private int draftDays = 14;
     private int buildGhostRadius = 8;
     private boolean dugToStock = true;
     private boolean suppliedFill = true;
@@ -315,6 +316,17 @@ public class JobSettings {
 
     public void maxDrafts(int maxDrafts) {
         this.maxDrafts = maxDrafts;
+    }
+
+    /**
+     * @return how many days a draft waits to be posted before it is deleted, at least 1
+     */
+    public int draftDays() {
+        return Math.max(1, draftDays);
+    }
+
+    public void draftDays(int draftDays) {
+        this.draftDays = draftDays;
     }
 
     /**
