@@ -29,7 +29,8 @@ import java.util.stream.Stream;
  * plugin checks and what the form needs to pick an input.
  * <p>
  * A key that is not here is edited in the file only: the levels (they have their own editor), the board presets, the
- * rules of the system orders, which have their own editor, and the templates of the server events.
+ * rules of the system orders, which have their own editor, the templates of the server events and the perks, keyed by
+ * the ids of the registered perks.
  * {@link #FILE_ONLY} names them, so a test can tell a setting that was forgotten from one left out on purpose.
  */
 public final class SettingsCatalogue {
@@ -40,7 +41,8 @@ public final class SettingsCatalogue {
             new Field("company.yml", "", "level", Type.TEXT, List.of(), false, false, null, null),
             new Field("config.yml", "", "boards.presets", Type.TEXT, List.of(), false, false, null, null),
             new Field("system-orders.yml", "", "rules", Type.TEXT, List.of(), false, false, null, null),
-            new Field("events.yml", "", "templates", Type.TEXT, List.of(), false, false, null, null));
+            new Field("events.yml", "", "templates", Type.TEXT, List.of(), false, false, null, null),
+            new Field("perks.yml", "", "perks", Type.TEXT, List.of(), false, false, null, null));
 
     private static final Set<String> AT_LEAST_ONE = Set.of(
             "generalSettings.historyDays",

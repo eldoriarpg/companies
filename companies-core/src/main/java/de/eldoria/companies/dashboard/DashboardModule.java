@@ -79,6 +79,7 @@ import de.eldoria.companies.orders.SystemOwner;
 import de.eldoria.companies.orders.offers.ContestService;
 import de.eldoria.companies.orders.offers.EventOfferService;
 import de.eldoria.companies.orders.system.SystemOrderService;
+import de.eldoria.companies.perks.PerkService;
 import de.eldoria.companies.prices.ShopPrices;
 import de.eldoria.companies.services.AdminCompanyService;
 import de.eldoria.companies.services.AdminGrantService;
@@ -198,7 +199,8 @@ public final class DashboardModule {
                 ZoneOffset.UTC,
                 clock,
                 () -> configuration.systemOrderSettings().markSystemOrders(),
-                data.offers().data()::marks));
+                data.offers().data()::marks,
+                data.company().perks()));
         var market = new MarketHistory(new MarketHistory.Sources(
                 data.dashboard(),
                 data.history(),
@@ -290,6 +292,7 @@ public final class DashboardModule {
                 data.company().companies(),
                 data.company().disband(),
                 data.company().treasury(),
+                data.company().perks(),
                 data.company().currency(),
                 failure -> PlainText.of(failure.render(null, messages)),
                 text -> PlainText.of(messages.serializeError(
@@ -362,7 +365,8 @@ public final class DashboardModule {
                         Threading.mainThread(plugin),
                         views,
                         data.admin().log(),
-                        failure -> PlainText.of(failure.render(null, messages)))),
+                        failure -> PlainText.of(failure.render(null, messages)),
+                        data.company().perks())),
                 new AdminLevelWrites(new AdminLevelWrites.Sources(
                         data.admin().levels(),
                         data.admin().recalculate(),
@@ -769,6 +773,7 @@ public final class DashboardModule {
      * @param disband     dissolves companies
      * @param treasury    the treasuries
      * @param currency    the name of the currency
+     * @param perks       sells, grants and takes perks
      */
     public record CompanyServices(
             MemberService members,
@@ -777,5 +782,6 @@ public final class DashboardModule {
             CompanyService companies,
             DisbandService disband,
             TreasuryService treasury,
-            Supplier<String> currency) {}
+            Supplier<String> currency,
+            PerkService perks) {}
 }

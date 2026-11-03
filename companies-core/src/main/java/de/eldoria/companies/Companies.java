@@ -34,12 +34,14 @@ import de.eldoria.companies.commands.suggest.AlertSuggestions;
 import de.eldoria.companies.commands.suggest.CompanyOrderSources;
 import de.eldoria.companies.commands.suggest.JobProviders;
 import de.eldoria.companies.commands.suggest.MembershipSources;
+import de.eldoria.companies.commands.suggest.PerkProviders;
 import de.eldoria.companies.commands.suggest.SavedItemSources;
 import de.eldoria.companies.commands.suggest.SeriesSources;
 import de.eldoria.companies.commands.suggest.SuggestionSources;
 import de.eldoria.companies.commands.suggest.TreasurySources;
 import de.eldoria.companies.commands.support.CommandFailures;
 import de.eldoria.companies.components.company.CompanyPermission;
+import de.eldoria.companies.components.company.PerkDefinition;
 import de.eldoria.companies.components.company.TreasuryKind;
 import de.eldoria.companies.configuration.ChangeTracker;
 import de.eldoria.companies.configuration.Configuration;
@@ -60,6 +62,7 @@ import de.eldoria.companies.data.repository.ANodeData;
 import de.eldoria.companies.data.repository.ANodeMessageData;
 import de.eldoria.companies.data.repository.AOfferData;
 import de.eldoria.companies.data.repository.AOrderData;
+import de.eldoria.companies.data.repository.APerkData;
 import de.eldoria.companies.data.repository.APriceData;
 import de.eldoria.companies.data.repository.AServerEventData;
 import de.eldoria.companies.data.repository.EconomyData;
@@ -78,6 +81,7 @@ import de.eldoria.companies.data.repository.impl.mariadb.MariaDbNodeData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbNodeMessageData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbOfferData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbOrderData;
+import de.eldoria.companies.data.repository.impl.mariadb.MariaDbPerkData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbPriceData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbSavedItemData;
 import de.eldoria.companies.data.repository.impl.mariadb.MariaDbSeriesData;
@@ -97,6 +101,7 @@ import de.eldoria.companies.data.repository.impl.postgres.PostgresNodeData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresNodeMessageData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresOfferData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresOrderData;
+import de.eldoria.companies.data.repository.impl.postgres.PostgresPerkData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresPriceData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresSavedItemData;
 import de.eldoria.companies.data.repository.impl.postgres.PostgresSeriesData;
@@ -116,6 +121,7 @@ import de.eldoria.companies.data.repository.impl.sqlite.SqLiteNodeData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteNodeMessageData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteOfferData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteOrderData;
+import de.eldoria.companies.data.repository.impl.sqlite.SqLitePerkData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLitePriceData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteSavedItemData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteSeriesData;
@@ -291,6 +297,7 @@ public class Companies extends EldoPlugin {
     private AAreaData areaData;
     private AHomeData homeData;
     private APriceData priceData;
+    private APerkData perkData;
     private volatile @Nullable ShopPrices shopPrices;
     private volatile @Nullable HomeTeleports homes;
     private volatile @Nullable AreaSync areaSyncing;
@@ -374,10 +381,16 @@ public class Companies extends EldoPlugin {
                         areaData,
                         homeData,
                         jobData,
-                        priceData),
+                        priceData,
+                        perkData),
                 Threading.VIRTUAL);
         api.register(this);
         api.areaProviders().settings(configuration::areaSettings);
+        api.perks().settings(configuration::perkSettings);
+        PerkProviders.use(() -> api.perks().registered().stream()
+                .filter(api.perks()::offered)
+                .map(PerkDefinition::id)
+                .toList());
         AreaHooks.load(this, api.areaProviders(), name -> configuration.hooks().land(name));
         getServer().getPluginManager().registerEvents(api.areaProviders(), this);
         api.priceSources().settings(configuration::priceSettings);
@@ -457,6 +470,9 @@ public class Companies extends EldoPlugin {
                 this, information.inbox(), orderData, workerPool, configuration::notificationSettings);
         var treasuryService =
                 TreasuryService.create(this, this.economy.treasury(), economy, configuration, notificationService);
+        api.perks()
+                .payment((company, actor, amount, note, purchase) ->
+                        treasuryService.spend(company, actor, amount, TreasuryKind.PERK, note, purchase));
         var disbandService = new DisbandService(
                 this, companyData, orderData, itemReturnService, notificationService, treasuryService, this::sellBack);
         var membershipService = MembershipService.create(
@@ -766,7 +782,8 @@ public class Companies extends EldoPlugin {
                     activeEvents,
                     feeReductions,
                     jobServices,
-                    areaServices));
+                    areaServices,
+                    api.perks()));
         }
         if (api != null)
             api.open(new CompaniesApiImpl.Writes(
@@ -1273,7 +1290,8 @@ public class Companies extends EldoPlugin {
                                 commands.services().companies(),
                                 commands.services().disbandService(),
                                 commands.services().treasury(),
-                                () -> Money.currencyName(commands.services().economy())),
+                                () -> Money.currencyName(commands.services().economy()),
+                                commands.services().perks()),
                         new DashboardModule.OrderServices(
                                 commands.services().orderCreation(),
                                 commands.services().series(),
@@ -1457,6 +1475,7 @@ public class Companies extends EldoPlugin {
         SeriesSources.clear();
         SavedItemSources.clear();
         JobProviders.clearAreas();
+        PerkProviders.clear();
         CommandFailures.clear();
         if (updates != null) updates.stop();
         if (discord != null) discord.stop();
@@ -1549,6 +1568,7 @@ public class Companies extends EldoPlugin {
                 areaData = new SqLiteAreaData();
                 homeData = new SqLiteHomeData();
                 priceData = new SqLitePriceData();
+                perkData = new SqLitePerkData();
                 information = new InformationData(
                         new SqLiteInboxData(Threading.VIRTUAL),
                         new SqLiteStatsData(Threading.VIRTUAL),
@@ -1572,6 +1592,7 @@ public class Companies extends EldoPlugin {
                 areaData = new MariaDbAreaData();
                 homeData = new MariaDbHomeData();
                 priceData = new MariaDbPriceData();
+                perkData = new MariaDbPerkData();
                 information = new InformationData(
                         new MariaDbInboxData(Threading.VIRTUAL),
                         new MariaDbStatsData(Threading.VIRTUAL),
@@ -1595,6 +1616,7 @@ public class Companies extends EldoPlugin {
                 areaData = new PostgresAreaData();
                 homeData = new PostgresHomeData();
                 priceData = new PostgresPriceData();
+                perkData = new PostgresPerkData();
                 information = new InformationData(
                         new PostgresInboxData(Threading.VIRTUAL),
                         new PostgresStatsData(Threading.VIRTUAL),

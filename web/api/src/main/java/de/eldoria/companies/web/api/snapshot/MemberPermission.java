@@ -54,6 +54,10 @@ public enum MemberPermission {
      */
     MANAGE_AREAS,
     /**
+     * Buys perks for the company.
+     */
+    MANAGE_PERKS,
+    /**
      * A value this version does not know, sent by a newer peer.
      */
     @JsonEnumDefaultValue

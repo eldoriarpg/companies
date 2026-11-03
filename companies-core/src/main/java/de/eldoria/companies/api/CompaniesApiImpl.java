@@ -15,28 +15,33 @@ import de.eldoria.companies.data.repository.ACompanyData;
 import de.eldoria.companies.data.repository.AHomeData;
 import de.eldoria.companies.data.repository.AJobData;
 import de.eldoria.companies.data.repository.AOrderData;
+import de.eldoria.companies.data.repository.APerkData;
 import de.eldoria.companies.data.repository.APriceData;
 import de.eldoria.companies.data.repository.AServerEventData;
 import de.eldoria.companies.data.repository.AStatsData;
 import de.eldoria.companies.data.repository.ATreasuryData;
 import de.eldoria.companies.jobs.JobServices;
 import de.eldoria.companies.orders.OrderCreationService;
+import de.eldoria.companies.perks.PerkService;
 import de.eldoria.companies.prices.PriceSources;
 import de.eldoria.companies.prices.TradeLog;
 import de.eldoria.companies.services.CompanyService;
 import de.eldoria.companies.services.ItemReturnService;
 import de.eldoria.companies.services.MembershipService;
 import de.eldoria.companies.services.events.ServerEventService;
+import de.eldoria.companies.util.AsyncEvents;
 import de.eldoria.companies.util.Times;
 import de.eldoria.eldoutilities.messages.MessageSender;
 import net.kyori.adventure.text.Component;
 import org.bukkit.OfflinePlayer;
+import org.bukkit.event.Event;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.ServicePriority;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
 import java.util.concurrent.Executor;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.logging.Logger;
@@ -61,6 +66,7 @@ public final class CompaniesApiImpl implements CompaniesApi {
     private final TradeLog tradeLog;
     private final PriceSources priceSources;
     private final PriceApi priceApi;
+    private final PerkService perks;
 
     /**
      * @param repositories the repositories the API reads from
@@ -68,12 +74,14 @@ public final class CompaniesApiImpl implements CompaniesApi {
      * @param executor     completes the futures, off the main thread
      */
     public CompaniesApiImpl(Repositories repositories, Server server, Executor executor) {
+        perks = new PerkService(repositories.perks(), server.events(), server.clock());
         companies = new CompanyApiImpl(
                 repositories.companies(),
                 repositories.stats(),
                 repositories.treasuries(),
                 repositories.areas(),
                 repositories.homes(),
+                perks,
                 writes,
                 server.players(),
                 server.messages(),
@@ -104,7 +112,8 @@ public final class CompaniesApiImpl implements CompaniesApi {
         var server = new Server(
                 plugin.getServer()::getOfflinePlayer,
                 failure -> failure.render(null, MessageSender.getPluginMessageSender(plugin)),
-                Times::now);
+                Times::now,
+                event -> AsyncEvents.fire(plugin, event));
         return new CompaniesApiImpl(repositories, server, executor);
     }
 
@@ -198,6 +207,13 @@ public final class CompaniesApiImpl implements CompaniesApi {
     }
 
     /**
+     * @return the perks companies buy, registered through the API
+     */
+    public PerkService perks() {
+        return perks;
+    }
+
+    /**
      * The repositories the API reads from.
      *
      * @param companies company repository
@@ -209,6 +225,7 @@ public final class CompaniesApiImpl implements CompaniesApi {
      * @param homes        the homes of companies
      * @param jobs         job repository
      * @param prices       the prices read from shop plugins
+     * @param perks        the perks companies own
      */
     public record Repositories(
             ACompanyData companies,
@@ -219,7 +236,8 @@ public final class CompaniesApiImpl implements CompaniesApi {
             AAreaData areas,
             AHomeData homes,
             AJobData jobs,
-            APriceData prices) {}
+            APriceData prices,
+            APerkData perks) {}
 
     /**
      * What the API needs from the server.
@@ -227,11 +245,13 @@ public final class CompaniesApiImpl implements CompaniesApi {
      * @param players  looks up a player by id
      * @param messages renders the error of a rejected write as the player would see it
      * @param clock    the current time
+     * @param events   fires the events of the API's changes, such as a bought perk
      */
     public record Server(
             Function<UUID, OfflinePlayer> players,
             Function<CommandFailure, Component> messages,
-            Supplier<LocalDateTime> clock) {}
+            Supplier<LocalDateTime> clock,
+            Consumer<Event> events) {}
 
     /**
      * The services of the write operations, which exist only once the economy is set up.

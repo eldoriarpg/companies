@@ -99,6 +99,7 @@ dashboard:
     company.applications: true
     company.profile: true
     company.treasury: true
+    company.perks: true
     company.create: true
     company.disband: true
     inbox: true
@@ -117,7 +118,7 @@ dashboard:
 | `gateway` | The gateway to connect to. Change it only for a [self-hosted gateway](#self-hosted-gateway). |
 | `sessionIdleMinutes` | A login ends after this many minutes without use. |
 | `sessionMaxHours` | A login ends after this many hours in any case. |
-| `features` | Switch a part of the dashboard off with `false`. A part missing from the list is on. The dashboard shows `orders.browse`, `orders.accept`, `orders.create`, `orders.own`, `orders.deliver` (delivering, receiving and collecting, only while the player is online on the server), `company.members` (including handing the company over), `company.applications`, `company.profile`, `company.treasury`, `company.create`, `company.disband`, `inbox`, `rankings`, `market`, `events` (the Events page and the event badge, filter and sorting of the order book), `jobs` (the Jobs page) and, for admins, `admin.orders`, `admin.players`, `admin.companies`, `admin.levels`, `admin.boards`, `admin.nodes`, `admin.config`, `admin.settings`, `admin.setup`, `admin.systemorders`, `admin.offers`, `admin.events` and `admin.jobs`. `orders.receive` is listed for older dashboards and has no effect; receiving belongs to `orders.deliver`. |
+| `features` | Switch a part of the dashboard off with `false`. A part missing from the list is on. The dashboard shows `orders.browse`, `orders.accept`, `orders.create`, `orders.own`, `orders.deliver` (delivering, receiving and collecting, only while the player is online on the server), `company.members` (including handing the company over), `company.applications`, `company.profile`, `company.treasury`, `company.perks` (seeing and buying [perks](../companies/perks.md)), `company.create`, `company.disband`, `inbox`, `rankings`, `market`, `events` (the Events page and the event badge, filter and sorting of the order book), `jobs` (the Jobs page) and, for admins, `admin.orders`, `admin.players`, `admin.companies`, `admin.levels`, `admin.boards`, `admin.nodes`, `admin.config`, `admin.settings`, `admin.setup`, `admin.systemorders`, `admin.offers`, `admin.events` and `admin.jobs`. `orders.receive` is listed for older dashboards and has no effect; receiving belongs to `orders.deliver`. |
 | `branding.name` | The name of your server on the dashboard. Empty uses your MOTD without colours. |
 | `branding.icon` | A PNG of at most 256×256 pixels and 48 KB, in the plugin folder or the server folder. The default is each server's own `server-icon.png`. On a network you can instead upload one icon in the Settings tab, which every server then shows. |
 
@@ -161,6 +162,7 @@ write it.
 | Companies | Show a company's treasury with its latest movements; give or take money | `companies.admin.treasury` | `/companyadmin treasury`, `give`, `take` |
 | Companies | Rename a company for free | `companies.admin.rename` | `/companyadmin rename` |
 | Companies | Make a member the owner | `companies.admin.transferOwner` | `/companyadmin transferowner` |
+| Companies | List a company's perks; grant or take one | `companies.admin.perks` | `/companyadmin perks grant`, `take` |
 | Companies | Dissolve a company after asking once more | `companies.admin.delete` | `/companyadmin delete` |
 | Levels | Show every level; edit one in a form, add, move and remove levels. Changes are made on the primary server and passed on like the in-game editor does. | `companies.admin.level` | `/companyadmin level …` |
 | Levels | Recalculate the level of every company | `companies.admin.calcLevel` | `/companyadmin calclevel` |

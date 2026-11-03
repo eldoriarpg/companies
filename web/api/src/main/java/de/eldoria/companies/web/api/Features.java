@@ -66,6 +66,11 @@ public final class Features {
     public static final String COMPANY_TREASURY = "company.treasury";
 
     /**
+     * See the server's perks and buy them for the company.
+     */
+    public static final String COMPANY_PERKS = "company.perks";
+
+    /**
      * Found a company.
      */
     public static final String COMPANY_CREATE = "company.create";
@@ -204,6 +209,7 @@ public final class Features {
             COMPANY_APPLICATIONS,
             COMPANY_PROFILE,
             COMPANY_TREASURY,
+            COMPANY_PERKS,
             COMPANY_CREATE,
             COMPANY_DISBAND,
             INBOX,

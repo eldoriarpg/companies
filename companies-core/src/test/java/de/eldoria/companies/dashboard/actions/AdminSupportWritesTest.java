@@ -6,6 +6,7 @@
 package de.eldoria.companies.dashboard.actions;
 
 import de.eldoria.companies.components.company.CompanyPermission;
+import de.eldoria.companies.components.company.PerkDefinition;
 import de.eldoria.companies.dashboard.DashboardWorld;
 import de.eldoria.companies.data.wrapper.dashboard.StoredSession;
 import de.eldoria.companies.data.wrapper.order.ReturnKind;
@@ -136,6 +137,42 @@ class AdminSupportWritesTest {
                                 Actions.ADMIN_PLAYERS_GRANT_ITEMS,
                                 "{\"player\":\"Moss\",\"material\":\"nothing\",\"amount\":1}",
                                 Permission.Admin.GRANT)
+                        .reason());
+    }
+
+    @Test
+    void anAdminGrantsAndTakesPerksAndSeesThem() {
+        world.api.companies().registerPerk(new PerkDefinition("fast-delivery", "Fast delivery", "Twice", 10, 5));
+        var perk = "{\"company\":\"Miners\",\"perk\":\"fast-delivery\"}";
+
+        assertEquals(
+                "companyadmin.error.permission",
+                perform(Actions.ADMIN_COMPANIES_PERKS_GRANT, perk, Permission.Admin.TREASURY)
+                        .reason());
+        var granted = perform(Actions.ADMIN_COMPANIES_PERKS_GRANT, perk, Permission.Admin.PERKS);
+        assertTrue(granted.ok(), granted.reason());
+        assertEquals(
+                "companyadmin.perks.owned",
+                perform(Actions.ADMIN_COMPANIES_PERKS_GRANT, perk, Permission.Admin.PERKS)
+                        .reason());
+        var listed = perform(Actions.ADMIN_COMPANIES_PERKS, "{\"company\":\"miners\"}", Permission.Admin.PERKS);
+        assertTrue(listed.ok(), listed.reason());
+        assertEquals(
+                "fast-delivery", listed.data().path("perks").get(0).path("id").asString());
+        assertTrue(listed.data().path("perks").get(0).path("owned").asBoolean());
+
+        assertTrue(perform(Actions.ADMIN_COMPANIES_PERKS_TAKE, perk, Permission.Admin.PERKS)
+                .ok());
+        assertEquals(
+                "companyadmin.perks.notOwned",
+                perform(Actions.ADMIN_COMPANIES_PERKS_TAKE, perk, Permission.Admin.PERKS)
+                        .reason());
+        assertEquals(
+                "company.perks.error.unknown",
+                perform(
+                                Actions.ADMIN_COMPANIES_PERKS_GRANT,
+                                "{\"company\":\"Miners\",\"perk\":\"nothing\"}",
+                                Permission.Admin.PERKS)
                         .reason());
     }
 

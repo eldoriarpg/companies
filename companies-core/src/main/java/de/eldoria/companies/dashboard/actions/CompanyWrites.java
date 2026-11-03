@@ -8,9 +8,12 @@ package de.eldoria.companies.dashboard.actions;
 import de.eldoria.companies.commands.support.CommandFailure;
 import de.eldoria.companies.components.company.CompanyPermission;
 import de.eldoria.companies.components.company.JoinMode;
+import de.eldoria.companies.components.company.PerkDefinition;
 import de.eldoria.companies.data.wrapper.company.CompanyMember;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.menus.MenuText;
+import de.eldoria.companies.menus.Values;
+import de.eldoria.companies.perks.PerkService;
 import de.eldoria.companies.services.CompanyService;
 import de.eldoria.companies.services.DisbandService;
 import de.eldoria.companies.services.MemberService;
@@ -29,6 +32,7 @@ import java.math.BigDecimal;
 import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -38,12 +42,12 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 /**
- * Performs the dashboard's actions on the player's company: taking back invites, kicking, leaving, editing
- * permissions and handing the company to another member; accepting and denying applications and setting the join
- * mode; editing the profile and renaming; paying into and out of the treasury and setting its share; founding a
- * company and dissolving it. Founding needs the permission remembered with the session and is handed in through
- * {@link #create}; dissolving is done by the owner only and takes the company's name in {@code name}, as typed to
- * confirm it.
+ * Performs the dashboard's actions on the player's company: taking back invites, kicking, leaving, editing permissions
+ * and handing the company to another member; accepting and denying applications and setting the join mode; editing the
+ * profile and renaming; paying into and out of the treasury and setting its share; buying a perk, named by its id in
+ * {@code perk}; founding a company and dissolving it. Founding needs the permission remembered with the session and is
+ * handed in through {@link #create}; dissolving is done by the owner only and takes the company's name in {@code name},
+ * as typed to confirm it.
  * <p>
  * Every action goes through the service the command uses, with the session's player as actor, so the company
  * permissions are checked exactly as in game. A player is named by id in {@code player}. Renaming answers a quote
@@ -71,6 +75,7 @@ public final class CompanyWrites {
             Actions.TREASURY_DEPOSIT,
             Actions.TREASURY_WITHDRAW,
             Actions.TREASURY_SHARE,
+            Actions.PERKS_BUY,
             Actions.MEMBERS_TRANSFER,
             Actions.COMPANY_CREATE,
             Actions.COMPANY_DISBAND);
@@ -139,6 +144,7 @@ public final class CompanyWrites {
                 money(request, player, args, (company, amount) -> sources.treasury()
                         .withdraw(company, offline(player), amount));
             case Actions.TREASURY_SHARE -> share(request, player, args);
+            case Actions.PERKS_BUY -> buyPerk(request, player, args);
             case Actions.MEMBERS_TRANSFER ->
                 onPlayer(
                         request,
@@ -335,6 +341,41 @@ public final class CompanyWrites {
                         Map.of("share", percent.asInt())));
     }
 
+    private ActionResult buyPerk(ActionRequest request, UUID player, JsonNode args) {
+        if (!args.path("perk").isString()) return answers.refused(request, INVALID);
+        var id = args.path("perk").asString().strip();
+        var perks = sources.perks();
+        return withCompany(request, player, company -> {
+            var bought = perks.buy(company, player, id).join();
+            var name = Values.text(
+                    "perk_name", perks.registered(id).map(PerkDefinition::name).orElse(id));
+            return switch (bought.outcome()) {
+                case DONE -> answers.data(request, Map.of("perk", id));
+                case UNKNOWN ->
+                    answers.refused(request, CommandFailure.of("company.perks.error.unknown", Values.text("perk", id)));
+                case NO_PERMISSION -> answers.refused(request, "company.perks.error.permission");
+                case OWNED -> answers.refused(request, CommandFailure.of("company.perks.error.owned", name));
+                case LEVEL ->
+                    answers.refused(
+                            request,
+                            CommandFailure.of(
+                                    "company.perks.error.level",
+                                    name,
+                                    Values.number(
+                                            "level",
+                                            perks.registered(id)
+                                                    .map(perks::minLevel)
+                                                    .orElse(1))));
+                case TREASURY ->
+                    treasury(
+                            request,
+                            Objects.requireNonNullElse(
+                                    bought.treasury(), TreasuryService.Result.of(TreasuryService.Outcome.FAILED)),
+                            Map.of());
+            };
+        });
+    }
+
     private ActionResult treasury(ActionRequest request, TreasuryService.Result result, Map<String, Object> extra) {
         if (!result.done()) {
             return answers.refused(
@@ -386,6 +427,7 @@ public final class CompanyWrites {
      * @param companies   founds and renames
      * @param disband     dissolves companies
      * @param treasury    the treasuries
+     * @param perks       sells perks
      * @param currency    the name of the currency
      * @param render      renders a refusal as plain text, with its values
      * @param renderText  renders a message of the membership service as plain text
@@ -399,6 +441,7 @@ public final class CompanyWrites {
             CompanyService companies,
             DisbandService disband,
             TreasuryService treasury,
+            PerkService perks,
             Supplier<String> currency,
             Function<CommandFailure, String> render,
             Function<MenuText, String> renderText) {}

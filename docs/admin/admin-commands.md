@@ -342,8 +342,10 @@ The same tools are in the *Companies* tab of the [dashboard](./dashboard.md#admi
 | `/companyadmin treasury <company>` | `companies.admin.treasury` | Shows balance, payout share and latest transactions |
 | `/companyadmin treasury give <company> <amount>` | `companies.admin.treasury` | Adds money to the treasury |
 | `/companyadmin treasury take <company> <amount>` | `companies.admin.treasury` | Removes money from the treasury, down to 0 at most |
+| `/companyadmin perks grant <company> <perk>` | `companies.admin.perks` | Gives a company a [perk](../companies/perks.md) without payment |
+| `/companyadmin perks take <company> <perk>` | `companies.admin.perks` | Takes a perk from a company, without refund |
 
-Put company names with spaces in quotes for `rename`, `transferowner` and `treasury`:
+Put company names with spaces in quotes for `rename`, `transferowner`, `treasury` and `perks`:
 
 ```bash
 /companyadmin rename "Iron Works" Iron and Steel

@@ -7,6 +7,7 @@ package de.eldoria.companies.dashboard.actions;
 
 import de.eldoria.companies.components.company.CompanyPermission;
 import de.eldoria.companies.components.company.JoinMode;
+import de.eldoria.companies.components.company.PerkDefinition;
 import de.eldoria.companies.dashboard.DashboardWorld;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteTestDatabase;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
@@ -18,6 +19,7 @@ import de.eldoria.companies.web.api.Actions;
 import de.eldoria.companies.web.api.Protocol;
 import de.eldoria.companies.web.api.action.ActionRequest;
 import de.eldoria.companies.web.api.action.ActionResult;
+import de.eldoria.companies.web.api.snapshot.PerkStateView;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -293,6 +295,36 @@ class CompanyWritesTest {
         assertEquals(
                 "company.bank.error.playerFunds",
                 perform(manager, Actions.TREASURY_DEPOSIT, "{\"amount\":5}").reason());
+    }
+
+    @Test
+    void aMemberWithManagePerksBuysAPerkFromTheTreasury() {
+        world.api.companies().registerPerk(new PerkDefinition("fast-delivery", "Fast delivery", "Twice", 10, 1));
+        world.wallets.put(worker, 50.0);
+        perform(worker, Actions.TREASURY_DEPOSIT, "{\"amount\":15}");
+
+        assertEquals(
+                "company.perks.error.permission",
+                perform(worker, Actions.PERKS_BUY, "{\"perk\":\"fast-delivery\"}")
+                        .reason());
+        var bought = perform(owner, Actions.PERKS_BUY, "{\"perk\":\"fast-delivery\"}");
+        assertTrue(bought.ok(), bought.reason());
+        assertEquals(
+                5.0, world.treasuryService.treasury(company).join().balance().doubleValue());
+        var shown = world.views
+                .company(world.api.companies().byId(company).join().orElseThrow(), owner)
+                .perks();
+        assertEquals(PerkStateView.OWNED, shown.getFirst().state());
+        assertEquals("Fast delivery", shown.getFirst().name());
+        assertEquals(
+                "company.perks.error.owned",
+                perform(owner, Actions.PERKS_BUY, "{\"perk\":\"fast-delivery\"}")
+                        .reason());
+        assertEquals(
+                "company.perks.error.unknown",
+                perform(owner, Actions.PERKS_BUY, "{\"perk\":\"nothing\"}").reason());
+        assertEquals(
+                "dashboard.invalid", perform(owner, Actions.PERKS_BUY, "{}").reason());
     }
 
     @Test

@@ -26,7 +26,9 @@ import de.eldoria.companies.components.area.AreaCapability;
 import de.eldoria.companies.components.area.AreaProvider;
 import de.eldoria.companies.components.area.AreaSource;
 import de.eldoria.companies.components.company.CompanyPermission;
+import de.eldoria.companies.components.company.ICompanyPerk;
 import de.eldoria.companies.components.company.JoinMode;
+import de.eldoria.companies.components.company.PerkDefinition;
 import de.eldoria.companies.components.company.TreasuryKind;
 import de.eldoria.companies.components.event.EventKind;
 import de.eldoria.companies.components.event.EventState;
@@ -49,6 +51,7 @@ import de.eldoria.companies.data.repository.impl.sqlite.SqLiteHomeData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteJobData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteMembershipData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteOrderData;
+import de.eldoria.companies.data.repository.impl.sqlite.SqLitePerkData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLitePriceData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteServerEventData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteStatsData;
@@ -137,6 +140,7 @@ class CompaniesApiImplTest {
     private SqLiteHomeData homeData;
     private volatile boolean cancelFoundings;
     private CompaniesApiImpl api;
+    private final List<Event> events = new CopyOnWriteArrayList<>();
     private OfflinePlayer owner;
     private int miners;
 
@@ -172,11 +176,13 @@ class CompaniesApiImplTest {
                         areaData,
                         homeData,
                         new SqLiteJobData(),
-                        new SqLitePriceData()),
+                        new SqLitePriceData(),
+                        new SqLitePerkData()),
                 new CompaniesApiImpl.Server(
                         server::getOfflinePlayer,
                         failure -> failure.message().orElse(Component.text(failure.localeKey())),
-                        LocalDateTime::now),
+                        LocalDateTime::now,
+                        events::add),
                 executor);
     }
 
@@ -530,6 +536,37 @@ class CompaniesApiImplTest {
     private FoundProblem problem(FoundRequest request) throws Exception {
         var result = api.companies().found(request).get(5, TimeUnit.SECONDS);
         return assertInstanceOf(FoundResult.Rejected.class, result).problem();
+    }
+
+    @Test
+    void readsThePerksOfACompanyAndWhetherItMayUseThem() throws Exception {
+        api.companies().registerPerk(new PerkDefinition("fast-delivery", "Fast delivery", "Twice", 0, 1));
+        var perks = new SqLitePerkData();
+        perks.add(miners, "fast-delivery", LocalDateTime.of(2026, 11, 3, 12, 0));
+        perks.add(miners, "gone-perk", LocalDateTime.of(2026, 11, 4, 12, 0));
+
+        var owned = api.companies().perks(miners).get(5, TimeUnit.SECONDS);
+
+        assertEquals(
+                List.of("fast-delivery", "gone-perk"),
+                owned.stream().map(ICompanyPerk::perk).toList());
+        assertEquals(
+                List.of(true, false), owned.stream().map(ICompanyPerk::usable).toList());
+        assertTrue(api.companies().hasPerk(miners, "Fast-Delivery").get(5, TimeUnit.SECONDS));
+        assertFalse(api.companies().hasPerk(miners, "gone-perk").get(5, TimeUnit.SECONDS));
+        assertFalse(api.companies().hasPerk(999, "fast-delivery").get(5, TimeUnit.SECONDS));
+        assertEquals(List.of(), api.companies().perks(999).get(5, TimeUnit.SECONDS));
+    }
+
+    @Test
+    void aDeletedCompanyTakesItsPerksAlong() {
+        var perks = new SqLitePerkData();
+        perks.add(miners, "fast-delivery", LocalDateTime.of(2026, 11, 3, 12, 0));
+
+        companyData.purgeCompany(
+                companyData.retrieveCompanyById(miners).asFuture().join().orElseThrow());
+
+        assertEquals(List.of(), perks.perks(miners));
     }
 
     @Test

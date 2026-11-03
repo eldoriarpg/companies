@@ -27,7 +27,7 @@ public final class AdminFeatures {
             Map.entry(Features.ADMIN_PLAYERS, List.of(Admin.PLAYER, Admin.GRANT)),
             Map.entry(
                     Features.ADMIN_COMPANIES,
-                    List.of(Admin.TREASURY, Admin.RENAME, Admin.TRANSFER_OWNER, Admin.DELETE)),
+                    List.of(Admin.TREASURY, Admin.RENAME, Admin.TRANSFER_OWNER, Admin.DELETE, Admin.PERKS)),
             Map.entry(Features.ADMIN_LEVELS, List.of(Admin.LEVEL, Admin.CALC_LEVEL)),
             Map.entry(Features.ADMIN_BOARDS, List.of(Admin.BOARDS)),
             Map.entry(Features.ADMIN_NODES, List.of(Admin.NODES)),

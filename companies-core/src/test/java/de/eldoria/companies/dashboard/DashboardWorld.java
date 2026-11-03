@@ -14,6 +14,7 @@ import de.eldoria.companies.commands.company.order.search.SearchExecutor;
 import de.eldoria.companies.components.company.CompanyPermission;
 import de.eldoria.companies.components.company.ISimpleCompany;
 import de.eldoria.companies.components.company.JoinMode;
+import de.eldoria.companies.components.company.TreasuryKind;
 import de.eldoria.companies.components.order.OrderSource;
 import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.configuration.Configuration;
@@ -66,6 +67,7 @@ import de.eldoria.companies.data.repository.impl.sqlite.SqLiteMembershipData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteNodeData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteOfferData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteOrderData;
+import de.eldoria.companies.data.repository.impl.sqlite.SqLitePerkData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLitePriceData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteSavedItemData;
 import de.eldoria.companies.data.repository.impl.sqlite.SqLiteSeriesData;
@@ -290,9 +292,18 @@ public final class DashboardWorld implements AutoCloseable {
         var alerts = new SqLiteAlertData(SqLiteTestDatabase.mapper(), executor);
         api = new CompaniesApiImpl(
                 new CompaniesApiImpl.Repositories(
-                        companies, orders, stats, treasury, serverEvents, areas, homes, new SqLiteJobData(), prices),
+                        companies,
+                        orders,
+                        stats,
+                        treasury,
+                        serverEvents,
+                        areas,
+                        homes,
+                        new SqLiteJobData(),
+                        prices,
+                        new SqLitePerkData()),
                 new CompaniesApiImpl.Server(
-                        server::getOfflinePlayer, failure -> Component.text(failure.localeKey()), Times::now),
+                        server::getOfflinePlayer, failure -> Component.text(failure.localeKey()), Times::now, events),
                 executor);
         views = new Views(new Views.Sources(
                 api,
@@ -306,7 +317,8 @@ public final class DashboardWorld implements AutoCloseable {
                 ZoneOffset.UTC,
                 Clock.systemUTC(),
                 systemOrders::markSystemOrders,
-                offers::marks));
+                offers::marks,
+                api.perks()));
         var configuration = new Configuration(MockBukkit.createMockPlugin()) {
             @Override
             public CompanySettings companySettings() {
@@ -410,6 +422,10 @@ public final class DashboardWorld implements AutoCloseable {
                 Runnable::run,
                 Clock.systemDefaultZone(),
                 Logger.getAnonymousLogger());
+        var spending = treasuryService;
+        api.perks()
+                .payment((buyer, actor, amount, note, purchase) ->
+                        spending.spend(buyer, actor, amount, TreasuryKind.PERK, note, purchase));
         var disband = new DisbandService(
                 plugin,
                 companies,
@@ -460,6 +476,7 @@ public final class DashboardWorld implements AutoCloseable {
                         Logger.getAnonymousLogger()),
                 disband,
                 treasuryService,
+                api.perks(),
                 () -> "coins",
                 failure -> "text of " + failure.localeKey(),
                 text -> "text of " + text.build()));
@@ -692,7 +709,8 @@ public final class DashboardWorld implements AutoCloseable {
                         Runnable::run,
                         views,
                         adminLog,
-                        failure -> "text of " + failure.localeKey())),
+                        failure -> "text of " + failure.localeKey(),
+                        api.perks())),
                 new AdminLevelWrites(new AdminLevelWrites.Sources(
                         new LevelAdminService(
                                 adminConfiguration,

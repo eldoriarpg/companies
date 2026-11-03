@@ -12,19 +12,23 @@ import ApplicationsPanel from './companyview/ApplicationsPanel.vue'
 import AreasPanel from './companyview/AreasPanel.vue'
 import FoundCompany from './companyview/FoundCompany.vue'
 import MembersPanel from './companyview/MembersPanel.vue'
+import PerksPanel from './companyview/PerksPanel.vue'
 import ProfilePanel from './companyview/ProfilePanel.vue'
 
 /**
  * The player's company: its profile with level and rank, its treasury, its members with what they delivered, and for
- * members who may invite, who wants in, and its areas and home. Inside the company every member is named. What a member may change is
- * offered where the server switched it on; leaving and dissolving are confirmed here once the company is gone from the
- * snapshot. A player without a company can found one here where the server offers it.
+ * members who may invite, who wants in, its areas and home, and the server's perks with what it owns. Inside the
+ * company every member is named. What a member may change is offered where the server switched it on; leaving and
+ * dissolving are confirmed here once the company is gone from the snapshot. A player without a company can found one
+ * here where the server offers it.
  */
 const {t} = useI18n()
 const {company, snapshot, supports} = useDashboard()
 const left = ref(false)
 const ended = ref('')
 const founds = computed(() => supports(Feature['company.create']))
+const showsPerks = computed(() => supports(Feature['company.perks']) && (company.value?.perks?.length ?? 0) > 0)
+const buysPerks = computed(() => holds(snapshot.value?.player.permissions ?? [], MemberPermission.MANAGE_PERKS))
 const recruits = computed(() => supports(Feature['company.applications'])
     && holds(snapshot.value?.player.permissions ?? [], MemberPermission.INVITE))
 </script>
@@ -43,6 +47,7 @@ const recruits = computed(() => supports(Feature['company.applications'])
         <MembersPanel :members="company.members" :company="company.name" @left="left = true" @disbanded="ended = t('company.disbanded')"/>
         <ApplicationsPanel v-if="recruits" :members="company.members.length"/>
         <AreasPanel v-if="company.areas" :areas="company.areas" :home="company.home"/>
+        <PerksPanel v-if="showsPerks" :perks="company.perks ?? []" :may-buy="buysPerks"/>
       </div>
     </div>
   </ViewContent>

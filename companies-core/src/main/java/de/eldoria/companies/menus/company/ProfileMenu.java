@@ -127,6 +127,16 @@ public final class ProfileMenu implements Menu<ProfileView> {
                 .newLine()
                 .text("<name><i18n:company.profile.joinMode>: <value><i18n:"
                         + model.joinMode().translationKey() + ">")
+                .newLine()
+                .append(perks(model));
+    }
+
+    private static MenuText perks(ProfileView model) {
+        if (model.perks().isEmpty()) return MenuText.create();
+        return MenuText.create()
+                .text(
+                        "<name><i18n:company.profile.perks>: <value><perk_names>",
+                        Values.text("perk_names", String.join(", ", model.perks())))
                 .newLine();
     }
 

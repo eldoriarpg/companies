@@ -15,10 +15,12 @@ import de.eldoria.companies.areas.CompanyHomes;
 import de.eldoria.companies.commands.support.CommandFailure;
 import de.eldoria.companies.components.area.ICompanyArea;
 import de.eldoria.companies.components.area.ICompanyHome;
+import de.eldoria.companies.components.company.ICompanyPerk;
 import de.eldoria.companies.components.company.ICompanyProfile;
 import de.eldoria.companies.components.company.ICompanyStats;
 import de.eldoria.companies.components.company.IMemberStats;
 import de.eldoria.companies.components.company.ITreasury;
+import de.eldoria.companies.components.company.PerkDefinition;
 import de.eldoria.companies.components.join.JoinResult;
 import de.eldoria.companies.components.ranking.TimeRange;
 import de.eldoria.companies.data.repository.AAreaData;
@@ -29,6 +31,7 @@ import de.eldoria.companies.data.repository.ATreasuryData;
 import de.eldoria.companies.data.wrapper.area.CompanyHome;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.company.SimpleCompany;
+import de.eldoria.companies.perks.PerkService;
 import de.eldoria.companies.services.ActionResult;
 import de.eldoria.companies.util.Times;
 import net.kyori.adventure.text.Component;
@@ -53,6 +56,7 @@ final class CompanyApiImpl implements CompanyApi {
     private final ATreasuryData treasuries;
     private final AAreaData areas;
     private final AHomeData homes;
+    private final PerkService perks;
     private final WriteAccess writes;
     private final Function<UUID, OfflinePlayer> players;
     private final Function<CommandFailure, Component> messages;
@@ -65,6 +69,7 @@ final class CompanyApiImpl implements CompanyApi {
             ATreasuryData treasuries,
             AAreaData areas,
             AHomeData homes,
+            PerkService perks,
             WriteAccess writes,
             Function<UUID, OfflinePlayer> players,
             Function<CommandFailure, Component> messages,
@@ -75,6 +80,7 @@ final class CompanyApiImpl implements CompanyApi {
         this.treasuries = treasuries;
         this.areas = areas;
         this.homes = homes;
+        this.perks = perks;
         this.writes = writes;
         this.players = players;
         this.messages = messages;
@@ -143,6 +149,30 @@ final class CompanyApiImpl implements CompanyApi {
     @Override
     public CompletableFuture<Optional<? extends ICompanyHome>> home(int company) {
         return CompletableFuture.<Optional<? extends ICompanyHome>>supplyAsync(() -> homes.home(company), executor);
+    }
+
+    @Override
+    public CompletableFuture<List<? extends ICompanyPerk>> perks(int company) {
+        return CompletableFuture.<List<? extends ICompanyPerk>>supplyAsync(
+                () -> profileOf(company).map(perks::perks).orElse(List.of()), executor);
+    }
+
+    @Override
+    public CompletableFuture<Boolean> hasPerk(int company, String perk) {
+        return CompletableFuture.supplyAsync(
+                () -> profileOf(company)
+                        .map(profile -> perks.usable(profile, perk))
+                        .orElse(false),
+                executor);
+    }
+
+    @Override
+    public void registerPerk(PerkDefinition perk) {
+        perks.register(perk);
+    }
+
+    private Optional<CompanyProfile> profileOf(int company) {
+        return companyData.retrieveCompanyById(company).asFuture().join().flatMap(this::profile);
     }
 
     @Override

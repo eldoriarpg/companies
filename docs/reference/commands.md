@@ -196,11 +196,15 @@ Commands for company members and owners. Read [Founding and joining](../companie
 | `/company area buy <offer>` | none | `manage_areas` | Buys or rents an offered area from the treasury, on the area's server. |
 | `/company area cancel <id>` | none | `manage_areas` | Stops renewing a rented area, or sells a bought one back on its server. |
 | `/company sethome` | none | `manage_areas` | Sets your company's home where you stand. |
+| `/company perks` | none | none | Lists the [perks](../companies/perks.md) of the server and which your company owns. |
+| `/company perks buy <perk>` | none | `manage_perks` | Asks you to confirm buying a perk from the treasury. |
+| `/company perks confirm` | none | `manage_perks` | Buys the perk you were asked about. |
 | `/company rename <name>` | none | owner | Renames the company for a price. Asks you to confirm. |
 | `/company rename confirm` | none | owner | Confirms and pays the price from your own money. |
 | `/company rename confirm treasury` | none | owner | Confirms and pays the price from the treasury. Needs `treasury.payRename` and an enabled treasury ([company.yml](../admin/configuration/company-yml.md)). |
 
-`<permission>` is one of `invite`, `kick`, `manage_orders`, `manage_permissions`, `edit_profile` and `treasury`.
+`<permission>` is one of `invite`, `kick`, `manage_orders`, `manage_permissions`, `edit_profile`, `treasury`, `build`,
+`containers`, `manage_areas` and `manage_perks`.
 
 ### Treasury
 
@@ -369,6 +373,8 @@ You see `/companyadmin` if you have any of the `companies.admin` permissions. Ea
 | `/companyadmin delete confirm` | `companies.admin.delete` | no | Confirms the delete. |
 | `/companyadmin rename <company> <name>` | `companies.admin.rename` | no | Renames a company. Put the old name in quotes if it has spaces. |
 | `/companyadmin transferowner <company> <player>` | `companies.admin.transferOwner` | no | Makes a member the owner of a company. |
+| `/companyadmin perks grant <company> <perk>` | `companies.admin.perks` | no | Gives a company a perk without payment. |
+| `/companyadmin perks take <company> <perk>` | `companies.admin.perks` | no | Takes a perk from a company, without refund. |
 
 ### Levels
 

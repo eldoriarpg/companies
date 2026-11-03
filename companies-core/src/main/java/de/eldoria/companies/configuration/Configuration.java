@@ -27,6 +27,7 @@ import de.eldoria.companies.configuration.elements.dashboard.BrandingSettings;
 import de.eldoria.companies.configuration.elements.events.EventSettings;
 import de.eldoria.companies.configuration.elements.generalsettings.Hooks;
 import de.eldoria.companies.configuration.elements.jobs.JobSettings;
+import de.eldoria.companies.configuration.elements.perks.PerkSettings;
 import de.eldoria.companies.configuration.elements.prices.PriceSettings;
 import de.eldoria.companies.configuration.elements.systemorders.SystemOrderSettings;
 import de.eldoria.companies.data.repository.ANodeData;
@@ -115,6 +116,10 @@ public class Configuration extends JacksonConfig<ConfigFile> {
             .name("Shop prices")
             .strict()
             .build();
+    public static final Key<PerkSettings> PERKS = Key.builder(Path.of("perks.yml"), PerkSettings::new)
+            .name("Company perks")
+            .strict()
+            .build();
     public static final Key<BoardBindings> BOARD_BINDINGS = Key.builder(Path.of("boards.yml"), BoardBindings::new)
             .name("Board bindings")
             .build();
@@ -123,7 +128,16 @@ public class Configuration extends JacksonConfig<ConfigFile> {
      * The files every node of a network shares, in the order they are synced.
      */
     public static final List<Key<?>> SHARED = List.of(
-            COMPANY_SETTINGS, USER_SETTINGS, ORDER_SETTINGS, SYSTEM_ORDERS, EVENTS, JOBS, AREAS, PRICES, CONFIG_YML);
+            COMPANY_SETTINGS,
+            USER_SETTINGS,
+            ORDER_SETTINGS,
+            SYSTEM_ORDERS,
+            EVENTS,
+            JOBS,
+            AREAS,
+            PRICES,
+            PERKS,
+            CONFIG_YML);
 
     private static final DateTimeFormatter BACKUP_TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss");
     private static final YAMLMapper YAML = YAMLMapper.builder().build();
@@ -301,6 +315,13 @@ public class Configuration extends JacksonConfig<ConfigFile> {
      */
     public PriceSettings priceSettings() {
         return secondary(PRICES);
+    }
+
+    /**
+     * @return the price, minimum level and switch of each perk
+     */
+    public PerkSettings perkSettings() {
+        return secondary(PERKS);
     }
 
     public GeneralSettings generalSettings() {

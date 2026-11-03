@@ -217,11 +217,22 @@ handled on the primary server. See [Several servers](../admin/multiserver.md) fo
 | `treasury(int company)`                   | `CompletableFuture<Optional<? extends ITreasury>>` | Balance and payout share of the treasury                                                            |
 | `areas(int company)`                      | `CompletableFuture<List<? extends ICompanyArea>>` | The plots and regions the company linked, bought or rents, oldest first                             |
 | `home(int company)`                       | `CompletableFuture<Optional<? extends ICompanyHome>>` | The company's home, empty when it has set none                                                  |
+| `perks(int company)`                      | `CompletableFuture<List<? extends ICompanyPerk>>` | The perks the company owns, usable or paused, oldest first. New in 2.1                              |
+| `hasPerk(int company, String perk)`       | `CompletableFuture<Boolean>`                     | Whether the company owns the perk and may use it now. New in 2.1                                      |
+| `registerPerk(PerkDefinition perk)`       | `void`                                           | Adds a perk companies can buy, see below. New in 2.1                                                  |
 | `addMember(int company, UUID player)`     | `CompletableFuture<JoinResult>`                  | **Write.** Adds the player to the company                                                             |
 | `found(FoundRequest request)`             | `CompletableFuture<FoundResult>`                 | **Write.** Founds a company. New in 2.1                                                               |
 | `setHome(HomeRequest request)`            | `CompletableFuture<HomeResult>`                  | **Write.** Sets the home of a company. New in 2.1                                                     |
 
 Some details:
+
+**Perks.** Register your perk once, when your plugin enables:
+`companies().registerPerk(new PerkDefinition("fast-delivery", "Fast delivery", "Deliveries count twice", 5000, 3))`.
+The id takes lower case letters, digits and dashes. Companies lists it in `/company perks` and sells it from the
+company's treasury; the server can change its price and level or switch it off in `perks.yml` under the same id. Your
+plugin decides what the perk does: ask `hasPerk(company, "fast-delivery")` where it matters, off the main thread or
+from the future. A company keeps a bought perk, but it is not usable while the company's level is below the perk's or
+the server switched it off. `CompanyPerkChangeEvent` tells you when a company bought a perk.
 
 - `memberStats` only lists workers with a completed order in the range. Former members who contributed are included.
   `TimeRange` is `ALL`, `LAST_30_DAYS` or `LAST_7_DAYS`.
@@ -709,6 +720,8 @@ The methods and events hand you these types. They are in `de.eldoria.companies.c
 | `ITreasury` | Balance and payout share of a treasury |
 | `ICompanyArea` | An area of a company: provider, reference, name to show (empty until its server stored it), world, server, `AreaSource` (`LINKED`, `BOUGHT`, `RENTED`), price and until when a rent is paid |
 | `ICompanyHome` | The home of a company: server, world, position and who set it |
+| `ICompanyPerk` | A perk a company owns: its id, when the company got it and whether it is usable now |
+| `PerkDefinition` | A perk to register: id, name, description, default price and default minimum level |
 | `ICompanyLevel` | A level from `company.yml`, with its `ILevelRequirement` and `ILevelSettings` |
 | `ISimpleOrder`, `IFullOrder` | An order without and with its lines |
 | `IOrderContent` | One line of an order, with its deliveries |

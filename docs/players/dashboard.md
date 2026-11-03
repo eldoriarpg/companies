@@ -105,9 +105,11 @@ checks only run while you are online on that server. While you are not, the dash
 ![The company page with its profile, members and areas](./dashboard-company.png)
 
 The company page shows your company's members and their permissions, open applications, the profile, the treasury and
-the [areas](../companies/areas.md) the company holds, by the name their plot or region plugin gives them, with how it got
-each and until when a rent is paid, and its [home](../companies/home.md). Areas and the home are changed in game.
-Without a company, you [found one](../companies/founding-and-joining.md) here; the dashboard shows the price first.
+the [areas](../companies/areas.md) the company holds, by the name their plot or region plugin gives them, with how it
+got each and until when a rent is paid, and its [home](../companies/home.md). Areas and the home are changed in game.
+The server's [perks](../companies/perks.md) are listed there too, with the ones your company owns; members with
+`manage_perks` buy one from the treasury. Without a company, you [found one](../companies/founding-and-joining.md) here;
+the dashboard shows the price first.
 
 ### Market
 

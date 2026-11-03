@@ -43,7 +43,8 @@ class PermissionEditTest {
                         TREASURY,
                         CompanyPermission.BUILD,
                         CompanyPermission.CONTAINERS,
-                        CompanyPermission.MANAGE_AREAS),
+                        CompanyPermission.MANAGE_AREAS,
+                        CompanyPermission.MANAGE_PERKS),
                 PermissionEdit.shown());
     }
 

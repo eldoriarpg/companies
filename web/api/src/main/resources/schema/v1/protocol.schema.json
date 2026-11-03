@@ -242,6 +242,12 @@
         },
         "home" : {
           "$ref" : "#/$defs/HomeView"
+        },
+        "perks" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/$defs/PerkView"
+          }
         }
       },
       "required" : [ "id", "name", "joinMode", "founded", "level", "members", "orders", "alerts" ]
@@ -520,7 +526,7 @@
     },
     "MemberPermission" : {
       "type" : "string",
-      "enum" : [ "OWNER", "INVITE", "KICK", "MANAGE_ORDERS", "MANAGE_PERMISSIONS", "EDIT_PROFILE", "TREASURY", "BUILD", "CONTAINERS", "MANAGE_AREAS" ]
+      "enum" : [ "OWNER", "INVITE", "KICK", "MANAGE_ORDERS", "MANAGE_PERMISSIONS", "EDIT_PROFILE", "TREASURY", "BUILD", "CONTAINERS", "MANAGE_AREAS", "MANAGE_PERKS" ]
     },
     "MemberStatsView" : {
       "type" : "object",
@@ -758,6 +764,38 @@
     "PatchOp" : {
       "type" : "string",
       "enum" : [ "UPSERT", "REMOVE", "REPLACE" ]
+    },
+    "PerkStateView" : {
+      "type" : "string",
+      "enum" : [ "OWNED", "PAUSED", "AVAILABLE", "LOCKED" ]
+    },
+    "PerkView" : {
+      "type" : "object",
+      "properties" : {
+        "id" : {
+          "type" : "string"
+        },
+        "name" : {
+          "type" : "string"
+        },
+        "description" : {
+          "type" : "string"
+        },
+        "price" : {
+          "type" : "number"
+        },
+        "minLevel" : {
+          "type" : "integer"
+        },
+        "state" : {
+          "$ref" : "#/$defs/PerkStateView"
+        },
+        "bought" : {
+          "type" : "string",
+          "format" : "date-time"
+        }
+      },
+      "required" : [ "id", "name", "description", "price", "minLevel", "state" ]
     },
     "Ping" : {
       "type" : "object",
@@ -1306,6 +1344,7 @@
     "company.applications" : { },
     "company.profile" : { },
     "company.treasury" : { },
+    "company.perks" : { },
     "company.create" : { },
     "company.disband" : { },
     "inbox" : { },
@@ -1431,6 +1470,9 @@
     "company.treasury.share" : {
       "feature" : "company.treasury"
     },
+    "company.perks.buy" : {
+      "feature" : "company.perks"
+    },
     "company.create" : {
       "feature" : "company.create"
     },
@@ -1513,6 +1555,15 @@
       "feature" : "admin.companies"
     },
     "admin.companies.delete" : {
+      "feature" : "admin.companies"
+    },
+    "admin.companies.perks" : {
+      "feature" : "admin.companies"
+    },
+    "admin.companies.perks.grant" : {
+      "feature" : "admin.companies"
+    },
+    "admin.companies.perks.take" : {
       "feature" : "admin.companies"
     },
     "admin.levels.list" : {

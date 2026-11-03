@@ -105,6 +105,10 @@ public final class Permission {
         public static final String GRANT = ADMIN + ".grant";
         public static final String TREASURY = ADMIN + ".treasury";
         /**
+         * The permission to grant perks to companies and take them away.
+         */
+        public static final String PERKS = ADMIN + ".perks";
+        /**
          * The permission to create and break board signs and to manage boards.
          */
         public static final String BOARDS = ADMIN + ".boards";

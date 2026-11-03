@@ -11,10 +11,12 @@ import de.eldoria.companies.api.write.HomeRequest;
 import de.eldoria.companies.api.write.HomeResult;
 import de.eldoria.companies.components.area.ICompanyArea;
 import de.eldoria.companies.components.area.ICompanyHome;
+import de.eldoria.companies.components.company.ICompanyPerk;
 import de.eldoria.companies.components.company.ICompanyProfile;
 import de.eldoria.companies.components.company.ICompanyStats;
 import de.eldoria.companies.components.company.IMemberStats;
 import de.eldoria.companies.components.company.ITreasury;
+import de.eldoria.companies.components.company.PerkDefinition;
 import de.eldoria.companies.components.join.JoinResult;
 import de.eldoria.companies.components.ranking.TimeRange;
 
@@ -104,6 +106,33 @@ public interface CompanyApi {
      * @return future of the home, empty when the company has set none or no company has this id
      */
     CompletableFuture<Optional<? extends ICompanyHome>> home(int company);
+
+    /**
+     * The perks a company owns, usable or paused.
+     *
+     * @param company id of the company
+     * @return future of the perks, oldest first, empty when the company has none or no company has this id
+     */
+    CompletableFuture<List<? extends ICompanyPerk>> perks(int company);
+
+    /**
+     * Whether a company may use a perk now: it owns it, the server offers it and the company has reached its minimum
+     * level.
+     *
+     * @param company id of the company
+     * @param perk    id of the perk
+     * @return future of true when the perk is usable
+     */
+    CompletableFuture<Boolean> hasPerk(int company, String perk);
+
+    /**
+     * Registers a perk companies can buy. It is offered from then on, unless {@code perks.yml} switches it off, with
+     * the price and minimum level from {@code perks.yml} or the definition's defaults. Registering an id again
+     * replaces the definition.
+     *
+     * @param perk the perk
+     */
+    void registerPerk(PerkDefinition perk);
 
     /**
      * Adds a player to a company, regardless of the company's join mode.

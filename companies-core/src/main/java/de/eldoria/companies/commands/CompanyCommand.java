@@ -26,6 +26,7 @@ import de.eldoria.companies.commands.company.JoinCommand;
 import de.eldoria.companies.commands.company.JoinModeCommand;
 import de.eldoria.companies.commands.company.Kick;
 import de.eldoria.companies.commands.company.Leave;
+import de.eldoria.companies.commands.company.PerksCommand;
 import de.eldoria.companies.commands.company.Permission;
 import de.eldoria.companies.commands.company.Rename;
 import de.eldoria.companies.commands.company.Returns;
@@ -136,6 +137,9 @@ final class CompanyCommand {
     @Subcommand
     final CompanyAreaCommand area;
 
+    @Subcommand
+    final PerksCommand perks;
+
     private final HomeCommand home;
 
     CompanyCommand(CommandDependencies deps) {
@@ -167,6 +171,7 @@ final class CompanyCommand {
         contest = new ContestCommand(deps);
         job = new CompanyJobCommand(deps);
         area = new CompanyAreaCommand(deps);
+        perks = new PerksCommand(deps);
         events = new EventsCommand(deps, new OrderSearch(deps, order.info::info, order.accept::accept), contest);
     }
 

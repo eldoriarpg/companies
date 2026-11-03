@@ -21,6 +21,7 @@ import de.eldoria.companies.events.company.CompanyLeaveEvent;
 import de.eldoria.companies.events.company.CompanyLevelChangeEvent;
 import de.eldoria.companies.events.company.CompanyMemberPermissionEvent;
 import de.eldoria.companies.events.company.CompanyOwnerTransferEvent;
+import de.eldoria.companies.events.company.CompanyPerkChangeEvent;
 import de.eldoria.companies.events.company.CompanyProfileEditEvent;
 import de.eldoria.companies.events.company.CompanyRenameEvent;
 import de.eldoria.companies.events.company.TreasuryTransactionEvent;
@@ -54,13 +55,13 @@ import java.util.UUID;
 /**
  * Tells the other nodes about the changes made on this node, by turning the plugin's events into node messages.
  * <p>
- * Events stay node-local; only the signals cross: a changed company, its areas included, invalidates its cached
- * values, order changes outdate the board sign counts, completed orders, level changes, new companies, joins, leaves,
- * renames, profile edits and disbands outdate the rankings, orders worked on alone outdate the values of their owner
- * and worker, collected orders and returned items outdate the values of the player who waits for items, invites and
- * applications outdate the values of the invited or applying player, and joins and quits keep the presence of players
- * current. A changed join mode is announced as a profile edit. Changed single orders are announced by the order
- * repository itself. On the {@link DatabaseBus} every message is dropped.
+ * Events stay node-local; only the signals cross: a changed company, its areas and perks included, invalidates its
+ * cached values, order changes outdate the board sign counts, completed orders, level changes, new companies, joins,
+ * leaves, renames, profile edits and disbands outdate the rankings, orders worked on alone outdate the values of their
+ * owner and worker, collected orders and returned items outdate the values of the player who waits for items, invites
+ * and applications outdate the values of the invited or applying player, and joins and quits keep the presence of
+ * players current. A changed join mode is announced as a profile edit. Changed single orders are announced by the
+ * order repository itself. On the {@link DatabaseBus} every message is dropped.
  */
 public final class NodeSignals implements Listener {
     private final NodeBus bus;
@@ -130,6 +131,11 @@ public final class NodeSignals implements Listener {
 
     @EventHandler(priority = EventPriority.MONITOR)
     public void onAreas(CompanyAreasChangeEvent event) {
+        companyChanged(event);
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onPerks(CompanyPerkChangeEvent event) {
         companyChanged(event);
     }
 

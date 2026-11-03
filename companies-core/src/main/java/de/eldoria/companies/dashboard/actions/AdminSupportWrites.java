@@ -19,7 +19,9 @@ import de.eldoria.companies.data.wrapper.dashboard.StoredSession;
 import de.eldoria.companies.data.wrapper.inbox.InboxEntry;
 import de.eldoria.companies.data.wrapper.order.ReturnKind;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
+import de.eldoria.companies.menus.Values;
 import de.eldoria.companies.orders.definition.ItemDefinitions;
+import de.eldoria.companies.perks.PerkService;
 import de.eldoria.companies.services.AdminCompanyService;
 import de.eldoria.companies.services.AdminGrantService;
 import de.eldoria.companies.services.DisbandService;
@@ -30,12 +32,16 @@ import de.eldoria.companies.web.api.Actions;
 import de.eldoria.companies.web.api.action.ActionRequest;
 import de.eldoria.companies.web.api.action.ActionResult;
 import de.eldoria.companies.web.api.session.PlayerRef;
+import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.inventory.ItemStack;
 import tools.jackson.databind.JsonNode;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -46,10 +52,11 @@ import java.util.function.Function;
 
 /**
  * The dashboard's admin tools for players and companies, as `/companyadmin player`, `grant`, `treasury`, `rename`,
- * `transferowner` and `delete` offer them: look a player up, grant a player money or items, show a company's treasury
- * and give or take money, rename a company free of charge, make another member its owner, and dissolve it. Each tool
- * needs the permission of its command, checked against the permissions remembered with the session as every
- * dashboard action is, and every action is written to the admin log as {@code <name>@dashboard}.
+ * `transferowner`, `perks` and `delete` offer them: look a player up, grant a player money or items, show a company's
+ * treasury and give or take money, rename a company free of charge, make another member its owner, list, grant and take
+ * its perks by id in {@code perk}, and dissolve it. Each tool needs the permission of its command, checked against the
+ * permissions remembered with the session as every dashboard action is, and every action is written to the admin log as
+ * {@code <name>@dashboard}.
  * <p>
  * A player is named by `player`, a company by `company`, both by name. Granting items takes a material key in
  * `material` and `amount` (1 to 100000), granting money `amount` (0.01 to a trillion), the treasury `amount` up to
@@ -68,18 +75,24 @@ public final class AdminSupportWrites {
             Actions.ADMIN_COMPANIES_TREASURY_TAKE,
             Actions.ADMIN_COMPANIES_RENAME,
             Actions.ADMIN_COMPANIES_TRANSFER_OWNER,
-            Actions.ADMIN_COMPANIES_DELETE);
+            Actions.ADMIN_COMPANIES_DELETE,
+            Actions.ADMIN_COMPANIES_PERKS,
+            Actions.ADMIN_COMPANIES_PERKS_GRANT,
+            Actions.ADMIN_COMPANIES_PERKS_TAKE);
 
-    private static final Map<String, String> PERMISSIONS = Map.of(
-            Actions.ADMIN_PLAYERS_LOOKUP, Permission.Admin.PLAYER,
-            Actions.ADMIN_PLAYERS_GRANT_ITEMS, Permission.Admin.GRANT,
-            Actions.ADMIN_PLAYERS_GRANT_MONEY, Permission.Admin.GRANT,
-            Actions.ADMIN_COMPANIES_TREASURY, Permission.Admin.TREASURY,
-            Actions.ADMIN_COMPANIES_TREASURY_GIVE, Permission.Admin.TREASURY,
-            Actions.ADMIN_COMPANIES_TREASURY_TAKE, Permission.Admin.TREASURY,
-            Actions.ADMIN_COMPANIES_RENAME, Permission.Admin.RENAME,
-            Actions.ADMIN_COMPANIES_TRANSFER_OWNER, Permission.Admin.TRANSFER_OWNER,
-            Actions.ADMIN_COMPANIES_DELETE, Permission.Admin.DELETE);
+    private static final Map<String, String> PERMISSIONS = Map.ofEntries(
+            Map.entry(Actions.ADMIN_PLAYERS_LOOKUP, Permission.Admin.PLAYER),
+            Map.entry(Actions.ADMIN_PLAYERS_GRANT_ITEMS, Permission.Admin.GRANT),
+            Map.entry(Actions.ADMIN_PLAYERS_GRANT_MONEY, Permission.Admin.GRANT),
+            Map.entry(Actions.ADMIN_COMPANIES_TREASURY, Permission.Admin.TREASURY),
+            Map.entry(Actions.ADMIN_COMPANIES_TREASURY_GIVE, Permission.Admin.TREASURY),
+            Map.entry(Actions.ADMIN_COMPANIES_TREASURY_TAKE, Permission.Admin.TREASURY),
+            Map.entry(Actions.ADMIN_COMPANIES_RENAME, Permission.Admin.RENAME),
+            Map.entry(Actions.ADMIN_COMPANIES_TRANSFER_OWNER, Permission.Admin.TRANSFER_OWNER),
+            Map.entry(Actions.ADMIN_COMPANIES_DELETE, Permission.Admin.DELETE),
+            Map.entry(Actions.ADMIN_COMPANIES_PERKS, Permission.Admin.PERKS),
+            Map.entry(Actions.ADMIN_COMPANIES_PERKS_GRANT, Permission.Admin.PERKS),
+            Map.entry(Actions.ADMIN_COMPANIES_PERKS_TAKE, Permission.Admin.PERKS));
 
     private static final int LATEST = 5;
     private static final int LOG_ENTRIES = 10;
@@ -135,6 +148,11 @@ public final class AdminSupportWrites {
             case Actions.ADMIN_COMPANIES_RENAME -> rename(request, admin, session.player(), company.get(), args);
             case Actions.ADMIN_COMPANIES_TRANSFER_OWNER -> transfer(request, admin, company.get(), args);
             case Actions.ADMIN_COMPANIES_DELETE -> delete(request, admin, session.player(), company.get());
+            case Actions.ADMIN_COMPANIES_PERKS -> perks(request, company.get());
+            case Actions.ADMIN_COMPANIES_PERKS_GRANT ->
+                perk(request, admin, session.player(), company.get(), args, true);
+            case Actions.ADMIN_COMPANIES_PERKS_TAKE ->
+                perk(request, admin, session.player(), company.get(), args, false);
             default -> answers.refused(request, "dashboard.unsupported");
         };
     }
@@ -324,6 +342,52 @@ public final class AdminSupportWrites {
         };
     }
 
+    /**
+     * The perks an admin may grant or take: every registered perk with whether the company owns it and whether the
+     * server offers it, and the perks the company owns that are no longer registered.
+     */
+    private ActionResult perks(ActionRequest request, CompanyProfile company) {
+        var perks = sources.perks();
+        Set<String> owned = new LinkedHashSet<>();
+        for (var perk : perks.perks(company)) owned.add(perk.perk());
+        List<Map<String, Object>> listed = new ArrayList<>();
+        for (var perk : perks.registered()) {
+            listed.add(Map.of(
+                    "id", perk.id(),
+                    "name", perk.name(),
+                    "owned", owned.contains(perk.id()),
+                    "offered", perks.offered(perk)));
+            owned.remove(perk.id());
+        }
+        for (var gone : owned) {
+            listed.add(Map.of("id", gone, "name", gone, "owned", true, "offered", false));
+        }
+        return answers.data(request, Map.of("company", company.name(), "perks", listed));
+    }
+
+    private ActionResult perk(
+            ActionRequest request, String admin, UUID actor, CompanyProfile company, JsonNode args, boolean grant) {
+        var id = args.path("perk").asString("").strip().toLowerCase(Locale.ROOT);
+        if (id.isEmpty()) return answers.refused(request, INVALID);
+        var perks = sources.perks();
+        var outcome = grant ? perks.grant(company, id, actor) : perks.take(company, id, actor);
+        var values = new TagResolver[] {Values.text("company_name", company.name()), Values.text("perk", id)};
+        return switch (outcome) {
+            case DONE -> {
+                log(admin, grant ? "perks grant" : "perks take")
+                        .with("company", company.name())
+                        .with("company_id", company.id())
+                        .with("perk", id)
+                        .write();
+                yield answers.data(request, Map.of("perk", id, "owned", grant));
+            }
+            case UNKNOWN -> answers.refused(request, CommandFailure.of("company.perks.error.unknown", values));
+            case UNCHANGED ->
+                answers.refused(
+                        request, CommandFailure.of("companyadmin.perks." + (grant ? "owned" : "notOwned"), values));
+        };
+    }
+
     private ActionResult transfer(ActionRequest request, String admin, CompanyProfile company, JsonNode args) {
         var player = sources.player().apply(args.path("player").asString("").strip());
         if (player.isEmpty()) return answers.refused(request, UNKNOWN_PLAYER);
@@ -376,6 +440,7 @@ public final class AdminSupportWrites {
      * @param views        turns stored times into instants
      * @param log          the admin log
      * @param render       renders a refusal as plain text
+     * @param perks        grants and takes perks
      */
     public record Sources(
             Function<String, Optional<PlayerRef>> player,
@@ -393,5 +458,6 @@ public final class AdminSupportWrites {
             Executor mainThread,
             Views views,
             AdminLog log,
-            Function<CommandFailure, String> render) {}
+            Function<CommandFailure, String> render,
+            PerkService perks) {}
 }

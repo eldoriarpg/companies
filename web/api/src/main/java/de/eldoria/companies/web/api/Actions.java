@@ -190,6 +190,11 @@ public final class Actions {
     public static final String TREASURY_SHARE = "company.treasury.share";
 
     /**
+     * Buys a perk for the company from its treasury.
+     */
+    public static final String PERKS_BUY = "company.perks.buy";
+
+    /**
      * Founds a company.
      */
     public static final String COMPANY_CREATE = "company.create";
@@ -328,6 +333,21 @@ public final class Actions {
      * Deletes a company.
      */
     public static final String ADMIN_COMPANIES_DELETE = "admin.companies.delete";
+
+    /**
+     * Shows the perks of a company.
+     */
+    public static final String ADMIN_COMPANIES_PERKS = "admin.companies.perks";
+
+    /**
+     * Gives a company a perk without payment.
+     */
+    public static final String ADMIN_COMPANIES_PERKS_GRANT = "admin.companies.perks.grant";
+
+    /**
+     * Takes a perk from a company without refund.
+     */
+    public static final String ADMIN_COMPANIES_PERKS_TAKE = "admin.companies.perks.take";
 
     /**
      * Lists the company levels.
@@ -765,6 +785,7 @@ public final class Actions {
             TREASURY_DEPOSIT,
             TREASURY_WITHDRAW,
             TREASURY_SHARE,
+            PERKS_BUY,
             COMPANY_CREATE,
             COMPANY_DISBAND,
             INBOX_PAGE,
@@ -793,6 +814,9 @@ public final class Actions {
             ADMIN_COMPANIES_RENAME,
             ADMIN_COMPANIES_TRANSFER_OWNER,
             ADMIN_COMPANIES_DELETE,
+            ADMIN_COMPANIES_PERKS,
+            ADMIN_COMPANIES_PERKS_GRANT,
+            ADMIN_COMPANIES_PERKS_TAKE,
             ADMIN_LEVELS_LIST,
             ADMIN_LEVELS_INFO,
             ADMIN_LEVELS_CREATE,

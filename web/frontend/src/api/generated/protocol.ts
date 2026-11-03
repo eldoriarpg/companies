@@ -45,10 +45,12 @@ export type MemberPermission =
   | 'TREASURY'
   | 'BUILD'
   | 'CONTAINERS'
-  | 'MANAGE_AREAS';
+  | 'MANAGE_AREAS'
+  | 'MANAGE_PERKS';
 export type JoinMode = 'OPEN' | 'APPLICATIONS' | 'INVITE_ONLY';
 export type OrderState = 'UNCLAIMED' | 'CLAIMED' | 'DELIVERED' | 'RECEIVED';
 export type AreaSourceView = 'LINKED' | 'BOUGHT' | 'RENTED';
+export type PerkStateView = 'OWNED' | 'PAUSED' | 'AVAILABLE' | 'LOCKED';
 export type PatchOp = 'UPSERT' | 'REMOVE' | 'REPLACE';
 export type ErrorCode =
   | 'UNKNOWN_TYPE'
@@ -241,6 +243,7 @@ export interface CompanyView {
   palette?: PaletteColor[];
   areas?: AreaView[];
   home?: HomeView;
+  perks?: PerkView[];
 }
 export interface LevelView {
   level: number;
@@ -337,6 +340,15 @@ export interface HomeView {
   y: number;
   z: number;
   server?: string;
+}
+export interface PerkView {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  minLevel: number;
+  state: PerkStateView;
+  bought?: string;
 }
 export interface OwnOrderView {
   id: number;
@@ -473,6 +485,7 @@ export const MemberPermission = {
     KICK: "KICK",
     MANAGE_AREAS: "MANAGE_AREAS",
     MANAGE_ORDERS: "MANAGE_ORDERS",
+    MANAGE_PERKS: "MANAGE_PERKS",
     MANAGE_PERMISSIONS: "MANAGE_PERMISSIONS",
     OWNER: "OWNER",
     TREASURY: "TREASURY",
@@ -503,6 +516,13 @@ export const PatchOp = {
     UPSERT: "UPSERT",
 } as const;
 
+export const PerkStateView = {
+    AVAILABLE: "AVAILABLE",
+    LOCKED: "LOCKED",
+    OWNED: "OWNED",
+    PAUSED: "PAUSED",
+} as const;
+
 export const VersionState = {
     DEPRECATED: "DEPRECATED",
     DISCONTINUED: "DISCONTINUED",
@@ -527,6 +547,7 @@ export const Feature = {
     "company.create": "company.create",
     "company.disband": "company.disband",
     "company.members": "company.members",
+    "company.perks": "company.perks",
     "company.profile": "company.profile",
     "company.treasury": "company.treasury",
     "events": "events",
