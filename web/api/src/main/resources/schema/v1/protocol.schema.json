@@ -1788,10 +1788,25 @@
     "jobs.areas.post" : {
       "feature" : "jobs"
     },
+    "jobs.drafts.post" : {
+      "feature" : "jobs"
+    },
+    "jobs.drafts.edit" : {
+      "feature" : "jobs"
+    },
+    "jobs.drafts.delete" : {
+      "feature" : "jobs"
+    },
+    "jobs.drafts.supply" : {
+      "feature" : "jobs"
+    },
     "jobs.areas.preview" : {
       "feature" : "jobs"
     },
     "jobs.areas.schematic" : {
+      "feature" : "jobs"
+    },
+    "jobs.areas.materials" : {
       "feature" : "jobs"
     },
     "jobs.areas.build" : {
