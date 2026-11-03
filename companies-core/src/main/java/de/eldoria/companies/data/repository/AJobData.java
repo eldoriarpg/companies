@@ -52,7 +52,8 @@ public abstract class AJobData {
     /**
      * @param owner a player
      * @param limit how many to return at most
-     * @return the player's jobs, the newest first, whatever their state
+     * @return the player's jobs, whatever their state: the drafts first, so none drops out of the list, then the
+     *     newest first
      */
     public abstract List<Job> ofOwner(UUID owner, int limit);
 
@@ -253,6 +254,42 @@ public abstract class AJobData {
      * @return how many of the player's jobs wait for a company
      */
     public abstract int openOf(UUID owner);
+
+    /**
+     * @param owner the player who posted or saved them
+     * @param state a state
+     * @return how many of the player's jobs are in that state
+     */
+    public abstract int countOf(UUID owner, JobState state);
+
+    /**
+     * Posts a draft: it becomes open as the job given, with the title, price, time, fee and land it was charged for,
+     * whatever an edit stored meanwhile, and its time to be taken starts.
+     *
+     * @param job the posted job, with the id of the draft
+     * @return true when it was still a draft and is open now
+     */
+    public abstract boolean publish(Job job);
+
+    /**
+     * Changes what a draft asks for.
+     *
+     * @param id          id of the draft
+     * @param title       its title
+     * @param description its description, null for none
+     * @param price       its price
+     * @param dueHours    how long a company has to finish it
+     * @return true when it was still a draft
+     */
+    public abstract boolean editDraft(int id, String title, @Nullable String description, double price, int dueHours);
+
+    /**
+     * Deletes a draft with its blueprint and stock; take the stock out first.
+     *
+     * @param id id of the draft
+     * @return true when it was still a draft and is gone
+     */
+    public abstract boolean deleteDraft(int id);
 
     /**
      * @param now the current time

@@ -98,7 +98,7 @@ public class MariaDbJobData extends AJobData {
                         .bind(job.description())
                         .bind(job.price())
                         .bind(job.fee())
-                        .bind(JobState.OPEN.name())
+                        .bind(job.state().name())
                         .bind(job.node(), UUID_BYTES)
                         .bind(area.world())
                         .bind(area.minX())
@@ -138,8 +138,10 @@ public class MariaDbJobData extends AJobData {
 
     @Override
     public List<Job> ofOwner(UUID owner, int limit) {
-        return query(JOB + "WHERE owner_uuid = ? ORDER BY id DESC LIMIT ?")
-                .single(call().bind(owner, UUID_BYTES).bind(limit))
+        return query(JOB + "WHERE owner_uuid = ? ORDER BY CASE WHEN state = ? THEN 0 ELSE 1 END, id DESC LIMIT ?")
+                .single(call().bind(owner, UUID_BYTES)
+                        .bind(JobState.DRAFT.name())
+                        .bind(limit))
                 .map(this::parse)
                 .all();
     }
@@ -510,11 +512,98 @@ public class MariaDbJobData extends AJobData {
 
     @Override
     public int openOf(UUID owner) {
+        return countOf(owner, JobState.OPEN);
+    }
+
+    @Override
+    public int countOf(UUID owner, JobState state) {
         return query("SELECT COUNT(1) AS count FROM jobs WHERE owner_uuid = ? AND state = ?")
-                .single(call().bind(owner, UUID_BYTES).bind(JobState.OPEN.name()))
+                .single(call().bind(owner, UUID_BYTES).bind(state.name()))
                 .map(row -> row.getInt("count"))
                 .first()
                 .orElse(0);
+    }
+
+    @Override
+    public boolean publish(Job job) {
+        @Language("mariadb")
+        var update = """
+                UPDATE jobs
+                SET state       = ?,
+                    title       = ?,
+                    description = ?,
+                    price       = ?,
+                    fee         = ?,
+                    due_hours   = ?,
+                    charged     = ?,
+                    land        = ?,
+                    land_ref    = ?,
+                    created     = ?,
+                    expires     = ?
+                WHERE id = ?
+                  AND state = ?""";
+        return query(update)
+                .single(call().bind(JobState.OPEN.name())
+                        .bind(job.title())
+                        .bind(job.description())
+                        .bind(job.price())
+                        .bind(job.fee())
+                        .bind(job.dueHours())
+                        .bind(job.charged())
+                        .bind(job.land().name())
+                        .bind(job.landRef())
+                        .bind(job.created(), time())
+                        .bind(job.expires(), time())
+                        .bind(job.id())
+                        .bind(JobState.DRAFT.name()))
+                .update()
+                .changed();
+    }
+
+    @Override
+    public boolean editDraft(int id, String title, @Nullable String description, double price, int dueHours) {
+        @Language("mariadb")
+        var update = """
+                UPDATE jobs
+                SET title       = ?,
+                    description = ?,
+                    price       = ?,
+                    due_hours   = ?
+                WHERE id = ?
+                  AND state = ?""";
+        return query(update)
+                .single(call().bind(title)
+                        .bind(description)
+                        .bind(price)
+                        .bind(dueHours)
+                        .bind(id)
+                        .bind(JobState.DRAFT.name()))
+                .update()
+                .changed();
+    }
+
+    @Override
+    public boolean deleteDraft(int id) {
+        var errors = new ArrayList<SQLException>();
+        var conf = Transactions.open(errors);
+        try (conf) {
+            var deleted = conf.query("DELETE FROM jobs WHERE id = ? AND state = ?")
+                    .single(call().bind(id).bind(JobState.DRAFT.name()))
+                    .delete()
+                    .changed();
+            if (!deleted) return false;
+            conf.query("DELETE FROM job_blueprints WHERE job_id = ?")
+                    .single(call().bind(id))
+                    .delete();
+            conf.query("DELETE FROM job_stock WHERE job_id = ?")
+                    .single(call().bind(id))
+                    .delete();
+            if (!errors.isEmpty()) {
+                Transactions.rollback(conf, errors);
+                return false;
+            }
+            return true;
+        }
     }
 
     @Override

@@ -57,6 +57,46 @@ test.describe('jobs', () => {
         await expect(jobPage(page, info).getByTestId('job-description')).toHaveText('Stone, three blocks deep.')
     })
 
+    test('save a contract as a draft, change it and post it', async ({page}, info) => {
+        await openDashboard(page, 'JOBS01')
+        await openFromMenu(page, info, 'Jobs')
+        await page.getByTestId('contract-open').click()
+
+        const form = page.getByTestId('contract-form')
+        await form.getByLabel('Title').fill('Build a well')
+        await form.getByLabel('What should be done').fill('Stone, three blocks deep.')
+        await form.getByLabel('Price').fill('90')
+        await form.getByTestId('contract-draft').click()
+
+        await expect(page.getByTestId('jobs-mine').getByText('Build a well')).toBeVisible()
+        const detail = jobPage(page, info)
+        await expect(detail.getByTestId('job-draft')).toBeVisible()
+        await detail.getByTestId('job-edit').click()
+        await detail.getByLabel('Title').fill('Build a deep well')
+        await detail.getByLabel('Hours to finish once taken').fill('48')
+        await detail.getByTestId('job-edit').click()
+        await expect(page.getByTestId('jobs-mine').getByText('Build a deep well')).toBeVisible()
+        await detail.getByTestId('job-post').click()
+        await expect(detail.getByTestId('job-draft')).toHaveCount(0)
+        await expect(detail.getByTestId('job-cancel')).toBeVisible()
+    })
+
+    test('delete a draft and it leaves the list', async ({page}, info) => {
+        await openDashboard(page, 'JOBS01')
+        await openFromMenu(page, info, 'Jobs')
+        await page.getByTestId('contract-open').click()
+        const form = page.getByTestId('contract-form')
+        await form.getByLabel('Title').fill('Dig a pond')
+        await form.getByLabel('What should be done').fill('Round, two deep.')
+        await form.getByLabel('Price').fill('40')
+        await form.getByTestId('contract-draft').click()
+        await expect(page.getByTestId('jobs-mine').getByText('Dig a pond')).toBeVisible()
+
+        await jobPage(page, info).getByTestId('job-remove').click()
+
+        await expect(page.getByTestId('jobs-mine').getByText('Dig a pond')).toHaveCount(0)
+    })
+
     test('post a terraform job on a stored area', async ({page}, info) => {
         await openDashboard(page, 'JOBS01')
         await openFromMenu(page, info, 'Jobs')

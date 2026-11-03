@@ -399,6 +399,7 @@ public final class SettingsCatalogue {
         jobs.flag("schematicUploads");
         jobs.whole("maxSchematics");
         jobs.whole("maxAreas");
+        jobs.whole("maxDrafts");
 
         var areas = new Section(fields, AREAS, "areas");
         areas.flag("enabled");

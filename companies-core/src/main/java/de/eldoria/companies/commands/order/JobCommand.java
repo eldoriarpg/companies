@@ -27,6 +27,7 @@ import de.eldoria.companies.jobs.DigCheck;
 import de.eldoria.companies.jobs.JobService;
 import de.eldoria.companies.jobs.JobServices;
 import de.eldoria.companies.jobs.MaterialCosts;
+import de.eldoria.companies.jobs.StockReturns;
 import de.eldoria.companies.jobs.TerraformCheck;
 import de.eldoria.companies.menus.ConfirmFlow;
 import de.eldoria.companies.menus.MenuComponents;
@@ -453,6 +454,120 @@ public final class JobCommand {
                 pending.hours(),
                 pending.title(),
                 JobService.Details.build(pending.blueprint()));
+    }
+
+    /**
+     * Saves the build job the sender was asked to confirm as a draft instead of posting it.
+     *
+     * @param sender sender of the command
+     */
+    @Executes("build draft")
+    public void draftBuild(CommandSender sender) {
+        var player = Senders.player(sender);
+        var pending = asked.remove(player.getUniqueId());
+        if (pending == null) {
+            deps.messages().sendErrorActionBar(player, "error.confirmationExpired");
+            return;
+        }
+        jobs().ghosts().hidePreview(player.getUniqueId());
+        var owner = player.getUniqueId();
+        var node = jobs().node();
+        run(
+                player,
+                () -> jobs().service()
+                        .saveDraft(
+                                owner,
+                                JobKind.BUILD,
+                                pending.title(),
+                                pending.price(),
+                                pending.hours(),
+                                node,
+                                pending.area(),
+                                JobService.Details.build(pending.blueprint())),
+                drafted -> drafted(player, JobKind.BUILD, drafted));
+    }
+
+    /**
+     * Posts one of the sender's drafts: its land is checked again where it lies now, and price and fee are charged.
+     *
+     * @param sender sender of the command
+     * @param id     id of the draft
+     */
+    @Executes("post")
+    public void postDraft(CommandSender sender, @IntArg(min = 1) int id) {
+        var player = Senders.player(sender);
+        var owner = player.getUniqueId();
+        run(player, () -> draftOf(owner, id), draft -> {
+            if (draft.isEmpty()) {
+                deps.messages().sendError(player, PREFIX + "error.noDraft");
+                return;
+            }
+            var job = draft.get();
+            if (!job.kind().area()) {
+                run(
+                        player,
+                        () -> jobs().service().publish(owner, id, JobLand.NONE, null),
+                        posted -> posted(player, job.kind(), posted));
+                return;
+            }
+            if (!job.node().equals(jobs().node())) {
+                deps.messages().sendError(player, PREFIX + "error.otherServer", Values.number("id", id));
+                return;
+            }
+            Threading.mainThread(deps.plugin()).execute(() -> {
+                if (!player.isOnline()) return;
+                checked(
+                        player,
+                        job.area(),
+                        land -> run(
+                                player,
+                                () -> jobs().service().publish(owner, id, land.land(), land.ref()),
+                                posted -> posted(player, job.kind(), posted)));
+            });
+        });
+    }
+
+    /**
+     * Deletes one of the sender's drafts; its stock goes to the sender's item returns.
+     *
+     * @param sender sender of the command
+     * @param id     id of the draft
+     */
+    @Executes("draft delete")
+    public void deleteDraft(CommandSender sender, @IntArg(min = 1) int id) {
+        var player = Senders.player(sender);
+        var owner = player.getUniqueId();
+        var returns = StockReturns.of(
+                deps.services().itemReturnService(), deps.plugin().getLogger());
+        run(
+                player,
+                () -> draftOf(owner, id).map(draft -> jobs().service().deleteDraft(owner, id, returns)),
+                deleted -> {
+                    if (deleted.isEmpty()) {
+                        deps.messages().sendError(player, PREFIX + "error.noDraft");
+                    } else if (deleted.get()) {
+                        deps.messages().sendMessage(player, PREFIX + "draftDeleted", Values.number("id", id));
+                    } else {
+                        deps.messages().sendError(player, PREFIX + "error.draftKept", Values.number("id", id));
+                    }
+                });
+    }
+
+    private Optional<Job> draftOf(UUID owner, int id) {
+        return jobs().data().job(id).filter(job -> job.owner().equals(owner) && job.state() == JobState.DRAFT);
+    }
+
+    private void drafted(Player player, JobKind kind, JobService.Posted drafted) {
+        switch (drafted) {
+            case JobService.Posted.Done done ->
+                deps.messages()
+                        .sendMessage(
+                                player,
+                                PREFIX + "drafted",
+                                Values.number("id", done.job().id()),
+                                Values.text("job_title", done.job().title()));
+            case JobService.Posted.Refused refused -> posted(player, kind, refused);
+        }
     }
 
     /**
@@ -1126,6 +1241,7 @@ public final class JobCommand {
                     case UNKNOWN -> "error.unknown";
                     case NOT_YOURS -> done.equals("withdrawn") ? "error.notYourDispute" : "error.unknown";
                     case TAKEN -> "error.taken";
+                    case DRAFT -> "error.draft";
                     case DISPUTED -> "error.disputed";
                     case REASON -> "error.reason";
                     case TOO_LONG -> "error.description";
@@ -1176,6 +1292,7 @@ public final class JobCommand {
                         case HARVEST -> deps.messages().sendError(player, PREFIX + "error.harvest", values);
                         case UNKNOWN, NOT_YOURS -> deps.messages().sendError(player, PREFIX + "error.unknown", values);
                         case TAKEN -> deps.messages().sendError(player, PREFIX + "error.taken", values);
+                        case DRAFT -> deps.messages().sendError(player, PREFIX + "error.draft", values);
                         default -> deps.messages().sendError(player, PREFIX + "error.closed", values);
                     }
                 });
@@ -1189,6 +1306,26 @@ public final class JobCommand {
             int hours,
             String title,
             JobService.Details details) {
+        checked(player, area, land -> {
+            var owner = player.getUniqueId();
+            var node = jobs().node();
+            run(
+                    player,
+                    () -> jobs().service()
+                            .post(owner, kind, title, price, hours, node, area, land.land(), land.ref(), details),
+                    posted -> {
+                        if (posted instanceof JobService.Posted.Done)
+                            jobs().areas().used(owner, area);
+                        posted(player, kind, posted);
+                    });
+        });
+    }
+
+    /**
+     * Checks on the main thread that an area may hold a job of the player and hands on the land it lies on, or tells
+     * the player why not.
+     */
+    private void checked(Player player, JobArea area, Consumer<AreaChecks.Checked.Land> then) {
         switch (jobs().checks().check(player, area)) {
             case AreaChecks.Checked.NoWorld noWorld ->
                 deps.messages().sendError(player, PREFIX + "error.noWorld", Values.text("world", noWorld.world()));
@@ -1206,19 +1343,7 @@ public final class JobCommand {
                                 PREFIX + "error.foreign",
                                 Values.text("land", Objects.requireNonNullElse(foreign.ref(), "?")));
             case AreaChecks.Checked.Unowned unowned -> deps.messages().sendError(player, PREFIX + "error.unowned");
-            case AreaChecks.Checked.Land land -> {
-                var owner = player.getUniqueId();
-                var node = jobs().node();
-                run(
-                        player,
-                        () -> jobs().service()
-                                .post(owner, kind, title, price, hours, node, area, land.land(), land.ref(), details),
-                        posted -> {
-                            if (posted instanceof JobService.Posted.Done)
-                                jobs().areas().used(owner, area);
-                            posted(player, kind, posted);
-                        });
-            }
+            case AreaChecks.Checked.Land land -> then.accept(land);
         }
     }
 
@@ -1473,6 +1598,12 @@ public final class JobCommand {
                     actions.add(new JobMenu.Action(
                             PREFIX + "askCancelButton", "remove", "order job cancel " + id, JobMenu.Kind.CHECK));
                 }
+            }
+            case DRAFT -> {
+                actions.add(
+                        new JobMenu.Action(PREFIX + "postButton", "add", "order job post " + id, JobMenu.Kind.CHECK));
+                actions.add(new JobMenu.Action(
+                        PREFIX + "deleteDraftButton", "remove", "order job draft delete " + id, JobMenu.Kind.CHECK));
             }
             default -> {
                 if (job.kind() == JobKind.HARVEST) actions.add(stockAction(id));

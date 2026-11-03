@@ -232,6 +232,9 @@ for what happens only in game:
 | `/order job blueprint <schematic> <rotation>` | Previews a schematic placed where you stand and tells what its blocks cost. |
 | `/order job build <schematic> <rotation> <price> <hours> <title>` | Previews a build job of a schematic placed where you stand and asks to confirm it. |
 | `/order job build confirm` | Posts the build job you were asked to confirm. |
+| `/order job build draft` | Saves the build job you were asked to confirm as a draft instead. |
+| `/order job post <id>` | Posts one of your drafts, on the server of its area. |
+| `/order job draft delete <id>` | Deletes one of your drafts. |
 | `/order job terraform plot [surface <block>] <price> <hours> <y> <title>` | Posts a terraform job on your whole plot, dug out down to `y` when that lies below the ground. |
 | `/order job harvest <price per item> <budget> <hours> <title>` | Posts a harvest job on the field you marked. |
 | `/order job harvest plot <price per item> <budget> <hours> <height> <title>` | Posts a harvest job on your whole plot. |
@@ -243,6 +246,15 @@ for what happens only in game:
 
 `/order job` and `/order job info <id>` show your jobs in game; the [Commands](../reference/commands.md) page lists
 every job command.
+
+### Drafts
+
+A job you are not ready to post can be saved as a **draft**: on the dashboard with **Save as draft** under any posting
+form, in game with `/order job build draft` at the confirm step of a build job. A draft is listed under your jobs, but
+companies do not see it, nothing is charged and its land is not checked or held. Change its title, price and time on the
+dashboard, post it with **Post** or `/order job post <id>`, or delete it. Posting checks everything a new job is checked
+for, its land where it lies now included, and charges price and fee then. Deleting a draft sends what its stock holds to
+your item returns. You keep at most `maxDrafts` drafts ([jobs.yml](../admin/configuration/jobs-yml.md)).
 
 A job waits for a company for some days (`openDays` in [jobs.yml](../admin/configuration/jobs-yml.md)). When nobody
 takes it, it expires and price and fee come back. The plugin never tells you which company works on your job; your inbox

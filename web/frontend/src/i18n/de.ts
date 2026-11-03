@@ -1062,6 +1062,7 @@ export default {
                     schematicUploads: 'Spieler dürfen eigene Schematics für Bau-Jobs im Dashboard hochladen (braucht FastAsyncWorldEdit)',
                     maxSchematics: 'Höchstzahl hochgeladener Schematics pro Spieler',
                     maxAreas: 'Höchstzahl gespeicherter Gebiete pro Spieler für Jobs',
+                    maxDrafts: 'Höchstzahl an Job-Entwürfen pro Spieler',
                 },
                 areas: {
                     enabled: 'Firmen dürfen neue Gebiete bekommen',
@@ -1663,6 +1664,8 @@ export default {
             open: "Gerade gibt es keine offenen Jobs.",
             mine: "Du hast keine Jobs angelegt.",
         },
+        saveDraft: 'Als Entwurf speichern',
+        draftNote: 'Ein Entwurf: Firmen sehen ihn nicht und nichts wird abgebucht. Veröffentliche ihn, wenn er fertig ist.',
         kind: {
             dig: "Graben",
             terraform: "Terraform",
@@ -1671,6 +1674,7 @@ export default {
             contract: "Auftrag",
         },
         state: {
+            draft: "Entwurf",
             open: "offen",
             taken: "in Arbeit",
             done: "wartet auf Annahme",
@@ -1687,6 +1691,9 @@ export default {
             blocks: "Blöcke",
         },
         step: {
+            remove: 'Entwurf löschen',
+            edit: 'Bearbeiten',
+            post: 'Veröffentlichen',
             take: "Annehmen",
             giveback: "Zurückgeben",
             done: "Als fertig melden",

@@ -1195,7 +1195,7 @@ export interface CompanyName {
 export type JobKind = 'dig' | 'terraform' | 'harvest' | 'build' | 'contract'
 
 /** Where a job is in its life. */
-export type JobState = 'open' | 'taken' | 'done' | 'disputed' | 'paid' | 'settled' | 'cancelled' | 'expired'
+export type JobState = 'draft' | 'open' | 'taken' | 'done' | 'disputed' | 'paid' | 'settled' | 'cancelled' | 'expired'
 
 /** A job as the Jobs page lists it. The owner is never named to companies, the company never to the owner. */
 export interface JobRow {
@@ -1219,6 +1219,10 @@ export interface JobRow {
     mine: boolean
     /** Whether the player's company holds it. */
     ours: boolean
+    /** The server whose world holds a draft's area, where it is posted; missing for other states. */
+    node?: string | null
+    /** How long a company has to finish it once taken; missing from older plugins. */
+    dueHours?: number
 }
 
 /** The lists of the Jobs page. */
@@ -1488,7 +1492,10 @@ export interface WriteActions {
     'admin.nodes.remove': {args: {uid: string}, result: {nodes: AdminNode[]}}
     'admin.nodes.prices': {args: Record<string, never>, result: {sources: AdminPriceSource[]}}
     'events.join': {args: OfferRef, result: EventDetails}
-    'jobs.contract': {args: {title: string, description: string, price: number, hours: number, place?: boolean, area?: string}, result: JobDetails}
+    'jobs.contract': {args: {title: string, description: string, price: number, hours: number, place?: boolean, area?: string, draft?: boolean}, result: JobDetails}
+    'jobs.drafts.post': {args: {id: number, node?: string}, result: JobDetails}
+    'jobs.drafts.edit': {args: {id: number, title: string, description: string, price: number, hours: number}, result: JobDetails}
+    'jobs.drafts.delete': {args: {id: number}, result: {id: number}}
     'jobs.describe': {args: JobRef & {text: string}, result: JobDetails}
     'jobs.approve': {args: JobRef, result: JobDetails}
     'jobs.reject': {args: JobRef & {reason: string}, result: JobDetails}
@@ -1513,8 +1520,8 @@ export interface WriteActions {
     'jobs.areas.delete': {args: {name: string}, result: AreaList}
     'jobs.areas.preview': {args: {node: string, area: string}, result: AreaPreview}
     'jobs.areas.schematic': {args: {node: string, area: string, schematic: string, rotation: number}, result: SchematicFit}
-    'jobs.areas.build': {args: {node: string, area: string, schematic: string, rotation: number, x: number, z: number, title: string, price: number, hours: number, confirm: boolean}, result: JobDetails}
-    'jobs.areas.post': {args: {node: string, area: string, kind: AreaJobKind, title: string, price: number, hours: number, y?: number, surface?: string, unitPrice?: number}, result: JobDetails}
+    'jobs.areas.build': {args: {node: string, area: string, schematic: string, rotation: number, x: number, z: number, title: string, price: number, hours: number, confirm: boolean, draft?: boolean}, result: JobDetails}
+    'jobs.areas.post': {args: {node: string, area: string, kind: AreaJobKind, title: string, price: number, hours: number, y?: number, surface?: string, unitPrice?: number, draft?: boolean}, result: JobDetails}
     'admin.jobs.disputes': {args: Record<string, never>, result: {disputes: DisputeRow[]}}
     'admin.jobs.settle': {args: JobRef & {percent: number}, result: {disputes: DisputeRow[]}}
     'events.leave': {args: OfferRef, result: EventDetails}

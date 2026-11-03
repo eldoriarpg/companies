@@ -36,6 +36,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.BiFunction;
 import java.util.function.BooleanSupplier;
 import java.util.function.DoubleUnaryOperator;
 import java.util.function.IntFunction;
@@ -239,26 +240,10 @@ public final class JobService {
         var blueprint = details.blueprint();
         var description = details.description();
         var current = settings.get();
-        if (!current.enabled()) return new Posted.Refused(Refusal.DISABLED);
-        if ((kind == JobKind.BUILD) != (blueprint != null)) return new Posted.Refused(Refusal.BLUEPRINT);
-        if ((kind == JobKind.HARVEST) != (unitPrice != null)) return new Posted.Refused(Refusal.UNIT_PRICE);
-        if (unitPrice != null && (!(cents(unitPrice) >= MIN_PRICE) || cents(unitPrice) > cents(price))) {
-            return new Posted.Refused(Refusal.UNIT_PRICE);
-        }
-        if ((kind == JobKind.TERRAFORM) != (target != null)) return new Posted.Refused(Refusal.TARGET);
-        if (target != null && (target.y() < area.minY() || target.y() > area.maxY())) {
-            return new Posted.Refused(Refusal.TARGET);
-        }
+        var shape = shape(kind, title, price, dueHours, area, details, blueprint != null);
+        if (shape != null) return new Posted.Refused(shape);
         var name = title.strip();
-        if (name.isEmpty() || name.length() > Job.MAX_TITLE) return new Posted.Refused(Refusal.TITLE);
-        if (description != null && description.length() > Job.MAX_DESCRIPTION) {
-            return new Posted.Refused(Refusal.DESCRIPTION);
-        }
         var rounded = cents(price);
-        if (!(rounded >= MIN_PRICE) || rounded > MAX_PRICE) return new Posted.Refused(Refusal.PRICE);
-        if (dueHours < 1 || dueHours > current.maxDueHours()) return new Posted.Refused(Refusal.DUE);
-        if (kind.area() && area.volume() > current.maxVolume(kind)) return new Posted.Refused(Refusal.VOLUME);
-        if (kind.area() && area.chunks() > current.maxChunks()) return new Posted.Refused(Refusal.CHUNKS);
         if (jobs.openOf(owner) >= current.maxOpenPerOwner()) return new Posted.Refused(Refusal.TOO_MANY);
         if (kind.area() && !jobs.overlapping(area).isEmpty()) return new Posted.Refused(Refusal.OVERLAP);
         var feeCharged = charge ? cents(fee.applyAsDouble(rounded)) : 0;
@@ -304,6 +289,227 @@ public final class JobService {
         var stored = id.get();
         if (!charge) logger.info("Posted job " + stored + " for " + owner + " without charging it");
         return new Posted.Done(jobs.job(stored).orElseGet(() -> draft.withId(stored)));
+    }
+
+    /**
+     * Checks what a job asks for, without its owner's limits, land or money.
+     *
+     * @return why it can not be posted, null when it can
+     */
+    private @Nullable Refusal shape(
+            JobKind kind,
+            String title,
+            double price,
+            int dueHours,
+            JobArea area,
+            Details details,
+            boolean hasBlueprint) {
+        var target = details.target();
+        var unitPrice = details.unitPrice();
+        var description = details.description();
+        var current = settings.get();
+        if (!current.enabled()) return Refusal.DISABLED;
+        if ((kind == JobKind.BUILD) != hasBlueprint) return Refusal.BLUEPRINT;
+        if ((kind == JobKind.HARVEST) != (unitPrice != null)) return Refusal.UNIT_PRICE;
+        if (unitPrice != null && (!(cents(unitPrice) >= MIN_PRICE) || cents(unitPrice) > cents(price))) {
+            return Refusal.UNIT_PRICE;
+        }
+        if ((kind == JobKind.TERRAFORM) != (target != null)) return Refusal.TARGET;
+        if (target != null && (target.y() < area.minY() || target.y() > area.maxY())) return Refusal.TARGET;
+        var name = title.strip();
+        if (name.isEmpty() || name.length() > Job.MAX_TITLE) return Refusal.TITLE;
+        if (description != null && description.length() > Job.MAX_DESCRIPTION) return Refusal.DESCRIPTION;
+        var rounded = cents(price);
+        if (!(rounded >= MIN_PRICE) || rounded > MAX_PRICE) return Refusal.PRICE;
+        if (dueHours < 1 || dueHours > current.maxDueHours()) return Refusal.DUE;
+        if (kind.area() && area.volume() > current.maxVolume(kind)) return Refusal.VOLUME;
+        if (kind.area() && area.chunks() > current.maxChunks()) return Refusal.CHUNKS;
+        return null;
+    }
+
+    /**
+     * Saves a job as a draft: checked as a posted job is, but not posted. Companies do not see it, nothing is charged,
+     * its land is neither checked nor held, and it counts against the owner's drafts, not their open jobs.
+     *
+     * @param owner    the player saving it
+     * @param kind     what work it asks for
+     * @param title    title shown to companies once posted
+     * @param price    what the company is paid
+     * @param dueHours how long a company has to finish it
+     * @param node     the server whose world holds the area
+     * @param area     the area of the work
+     * @param details  what the kind of job asks for besides its area
+     * @return the stored draft, or why it was not saved
+     */
+    public Posted saveDraft(
+            UUID owner,
+            JobKind kind,
+            String title,
+            double price,
+            int dueHours,
+            UUID node,
+            JobArea area,
+            Details details) {
+        var blueprint = details.blueprint();
+        var shape = shape(kind, title, price, dueHours, area, details, blueprint != null);
+        if (shape != null) return new Posted.Refused(shape);
+        if (jobs.countOf(owner, JobState.DRAFT) >= settings.get().maxDrafts()) {
+            return new Posted.Refused(Refusal.DRAFTS);
+        }
+        var now = now();
+        var unitPrice = details.unitPrice();
+        var draft = Job.draft(
+                        owner, kind, title.strip(), cents(price), 0, node, area, JobLand.NONE, null, dueHours, now, now)
+                .withTarget(details.target())
+                .withHarvest(unitPrice == null ? null : new JobHarvest(cents(unitPrice), 0))
+                .withDescription(details.description())
+                .withState(JobState.DRAFT);
+        Optional<Integer> id;
+        try {
+            id = jobs.create(draft);
+        } catch (RuntimeException e) {
+            logger.log(Level.SEVERE, "Could not store a draft of " + owner, e);
+            id = Optional.empty();
+        }
+        if (id.isPresent() && blueprint != null && !storedBlueprint(id.get(), blueprint)) {
+            jobs.deleteDraft(id.get());
+            id = Optional.empty();
+        }
+        if (id.isEmpty()) return new Posted.Refused(Refusal.STORAGE);
+        var stored = id.get();
+        return new Posted.Done(jobs.job(stored).orElseGet(() -> draft.withId(stored)));
+    }
+
+    /**
+     * Posts a draft as {@link #post} posts a job: checked again with the land it lies on now, charged, and open from
+     * now on.
+     *
+     * @param owner   the player who saved it
+     * @param id      id of the draft
+     * @param land    whose land the area lies on now
+     * @param landRef the plot or region of the land, null for unowned land
+     * @return the posted job, or why it was not posted
+     */
+    public Posted publish(UUID owner, int id, JobLand land, @Nullable String landRef) {
+        var found = jobs.job(id).filter(job -> job.owner().equals(owner) && job.state() == JobState.DRAFT);
+        if (found.isEmpty()) return new Posted.Refused(Refusal.NO_DRAFT);
+        var job = found.get();
+        var harvest = job.harvest();
+        var details = new Details(job.target(), harvest == null ? null : harvest.unitPrice(), null, job.description());
+        var shape = shape(
+                job.kind(),
+                job.title(),
+                job.price(),
+                job.dueHours(),
+                job.area(),
+                details,
+                jobs.blueprint(id).isPresent());
+        if (shape != null) return new Posted.Refused(shape);
+        var current = settings.get();
+        if (jobs.openOf(owner) >= current.maxOpenPerOwner()) return new Posted.Refused(Refusal.TOO_MANY);
+        if (job.kind().area() && !jobs.overlapping(job.area()).isEmpty()) {
+            return new Posted.Refused(Refusal.OVERLAP);
+        }
+        var feeCharged = cents(fee.applyAsDouble(job.price()));
+        var total = cents(job.price() + feeCharged);
+        var now = now();
+        var posted = Job.draft(
+                        owner,
+                        job.kind(),
+                        job.title(),
+                        job.price(),
+                        feeCharged,
+                        job.node(),
+                        job.area(),
+                        land,
+                        landRef,
+                        job.dueHours(),
+                        now,
+                        now.plusDays(current.openDays()))
+                .withTarget(job.target())
+                .withHarvest(harvest)
+                .withDescription(job.description())
+                .withId(id);
+        if (!allows(() -> events.allowsPost(posted))) return new Posted.Refused(Refusal.REFUSED);
+        if (!money.withdraw(owner, total)) return new Posted.Refused(Refusal.FUNDS);
+        boolean published;
+        try {
+            published = jobs.publish(posted);
+        } catch (RuntimeException e) {
+            logger.log(Level.SEVERE, "Could not post draft " + id + " of " + owner, e);
+            published = false;
+        }
+        if (!published) {
+            money.deposit(owner, total);
+            return new Posted.Refused(Refusal.STORAGE);
+        }
+        return new Posted.Done(jobs.job(id).orElse(posted));
+    }
+
+    /**
+     * Changes the title, description, price and time of a draft.
+     *
+     * @param owner       the player who saved it
+     * @param id          id of the draft
+     * @param title       its title
+     * @param description its description, null for none
+     * @param price       its price
+     * @param dueHours    how long a company has to finish it
+     * @return the changed draft, or why it was not changed
+     */
+    public Posted editDraft(
+            UUID owner, int id, String title, @Nullable String description, double price, int dueHours) {
+        var found = jobs.job(id).filter(job -> job.owner().equals(owner) && job.state() == JobState.DRAFT);
+        if (found.isEmpty()) return new Posted.Refused(Refusal.NO_DRAFT);
+        var job = found.get();
+        var harvest = job.harvest();
+        var details = new Details(job.target(), harvest == null ? null : harvest.unitPrice(), null, description);
+        var shape = shape(
+                job.kind(),
+                title,
+                price,
+                dueHours,
+                job.area(),
+                details,
+                jobs.blueprint(id).isPresent());
+        if (shape != null) return new Posted.Refused(shape);
+        if (!jobs.editDraft(id, title.strip(), description, cents(price), dueHours)) {
+            return new Posted.Refused(Refusal.NO_DRAFT);
+        }
+        return new Posted.Done(jobs.job(id).orElse(job));
+    }
+
+    /**
+     * Deletes a draft. Its stock goes to the owner's item returns first; what can not be stored there stays and the
+     * draft is kept.
+     *
+     * @param owner   the player who saved it
+     * @param id      id of the draft
+     * @param returns stores items in the owner's item returns and answers what it could not store
+     * @return whether the draft is gone
+     */
+    public boolean deleteDraft(
+            UUID owner, int id, BiFunction<UUID, Map<String, Integer>, Map<String, Integer>> returns) {
+        var found = jobs.job(id).filter(job -> job.owner().equals(owner) && job.state() == JobState.DRAFT);
+        if (found.isEmpty()) return false;
+        Map<String, Integer> taken = new LinkedHashMap<>();
+        jobs.stock(id).forEach((material, amount) -> {
+            if (jobs.takeStock(id, material, amount)) taken.put(material, amount);
+        });
+        if (!taken.isEmpty()) {
+            Map<String, Integer> left;
+            try {
+                left = returns.apply(owner, taken);
+            } catch (RuntimeException e) {
+                logger.log(Level.WARNING, "Could not return the stock of draft " + id, e);
+                left = taken;
+            }
+            if (!left.isEmpty()) {
+                jobs.stock(id, left);
+                return false;
+            }
+        }
+        return jobs.deleteDraft(id);
     }
 
     /**
@@ -586,6 +792,7 @@ public final class JobService {
             notices.cancelAsked(company, job);
             return Change.CANCEL_ASKED;
         }
+        if (job.state() == JobState.DRAFT) return Change.DRAFT;
         if (job.state() != JobState.OPEN) return job.state().closed() ? Change.CLOSED : Change.TAKEN;
         if (!jobs.close(id, JobState.OPEN, JobState.CANCELLED, by, now())) return Change.CLOSED;
         refund(job, cents(job.unpaid()));
@@ -873,6 +1080,7 @@ public final class JobService {
         if (text.length() > Job.MAX_DESCRIPTION) return Change.TOO_LONG;
         var job = jobs.job(id).orElse(null);
         if (job == null || !job.owner().equals(owner)) return Change.UNKNOWN;
+        if (job.state() == JobState.DRAFT) return Change.DRAFT;
         if (job.state() != JobState.OPEN) return job.state().closed() ? Change.CLOSED : Change.TAKEN;
         return jobs.describe(id, text.isEmpty() ? null : text) ? Change.DONE : Change.CLOSED;
     }
@@ -1736,6 +1944,7 @@ public final class JobService {
             case DESCRIPTION -> Job.MAX_DESCRIPTION;
             case CHUNKS -> settings.maxChunks();
             case TOO_MANY -> settings.maxOpenPerOwner();
+            case DRAFTS -> settings.maxDrafts();
             case DUE -> settings.maxDueHours();
             case TITLE -> Job.MAX_TITLE;
             default -> 0;
@@ -1750,6 +1959,14 @@ public final class JobService {
          * Players may not post jobs on this server.
          */
         DISABLED,
+        /**
+         * The owner has as many drafts as the server allows.
+         */
+        DRAFTS,
+        /**
+         * The owner has no draft with this id.
+         */
+        NO_DRAFT,
         /**
          * The kind of job can not be posted yet.
          */
@@ -1846,6 +2063,10 @@ public final class JobService {
         /**
          * There is no such job.
          */
+        /**
+         * The job is a draft: it is posted or deleted, nothing else.
+         */
+        DRAFT,
         UNKNOWN,
         /**
          * The member may not manage the company's work.

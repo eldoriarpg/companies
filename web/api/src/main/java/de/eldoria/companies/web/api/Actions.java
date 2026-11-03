@@ -721,6 +721,21 @@ public final class Actions {
     public static final String JOBS_AREAS_POST = "jobs.areas.post";
 
     /**
+     * Posts one of the player's drafts on the server whose world holds its area, named by {@code node}.
+     */
+    public static final String JOBS_DRAFTS_POST = "jobs.drafts.post";
+
+    /**
+     * Changes the title, description, price and time of one of the player's drafts.
+     */
+    public static final String JOBS_DRAFTS_EDIT = "jobs.drafts.edit";
+
+    /**
+     * Deletes one of the player's drafts; its stock goes to the player's item returns.
+     */
+    public static final String JOBS_DRAFTS_DELETE = "jobs.drafts.delete";
+
+    /**
      * Draws the top layer of a stored area and lists the schematics a build job on it may use, on the server whose
      * world holds it.
      */
@@ -891,6 +906,9 @@ public final class Actions {
             JOBS_AREAS_LIST,
             JOBS_AREAS_DELETE,
             JOBS_AREAS_POST,
+            JOBS_DRAFTS_POST,
+            JOBS_DRAFTS_EDIT,
+            JOBS_DRAFTS_DELETE,
             JOBS_AREAS_PREVIEW,
             JOBS_AREAS_SCHEMATIC,
             JOBS_AREAS_BUILD,

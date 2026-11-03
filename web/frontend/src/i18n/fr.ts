@@ -1062,6 +1062,7 @@ export default {
                     schematicUploads: "Les joueurs peuvent téléverser leurs propres schématiques pour les travaux de construction sur le tableau de bord (nécessite FastAsyncWorldEdit)",
                     maxSchematics: 'Nombre maximal de schématiques téléversées par joueur',
                     maxAreas: "Nombre maximal de zones qu'un joueur peut garder pour les travaux",
+                    maxDrafts: 'Nombre maximal de brouillons de travaux par joueur',
                 },
                 areas: {
                     enabled: 'Les entreprises peuvent obtenir de nouvelles zones',
@@ -1663,6 +1664,8 @@ export default {
             open: "Il n'y a pas de travail ouvert pour le moment.",
             mine: "Tu n'as publié aucun travail.",
         },
+        saveDraft: 'Enregistrer comme brouillon',
+        draftNote: 'Un brouillon : les entreprises ne le voient pas et rien n’est prélevé. Publie-le quand il est prêt.',
         kind: {
             dig: "Creusage",
             terraform: "Terrassement",
@@ -1671,6 +1674,7 @@ export default {
             contract: "Contrat",
         },
         state: {
+            draft: "brouillon",
             open: "ouvert",
             taken: "en cours",
             done: "en attente d'acceptation",
@@ -1687,6 +1691,9 @@ export default {
             blocks: "Blocs",
         },
         step: {
+            remove: 'Supprimer le brouillon',
+            edit: 'Modifier',
+            post: 'Publier',
             take: "Prendre",
             giveback: "Rendre",
             done: "Déclarer terminé",

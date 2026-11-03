@@ -83,6 +83,51 @@ class JobWritesTest {
     }
 
     @Test
+    void aContractIsSavedAsADraftThenPostedOrDeleted() {
+        var jobs = Set.of(Permission.Orders.JOBS);
+        var drafted = perform(owner, Actions.JOBS_CONTRACT, draft(contract()), jobs);
+
+        assertTrue(drafted.ok(), drafted.message());
+        var job = drafted.data().path("job");
+        assertEquals("draft", job.path("state").asString());
+        assertTrue(job.path("node").isMissingNode() || job.path("node").isNull());
+        assertEquals(1000.0, world.wallets.get(owner), 0.001);
+        var id = job.path("id").asInt();
+        var edited = perform(
+                owner,
+                Actions.JOBS_DRAFTS_EDIT,
+                "{\"id\":" + id + ",\"title\":\"Paint it blue\",\"price\":120,\"hours\":48}",
+                jobs);
+        assertTrue(edited.ok(), edited.message());
+        assertEquals("Paint it blue", edited.data().path("job").path("title").asString());
+
+        var posted = perform(owner, Actions.JOBS_DRAFTS_POST, "{\"id\":" + id + "}", jobs);
+        assertTrue(posted.ok(), posted.message());
+        assertEquals("open", posted.data().path("job").path("state").asString());
+        assertTrue(world.wallets.get(owner) < 1000.0);
+
+        var second = perform(owner, Actions.JOBS_CONTRACT, draft(contract()), jobs)
+                .data()
+                .path("job")
+                .path("id")
+                .asInt();
+        assertEquals(
+                "order.job.error.noDraft",
+                perform(worker, Actions.JOBS_DRAFTS_DELETE, "{\"id\":" + second + "}", jobs)
+                        .reason());
+        assertTrue(perform(owner, Actions.JOBS_DRAFTS_DELETE, "{\"id\":" + second + "}", jobs)
+                .ok());
+        assertEquals(
+                "order.job.error.noDraft",
+                perform(owner, Actions.JOBS_DRAFTS_POST, "{\"id\":" + second + "}", jobs)
+                        .reason());
+    }
+
+    private static String draft(String args) {
+        return args.substring(0, args.length() - 1) + ",\"draft\":true}";
+    }
+
+    @Test
     void postingNeedsThePermissionAndARule() {
         var refused = perform(owner, Actions.JOBS_CONTRACT, contract(), Set.of());
         var tooLong = perform(

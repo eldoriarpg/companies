@@ -174,6 +174,9 @@ public final class ReadRelay {
             Actions.ADMIN_EVENTS_EXTEND,
             Actions.ADMIN_EVENTS_BUDGET,
             Actions.JOBS_CONTRACT,
+            Actions.JOBS_DRAFTS_POST,
+            Actions.JOBS_DRAFTS_EDIT,
+            Actions.JOBS_DRAFTS_DELETE,
             Actions.JOBS_DESCRIBE,
             Actions.JOBS_APPROVE,
             Actions.JOBS_REJECT,
@@ -201,8 +204,8 @@ public final class ReadRelay {
 
     /**
      * The actions on what lies on one node: the admin actions on its board signs and NPC links, and posting a job on a
-     * stored area, which is checked in that node's world. They go to the node named in {@code node}, and to the
-     * primary when none is named.
+     * stored area or posting a draft, which are checked in that node's world. They go to the node named in
+     * {@code node}, and to the primary when none is named.
      */
     public static final Set<String> NODE_ACTIONS = Set.of(
             Actions.ADMIN_BOARDS_PRESETS,
@@ -213,7 +216,8 @@ public final class ReadRelay {
             Actions.JOBS_AREAS_POST,
             Actions.JOBS_AREAS_PREVIEW,
             Actions.JOBS_AREAS_SCHEMATIC,
-            Actions.JOBS_AREAS_BUILD);
+            Actions.JOBS_AREAS_BUILD,
+            Actions.JOBS_DRAFTS_POST);
 
     /**
      * The admin actions only the primary performs, as they push its files to the others. Without a ready primary

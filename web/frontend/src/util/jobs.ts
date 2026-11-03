@@ -25,6 +25,9 @@ export type JobStep =
     | 'cancelAccept'
     | 'cancelRefuse'
     | 'collect'
+    | 'post'
+    | 'edit'
+    | 'remove'
 
 /** The states in which a job is over for good. */
 const CLOSED: readonly JobState[] = ['paid', 'settled', 'cancelled', 'expired']
@@ -55,6 +58,7 @@ export function jobSteps(details: JobDetails): JobStep[] {
     const steps: JobStep[] = []
     const harvest = job.kind === 'harvest'
     if (job.mine) {
+        if (job.state === 'draft') return ['post', 'edit', 'remove']
         if (job.state === 'open') steps.push('describe', 'cancel')
         if (job.state === 'done') steps.push('approve', 'reject')
         if (job.state === 'taken' && !harvest) steps.push('approve')
@@ -111,5 +115,5 @@ export function needsHours(step: JobStep): boolean {
  */
 export function warns(step: JobStep): boolean {
     return step === 'cancel' || step === 'giveback' || step === 'dispute' || step === 'reject' || step === 'end' || step === 'refuse'
-        || step === 'askCancel' || step === 'cancelAccept'
+        || step === 'askCancel' || step === 'cancelAccept' || step === 'remove'
 }

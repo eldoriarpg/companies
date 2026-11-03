@@ -114,6 +114,9 @@ See [Jobs](../players/jobs.md).
 | `/order job blueprint <schematic> <rotation>` | `companies.orders.jobs` | Previews a schematic placed where you stand, turned by 0, 90, 180 or 270 degrees: its outline and blocks for a short while, and what its blocks cost. |
 | `/order job build <schematic> <rotation> <price> <hours> <title>` | `companies.orders.jobs` | Previews a build job of a schematic placed where you stand and asks to confirm it, warning when the price is below what its blocks cost. |
 | `/order job build confirm` | `companies.orders.jobs` | Posts the build job you were asked to confirm. You pay the price and the order fee at once. |
+| `/order job build draft` | `companies.orders.jobs` | Saves the build job you were asked to confirm as a draft. Nothing is charged. |
+| `/order job post <id>` | `companies.orders.jobs` | Posts one of your drafts on the server of its area, charging price and fee. |
+| `/order job draft delete <id>` | `companies.orders.jobs` | Deletes one of your drafts; its stock goes to your item returns. |
 | `/order job harvest <price per item> <budget> <hours> <title>` | `companies.orders.jobs` | Posts a harvest job on the field you marked or selected with WorldEdit. You pay the budget and the order fee at once. |
 | `/order job harvest plot <price per item> <budget> <hours> <height> <title>` | `companies.orders.jobs` | Posts a harvest job on the whole plot you stand on, from the block below your feet up `height` layers. |
 | `/order job stock <id>` | `companies.orders.jobs` | Lists the stock of a harvest job. |

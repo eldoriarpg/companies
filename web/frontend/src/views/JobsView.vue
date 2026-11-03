@@ -103,12 +103,12 @@ function posted(details: JobDetails): void {
           :details="jobs.detail.value"
           class="sticky top-4"
           @changed="jobs.changed"
-          @stale="jobs.refresh"
+          @stale="jobs.refresh" @removed="jobs.forget"
       />
       <MutedText v-else-if="wide && jobs.detailStatus.value === 'failed'" tag="p">{{ t('jobs.detailFailed') }}</MutedText>
     </div>
     <BottomSheet v-if="jobs.detail.value" v-model:open="sheetOpen" :title="jobs.detail.value.job.title" :description="t(`jobs.kind.${jobs.detail.value.job.kind}`)">
-      <JobDetail :details="jobs.detail.value" in-sheet @changed="jobs.changed" @stale="jobs.refresh"/>
+      <JobDetail :details="jobs.detail.value" in-sheet @changed="jobs.changed" @stale="jobs.refresh" @removed="jobs.forget"/>
     </BottomSheet>
   </ViewContent>
 </template>

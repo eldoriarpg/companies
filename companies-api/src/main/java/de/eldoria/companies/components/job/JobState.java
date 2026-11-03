@@ -44,7 +44,12 @@ public enum JobState {
     /**
      * Nobody took it before it expired. A charged job's owner got price and fee back.
      */
-    EXPIRED;
+    EXPIRED,
+    /**
+     * Saved by its owner but not posted: companies do not see it, nothing is charged and its land is not held. Posting
+     * it makes it open.
+     */
+    DRAFT;
 
     /**
      * The states a job can still change from.
@@ -58,11 +63,11 @@ public enum JobState {
     public static final Set<JobState> HELD = EnumSet.of(TAKEN, DONE, DISPUTED);
 
     /**
-     * Whether the job is over for good.
+     * Whether the job is over for good. A draft is not.
      *
      * @return whether the job is over for good
      */
     public boolean closed() {
-        return !RUNNING.contains(this);
+        return this != DRAFT && !RUNNING.contains(this);
     }
 }

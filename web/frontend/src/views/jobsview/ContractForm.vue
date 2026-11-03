@@ -4,10 +4,8 @@
  *     Copyright (C) EldoriaRPG Team and Contributor
  */
 <script lang="ts" setup>
+import PostButtons from './PostButtons.vue'
 import type {AreaList, JobDetails} from '~/api/gateway'
-import ButtonRow from '@/components/button/ButtonRow.vue'
-import PrimaryButton from '@/components/button/PrimaryButton.vue'
-import SecondaryButton from '@/components/button/SecondaryButton.vue'
 import ActionNotice from '@/components/feedback/ActionNotice.vue'
 import CheckboxInput from '@/components/input/CheckboxInput.vue'
 import DecimalInput from '@/components/input/DecimalInput.vue'
@@ -48,9 +46,10 @@ onMounted(async () => {
 })
 const ready = computed(() => title.value.trim().length > 0 && (price.value ?? 0) > 0 && (hours.value ?? 0) >= 1)
 
-async function post(): Promise<void> {
+async function post(draft = false): Promise<void> {
   if (!ready.value) return
   const result = await action.run('jobs.contract', {
+    draft,
     title: title.value.trim(),
     description: description.value,
     price: price.value ?? 0,
@@ -76,9 +75,6 @@ async function post(): Promise<void> {
     <CheckboxInput v-if="area === ''" v-model="place" :label="t('jobs.contract.place')" data-testid="contract-place"/>
     <MutedText tag="p">{{ t('jobs.contract.charged') }}</MutedText>
     <ActionNotice :problem="action.problem.value"/>
-    <ButtonRow>
-      <PrimaryButton :disabled="!ready || action.busy.value" data-testid="contract-post" @click="post">{{ t('jobs.contract.post') }}</PrimaryButton>
-      <SecondaryButton @click="emit('close')">{{ t('jobs.contract.cancel') }}</SecondaryButton>
-    </ButtonRow>
+    <PostButtons :disabled="!ready || action.busy.value" test-id="contract" @post="post" @back="emit('close')"/>
   </section>
 </template>

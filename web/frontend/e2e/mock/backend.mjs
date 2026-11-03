@@ -941,9 +941,27 @@ function action(name, args, state, story = {}) {
             return jobsOf(state)[args.job] ? done(jobDetails(jobsOf(state)[args.job])) : refused(`There is no job #${args.job}.`)
         case 'jobs.contract': {
             const id = 20
-            jobsOf(state)[id] = {id, kind: 'contract', state: 'open', title: args.title, price: args.price, fee: 5, expires: '2026-11-06T12:00:00Z', blocks: 0, mine: true, ours: false, description: args.description}
+            jobsOf(state)[id] = args.draft
+                ? {id, kind: 'contract', state: 'draft', title: args.title, price: args.price, fee: 0, blocks: 0, mine: true, ours: false, description: args.description, node: '00000000-0000-0000-0000-000000000001'}
+                : {id, kind: 'contract', state: 'open', title: args.title, price: args.price, fee: 5, expires: '2026-11-06T12:00:00Z', blocks: 0, mine: true, ours: false, description: args.description}
             return done(jobDetails(jobsOf(state)[id]))
         }
+        case 'jobs.drafts.post': {
+            const draft = jobsOf(state)[args.id]
+            if (draft?.state !== 'draft') return refused('You have no draft with this number.')
+            Object.assign(draft, {state: 'open', fee: 5, expires: '2026-11-06T12:00:00Z', node: undefined})
+            return done(jobDetails(draft))
+        }
+        case 'jobs.drafts.edit': {
+            const draft = jobsOf(state)[args.id]
+            if (draft?.state !== 'draft') return refused('You have no draft with this number.')
+            Object.assign(draft, {title: args.title, price: args.price})
+            return done(jobDetails(draft))
+        }
+        case 'jobs.drafts.delete':
+            if (jobsOf(state)[args.id]?.state !== 'draft') return refused('You have no draft with this number.')
+            delete jobsOf(state)[args.id]
+            return done({id: args.id})
         case 'jobs.cancel':
             if (jobsOf(state)[args.job]?.state === 'taken') return cancelAsk(state, args, done, refused)
             return jobStep(state, name, args, done, refused)

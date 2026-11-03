@@ -229,7 +229,7 @@ final class JobApiImpl implements JobApi {
             case NOT_YOURS -> JobChange.NOT_YOURS;
             case DISPUTED -> JobChange.DISPUTED;
             case REASON, TOO_LONG -> JobChange.REASON;
-            case AREA, CONTRACT, HARVEST -> JobChange.WRONG_KIND;
+            case AREA, CONTRACT, HARVEST, DRAFT -> JobChange.WRONG_KIND;
             case NOT_DONE -> JobChange.NOT_DONE;
             case OTHER_SERVER -> JobChange.OTHER_SERVER;
             case REFUSED -> JobChange.REFUSED;
@@ -373,7 +373,7 @@ final class JobApiImpl implements JobApi {
             case UNIT_PRICE -> JobProblem.UNIT_PRICE;
             case STRANDED -> JobProblem.STRANDED;
             case REFUSED -> JobProblem.REFUSED;
-            case KIND, STORAGE, BLUEPRINT -> JobProblem.FAILED;
+            case KIND, STORAGE, BLUEPRINT, DRAFTS, NO_DRAFT -> JobProblem.FAILED;
         };
     }
 

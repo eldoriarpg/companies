@@ -1062,6 +1062,7 @@ export default {
                     schematicUploads: 'Let players upload their own schematics for build jobs on the dashboard (needs FastAsyncWorldEdit)',
                     maxSchematics: 'Most schematics a player may keep uploaded',
                     maxAreas: 'Most areas a player may keep stored for jobs',
+                    maxDrafts: 'Most drafts of jobs a player may keep',
                 },
                 areas: {
                     enabled: 'Let companies get new areas',
@@ -1663,6 +1664,8 @@ export default {
             open: "There are no open jobs right now.",
             mine: "You have posted no jobs.",
         },
+        saveDraft: 'Save as draft',
+        draftNote: 'A draft: companies do not see it and nothing is charged. Post it when it is ready.',
         kind: {
             dig: "Dig",
             terraform: "Terraform",
@@ -1671,6 +1674,7 @@ export default {
             contract: "Contract",
         },
         state: {
+            draft: "draft",
             open: "open",
             taken: "in work",
             done: "waiting for approval",
@@ -1687,6 +1691,9 @@ export default {
             blocks: "Blocks",
         },
         step: {
+            remove: 'Delete draft',
+            edit: 'Edit',
+            post: 'Post',
             take: "Take",
             giveback: "Give back",
             done: "Say it is done",

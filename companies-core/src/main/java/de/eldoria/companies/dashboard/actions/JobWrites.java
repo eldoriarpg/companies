@@ -94,7 +94,10 @@ public final class JobWrites {
             Actions.JOBS_AREAS_POST,
             Actions.JOBS_AREAS_PREVIEW,
             Actions.JOBS_AREAS_SCHEMATIC,
-            Actions.JOBS_AREAS_BUILD);
+            Actions.JOBS_AREAS_BUILD,
+            Actions.JOBS_DRAFTS_POST,
+            Actions.JOBS_DRAFTS_EDIT,
+            Actions.JOBS_DRAFTS_DELETE);
 
     /**
      * The most jobs of each list.
@@ -207,6 +210,9 @@ public final class JobWrites {
             case Actions.JOBS_AREAS_PREVIEW -> preview(request, jobs, session, args);
             case Actions.JOBS_AREAS_SCHEMATIC -> schematicFit(request, jobs, session, args);
             case Actions.JOBS_AREAS_BUILD -> build(request, jobs, session, args);
+            case Actions.JOBS_DRAFTS_POST -> postDraft(request, jobs, session, args);
+            case Actions.JOBS_DRAFTS_EDIT -> editDraft(request, jobs, player, args);
+            case Actions.JOBS_DRAFTS_DELETE -> deleteDraft(request, jobs, player, args);
             case Actions.JOBS_CANCEL_ACCEPT ->
                 forCompany(
                         request,
@@ -320,6 +326,23 @@ public final class JobWrites {
             var last = sources.lastPlace().apply(session.player());
             if (last.isEmpty()) return answers.refused(request, OWNER + "error.noPlace");
             place = last.get();
+        }
+        if (args.path("draft").asBoolean(false)) {
+            return posted(
+                    request,
+                    jobs,
+                    session.player(),
+                    JobKind.CONTRACT,
+                    jobs.service()
+                            .saveDraft(
+                                    session.player(),
+                                    JobKind.CONTRACT,
+                                    title,
+                                    args.path("price").asDouble(0),
+                                    args.path("hours").asInt(0),
+                                    node,
+                                    place,
+                                    JobService.Details.contract(description)));
         }
         var posted = jobs.service()
                 .post(
@@ -578,6 +601,57 @@ public final class JobWrites {
             JobArea area,
             JsonNode args,
             JobService.Details details) {
+        if (args.path("draft").asBoolean(false)) {
+            return posted(
+                    request,
+                    jobs,
+                    player,
+                    kind,
+                    jobs.service()
+                            .saveDraft(
+                                    player,
+                                    kind,
+                                    args.path("title").asString(""),
+                                    args.path("price").asDouble(0),
+                                    args.path("hours").asInt(0),
+                                    jobs.node(),
+                                    area,
+                                    details));
+        }
+        return withLand(
+                request,
+                jobs,
+                player,
+                area,
+                land -> posted(
+                        request,
+                        jobs,
+                        player,
+                        kind,
+                        jobs.service()
+                                .post(
+                                        player,
+                                        kind,
+                                        args.path("title").asString(""),
+                                        args.path("price").asDouble(0),
+                                        args.path("hours").asInt(0),
+                                        jobs.node(),
+                                        area,
+                                        land.land(),
+                                        land.ref(),
+                                        details)));
+    }
+
+    /**
+     * Checks on the main thread that an area may hold a job of the player and hands on the land it lies on, or answers
+     * why not.
+     */
+    private ActionResult withLand(
+            ActionRequest request,
+            JobServices jobs,
+            UUID player,
+            JobArea area,
+            Function<AreaChecks.Checked.Land, ActionResult> then) {
         AreaChecks.Checked checked;
         try {
             checked = jobs.checks().checkOnMain(player, area);
@@ -602,25 +676,66 @@ public final class JobWrites {
                                 OWNER + "error.foreign",
                                 Values.text("land", Objects.requireNonNullElse(foreign.ref(), "?"))));
             case AreaChecks.Checked.Unowned unowned -> answers.refused(request, OWNER + "error.unowned");
-            case AreaChecks.Checked.Land land ->
-                posted(
+            case AreaChecks.Checked.Land land -> then.apply(land);
+        };
+    }
+
+    /**
+     * Posts one of the player's drafts on this server; an area's land is checked again where it lies now.
+     */
+    private ActionResult postDraft(ActionRequest request, JobServices jobs, StoredSession session, JsonNode args) {
+        if (!mayPost(session)) return answers.refused(request, "error.permission.postJob");
+        var player = session.player();
+        var id = args.path("id").asInt(0);
+        var draft = jobs.data().job(id).filter(job -> job.owner().equals(player) && job.state() == JobState.DRAFT);
+        if (draft.isEmpty()) return answers.refused(request, OWNER + "error.noDraft");
+        var job = draft.get();
+        if (!job.kind().area()) {
+            return posted(request, jobs, player, job.kind(), jobs.service().publish(player, id, JobLand.NONE, null));
+        }
+        if (!job.node().equals(jobs.node())) {
+            return answers.refused(request, CommandFailure.of(OWNER + "error.otherServer", number(id)));
+        }
+        return withLand(
+                request,
+                jobs,
+                player,
+                job.area(),
+                land -> posted(
                         request,
                         jobs,
                         player,
-                        kind,
-                        jobs.service()
-                                .post(
-                                        player,
-                                        kind,
-                                        args.path("title").asString(""),
-                                        args.path("price").asDouble(0),
-                                        args.path("hours").asInt(0),
-                                        jobs.node(),
-                                        area,
-                                        land.land(),
-                                        land.ref(),
-                                        details));
-        };
+                        job.kind(),
+                        jobs.service().publish(player, id, land.land(), land.ref())));
+    }
+
+    private ActionResult editDraft(ActionRequest request, JobServices jobs, UUID player, JsonNode args) {
+        var id = args.path("id").asInt(0);
+        var description = args.path("description").asString("").strip();
+        var kind = jobs.data().job(id).map(Job::kind).orElse(JobKind.CONTRACT);
+        return posted(
+                request,
+                jobs,
+                player,
+                kind,
+                jobs.service()
+                        .editDraft(
+                                player,
+                                id,
+                                args.path("title").asString(""),
+                                description.isEmpty() ? null : description,
+                                args.path("price").asDouble(0),
+                                args.path("hours").asInt(0)));
+    }
+
+    private ActionResult deleteDraft(ActionRequest request, JobServices jobs, UUID player, JsonNode args) {
+        var id = args.path("id").asInt(0);
+        var draft = jobs.data().job(id).filter(job -> job.owner().equals(player) && job.state() == JobState.DRAFT);
+        if (draft.isEmpty()) return answers.refused(request, OWNER + "error.noDraft");
+        if (!jobs.service().deleteDraft(player, id, sources.returns())) {
+            return answers.refused(request, CommandFailure.of(OWNER + "error.draftKept", number(id)));
+        }
+        return answers.data(request, Map.of("id", id));
     }
 
     /**
@@ -761,6 +876,7 @@ public final class JobWrites {
                     case UNKNOWN, NOT_YOURS -> "error.unknown";
                     case ASKED -> "error.cancelAsked";
                     case TAKEN -> "error.taken";
+                    case DRAFT -> "error.draft";
                     case DISPUTED -> "error.disputed";
                     case REASON -> "error.reason";
                     case TOO_LONG -> "error.description";
@@ -893,7 +1009,9 @@ public final class JobWrites {
                 harvest == null ? null : harvest.paid(),
                 job.owner().equals(player),
                 company.map(found -> Integer.valueOf(found.id()).equals(job.company()))
-                        .orElse(false));
+                        .orElse(false),
+                job.state() == JobState.DRAFT && job.kind().area() ? job.node() : null,
+                job.dueHours());
     }
 
     private JobDetails details(JobServices jobs, Job job, UUID player, Optional<CompanyProfile> company) {
@@ -1029,6 +1147,9 @@ public final class JobWrites {
      * @param paid      what a harvest job paid so far, null for other kinds
      * @param mine      whether the player owns it
      * @param ours      whether the player's company holds it
+     * @param node      the server whose world holds a draft's area, where it is posted; null for other states and
+     *                  for drafts without an area
+     * @param dueHours  how long a company has to finish it once taken
      */
     public record JobRow(
             int id,
@@ -1045,7 +1166,9 @@ public final class JobWrites {
             @Nullable Double unitPrice,
             @Nullable Double paid,
             boolean mine,
-            boolean ours) {}
+            boolean ours,
+            @Nullable UUID node,
+            int dueHours) {}
 
     /**
      * The lists of the Jobs page.

@@ -41,6 +41,7 @@ public class JobSettings {
     private boolean schematicUploads = false;
     private int maxSchematics = 10;
     private int maxAreas = 10;
+    private int maxDrafts = 5;
 
     public JobSettings() {}
 
@@ -300,5 +301,16 @@ public class JobSettings {
 
     public void maxAreas(int maxAreas) {
         this.maxAreas = maxAreas;
+    }
+
+    /**
+     * @return the most drafts of jobs a player may keep, at least 1
+     */
+    public int maxDrafts() {
+        return Math.max(1, maxDrafts);
+    }
+
+    public void maxDrafts(int maxDrafts) {
+        this.maxDrafts = maxDrafts;
     }
 }

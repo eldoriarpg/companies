@@ -316,6 +316,40 @@ public record Job(
     }
 
     /**
+     * @param state the state
+     * @return the job in that state
+     */
+    public Job withState(JobState state) {
+        return new Job(
+                id,
+                owner,
+                kind,
+                title,
+                description,
+                price,
+                fee,
+                state,
+                company,
+                node,
+                area,
+                land,
+                landRef,
+                dueHours,
+                created,
+                expires,
+                taken,
+                due,
+                closed,
+                closedBy,
+                granted,
+                review,
+                target,
+                harvest,
+                extension,
+                charged);
+    }
+
+    /**
      * @return what is left of the price to give back: the whole price, less what a harvest job already paid out
      */
     public double unpaid() {

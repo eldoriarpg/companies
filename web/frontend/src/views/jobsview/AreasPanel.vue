@@ -5,9 +5,9 @@
  */
 <script lang="ts" setup>
 import type {AreaJobKind, AreaList, AreaPreview, AreaRow, JobDetails, SchematicFit} from '~/api/gateway'
-import ButtonRow from '@/components/button/ButtonRow.vue'
 import PrimaryButton from '@/components/button/PrimaryButton.vue'
 import SecondaryButton from '@/components/button/SecondaryButton.vue'
+import PostButtons from './PostButtons.vue'
 import PanelBox from '@/components/container/PanelBox.vue'
 import PlainList from '@/components/container/PlainList.vue'
 import ActionNotice from '@/components/feedback/ActionNotice.vue'
@@ -140,7 +140,7 @@ async function measure(): Promise<void> {
 
 watch([schematic, rotation], measure)
 
-async function post(): Promise<void> {
+async function post(draft = false): Promise<void> {
   const area = chosen.value
   if (!ready.value || !area) return
   const result = kind.value === 'build'
@@ -155,6 +155,7 @@ async function post(): Promise<void> {
       price: price.value ?? 0,
       hours: hours.value ?? 0,
       confirm: belowCost.value,
+      draft,
     })
     : await action.run('jobs.areas.post', {
     node: area.node,
@@ -165,6 +166,7 @@ async function post(): Promise<void> {
     hours: hours.value ?? 0,
     ...(kind.value === 'terraform' ? {y: y.value ?? 0, surface: surface.value.trim()} : {}),
     ...(kind.value === 'harvest' ? {unitPrice: unitPrice.value ?? 0} : {}),
+    draft,
   })
   if (!result) return
   chosen.value = null
@@ -227,10 +229,7 @@ async function remove(area: AreaRow): Promise<void> {
           <CheckboxInput v-if="fit && fit.cost > (price ?? 0)" v-model="belowCost" :label="t('jobs.areas.belowCost')" data-testid="job-areas-below"/>
         </template>
         <MutedText tag="p">{{ t('jobs.contract.charged') }}</MutedText>
-        <ButtonRow>
-          <PrimaryButton :disabled="!ready || action.busy.value" data-testid="job-areas-post" @click="post">{{ t('jobs.contract.post') }}</PrimaryButton>
-          <SecondaryButton @click="chosen = null">{{ t('jobs.contract.cancel') }}</SecondaryButton>
-        </ButtonRow>
+        <PostButtons :disabled="!ready || action.busy.value" test-id="job-areas" @post="post" @back="chosen = null"/>
       </section>
       <ActionNotice :problem="action.problem.value"/>
     </div>

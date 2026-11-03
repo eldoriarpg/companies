@@ -690,7 +690,7 @@ public final class CompanyJobCommand {
         var key =
                 switch (change) {
                     case NO_PERMISSION -> "error.permission";
-                    case UNKNOWN -> "error.unknown";
+                    case UNKNOWN, DRAFT -> "error.unknown";
                     case CLOSED -> "error.closed";
                     case LIMIT -> "error.limit";
                     case OWN -> "error.own";

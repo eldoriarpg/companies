@@ -542,7 +542,7 @@ the economy is set up, like the other writes.
 |---|---|---|
 | `byId(int id)` | `CompletableFuture<Optional<? extends IJob>>` | The job with this id |
 | `open(int limit)` | `CompletableFuture<List<? extends IJob>>` | Jobs waiting for a company, newest first |
-| `ofOwner(UUID owner, int limit)` | `CompletableFuture<List<? extends IJob>>` | The player's jobs in any state, newest first |
+| `ofOwner(UUID owner, int limit)` | `CompletableFuture<List<? extends IJob>>` | The player's jobs in any state, drafts (`JobState.DRAFT`, new in 2.1) included, newest first |
 | `ofCompany(int company)` | `CompletableFuture<List<? extends IJob>>` | The jobs a company holds: worked on, waiting for approval or disputed |
 | `blueprint(int id)` | `CompletableFuture<Optional<List<BuildBlock>>>` | The blocks a build job asks for, from the lowest corner of its area |
 | `post(JobRequest request)` | `CompletableFuture<PostJobResult>` | **Write.** Posts a job |
