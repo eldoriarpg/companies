@@ -300,6 +300,7 @@ See [Event offers](../players/event-offers.md#contests) for a guide.
 | `/company job ghosts highlight <id>` | none | none | Makes every missing and wrong block of a build job of the company glow for 30 seconds, the nearest 2048 first. |
 | `/company job ghosts off` | none | none | Hides the ghost blocks. |
 | `/company job chest <id>` | none | none | Gives the job chest of a supplied build or terraform job of the company, which hands out the magic blocks that build it from its stock. |
+| `/company job tool` | none | none | Gives the builder's tool of the company, when it owns the `builder-tool` perk: it places whatever the blueprint of a supplied job asks for, from the stock. |
 | `/company job withdraw <id>` | none | `manage_orders` | Withdraws a dispute the company opened. |
 | `/company job cancel accept <id>` | none | `manage_orders` | Lets the owner cancel a job of the company, as they asked; the price goes back to them and the company is not penalized. |
 | `/company job cancel refuse <id>` | none | `manage_orders` | Refuses the owner's request to cancel a job; the company keeps working on it. |

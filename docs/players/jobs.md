@@ -152,6 +152,12 @@ blocks only the blocks of `buildWhitelist` (scaffolding by default) may be place
 nothing anywhere else and can not be dropped or stored; they go when their holder dies, quits, leaves the company,
 walks more than 8 blocks away from the area, or the job is no longer worked on. The job chest goes with the job.
 
+A company that owns the [builder's tool perk](../companies/perks.md) gets its tool with `/company job tool`. Used on
+a block in the area, it places whatever the schematic asks for there, from the stock, as the magic block of that type
+would, and pours the water and lava sources of the schematic; no picking at the job chest. The tool is worth nothing
+anywhere else, and it stops working while the company can not use the perk. It can not be stored; dropping it removes
+it, and so does death, as `/company job tool` gives it again.
+
 A member who breaks a block the schematic asks for, or one placed from the stock, gets no drop and no experience: the
 item goes back into the stock and the spot is open again. When anyone else breaks a block placed from the stock, you as
 the owner included, the spot still counts as placed for the job and for the member's work, and the block drops for
@@ -328,6 +334,7 @@ area:
 | `/company job done <id>` | Checks the area of a dig, terraform or build job and, when the work is done, pays the job. |
 | `/company job ghosts <id>` | Shows the missing and wrong blocks of a build job around you, following you. Add `highlight` before the id to make all of them glow for a while; `/company job ghosts off` hides them. |
 | `/company job chest <id>` | Gives you the job chest of a supplied build or terraform job, to pick its magic blocks. |
+| `/company job tool` | Gives you your company's builder's tool, when it owns that perk. |
 
 `/company job` lists the open jobs in game, and the [Commands](../reference/commands.md) page has the rest.
 

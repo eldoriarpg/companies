@@ -23,8 +23,9 @@ import java.util.OptionalInt;
 /**
  * The items a company builds a supplied build job with: the job chest, which marks where its members pick their work
  * material and is placed as a barrel, and the magic blocks it hands out, each bound to a job and an item type of its
- * stock. Both are knowledge books that look like what they stand for, so an item that ends up anywhere else is worth
- * nothing: it places, crafts, smelts and burns as nothing. Both carry their job in their persistent data, and so does a
+ * stock, and the builder's tool of a company with that perk, which places whatever the blueprint asks for. All are
+ * knowledge books that look like what they stand for, so an item that ends up anywhere else is worth nothing: it
+ * places, crafts, smelts and burns as nothing. They carry their job or company in their persistent data, and so does a
  * placed job chest.
  */
 public final class MagicItems {
@@ -41,6 +42,7 @@ public final class MagicItems {
     private final NamespacedKey magicJob;
     private final NamespacedKey magicType;
     private final NamespacedKey chestJob;
+    private final NamespacedKey toolCompany;
 
     /**
      * @param plugin the plugin owning the keys
@@ -49,6 +51,7 @@ public final class MagicItems {
         this.magicJob = new NamespacedKey(plugin, "magic_job");
         this.magicType = new NamespacedKey(plugin, "magic_type");
         this.chestJob = new NamespacedKey(plugin, "job_chest");
+        this.toolCompany = new NamespacedKey(plugin, "builder_tool");
     }
 
     /**
@@ -126,6 +129,34 @@ public final class MagicItems {
     public OptionalInt chest(@Nullable ItemStack item) {
         if (item == null || item.getType() != BASE || !item.hasItemMeta()) return OptionalInt.empty();
         return job(item.getItemMeta().getPersistentDataContainer());
+    }
+
+    /**
+     * @param company id of the company owning the builder's tool perk
+     * @param name    the name it shows
+     * @param lore    the lines below its name
+     * @return a builder's tool of the company, looking like a brush
+     */
+    public ItemStack tool(int company, Component name, List<Component> lore) {
+        var item = new ItemStack(BASE);
+        item.editMeta(meta -> {
+            meta.setItemModel(Material.BRUSH.getKey());
+            meta.displayName(name);
+            meta.lore(lore);
+            meta.setEnchantmentGlintOverride(true);
+            meta.getPersistentDataContainer().set(toolCompany, PersistentDataType.INTEGER, company);
+        });
+        return item;
+    }
+
+    /**
+     * @param item an item, or null
+     * @return the company of the builder's tool it is, empty for any other item
+     */
+    public OptionalInt tool(@Nullable ItemStack item) {
+        if (item == null || item.getType() != BASE || !item.hasItemMeta()) return OptionalInt.empty();
+        var company = item.getItemMeta().getPersistentDataContainer().get(toolCompany, PersistentDataType.INTEGER);
+        return company == null ? OptionalInt.empty() : OptionalInt.of(company);
     }
 
     /**

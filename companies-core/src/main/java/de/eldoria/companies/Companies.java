@@ -140,6 +140,7 @@ import de.eldoria.companies.events.company.CompanyAreasChangeEvent;
 import de.eldoria.companies.integrations.discord.DiscordWebhook;
 import de.eldoria.companies.jobs.JobServices;
 import de.eldoria.companies.jobs.Jobs;
+import de.eldoria.companies.jobs.MagicBuilding;
 import de.eldoria.companies.jobs.StockReturns;
 import de.eldoria.companies.menus.MenuComponents;
 import de.eldoria.companies.menus.MenuService;
@@ -388,6 +389,14 @@ public class Companies extends EldoPlugin {
         api.register(this);
         api.areaProviders().settings(configuration::areaSettings);
         api.perks().settings(configuration::perkSettings);
+        api.perks()
+                .register(new PerkDefinition(
+                        MagicBuilding.TOOL_PERK,
+                        "Builder's tool",
+                        "Builds supplied jobs with one tool that places whatever the blueprint asks for,"
+                                + " without picking blocks at the job chest.",
+                        MagicBuilding.TOOL_PRICE,
+                        MagicBuilding.TOOL_LEVEL));
         PerkProviders.use(() -> api.perks().registered().stream()
                 .filter(api.perks()::offered)
                 .map(PerkDefinition::id)
@@ -701,6 +710,7 @@ public class Companies extends EldoPlugin {
                     "company.job.error.blueprintNone",
                     Replacement.create("blocks", blocks.isEmpty() ? "-" : String.join(", ", blocks)));
         });
+        jobServices.magic().tools(company -> api.companies().hasPerk(company, MagicBuilding.TOOL_PERK));
         jobServices.access().supplying(player -> {
             var blocks = configuration.jobSettings().buildWhitelist().stream()
                     .map(type -> PlainText.keyName(type.getKey()))

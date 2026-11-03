@@ -69,7 +69,11 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.IntFunction;
+import java.util.logging.Level;
 
 /**
  * Builds supplied build jobs from their stock.
@@ -93,11 +97,18 @@ import java.util.concurrent.ConcurrentHashMap;
  * placed from the stock that pops off goes back into the stock without a drop; explosions, pistons, flowing fluids,
  * leaf decay, falling and creatures leave such blocks where they are.
  * <p>
- * Magic blocks and job chest items are worth nothing anywhere else, as {@link MagicItems} makes them. They still never
- * leave their holder: they can not be dropped or put into another inventory, and they are taken away on death and on
- * quitting, and every second from players more than {@value #MARGIN} blocks away from the job's area, no longer in
- * its company, or whose job is no longer worked on. A job chest breaks without a drop and takes no items from hoppers.
- * One whose job is no longer worked on here goes away when the job does, or when it is used.
+ * A company that owns the {@value #TOOL_PERK} perk builds without picking: its builder's tool places whatever the
+ * blueprint asks for at the position it is used on, from the stock, as a magic block of that type would, and pours the
+ * fluid sources of the schematic. Whether the company may use the perk is asked every {@value #TOOL_SECONDS} seconds
+ * for the companies working here, and at once for one not asked yet.
+ * <p>
+ * Magic blocks, job chest items and builder's tools are worth nothing anywhere else, as {@link MagicItems} makes them.
+ * Magic blocks and job chest items never leave their holder: they can not be dropped or put into another inventory, and
+ * magic blocks are taken away on death and on quitting, and every second from players more than {@value #MARGIN}
+ * blocks away from the job's area, no longer in its company, or whose job is no longer worked on. A builder's tool
+ * can not be stored either; dropping it removes it, and so does death, as {@code /company job tool} gives it again.
+ * Only the main hand builds when both hands hold such an item. A job chest breaks without a drop and takes no items
+ * from hoppers. One whose job is no longer worked on here goes away when the job does, or when it is used.
  */
 public final class MagicBuilding implements Listener {
     /**
@@ -109,6 +120,26 @@ public final class MagicBuilding implements Listener {
      * How often held magic blocks are checked, in ticks.
      */
     public static final long SWEEP_TICKS = 20;
+
+    /**
+     * The perk that gives a company the builder's tool.
+     */
+    public static final String TOOL_PERK = "builder-tool";
+
+    /**
+     * What the builder's tool perk costs unless {@code perks.yml} says otherwise.
+     */
+    public static final double TOOL_PRICE = 5000;
+
+    /**
+     * The company level from which the builder's tool perk can be bought unless {@code perks.yml} says otherwise.
+     */
+    public static final int TOOL_LEVEL = 2;
+
+    /**
+     * How often it is asked whether the companies working here may use the builder's tool, in seconds.
+     */
+    public static final int TOOL_SECONDS = 10;
 
     private static final int SIZE = 54;
     private static final int PAGE = 45;
@@ -125,6 +156,12 @@ public final class MagicBuilding implements Listener {
     private final MessageSender messages;
     private final Map<Integer, Set<Block>> chests = new ConcurrentHashMap<>();
     private volatile Map<Integer, JobAccess.Active> swept = Map.of();
+    private final Map<Integer, Boolean> tools = new ConcurrentHashMap<>();
+    private final Set<Integer> asking = ConcurrentHashMap.newKeySet();
+    private final AtomicInteger generation = new AtomicInteger();
+    private volatile IntFunction<CompletableFuture<Boolean>> toolPerk =
+            company -> CompletableFuture.completedFuture(false);
+    private long toolsAsked;
 
     /**
      * @param plugin     the plugin
@@ -153,6 +190,19 @@ public final class MagicBuilding implements Listener {
     }
 
     /**
+     * Sets how it is asked whether a company may use the builder's tool, which is asked again for the companies working
+     * supplied jobs here every {@value #TOOL_SECONDS} seconds.
+     *
+     * @param toolPerk answers whether a company owns the perk and may use it now, by its id
+     */
+    public void tools(IntFunction<CompletableFuture<Boolean>> toolPerk) {
+        this.toolPerk = toolPerk;
+        generation.incrementAndGet();
+        tools.clear();
+        toolsAsked = 0;
+    }
+
+    /**
      * Checks the held magic blocks every {@value #SWEEP_TICKS} ticks.
      */
     public void schedule() {
@@ -166,6 +216,7 @@ public final class MagicBuilding implements Listener {
     void sweep() {
         Map<Integer, JobAccess.Active> working = working();
         swept = Map.copyOf(working);
+        askTools(working);
         working.keySet().forEach(stocks::load);
         stocks.retain(working::containsKey);
         for (var job : List.copyOf(chests.keySet())) {
@@ -190,6 +241,39 @@ public final class MagicBuilding implements Listener {
                 }
             }
         }
+    }
+
+    private void askTools(Map<Integer, JobAccess.Active> working) {
+        var now = System.currentTimeMillis();
+        if (now - toolsAsked < TOOL_SECONDS * 1000L) return;
+        toolsAsked = now;
+        Set<Integer> companies = new HashSet<>();
+        for (var entry : working.values()) {
+            var company = entry.job().company();
+            if (company != null) companies.add(company);
+        }
+        tools.keySet().retainAll(companies);
+        companies.forEach(this::ask);
+    }
+
+    private void ask(int company) {
+        if (!asking.add(company)) return;
+        var asked = generation.get();
+        toolPerk.apply(company).whenComplete((usable, err) -> {
+            asking.remove(company);
+            if (err != null) {
+                plugin.getLogger().log(Level.WARNING, "Could not read the perks of company " + company, err);
+            }
+            if (asked == generation.get() && works(company))
+                tools.put(company, err == null && Boolean.TRUE.equals(usable));
+        });
+    }
+
+    private boolean works(int company) {
+        for (var entry : swept.values()) {
+            if (Integer.valueOf(company).equals(entry.job().company())) return true;
+        }
+        return false;
     }
 
     private Map<Integer, JobAccess.Active> working() {
@@ -225,7 +309,8 @@ public final class MagicBuilding implements Listener {
         var held = event.getItem();
         var magic = items.magic(held);
         var chestItem = items.chest(held);
-        if (magic.isPresent() || chestItem.isPresent()) {
+        var tool = items.tool(held);
+        if (magic.isPresent() || chestItem.isPresent() || tool.isPresent()) {
             event.setUseItemInHand(Event.Result.DENY);
         }
         var clicked = event.getClickedBlock();
@@ -237,19 +322,73 @@ public final class MagicBuilding implements Listener {
             if (event.getHand() == EquipmentSlot.HAND) useChest(player, clicked, chest.getAsInt());
             return;
         }
-        if (magic.isEmpty() && chestItem.isEmpty()) return;
+        if (magic.isEmpty() && chestItem.isEmpty() && tool.isEmpty()) return;
         event.setUseInteractedBlock(Event.Result.DENY);
         if (denied) return;
+        if (event.getHand() == EquipmentSlot.OFF_HAND
+                && ours(player.getInventory().getItemInMainHand())) return;
         var target = clicked.getType().isAir() || clicked.isReplaceable()
                 ? clicked
                 : clicked.getRelative(event.getBlockFace());
-        if (chestItem.isPresent()) {
+        if (tool.isPresent()) {
+            build(player, target, tool.getAsInt(), event.getHand());
+        } else if (chestItem.isPresent()) {
             placeChest(player, target, chestItem.getAsInt(), event.getHand());
         } else if (magic.get().type() == Material.WATER_BUCKET || magic.get().type() == Material.LAVA_BUCKET) {
             pour(player, target, magic.get());
         } else {
             place(player, target, magic.get(), event.getHand());
         }
+    }
+
+    /**
+     * Places what the blueprint asks for at a position with the builder's tool of a company: the block from the stock,
+     * or a fluid source where the schematic has one.
+     *
+     * @param player  the member
+     * @param block   where the block goes
+     * @param company id of the company of the tool
+     * @param hand    the hand holding the tool, told to other plugins
+     */
+    void build(Player player, Block block, int company, @Nullable EquipmentSlot hand) {
+        var entry = access.supplied(player, block);
+        if (entry.isEmpty()) {
+            messages.sendErrorActionBar(player, "company.job.tool.outside");
+            return;
+        }
+        var job = entry.get().job();
+        var usable = Integer.valueOf(company).equals(job.company()) ? tools.get(company) : Boolean.FALSE;
+        if (usable == null) {
+            ask(company);
+            messages.sendErrorActionBar(player, "company.job.tool.checking");
+            return;
+        }
+        if (!usable) {
+            messages.sendErrorActionBar(player, "company.job.tool.noPerk");
+            return;
+        }
+        var blueprint = blueprints.known(job.id());
+        if (blueprint.isEmpty()) {
+            messages.sendErrorActionBar(player, "company.job.magic.loading", Values.number("id", job.id()));
+            return;
+        }
+        var want = blueprint.get().want(job.area(), block.getX(), block.getY(), block.getZ());
+        if (want == null || want.type().isAir()) {
+            var fluid = blueprint.get().fluid(job.area(), block.getX(), block.getY(), block.getZ());
+            if (fluid == null) {
+                messages.sendErrorActionBar(player, "company.job.tool.nothing");
+                return;
+            }
+            var bucket = fluid == Material.WATER ? Material.WATER_BUCKET : Material.LAVA_BUCKET;
+            pour(player, block, new MagicItems.Magic(job.id(), bucket));
+            return;
+        }
+        var takes = BlueprintItems.take(want);
+        if (takes.isEmpty()) {
+            messages.sendErrorActionBar(player, "company.job.tool.nothing");
+            return;
+        }
+        place(player, block, new MagicItems.Magic(job.id(), takes.getFirst().item()), hand);
     }
 
     private void useChest(Player player, Block block, int job) {
@@ -866,7 +1005,9 @@ public final class MagicBuilding implements Listener {
     }
 
     private boolean ours(@Nullable ItemStack item) {
-        return items.isMagic(item) || items.chest(item).isPresent();
+        return items.isMagic(item)
+                || items.chest(item).isPresent()
+                || items.tool(item).isPresent();
     }
 
     /**
@@ -920,13 +1061,19 @@ public final class MagicBuilding implements Listener {
     }
 
     /**
-     * Keeps magic blocks from being dropped.
+     * Keeps magic blocks and job chest items from being dropped, and lets a dropped builder's tool go, as it can be
+     * had again.
      *
      * @param event the drop
      */
     @EventHandler(priority = EventPriority.LOW)
     public void onDrop(PlayerDropItemEvent event) {
-        if (items.isMagic(event.getItemDrop().getItemStack())) event.setCancelled(true);
+        var item = event.getItemDrop().getItemStack();
+        if (items.tool(item).isPresent()) {
+            event.getItemDrop().remove();
+            return;
+        }
+        if (ours(item)) event.setCancelled(true);
     }
 
     /**
@@ -936,8 +1083,8 @@ public final class MagicBuilding implements Listener {
      */
     @EventHandler
     public void onDeath(PlayerDeathEvent event) {
-        event.getDrops().removeIf(items::isMagic);
-        event.getItemsToKeep().removeIf(items::isMagic);
+        event.getDrops().removeIf(this::ours);
+        event.getItemsToKeep().removeIf(this::ours);
     }
 
     /**

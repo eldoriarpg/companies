@@ -41,6 +41,7 @@ import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryAction;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryType;
+import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
@@ -57,6 +58,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -415,7 +417,120 @@ class MagicBuildingTest {
     }
 
     @Test
+    void theBuildersToolPlacesWhatTheBlueprintAsksWhileTheCompanyMayUseThePerk() {
+        Set<Integer> perk = new HashSet<>(Set.of(3));
+        building.tools(company -> CompletableFuture.completedFuture(perk.contains(company)));
+        var id = suppliedJob(Map.of("OAK_STAIRS", 1, "STONE", 1));
+        var stairs = world.getBlockAt(0, 60, 0);
+        var stone = world.getBlockAt(1, 60, 0);
+
+        building.build(worker, stone, 4, EquipmentSlot.HAND);
+        building.build(worker, stairs, 3, EquipmentSlot.HAND);
+        perk.clear();
+        building.tools(company -> CompletableFuture.completedFuture(perk.contains(company)));
+        building.sweep();
+        building.build(worker, stone, 3, EquipmentSlot.HAND);
+
+        assertEquals(STAIRS, stairs.getBlockData().getAsString());
+        assertTrue(stone.getType().isAir());
+        assertEquals(Map.of("STONE", 1), jobs.stock(id));
+    }
+
+    @Test
+    void theBuildersToolAsksAtOnceForACompanyThatStartedWorkingBetweenChecks() {
+        building.tools(company -> CompletableFuture.completedFuture(true));
+        suppliedJob(Map.of("STONE", 1));
+        var builder = server.addPlayer();
+        builder.teleport(world.getBlockAt(25, 61, 5).getLocation());
+        var area = new JobArea("world", 20, 60, 0, 20, 60, 0);
+        var id = jobs.create(Job.draft(
+                                UUID.randomUUID(),
+                                JobKind.BUILD,
+                                "Post",
+                                100,
+                                5,
+                                NODE,
+                                area,
+                                JobLand.AREA,
+                                "plotsquared:plots|1;1",
+                                24,
+                                NOW,
+                                NOW.plusDays(7))
+                        .withSupplied(true))
+                .orElseThrow();
+        jobs.blueprint(
+                id,
+                Blueprint.of(List.of(new Blueprint.Cell(0, 0, 0, Material.STONE)))
+                        .encode());
+        jobs.stock(id, Map.of("STONE", 1));
+        jobs.take(id, 4, NOW, NOW.plusDays(1));
+        members.put(4, Set.of(builder.getUniqueId()));
+        access.check();
+        building.sweep();
+        var post = world.getBlockAt(20, 60, 0);
+
+        building.build(builder, post, 4, EquipmentSlot.HAND);
+        assertTrue(post.getType().isAir());
+        building.build(builder, post, 4, EquipmentSlot.HAND);
+
+        assertEquals(Material.STONE, post.getType());
+        assertEquals(Map.of(), jobs.stock(id));
+    }
+
+    @Test
+    void theBuildersToolPoursFluidsAndPlacesDoorsWholeButNotForStrangers() {
+        building.tools(company -> CompletableFuture.completedFuture(true));
+        var id = suppliedJob(
+                Blueprint.of(List.of(
+                        new Blueprint.Cell(0, 0, 0, Material.OAK_DOOR, DOOR_LOWER),
+                        new Blueprint.Cell(0, 1, 0, Material.OAK_DOOR, DOOR_UPPER),
+                        new Blueprint.Cell(1, 0, 0, Material.WATER, "minecraft:water[level=0]"),
+                        new Blueprint.Cell(1, 1, 0, Material.STONE))),
+                new JobArea("world", 0, 60, 0, 1, 61, 0),
+                Map.of("OAK_DOOR", 1, "WATER_BUCKET", 2, "STONE", 1));
+        building.sweep();
+        var stranger = server.addPlayer();
+        stranger.teleport(world.getBlockAt(5, 61, 5).getLocation());
+
+        building.build(stranger, world.getBlockAt(1, 61, 0), 3, EquipmentSlot.HAND);
+        building.build(worker, world.getBlockAt(0, 61, 0), 3, EquipmentSlot.HAND);
+        building.build(worker, world.getBlockAt(0, 60, 0), 3, EquipmentSlot.HAND);
+        building.build(worker, world.getBlockAt(1, 60, 0), 3, EquipmentSlot.HAND);
+
+        assertTrue(world.getBlockAt(1, 61, 0).getType().isAir());
+        assertEquals(DOOR_UPPER, world.getBlockAt(0, 61, 0).getBlockData().getAsString());
+        assertEquals(Material.WATER, world.getBlockAt(1, 60, 0).getType());
+        assertEquals(Map.of("STONE", 1, "WATER_BUCKET", 2), jobs.stock(id));
+    }
+
+    @Test
+    void aBuildersToolStaysOutOfOtherInventoriesAndGoesWhenDropped() {
+        suppliedJob(Map.of("STONE", 1));
+        var tool = items.tool(3, Component.text("Tool"), List.of());
+        worker.getInventory().setItemInMainHand(tool);
+        var into = worker.openInventory(server.createInventory(null, 27));
+        var click = new InventoryClickEvent(
+                into,
+                InventoryType.SlotType.CONTAINER,
+                30,
+                ClickType.SHIFT_LEFT,
+                InventoryAction.MOVE_TO_OTHER_INVENTORY);
+        click.setCurrentItem(tool);
+        var dropped = world.dropItem(worker.getLocation(), tool);
+        var drop = new PlayerDropItemEvent(worker, dropped);
+
+        building.onDrop(drop);
+
+        assertTrue(building.moves(click, worker));
+        assertFalse(drop.isCancelled());
+        assertFalse(dropped.isValid());
+    }
+
+    @Test
     void magicItemsAndJobChestsKnowTheirJob() {
+        var tool = items.tool(3, Component.text("Tool"), List.of());
+        assertEquals(3, items.tool(tool).orElseThrow());
+        assertTrue(items.magic(tool).isEmpty());
         var magic = items.magic(7, Material.STONE, Component.text("Stone"), List.of());
         var chest = items.chest(7, Component.text("Chest"), List.of());
 

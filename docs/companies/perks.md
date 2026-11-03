@@ -8,13 +8,19 @@ sidebar_position: 10
 Perks are extra abilities a company buys once from its [treasury](./treasury.md). Each perk has a price and a minimum
 company level: it can be bought from that level on. The server decides which perks it offers, what they cost and from
 which level, in [perks.yml](../admin/configuration/perks-yml.md). Perks come with features that need them and with
-plugins built on Companies; while none is registered, `/company perks` says that no perks are offered.
+plugins built on Companies; while none is offered, `/company perks` says so.
 
 | Command | Who | What it does |
 |---|---|---|
 | `/company perks` | every member | Lists the perks: what each gives, its price, its level and whether your company owns it. |
 | `/company perks buy <perk>` | members with `manage_perks` | Asks you to confirm the price of a perk. |
 | `/company perks confirm` | members with `manage_perks` | Buys the perk you were asked about, paid from the treasury. |
+
+Companies registers one perk of its own:
+
+| Perk | Default price | Default level | What it gives |
+|---|---|---|---|
+| `builder-tool` | 5000 | 2 | The builder's tool, `/company job tool`: it places whatever the blueprint of a supplied build or terraform job asks for, from the job's stock, without picking blocks at the job chest. See [Jobs](../players/jobs.md#supplied-materials). |
 
 The list marks each perk:
 

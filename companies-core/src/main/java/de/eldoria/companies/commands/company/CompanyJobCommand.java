@@ -22,6 +22,7 @@ import de.eldoria.companies.jobs.DigCheck;
 import de.eldoria.companies.jobs.JobAccess;
 import de.eldoria.companies.jobs.JobService;
 import de.eldoria.companies.jobs.JobServices;
+import de.eldoria.companies.jobs.MagicBuilding;
 import de.eldoria.companies.jobs.MaterialCosts;
 import de.eldoria.companies.menus.ConfirmFlow;
 import de.eldoria.companies.menus.MenuComponents;
@@ -72,7 +73,8 @@ import java.util.logging.Level;
  *     company opened;</li>
  *     <li>{@code ghosts <id>} shows the missing and wrong blocks of a build job around the player, following them,
  *     {@code ghosts highlight <id>} every one of them for a while, and {@code ghosts off} stops;</li>
- *     <li>{@code chest <id>} gives the job chest of a build job whose owner supplies the materials.</li>
+ *     <li>{@code chest <id>} gives the job chest of a build job whose owner supplies the materials, {@code tool} the
+ *     builder's tool of a company that owns the perk.</li>
  * </ul>
  * The owner of a job is never named.
  */
@@ -430,6 +432,46 @@ public final class CompanyJobCommand {
             return;
         }
         deps.messages().sendMessage(player, PREFIX + "chest.given", Values.number("id", id));
+    }
+
+    /**
+     * Gives the player the builder's tool of their company, when it owns the perk and may use it.
+     *
+     * @param sender sender of the command
+     */
+    @Executes("tool")
+    public void tool(CommandSender sender) {
+        var player = Senders.player(sender);
+        run(
+                player,
+                () -> {
+                    var company = company(player);
+                    if (!deps.services().perks().usable(company, MagicBuilding.TOOL_PERK)) {
+                        throw CommandFailure.of(PREFIX + "tool.noPerk");
+                    }
+                    return company.id();
+                },
+                company -> Threading.mainThread(deps.plugin()).execute(() -> giveTool(player, company)));
+    }
+
+    private void giveTool(Player player, int company) {
+        if (!player.isOnline()) return;
+        var components = new MenuComponents(deps.messages(), player);
+        var magic = jobs().magicItems();
+        var inventory = player.getInventory();
+        for (var slot = 0; slot < inventory.getSize(); slot++) {
+            if (magic.tool(inventory.getItem(slot)).orElse(-1) == company) {
+                deps.messages().sendError(player, PREFIX + "tool.held");
+                return;
+            }
+        }
+        var tool = magic.tool(
+                company, components.locale(PREFIX + "tool.name"), List.of(components.locale(PREFIX + "tool.lore")));
+        if (!inventory.addItem(tool).isEmpty()) {
+            deps.messages().sendError(player, PREFIX + "tool.full");
+            return;
+        }
+        deps.messages().sendMessage(player, PREFIX + "tool.given");
     }
 
     /**

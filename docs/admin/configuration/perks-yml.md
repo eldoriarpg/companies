@@ -11,9 +11,9 @@ price, its level, or whether it is offered at all. It is shared by every server 
 
 ```yaml
 perks:
-  fast-delivery:
+  builder-tool:
     enabled: true
-    price: 2500.0
+    price: 5000.0
     minLevel: 2
 ```
 
