@@ -574,7 +574,8 @@ class CompaniesApiImplTest {
                 0,
                 false,
                 false,
-                false));
+                false,
+                ""));
 
         var result = api.companies()
                 .setHome(new HomeRequest(miners, new Location(world, 0, 64, 0), UUID.randomUUID()))

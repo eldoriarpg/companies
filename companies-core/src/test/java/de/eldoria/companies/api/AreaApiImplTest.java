@@ -224,7 +224,8 @@ class AreaApiImplTest {
                 offer,
                 false,
                 false,
-                false);
+                false,
+                "");
     }
 
     private AreaOfferRequest here() {

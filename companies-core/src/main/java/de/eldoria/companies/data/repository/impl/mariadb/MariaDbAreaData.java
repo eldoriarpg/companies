@@ -20,6 +20,7 @@ import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -35,7 +36,7 @@ public class MariaDbAreaData extends AAreaData {
     @Language("mariadb")
     private static final String AREA = """
             SELECT id, company_id, provider, ref, world, node, source, linked_by, price, rent_until, created, offer_id,
-                   renew, rent_warned, rent_ended
+                   renew, rent_warned, rent_ended, name
             FROM company_areas
             """;
 
@@ -72,8 +73,8 @@ public class MariaDbAreaData extends AAreaData {
         @Language("mariadb")
         var insert = """
                 INSERT INTO company_areas(company_id, provider, ref, world, node, source, linked_by, price, rent_until,
-                                          created, offer_id, renew)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                          created, offer_id, renew, name)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 RETURNING id""";
         try {
             return query(insert)
@@ -88,7 +89,8 @@ public class MariaDbAreaData extends AAreaData {
                             .bind(area.rentUntil(), time())
                             .bind(area.created(), time())
                             .bind(area.offer() == 0 ? null : area.offer())
-                            .bind(area.renew()))
+                            .bind(area.renew())
+                            .bind(area.name().isEmpty() ? null : area.name()))
                     .map(row -> row.getInt(1))
                     .first();
         } catch (RuntimeException e) {
@@ -161,6 +163,13 @@ public class MariaDbAreaData extends AAreaData {
     }
 
     @Override
+    public void name(int id, String name) {
+        query("UPDATE company_areas SET name = ? WHERE id = ?")
+                .single(call().bind(name.isEmpty() ? null : name).bind(id))
+                .update();
+    }
+
+    @Override
     public Set<UUID> builders(int area) {
         return new HashSet<>(query("SELECT player_uuid FROM company_area_builders WHERE area_id = ?")
                 .single(call().bind(area))
@@ -199,7 +208,8 @@ public class MariaDbAreaData extends AAreaData {
                 row.getInt("offer_id"),
                 row.getBoolean("renew"),
                 row.getBoolean("rent_warned"),
-                row.getBoolean("rent_ended"));
+                row.getBoolean("rent_ended"),
+                Objects.requireNonNullElse(row.getString("name"), ""));
     }
 
     @Override

@@ -47,6 +47,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Consumer;
 import java.util.logging.Logger;
 
 import static de.chojo.sadu.queries.api.query.Query.query;
@@ -103,7 +104,11 @@ class AreaSyncTest {
         members.add(CompanyMember.of(company, worker, 0));
         plot.owners.add(owner);
         plot.builders.add(friend);
-        sync = new AreaSync(
+        sync = sync(ignored -> {});
+    }
+
+    private AreaSync sync(Consumer<CompanyProfile> changed) {
+        return new AreaSync(
                 providers,
                 areas,
                 id -> gone
@@ -120,7 +125,7 @@ class AreaSyncTest {
                 NODE,
                 Runnable::run,
                 Logger.getAnonymousLogger(),
-                ignored -> {},
+                changed,
                 () -> working);
     }
 
@@ -244,6 +249,23 @@ class AreaSyncTest {
         sync.check();
 
         assertEquals("plots|0;1", areas.area(id).orElseThrow().ref());
+    }
+
+    @Test
+    void theCheckStoresTheNameTheProviderShowsUnderTheCurrentReference() {
+        var id = linked();
+        List<Integer> told = new ArrayList<>();
+        sync = sync(profile -> told.add(profile.id()));
+
+        sync.check();
+        assertEquals("Plot " + REF, areas.area(id).orElseThrow().name());
+        assertEquals(List.of(company), told);
+        sync.check();
+        assertEquals(List.of(company), told);
+
+        plot.canonical = "plots|0;1";
+        sync.check();
+        assertEquals("Plot plots|0;1", areas.area(id).orElseThrow().name());
     }
 
     @Test
@@ -393,7 +415,8 @@ class AreaSyncTest {
                         offer,
                         true,
                         false,
-                        false))
+                        false,
+                        ""))
                 .orElseThrow();
     }
 
@@ -467,7 +490,7 @@ class AreaSyncTest {
 
         @Override
         public String name(String ref) {
-            return ref;
+            return "Plot " + ref;
         }
 
         @Override

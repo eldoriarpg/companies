@@ -707,7 +707,7 @@ The methods and events hand you these types. They are in `de.eldoria.companies.c
 | `ICompanyStats`, `ICompanyRank` | Statistics of a company, and its place in a ranking |
 | `IMemberStats` | What one worker contributed: items, money earned and orders |
 | `ITreasury` | Balance and payout share of a treasury |
-| `ICompanyArea` | An area of a company: provider, reference, world, server, `AreaSource` (`LINKED`, `BOUGHT`, `RENTED`), price and until when a rent is paid |
+| `ICompanyArea` | An area of a company: provider, reference, name to show (empty until its server stored it), world, server, `AreaSource` (`LINKED`, `BOUGHT`, `RENTED`), price and until when a rent is paid |
 | `ICompanyHome` | The home of a company: server, world, position and who set it |
 | `ICompanyLevel` | A level from `company.yml`, with its `ILevelRequirement` and `ILevelSettings` |
 | `ISimpleOrder`, `IFullOrder` | An order without and with its lines |

@@ -84,6 +84,9 @@
         "ref" : {
           "type" : "string"
         },
+        "name" : {
+          "type" : "string"
+        },
         "world" : {
           "type" : "string"
         },
@@ -101,7 +104,7 @@
           "type" : "boolean"
         }
       },
-      "required" : [ "id", "provider", "ref", "world", "source", "price", "renews" ]
+      "required" : [ "id", "provider", "ref", "name", "world", "source", "price", "renews" ]
     },
     "Branding" : {
       "type" : "object",

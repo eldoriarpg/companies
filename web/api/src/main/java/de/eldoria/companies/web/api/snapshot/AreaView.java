@@ -14,7 +14,8 @@ import java.time.Instant;
  *
  * @param id        the area id
  * @param provider  the plugin the area comes from, such as {@code plotsquared}
- * @param ref       the plugin's name of the area
+ * @param ref       the plugin's reference of the area
+ * @param name      the plugin's name of the area for display, empty when the server has not stored it yet
  * @param world     the world it lies in
  * @param source    how the company got it
  * @param price     what the company paid, or pays per period of rent; 0 for a linked area
@@ -25,6 +26,7 @@ public record AreaView(
         int id,
         String provider,
         String ref,
+        String name,
         String world,
         AreaSourceView source,
         double price,

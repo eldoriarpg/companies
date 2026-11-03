@@ -251,8 +251,8 @@ public final class AreaSync implements Listener {
     }
 
     /**
-     * Checks the areas of this server: unlinks lost ones, gives back what returns to the server, renames merged ones
-     * and brings their owners and builders in step.
+     * Checks the areas of this server: unlinks lost ones, gives back what returns to the server, renames merged ones,
+     * stores the names the providers show for them and brings their owners and builders in step.
      */
     public synchronized void check() {
         queued.set(false);
@@ -406,6 +406,11 @@ public final class AreaSync implements Listener {
             }
             kept.put(key, area.company());
             if (area.fromServer()) followOwner(area, ref, profile.get());
+            var name = providers.call(id, provider -> provider.name(ref), area.name());
+            if (!name.equals(area.name())) {
+                touched.add(area.company());
+                changes.add(store -> store.name(area.id(), name));
+            }
             if (!providers.call(id, provider -> provider.capabilities().contains(AreaCapability.TRUST_LIST), false)) {
                 return;
             }
