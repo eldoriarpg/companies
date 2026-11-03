@@ -11,6 +11,7 @@ import de.eldoria.companies.data.wrapper.company.CompanyMember;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.order.SimpleOrder;
 import de.eldoria.companies.events.company.CompanyApplicationEvent;
+import de.eldoria.companies.events.company.CompanyAreasChangeEvent;
 import de.eldoria.companies.events.company.CompanyInviteEvent;
 import de.eldoria.companies.events.company.CompanyMemberPermissionEvent;
 import de.eldoria.companies.events.order.OrderRemovedEvent;
@@ -83,6 +84,13 @@ class NodeSignalsTest {
                         new CacheInvalidate(NodeCaches.PLAYER, target.toString()),
                         new CacheInvalidate(NodeCaches.PLAYER, applicant.toString())),
                 bus.published);
+    }
+
+    @Test
+    void changedAreasOutdateTheCompany() {
+        signals.onAreas(new CompanyAreasChangeEvent(company(), CompanyAreasChangeEvent.Change.AREAS));
+
+        assertEquals(List.of(new CacheInvalidate(NodeCaches.COMPANY, "7")), bus.published);
     }
 
     @Test

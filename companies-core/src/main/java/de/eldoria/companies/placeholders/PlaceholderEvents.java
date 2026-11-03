@@ -6,6 +6,7 @@
 package de.eldoria.companies.placeholders;
 
 import de.eldoria.companies.components.order.ISimpleOrder;
+import de.eldoria.companies.events.company.CompanyAreasChangeEvent;
 import de.eldoria.companies.events.company.CompanyDisbandEvent;
 import de.eldoria.companies.events.company.CompanyJoinEvent;
 import de.eldoria.companies.events.company.CompanyLeaveEvent;
@@ -82,6 +83,11 @@ public final class PlaceholderEvents implements Listener {
     public void onCompanyDisband(CompanyDisbandEvent event) {
         companies.remove(event.company().id());
         players.invalidateCompany(event.company().id());
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onAreas(CompanyAreasChangeEvent event) {
+        companies.invalidate(event.company().id());
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
