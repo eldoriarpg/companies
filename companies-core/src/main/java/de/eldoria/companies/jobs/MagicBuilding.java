@@ -80,11 +80,12 @@ import java.util.concurrent.ConcurrentHashMap;
  * blocks they held. Using a magic block on a block puts the block the blueprint asks for at the position it would be
  * placed at, turned and connected exactly as the schematic has it, takes its items from the stock and counts the
  * position as placed and as the member's work; the magic block stays in the hand. Other plugins are told of the
- * placement as a {@link Placing}, and one that cancels it takes the block back and its items back to the stock. A door, bed or tall plant is placed
- * whole from its main half. A magic block used where the blueprint asks for another type, where the block is already
- * right, where something stands, where a protection denied the use or outside the job's area is refused with the reason, and one whose type the stock
- * ran out of is taken away. Magic water pours a source wherever the schematic has one, once the stock holds the two
- * water buckets; magic lava takes a lava bucket per source, and members can not fill buckets there.
+ * placement as a {@link Placing}, and one that cancels it takes the block back and its items back to the stock. A
+ * door, bed or tall plant is placed whole from its main half. A magic block used where the blueprint asks for another
+ * type, where the block is already right, where something stands, where a protection denied the use or outside the
+ * job's area is refused with the reason, and one whose type the stock ran out of is taken away. Magic water pours a
+ * source wherever the schematic has one, once the stock holds the two water buckets; magic lava takes a lava bucket
+ * per source, and members can not fill buckets there.
  * <p>
  * A member breaking a block the blueprint asks for, or one placed from the stock whatever it turned into, gets no drop
  * and no experience: its items go back into the stock once the break went through, and the position is open again.

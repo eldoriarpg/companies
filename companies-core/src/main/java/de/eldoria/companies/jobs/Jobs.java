@@ -431,6 +431,9 @@ public final class Jobs {
         services.magic().schedule();
         plugin.getServer()
                 .getScheduler()
+                .runTaskTimer(plugin, services.ghosts()::follow, BuildGhosts.FOLLOW_TICKS, BuildGhosts.FOLLOW_TICKS);
+        plugin.getServer()
+                .getScheduler()
                 .runTaskTimer(
                         plugin,
                         () -> {

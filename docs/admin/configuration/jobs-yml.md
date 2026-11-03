@@ -33,6 +33,7 @@ schematicUploads: false
 maxSchematics: 10
 maxAreas: 10
 maxDrafts: 5
+buildGhostRadius: 8
 ```
 
 | Key | Values | Default | Description | Takes effect |
@@ -58,6 +59,7 @@ maxDrafts: 5
 | `maxSchematics` | number | `10` | The most schematics a player may keep uploaded. | reload |
 | `maxAreas` | number | `10` | The most areas a player may keep stored for jobs (`/order job area`). | reload |
 | `maxDrafts` | number | `5` | The most drafts of jobs a player may keep. Drafts are not counted as open jobs. | reload |
+| `buildGhostRadius` | number (blocks) | `8` | How far around a member the missing and wrong blocks of a build job show as ghost blocks, from 1 to 32. | reload |
 
 The fee of a job is the order fee of [order.yml](./order-yml.md), lowered by the fee reductions of server events. A
 company's order slots count its jobs; giving one back or running out of time costs the order penalties of

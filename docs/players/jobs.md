@@ -149,11 +149,12 @@ A block of the right type placed turned another way is turned as the schematic h
 doors and beds, joined chests and slabs that are or should be double are not turned and must be placed the right way.
 
 Members of the company see what is missing with `/company job ghosts <id>`: small glowing copies of the missing and
-wrong blocks of one layer, only for them, starting with the lowest layer that is not done.
-`/company job ghosts next <id>` and `/company job ghosts previous <id>` move a layer up or down,
-`/company job ghosts off` hides them. A ghost goes away as its block is placed the right way and comes back when the
-block is broken; they all go when the job is no longer worked on. Placing a block the schematic asks for counts as
-work, once for each spot, and so does taking out a wrong block.
+wrong blocks around them, within `buildGhostRadius` blocks (8 by default), nearest first and only for them. The ghosts
+follow you as you move and go when you leave the job's world. `/company job ghosts highlight <id>` makes every missing
+and wrong block of the job glow for 30 seconds instead, the nearest 2048 first, so gaps are found; afterwards the ghosts
+around you come back. It can be used every 10 seconds. `/company job ghosts off` hides them. A ghost goes away as its
+block is placed the right way and comes back when the block is broken; they all go when the job is no longer worked
+on. Placing a block the schematic asks for counts as work, once for each spot, and so does taking out a wrong block.
 
 ## Harvest jobs
 
@@ -301,7 +302,7 @@ area:
 | Command | What it does |
 |---|---|
 | `/company job done <id>` | Checks the area of a dig, terraform or build job and, when the work is done, pays the job. |
-| `/company job ghosts <id>` | Shows the missing and wrong blocks of a build job, one layer at a time. Add `next` or `previous` before the id to move a layer; `/company job ghosts off` hides them. |
+| `/company job ghosts <id>` | Shows the missing and wrong blocks of a build job around you, following you. Add `highlight` before the id to make all of them glow for a while; `/company job ghosts off` hides them. |
 | `/company job chest <id>` | Gives you the job chest of a supplied build job, to pick its magic blocks. |
 
 `/company job` lists the open jobs in game, and the [Commands](../reference/commands.md) page has the rest.

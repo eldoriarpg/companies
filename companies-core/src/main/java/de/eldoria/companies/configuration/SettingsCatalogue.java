@@ -400,6 +400,7 @@ public final class SettingsCatalogue {
         jobs.whole("maxSchematics");
         jobs.whole("maxAreas");
         jobs.whole("maxDrafts");
+        jobs.whole("buildGhostRadius");
 
         var areas = new Section(fields, AREAS, "areas");
         areas.flag("enabled");

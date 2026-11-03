@@ -1063,6 +1063,7 @@ export default {
                     maxSchematics: 'Most schematics a player may keep uploaded',
                     maxAreas: 'Most areas a player may keep stored for jobs',
                     maxDrafts: 'Most drafts of jobs a player may keep',
+                    buildGhostRadius: 'How far around a member the missing blocks of a build job show as ghosts, in blocks',
                 },
                 areas: {
                     enabled: 'Let companies get new areas',

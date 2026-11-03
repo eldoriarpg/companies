@@ -1063,6 +1063,7 @@ export default {
                     maxSchematics: 'Nombre maximal de schématiques téléversées par joueur',
                     maxAreas: "Nombre maximal de zones qu'un joueur peut garder pour les travaux",
                     maxDrafts: 'Nombre maximal de brouillons de travaux par joueur',
+                    buildGhostRadius: "Distance autour d'un membre à laquelle les blocs manquants d'un travail de construction apparaissent en fantômes, en blocs",
                 },
                 areas: {
                     enabled: 'Les entreprises peuvent obtenir de nouvelles zones',

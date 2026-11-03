@@ -1063,6 +1063,7 @@ export default {
                     maxSchematics: 'Höchstzahl hochgeladener Schematics pro Spieler',
                     maxAreas: 'Höchstzahl gespeicherter Gebiete pro Spieler für Jobs',
                     maxDrafts: 'Höchstzahl an Job-Entwürfen pro Spieler',
+                    buildGhostRadius: 'Wie weit um ein Mitglied herum fehlende Blöcke eines Bau-Jobs als Geister erscheinen, in Blöcken',
                 },
                 areas: {
                     enabled: 'Firmen dürfen neue Gebiete bekommen',

@@ -296,8 +296,8 @@ See [Event offers](../players/event-offers.md#contests) for a guide.
 | `/company job giveback <id>` | none | `manage_orders` | Gives a job back; it is open again. |
 | `/company job done <id>` | none | `manage_orders` | Checks the job's area on the server that holds it and pays the job when the work is done. For a contract it tells the owner the work is done; for a harvest job it ends the harvest. |
 | `/company job dispute <id> <reason>` | none | `manage_orders` | Opens a dispute about a job of the company; an admin settles it. |
-| `/company job ghosts <id>` | none | none | Shows the missing and wrong blocks of a build job of the company, one layer at a time. |
-| `/company job ghosts next <id>` / `ghosts previous <id>` | none | none | Moves the ghost blocks a layer up or down. |
+| `/company job ghosts <id>` | none | none | Shows the missing and wrong blocks of a build job of the company around the player, following them. |
+| `/company job ghosts highlight <id>` | none | none | Makes every missing and wrong block of a build job of the company glow for 30 seconds, the nearest 2048 first. |
 | `/company job ghosts off` | none | none | Hides the ghost blocks. |
 | `/company job chest <id>` | none | none | Gives the job chest of a supplied build job of the company, which hands out the magic blocks that build it from its stock. |
 | `/company job withdraw <id>` | none | `manage_orders` | Withdraws a dispute the company opened. |

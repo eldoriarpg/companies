@@ -29,8 +29,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Blueprints of build jobs: placed around the owner, read by position, checked and shown layer by layer, and stored as
- * text.
+ * Blueprints of build jobs: placed around the owner, read by position, checked, and stored as text.
  */
 class BlueprintTest {
     private static final Blueprint HUT = Blueprint.of(List.of(
@@ -180,16 +179,6 @@ class BlueprintTest {
         assertEquals(5, missingGlass.total());
         assertFalse(missingTwo.done());
         assertEquals("10 66 12", missingTwo.leftText());
-    }
-
-    @Test
-    void layersCountWhatTheyStillLackAndTheLowestOpenOneComesFirst() {
-        var area = HUT.area("world", 10, 64, 10);
-        BuildCheck.Types onlyGround = (x, y, z) -> y == 64 ? Material.STONE : Material.AIR;
-
-        assertEquals(new BuildGhosts.Layer(64, 3, 0), BuildGhosts.layer(area, HUT, onlyGround, 64));
-        assertEquals(new BuildGhosts.Layer(65, 1, 1), BuildGhosts.layer(area, HUT, onlyGround, 65));
-        assertEquals(65, BuildGhosts.firstOpen(area, HUT, onlyGround));
     }
 
     @Test

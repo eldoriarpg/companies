@@ -17,7 +17,6 @@ import de.eldoria.companies.data.wrapper.job.JobExtension;
 import de.eldoria.companies.data.wrapper.job.JobReview;
 import de.eldoria.companies.data.wrapper.job.JobReviewEntry;
 import de.eldoria.companies.jobs.Blueprint;
-import de.eldoria.companies.jobs.BuildCheck;
 import de.eldoria.companies.jobs.BuildGhosts;
 import de.eldoria.companies.jobs.DigCheck;
 import de.eldoria.companies.jobs.JobService;
@@ -70,8 +69,9 @@ import java.util.logging.Level;
  *     it;</li>
  *     <li>{@code dispute <id> <reason>} opens a dispute an admin settles, {@code withdraw <id>} withdraws one the
  *     company opened;</li>
- *     <li>{@code ghosts <id>} shows the missing and wrong blocks of a build job, a layer at a time, with
- *     {@code ghosts next|previous <id>} to move and {@code ghosts off} to stop.</li>
+ *     <li>{@code ghosts <id>} shows the missing and wrong blocks of a build job around the player, following them,
+ *     {@code ghosts highlight <id>} every one of them for a while, and {@code ghosts off} stops;</li>
+ *     <li>{@code chest <id>} gives the job chest of a build job whose owner supplies the materials.</li>
  * </ul>
  * The owner of a job is never named.
  */
@@ -358,37 +358,26 @@ public final class CompanyJobCommand {
     }
 
     /**
-     * Shows the player the missing and wrong blocks of a build job of their company, starting with the lowest layer
-     * that still lacks one.
+     * Shows the player the missing and wrong blocks of a build job of their company around them, following them as they
+     * move.
      *
      * @param sender sender of the command
      * @param id     id of the job
      */
     @Executes("ghosts")
     public void ghosts(CommandSender sender, @IntArg(min = 0) int id) {
-        ghosts(Senders.player(sender), id, Shift.FIRST);
+        ghosts(Senders.player(sender), id, Mode.NEAR);
     }
 
     /**
-     * Shows the player the next layer up of a build job.
+     * Shows the player every missing and wrong block of a build job of their company for a while.
      *
      * @param sender sender of the command
      * @param id     id of the job
      */
-    @Executes("ghosts next")
-    public void ghostsNext(CommandSender sender, @IntArg(min = 0) int id) {
-        ghosts(Senders.player(sender), id, Shift.UP);
-    }
-
-    /**
-     * Shows the player the next layer down of a build job.
-     *
-     * @param sender sender of the command
-     * @param id     id of the job
-     */
-    @Executes("ghosts previous")
-    public void ghostsPrevious(CommandSender sender, @IntArg(min = 0) int id) {
-        ghosts(Senders.player(sender), id, Shift.DOWN);
+    @Executes("ghosts highlight")
+    public void ghostsHighlight(CommandSender sender, @IntArg(min = 0) int id) {
+        ghosts(Senders.player(sender), id, Mode.HIGHLIGHT);
     }
 
     /**
@@ -454,7 +443,7 @@ public final class CompanyJobCommand {
         deps.messages().sendMessage(player, PREFIX + "ghosts.off");
     }
 
-    private void ghosts(Player player, int id, Shift shift) {
+    private void ghosts(Player player, int id, Mode mode) {
         run(
                 player,
                 () -> {
@@ -476,55 +465,71 @@ public final class CompanyJobCommand {
                                     () -> CommandFailure.of(PREFIX + "error.noBlueprint", Values.number("id", id)));
                     return new Building(job, blueprint);
                 },
-                building -> Threading.mainThread(deps.plugin()).execute(() -> showGhosts(player, building, shift)));
+                building -> Threading.mainThread(deps.plugin()).execute(() -> showGhosts(player, building, mode)));
     }
 
-    private void showGhosts(Player player, Building building, Shift shift) {
+    private void showGhosts(Player player, Building building, Mode mode) {
+        if (!player.isOnline()) return;
         var job = building.job();
-        var world = deps.plugin().getServer().getWorld(job.area().world());
-        if (world == null || !player.isOnline()) return;
-        var current = jobs().ghosts().layerOf(player, job.id());
-        var y =
-                switch (shift) {
-                    case FIRST ->
-                        BuildGhosts.firstOpen(
-                                job.area(),
-                                building.blueprint(),
-                                BuildCheck.counting(BuildCheck.of(world), job.id(), jobs().access()::counted));
-                    case UP -> current.map(at -> at + 1).orElse(job.area().minY());
-                    case DOWN -> current.map(at -> at - 1).orElse(job.area().minY());
-                };
-        jobs().ghosts().show(player, job, building.blueprint(), y).ifPresent(layer -> {
-            var id = job.id();
-            deps.messages()
-                    .sendMessage(
-                            player,
-                            MenuText.create()
-                                    .locale(
-                                            PREFIX + "ghosts.layer",
-                                            Values.number("id", id),
-                                            Values.number("y", layer.y()),
-                                            Values.number("open", layer.open()),
-                                            Values.number("asked", layer.asked()))
-                                    .text(
-                                            " <act_down><show>[▼]</act_down> <act_up><show>[▲]</act_up>"
-                                                    + " <act_off><remove>[<i18n:words.off>]</act_off>",
-                                            Values.click(
-                                                    "act_down",
-                                                    ClickEvent.runCommand("/company job ghosts previous " + id)),
-                                            Values.click(
-                                                    "act_up", ClickEvent.runCommand("/company job ghosts next " + id)),
-                                            Values.click("act_off", ClickEvent.runCommand("/company job ghosts off"))));
-        });
+        var id = job.id();
+        var ghosts = jobs().ghosts();
+        if (!player.getWorld().getName().equals(job.area().world())) {
+            deps.messages().sendError(player, PREFIX + "error.elsewhere", Values.number("id", id));
+            return;
+        }
+        if (mode == Mode.HIGHLIGHT) {
+            var wait = ghosts.highlightCooldown(player);
+            if (wait.isPresent()) {
+                deps.messages()
+                        .sendError(player, PREFIX + "ghosts.cooldown", Values.number("seconds", wait.getAsLong()));
+                return;
+            }
+            var lit = ghosts.highlight(player, job, building.blueprint());
+            if (lit.isEmpty()) {
+                deps.messages().sendError(player, PREFIX + "error.world", Values.number("id", id));
+            } else if (lit.getAsInt() == 0) {
+                deps.messages().sendMessage(player, PREFIX + "ghosts.none", Values.number("id", id));
+            } else {
+                deps.messages()
+                        .sendMessage(
+                                player,
+                                PREFIX + "ghosts.highlight",
+                                Values.number("id", id),
+                                Values.number("shown", lit.getAsInt()),
+                                Values.number("seconds", BuildGhosts.HIGHLIGHT_SECONDS));
+            }
+            return;
+        }
+        var radius = deps.configuration().jobSettings().buildGhostRadius();
+        var shown = ghosts.show(player, job, building.blueprint(), radius);
+        if (shown.isEmpty()) {
+            deps.messages().sendError(player, PREFIX + "error.world", Values.number("id", id));
+            return;
+        }
+        deps.messages()
+                .sendMessage(
+                        player,
+                        MenuText.create()
+                                .locale(
+                                        PREFIX + "ghosts.near",
+                                        Values.number("id", id),
+                                        Values.number("shown", shown.getAsInt()),
+                                        Values.number("radius", radius))
+                                .text(
+                                        " <act_all><show>[<i18n:company.job.ghosts.all>]</act_all>"
+                                                + " <act_off><remove>[<i18n:words.off>]</act_off>",
+                                        Values.click(
+                                                "act_all",
+                                                ClickEvent.runCommand("/company job ghosts highlight " + id)),
+                                        Values.click("act_off", ClickEvent.runCommand("/company job ghosts off"))));
     }
 
     /**
-     * Which layer of a build job to show.
+     * Which ghosts of a build job to show.
      */
-    private enum Shift {
-        FIRST,
-        UP,
-        DOWN
+    private enum Mode {
+        NEAR,
+        HIGHLIGHT
     }
 
     /**

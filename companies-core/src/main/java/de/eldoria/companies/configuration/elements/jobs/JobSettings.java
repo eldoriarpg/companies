@@ -42,6 +42,7 @@ public class JobSettings {
     private int maxSchematics = 10;
     private int maxAreas = 10;
     private int maxDrafts = 5;
+    private int buildGhostRadius = 8;
 
     public JobSettings() {}
 
@@ -312,5 +313,16 @@ public class JobSettings {
 
     public void maxDrafts(int maxDrafts) {
         this.maxDrafts = maxDrafts;
+    }
+
+    /**
+     * @return how far around a member the missing blocks of a build job show as ghosts, in blocks, from 1 to 32
+     */
+    public int buildGhostRadius() {
+        return Math.clamp(buildGhostRadius, 1, 32);
+    }
+
+    public void buildGhostRadius(int buildGhostRadius) {
+        this.buildGhostRadius = buildGhostRadius;
     }
 }
