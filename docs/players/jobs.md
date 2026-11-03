@@ -60,7 +60,7 @@ have a few jobs waiting at once.
 [order fee](../companies/claiming-and-delivering.md) at once; the server holds the money until the job is done.
 
 A **dig job** is done when every block of the area is air, water or lava. Blocks nobody can break, such as bedrock,
-count as cleared. The company keeps what it digs.
+count as cleared. The company keeps what it digs, unless you choose otherwise ([Dug blocks and fill](#dug-blocks-and-fill)).
 
 A **terraform job** levels the area: every column must be solid up to a height you choose and empty above it. Mark the
 area so it reaches from the lowest block that must be filled to the highest that must go, then post `/order job
@@ -69,12 +69,36 @@ surface <block> <price> <hours> <y> <title>` the top layer must also be made of 
 the name without `minecraft:`; the command suggests the blocks it takes). Blocks players can not place and keep in
 survival, such as bedrock, spawners or farmland, are refused, and so are blocks that change by themselves, such as
 copper that is not waxed or concrete powder. Above `y` the area must be air, water or lava; at or below it any solid
-block counts. Blocks nobody can break count as done. The company brings the blocks it fills with and keeps what it digs.
+block counts. Blocks nobody can break count as done. The company brings the blocks it fills with and keeps what it digs,
+unless you choose otherwise ([Dug blocks and fill](#dug-blocks-and-fill)).
 
 To level your whole plot, stand on it and post `/order job terraform plot <price> <hours> <y> <title>` (or `terraform
 plot surface <block> ...`). The area is your plot from its lowest ground (or `y`, when that is lower) up to its highest
 block, so `y` may lie below the ground: everything above it is dug out, and every column is made solid up to `y`. The
 plot's own bounds limit how deep it can go, and your land plugin must let the company build that deep.
+
+### Dug blocks and fill
+
+When you post a dig, terraform or build job under **Your areas** on the dashboard, two choices decide where the
+materials go and come from, where the server allows them (`dugToStock` and `suppliedFill` in
+[jobs.yml](../admin/configuration/jobs-yml.md)):
+
+- **The blocks the company digs go into my stock:** what the company digs out as the job asks goes into the job's stock
+  instead of to the company, as plain items; items with contents of their own, such as a filled shulker box, still drop.
+  Blocks the company placed there itself stay its own. The stock comes back to your item returns (`/order returns`)
+  when the job ends; a job given back or overdue keeps it for the next company.
+- **I supply the fill (terraform):** you name a fill block, `dirt` by default. The job is saved as a
+  [draft](#drafts) whose stock takes the blocks to fill the area as it stands now: the surface block for the top layer
+  when you named one, the fill block below it. Hand them in as for a supplied build job and post the draft once nothing
+  is missing; the company fills the area with magic blocks from the job chest, as for a supplied build job, and
+`/company job ghosts <id>` shows the fill still missing. Only magic blocks and `buildWhitelist` go where the fill goes;
+elsewhere the company works as on any terraform job.
+
+For dig and terraform jobs the form shows how many blocks would be dug out and filled in and what they are worth. When
+what the company has to bring, less what it keeps, is worth more than the price, it asks for a tick, as companies may
+pass such a job by. Jobs posted in game keep the default: the company keeps what it digs and brings its fill. The job's
+page and `/order job info <id>` say which choices a job has. A draft keeps its choices even when the server turns one off
+later.
 
 When your land changes hands while a job waits or is worked on, for example a plot you sold, the job is cancelled. A
 waiting job gives its price back to you. A job a company works on pays the company for the share of the area it cleared,
@@ -106,6 +130,40 @@ the server's schematics or your own, turn it, and place it on the map of the are
 column from above. It must lie inside the area, and it stands on the ground of its origin's column as if you stood there
 in game. A price below what its blocks cost needs a tick to confirm. Areas of up to 128 by 128 columns are drawn.
 
+### Supplied materials
+
+You can also hand the materials of a build job over yourself: `/order job build supplied` at the confirm step, or the
+tick *I supply the materials* under **Your areas**. Such a job is saved as a [draft](#drafts) and its materials go into
+its stock. `/order job draft <id>` opens a chest whose top rows show what the stock still lacks; put the items into
+the rows below and close it. What is needed goes into the stock, everything else comes back, and full buckets come
+back empty. On the dashboard, **Take from item returns** fills the stock from your item returns (`/order returns`). Blocks
+nobody can place by hand, such as spawners, are left out of the schematic; the preview lists them. The job can be posted once nothing is
+missing, and no warning about the cost of its blocks is shown. When the job ends, however it ends, what is left of its
+stock goes to your item returns; a job given back or overdue keeps its stock for the next company.
+
+The company working a supplied job builds it from the stock only. A member gets the job chest with `/company job chest
+<id>` and places it in the job's area where the schematic asks for nothing. Using it lists every item the schematic
+takes with what the stock still holds; a click gives a **magic block** of that type. Using a magic block on a block
+puts exactly the block the schematic asks for where it would be placed, turned and connected as it has it, and takes the
+item from the stock; the magic block stays in the hand. A door, bed or tall plant is placed whole from its lower or
+first half for one item. Magic water pours a source wherever the schematic has one once the stock holds two water
+buckets; magic lava takes a lava bucket per source, and nobody of the company can fill a bucket there. Besides magic
+blocks only the blocks of `buildWhitelist` (scaffolding by default) may be placed in the area. Magic blocks are worth
+nothing anywhere else and can not be dropped or stored; they go when their holder dies, quits, leaves the company,
+walks more than 8 blocks away from the area, or the job is no longer worked on. The job chest goes with the job.
+
+A company that owns the [builder's tool perk](../companies/perks.md) gets its tool with `/company job tool`. Used on
+a block in the area, it places whatever the schematic asks for there, from the stock, as the magic block of that type
+would, and pours the water and lava sources of the schematic; no picking at the job chest. The tool is worth nothing
+anywhere else, and it stops working while the company can not use the perk. It can not be stored; dropping it removes
+it, and so does death, as `/company job tool` gives it again.
+
+A member who breaks a block the schematic asks for, or one placed from the stock, gets no drop and no experience: the
+item goes back into the stock and the spot is open again. When anyone else breaks a block placed from the stock, you as
+the owner included, the spot still counts as placed for the job and for the member's work, and the block drops for
+whoever broke it. A block placed from the stock that pops off or is washed away goes back into the stock; explosions,
+pistons and gravity leave such blocks where they are.
+
 The job is done when enough of the schematic's blocks are in place and its spots to dig are clear: `buildMatchPercent`
 (95 % by default) in [jobs.yml](../admin/configuration/jobs-yml.md). A block counts when its type is right and it is
 turned as the schematic has it: which way it faces, its top or bottom half, its axis, a door's hinge, a slab's half. How
@@ -121,11 +179,12 @@ A block of the right type placed turned another way is turned as the schematic h
 doors and beds, joined chests and slabs that are or should be double are not turned and must be placed the right way.
 
 Members of the company see what is missing with `/company job ghosts <id>`: small glowing copies of the missing and
-wrong blocks of one layer, only for them, starting with the lowest layer that is not done.
-`/company job ghosts next <id>` and `/company job ghosts previous <id>` move a layer up or down,
-`/company job ghosts off` hides them. A ghost goes away as its block is placed the right way and comes back when the
-block is broken; they all go when the job is no longer worked on. Placing a block the schematic asks for counts as
-work, once for each spot, and so does taking out a wrong block.
+wrong blocks around them, within `buildGhostRadius` blocks (8 by default), nearest first and only for them. The ghosts
+follow you as you move and go when you leave the job's world. `/company job ghosts highlight <id>` makes every missing
+and wrong block of the job glow for 30 seconds instead, the nearest 2048 first, so gaps are found; afterwards the ghosts
+around you come back. It can be used every 10 seconds. `/company job ghosts off` hides them. A ghost goes away as its
+block is placed the right way and comes back when the block is broken; they all go when the job is no longer worked
+on. Placing a block the schematic asks for counts as work, once for each spot, and so does taking out a wrong block.
 
 ## Harvest jobs
 
@@ -232,10 +291,15 @@ for what happens only in game:
 | `/order job blueprint <schematic> <rotation>` | Previews a schematic placed where you stand and tells what its blocks cost. |
 | `/order job build <schematic> <rotation> <price> <hours> <title>` | Previews a build job of a schematic placed where you stand and asks to confirm it. |
 | `/order job build confirm` | Posts the build job you were asked to confirm. |
+| `/order job build draft` | Saves the build job you were asked to confirm as a draft instead. |
+| `/order job build supplied` | Saves the build job you were asked to confirm as a draft whose materials you supply. |
+| `/order job post <id>` | Posts one of your drafts, on the server of its area. |
+| `/order job draft <id>` | Opens the chest to hand in the materials of a supplied draft. |
+| `/order job draft delete <id>` | Deletes one of your drafts. |
 | `/order job terraform plot [surface <block>] <price> <hours> <y> <title>` | Posts a terraform job on your whole plot, dug out down to `y` when that lies below the ground. |
 | `/order job harvest <price per item> <budget> <hours> <title>` | Posts a harvest job on the field you marked. |
 | `/order job harvest plot <price per item> <budget> <hours> <height> <title>` | Posts a harvest job on your whole plot. |
-| `/order job stock <id>` | Lists the stock of a harvest job. |
+| `/order job stock <id>` | Lists the stock of one of your jobs: what a harvest job harvested, the materials you supply, or the blocks dug for you. |
 | `/order job collect <id>` | Takes the stock of a harvest job into your inventory. |
 | `/order job area corner <1\|2>`, `/order job area tool` | Marks a corner of an area, at your feet or with the area tool. |
 | `/order job area save <name>`, `/order job area plot <name>` | Stores the marked area or your plot. |
@@ -243,6 +307,15 @@ for what happens only in game:
 
 `/order job` and `/order job info <id>` show your jobs in game; the [Commands](../reference/commands.md) page lists
 every job command.
+
+### Drafts
+
+A job you are not ready to post can be saved as a **draft**: on the dashboard with **Save as draft** under any posting
+form, in game with `/order job build draft` at the confirm step of a build job. A draft is listed under your jobs, but
+companies do not see it, nothing is charged and its land is not checked or held. Change its title, price and time on the
+dashboard, post it with **Post** or `/order job post <id>`, or delete it. Posting checks everything a new job is checked
+for, its land where it lies now included, and charges price and fee then. Deleting a draft sends what its stock holds to
+your item returns. You keep at most `maxDrafts` drafts ([jobs.yml](../admin/configuration/jobs-yml.md)).
 
 A job waits for a company for some days (`openDays` in [jobs.yml](../admin/configuration/jobs-yml.md)). When nobody
 takes it, it expires and price and fee come back. The plugin never tells you which company works on your job; your inbox
@@ -259,7 +332,9 @@ area:
 | Command | What it does |
 |---|---|
 | `/company job done <id>` | Checks the area of a dig, terraform or build job and, when the work is done, pays the job. |
-| `/company job ghosts <id>` | Shows the missing and wrong blocks of a build job, one layer at a time. Add `next` or `previous` before the id to move a layer; `/company job ghosts off` hides them. |
+| `/company job ghosts <id>` | Shows the missing and wrong blocks of a build job around you, following you. Add `highlight` before the id to make all of them glow for a while; `/company job ghosts off` hides them. |
+| `/company job chest <id>` | Gives you the job chest of a supplied build or terraform job, to pick its magic blocks. |
+| `/company job tool` | Gives you your company's builder's tool, when it owns that perk. |
 
 `/company job` lists the open jobs in game, and the [Commands](../reference/commands.md) page has the rest.
 

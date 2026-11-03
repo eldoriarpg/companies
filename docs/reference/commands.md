@@ -114,9 +114,14 @@ See [Jobs](../players/jobs.md).
 | `/order job blueprint <schematic> <rotation>` | `companies.orders.jobs` | Previews a schematic placed where you stand, turned by 0, 90, 180 or 270 degrees: its outline and blocks for a short while, and what its blocks cost. |
 | `/order job build <schematic> <rotation> <price> <hours> <title>` | `companies.orders.jobs` | Previews a build job of a schematic placed where you stand and asks to confirm it, warning when the price is below what its blocks cost. |
 | `/order job build confirm` | `companies.orders.jobs` | Posts the build job you were asked to confirm. You pay the price and the order fee at once. |
+| `/order job build draft` | `companies.orders.jobs` | Saves the build job you were asked to confirm as a draft. Nothing is charged. |
+| `/order job build supplied` | `companies.orders.jobs` | Saves the build job you were asked to confirm as a draft whose materials you hand in to its stock. |
+| `/order job post <id>` | `companies.orders.jobs` | Posts one of your drafts on the server of its area, charging price and fee. |
+| `/order job draft <id>` | `companies.orders.jobs` | Opens the chest to hand in the materials of a supplied draft; what is not needed comes back. |
+| `/order job draft delete <id>` | `companies.orders.jobs` | Deletes one of your drafts; its stock goes to your item returns. |
 | `/order job harvest <price per item> <budget> <hours> <title>` | `companies.orders.jobs` | Posts a harvest job on the field you marked or selected with WorldEdit. You pay the budget and the order fee at once. |
 | `/order job harvest plot <price per item> <budget> <hours> <height> <title>` | `companies.orders.jobs` | Posts a harvest job on the whole plot you stand on, from the block below your feet up `height` layers. |
-| `/order job stock <id>` | `companies.orders.jobs` | Lists the stock of a harvest job. |
+| `/order job stock <id>` | `companies.orders.jobs` | Lists the stock of one of your jobs: what a harvest job harvested, the materials you supply, or the blocks dug for you. |
 | `/order job collect <id>` | `companies.orders.jobs` | Takes the stock of a harvest job into your inventory; what does not fit stays. |
 | `/order job end <id>` | `companies.orders.jobs` | Ends a harvest job a company works on; the rest of the budget comes back. |
 | `/order job contract <price> <hours> <title>` | `companies.orders.jobs` | Posts a contract, work described in words, at the place you stand. You pay the price and the order fee at once. |
@@ -291,9 +296,11 @@ See [Event offers](../players/event-offers.md#contests) for a guide.
 | `/company job giveback <id>` | none | `manage_orders` | Gives a job back; it is open again. |
 | `/company job done <id>` | none | `manage_orders` | Checks the job's area on the server that holds it and pays the job when the work is done. For a contract it tells the owner the work is done; for a harvest job it ends the harvest. |
 | `/company job dispute <id> <reason>` | none | `manage_orders` | Opens a dispute about a job of the company; an admin settles it. |
-| `/company job ghosts <id>` | none | none | Shows the missing and wrong blocks of a build job of the company, one layer at a time. |
-| `/company job ghosts next <id>` / `ghosts previous <id>` | none | none | Moves the ghost blocks a layer up or down. |
+| `/company job ghosts <id>` | none | none | Shows the missing and wrong blocks of a build job of the company around the player, following them. |
+| `/company job ghosts highlight <id>` | none | none | Makes every missing and wrong block of a build job of the company glow for 30 seconds, the nearest 2048 first. |
 | `/company job ghosts off` | none | none | Hides the ghost blocks. |
+| `/company job chest <id>` | none | none | Gives the job chest of a supplied build or terraform job of the company, which hands out the magic blocks that build it from its stock. |
+| `/company job tool` | none | none | Gives the builder's tool of the company, when it owns the `builder-tool` perk: it places whatever the blueprint of a supplied job asks for, from the stock. |
 | `/company job withdraw <id>` | none | `manage_orders` | Withdraws a dispute the company opened. |
 | `/company job cancel accept <id>` | none | `manage_orders` | Lets the owner cancel a job of the company, as they asked; the price goes back to them and the company is not penalized. |
 | `/company job cancel refuse <id>` | none | `manage_orders` | Refuses the owner's request to cancel a job; the company keeps working on it. |

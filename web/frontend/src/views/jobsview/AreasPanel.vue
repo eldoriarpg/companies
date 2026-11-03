@@ -5,9 +5,10 @@
  */
 <script lang="ts" setup>
 import type {AreaJobKind, AreaList, AreaPreview, AreaRow, JobDetails, SchematicFit} from '~/api/gateway'
-import ButtonRow from '@/components/button/ButtonRow.vue'
 import PrimaryButton from '@/components/button/PrimaryButton.vue'
 import SecondaryButton from '@/components/button/SecondaryButton.vue'
+import PostButtons from './PostButtons.vue'
+import MaterialChoices from './MaterialChoices.vue'
 import PanelBox from '@/components/container/PanelBox.vue'
 import PlainList from '@/components/container/PlainList.vue'
 import ActionNotice from '@/components/feedback/ActionNotice.vue'
@@ -43,6 +44,12 @@ const rotation = ref('0')
 const fit = ref<SchematicFit | null>(null)
 const place = ref<MapCorner>({x: 0, z: 0})
 const belowCost = ref(false)
+const supplied = ref(false)
+const dugToStock = ref(false)
+const fillSupplied = ref(false)
+const fillBlock = ref('dirt')
+const belowMaterials = ref(false)
+const materialsBlocked = ref(false)
 const rotations = ['0', '90', '180', '270'].map(value => ({value, label: `${value}°`}))
 const schematics = computed(() => [
   {value: '', label: t('jobs.areas.chooseSchematic')},
@@ -68,7 +75,9 @@ const ready = computed(() => chosen.value !== null
     && (hours.value ?? 0) >= 1
     && (kind.value !== 'terraform' || y.value !== undefined)
     && (kind.value !== 'harvest' || (unitPrice.value ?? 0) > 0)
-    && (kind.value !== 'build' || (fit.value !== null && (!(fit.value.cost > (price.value ?? 0)) || belowCost.value))))
+    && !materialsBlocked.value
+    && (!fillSupplied.value || fillBlock.value.trim().length > 0)
+    && (kind.value !== 'build' || (fit.value !== null && (!(fit.value.cost > (price.value ?? 0)) || belowCost.value || supplied.value))))
 
 onMounted(async () => {
   list.value = await loading.run('jobs.areas.list', {})
@@ -140,7 +149,7 @@ async function measure(): Promise<void> {
 
 watch([schematic, rotation], measure)
 
-async function post(): Promise<void> {
+async function post(draft = false): Promise<void> {
   const area = chosen.value
   if (!ready.value || !area) return
   const result = kind.value === 'build'
@@ -155,6 +164,9 @@ async function post(): Promise<void> {
       price: price.value ?? 0,
       hours: hours.value ?? 0,
       confirm: belowCost.value,
+      draft,
+      supplied: supplied.value,
+      dugToStock: dugToStock.value,
     })
     : await action.run('jobs.areas.post', {
     node: area.node,
@@ -165,6 +177,9 @@ async function post(): Promise<void> {
     hours: hours.value ?? 0,
     ...(kind.value === 'terraform' ? {y: y.value ?? 0, surface: surface.value.trim()} : {}),
     ...(kind.value === 'harvest' ? {unitPrice: unitPrice.value ?? 0} : {}),
+    ...(kind.value === 'harvest' ? {} : {dugToStock: dugToStock.value, confirm: belowMaterials.value}),
+    ...(kind.value === 'terraform' && fillSupplied.value ? {fill: fillBlock.value.trim()} : {}),
+    draft,
   })
   if (!result) return
   chosen.value = null
@@ -224,13 +239,13 @@ async function remove(area: AreaRow): Promise<void> {
           </div>
           <MutedText v-if="fit" tag="p" data-testid="job-areas-fit">{{ t('jobs.areas.fit', {width: fit.width, height: fit.height, length: fit.length, blocks: fit.blocks, cost: money(fit.cost, locale)}) }}</MutedText>
           <MutedText v-if="fit && fit.unpriced > 0" tag="p">{{ t('jobs.areas.fitUnpriced', {count: fit.unpriced}) }}</MutedText>
-          <CheckboxInput v-if="fit && fit.cost > (price ?? 0)" v-model="belowCost" :label="t('jobs.areas.belowCost')" data-testid="job-areas-below"/>
+          <CheckboxInput v-model="supplied" :label="t('jobs.areas.supplied')" data-testid="job-areas-supplied"/>
+          <MutedText v-if="supplied && fit?.unmakeable?.length" tag="p" data-testid="job-areas-unmakeable">{{ t('jobs.areas.unmakeable', {types: fit.unmakeable.join(', ')}) }}</MutedText>
+          <CheckboxInput v-if="!supplied && fit && fit.cost > (price ?? 0)" v-model="belowCost" :label="t('jobs.areas.belowCost')" data-testid="job-areas-below"/>
         </template>
+        <MaterialChoices v-model:dug-to-stock="dugToStock" v-model:supplied="fillSupplied" v-model:fill="fillBlock" v-model:confirm="belowMaterials" v-model:blocked="materialsBlocked" :area="chosen" :kind="kind" :y="y" :surface="surface" :price="price" :allow-dug="list.dugToStock ?? false" :allow-fill="list.suppliedFill ?? false"/>
         <MutedText tag="p">{{ t('jobs.contract.charged') }}</MutedText>
-        <ButtonRow>
-          <PrimaryButton :disabled="!ready || action.busy.value" data-testid="job-areas-post" @click="post">{{ t('jobs.contract.post') }}</PrimaryButton>
-          <SecondaryButton @click="chosen = null">{{ t('jobs.contract.cancel') }}</SecondaryButton>
-        </ButtonRow>
+        <PostButtons :disabled="!ready || action.busy.value" test-id="job-areas" @post="post" @back="chosen = null"/>
       </section>
       <ActionNotice :problem="action.problem.value"/>
     </div>

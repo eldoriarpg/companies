@@ -17,11 +17,12 @@ import de.eldoria.companies.data.wrapper.job.JobExtension;
 import de.eldoria.companies.data.wrapper.job.JobReview;
 import de.eldoria.companies.data.wrapper.job.JobReviewEntry;
 import de.eldoria.companies.jobs.Blueprint;
-import de.eldoria.companies.jobs.BuildCheck;
 import de.eldoria.companies.jobs.BuildGhosts;
 import de.eldoria.companies.jobs.DigCheck;
+import de.eldoria.companies.jobs.JobAccess;
 import de.eldoria.companies.jobs.JobService;
 import de.eldoria.companies.jobs.JobServices;
+import de.eldoria.companies.jobs.MagicBuilding;
 import de.eldoria.companies.jobs.MaterialCosts;
 import de.eldoria.companies.menus.ConfirmFlow;
 import de.eldoria.companies.menus.MenuComponents;
@@ -70,8 +71,10 @@ import java.util.logging.Level;
  *     it;</li>
  *     <li>{@code dispute <id> <reason>} opens a dispute an admin settles, {@code withdraw <id>} withdraws one the
  *     company opened;</li>
- *     <li>{@code ghosts <id>} shows the missing and wrong blocks of a build job, a layer at a time, with
- *     {@code ghosts next|previous <id>} to move and {@code ghosts off} to stop.</li>
+ *     <li>{@code ghosts <id>} shows the missing and wrong blocks of a build job around the player, following them,
+ *     {@code ghosts highlight <id>} every one of them for a while, and {@code ghosts off} stops;</li>
+ *     <li>{@code chest <id>} gives the job chest of a build job whose owner supplies the materials, {@code tool} the
+ *     builder's tool of a company that owns the perk.</li>
  * </ul>
  * The owner of a job is never named.
  */
@@ -141,7 +144,7 @@ public final class CompanyJobCommand {
                     if (job.state() != JobState.OPEN && !ours) throw unknown(id);
                     var checked =
                             ours && job.state() == JobState.TAKEN && job.kind().area();
-                    var cost = job.kind() == JobKind.BUILD
+                    var cost = job.kind() == JobKind.BUILD && !job.supplied()
                             ? jobs().costs().of(job.id())
                             : Optional.<MaterialCosts.Cost>empty();
                     var reviews = ours ? jobs().data().reviews(job.id()) : List.<JobReviewEntry>of();
@@ -358,37 +361,117 @@ public final class CompanyJobCommand {
     }
 
     /**
-     * Shows the player the missing and wrong blocks of a build job of their company, starting with the lowest layer
-     * that still lacks one.
+     * Shows the player the missing and wrong blocks of a build job of their company around them, following them as they
+     * move.
      *
      * @param sender sender of the command
      * @param id     id of the job
      */
     @Executes("ghosts")
     public void ghosts(CommandSender sender, @IntArg(min = 0) int id) {
-        ghosts(Senders.player(sender), id, Shift.FIRST);
+        ghosts(Senders.player(sender), id, Mode.NEAR);
     }
 
     /**
-     * Shows the player the next layer up of a build job.
+     * Shows the player every missing and wrong block of a build job of their company for a while.
      *
      * @param sender sender of the command
      * @param id     id of the job
      */
-    @Executes("ghosts next")
-    public void ghostsNext(CommandSender sender, @IntArg(min = 0) int id) {
-        ghosts(Senders.player(sender), id, Shift.UP);
+    @Executes("ghosts highlight")
+    public void ghostsHighlight(CommandSender sender, @IntArg(min = 0) int id) {
+        ghosts(Senders.player(sender), id, Mode.HIGHLIGHT);
     }
 
     /**
-     * Shows the player the next layer down of a build job.
+     * Gives the player the job chest of a build job of their company whose owner supplies the materials.
      *
      * @param sender sender of the command
      * @param id     id of the job
      */
-    @Executes("ghosts previous")
-    public void ghostsPrevious(CommandSender sender, @IntArg(min = 0) int id) {
-        ghosts(Senders.player(sender), id, Shift.DOWN);
+    @Executes("chest")
+    public void chest(CommandSender sender, @IntArg(min = 0) int id) {
+        var player = Senders.player(sender);
+        run(
+                player,
+                () -> {
+                    var company = company(player);
+                    var job = jobs().data().job(id).orElseThrow(() -> unknown(id));
+                    if (job.state() != JobState.TAKEN
+                            || !Integer.valueOf(company.id()).equals(job.company())) {
+                        throw CommandFailure.of(PREFIX + "error.notYours", Values.number("id", id));
+                    }
+                    if (!JobAccess.blueprinted(job) || !job.supplied()) {
+                        throw CommandFailure.of(PREFIX + "error.notSupplied", Values.number("id", id));
+                    }
+                    if (!job.node().equals(jobs().node())) {
+                        throw CommandFailure.of(PREFIX + "error.otherServer", Values.number("id", id));
+                    }
+                    return job;
+                },
+                job -> Threading.mainThread(deps.plugin()).execute(() -> giveChest(player, job.id())));
+    }
+
+    private void giveChest(Player player, int id) {
+        if (!player.isOnline()) return;
+        var components = new MenuComponents(deps.messages(), player);
+        var magic = jobs().magicItems();
+        var chest = magic.chest(
+                id,
+                components.locale(PREFIX + "chest.name", Values.number("id", id)),
+                List.of(components.locale(PREFIX + "chest.lore")));
+        var inventory = player.getInventory();
+        for (var slot = 0; slot < inventory.getSize(); slot++) {
+            if (magic.chest(inventory.getItem(slot)).orElse(-1) == id) {
+                deps.messages().sendError(player, PREFIX + "chest.held", Values.number("id", id));
+                return;
+            }
+        }
+        if (!inventory.addItem(chest).isEmpty()) {
+            deps.messages().sendError(player, PREFIX + "magic.full");
+            return;
+        }
+        deps.messages().sendMessage(player, PREFIX + "chest.given", Values.number("id", id));
+    }
+
+    /**
+     * Gives the player the builder's tool of their company, when it owns the perk and may use it.
+     *
+     * @param sender sender of the command
+     */
+    @Executes("tool")
+    public void tool(CommandSender sender) {
+        var player = Senders.player(sender);
+        run(
+                player,
+                () -> {
+                    var company = company(player);
+                    if (!deps.services().perks().usable(company, MagicBuilding.TOOL_PERK)) {
+                        throw CommandFailure.of(PREFIX + "tool.noPerk");
+                    }
+                    return company.id();
+                },
+                company -> Threading.mainThread(deps.plugin()).execute(() -> giveTool(player, company)));
+    }
+
+    private void giveTool(Player player, int company) {
+        if (!player.isOnline()) return;
+        var components = new MenuComponents(deps.messages(), player);
+        var magic = jobs().magicItems();
+        var inventory = player.getInventory();
+        for (var slot = 0; slot < inventory.getSize(); slot++) {
+            if (magic.tool(inventory.getItem(slot)).orElse(-1) == company) {
+                deps.messages().sendError(player, PREFIX + "tool.held");
+                return;
+            }
+        }
+        var tool = magic.tool(
+                company, components.locale(PREFIX + "tool.name"), List.of(components.locale(PREFIX + "tool.lore")));
+        if (!inventory.addItem(tool).isEmpty()) {
+            deps.messages().sendError(player, PREFIX + "tool.full");
+            return;
+        }
+        deps.messages().sendMessage(player, PREFIX + "tool.given");
     }
 
     /**
@@ -403,7 +486,7 @@ public final class CompanyJobCommand {
         deps.messages().sendMessage(player, PREFIX + "ghosts.off");
     }
 
-    private void ghosts(Player player, int id, Shift shift) {
+    private void ghosts(Player player, int id, Mode mode) {
         run(
                 player,
                 () -> {
@@ -413,7 +496,7 @@ public final class CompanyJobCommand {
                             || !Integer.valueOf(company.id()).equals(job.company())) {
                         throw CommandFailure.of(PREFIX + "error.notYours", Values.number("id", id));
                     }
-                    if (job.kind() != JobKind.BUILD) {
+                    if (!JobAccess.blueprinted(job)) {
                         throw CommandFailure.of(PREFIX + "error.noBlueprint", Values.number("id", id));
                     }
                     if (!job.node().equals(jobs().node())) {
@@ -425,51 +508,71 @@ public final class CompanyJobCommand {
                                     () -> CommandFailure.of(PREFIX + "error.noBlueprint", Values.number("id", id)));
                     return new Building(job, blueprint);
                 },
-                building -> Threading.mainThread(deps.plugin()).execute(() -> showGhosts(player, building, shift)));
+                building -> Threading.mainThread(deps.plugin()).execute(() -> showGhosts(player, building, mode)));
     }
 
-    private void showGhosts(Player player, Building building, Shift shift) {
+    private void showGhosts(Player player, Building building, Mode mode) {
+        if (!player.isOnline()) return;
         var job = building.job();
-        var world = deps.plugin().getServer().getWorld(job.area().world());
-        if (world == null || !player.isOnline()) return;
-        var current = jobs().ghosts().layerOf(player, job.id());
-        var y =
-                switch (shift) {
-                    case FIRST -> BuildGhosts.firstOpen(job.area(), building.blueprint(), BuildCheck.of(world));
-                    case UP -> current.map(at -> at + 1).orElse(job.area().minY());
-                    case DOWN -> current.map(at -> at - 1).orElse(job.area().minY());
-                };
-        jobs().ghosts().show(player, job, building.blueprint(), y).ifPresent(layer -> {
-            var id = job.id();
-            deps.messages()
-                    .sendMessage(
-                            player,
-                            MenuText.create()
-                                    .locale(
-                                            PREFIX + "ghosts.layer",
-                                            Values.number("id", id),
-                                            Values.number("y", layer.y()),
-                                            Values.number("open", layer.open()),
-                                            Values.number("asked", layer.asked()))
-                                    .text(
-                                            " <act_down><show>[▼]</act_down> <act_up><show>[▲]</act_up>"
-                                                    + " <act_off><remove>[<i18n:words.off>]</act_off>",
-                                            Values.click(
-                                                    "act_down",
-                                                    ClickEvent.runCommand("/company job ghosts previous " + id)),
-                                            Values.click(
-                                                    "act_up", ClickEvent.runCommand("/company job ghosts next " + id)),
-                                            Values.click("act_off", ClickEvent.runCommand("/company job ghosts off"))));
-        });
+        var id = job.id();
+        var ghosts = jobs().ghosts();
+        if (!player.getWorld().getName().equals(job.area().world())) {
+            deps.messages().sendError(player, PREFIX + "error.elsewhere", Values.number("id", id));
+            return;
+        }
+        if (mode == Mode.HIGHLIGHT) {
+            var wait = ghosts.highlightCooldown(player);
+            if (wait.isPresent()) {
+                deps.messages()
+                        .sendError(player, PREFIX + "ghosts.cooldown", Values.number("seconds", wait.getAsLong()));
+                return;
+            }
+            var lit = ghosts.highlight(player, job, building.blueprint());
+            if (lit.isEmpty()) {
+                deps.messages().sendError(player, PREFIX + "error.world", Values.number("id", id));
+            } else if (lit.getAsInt() == 0) {
+                deps.messages().sendMessage(player, PREFIX + "ghosts.none", Values.number("id", id));
+            } else {
+                deps.messages()
+                        .sendMessage(
+                                player,
+                                PREFIX + "ghosts.highlight",
+                                Values.number("id", id),
+                                Values.number("shown", lit.getAsInt()),
+                                Values.number("seconds", BuildGhosts.HIGHLIGHT_SECONDS));
+            }
+            return;
+        }
+        var radius = deps.configuration().jobSettings().buildGhostRadius();
+        var shown = ghosts.show(player, job, building.blueprint(), radius);
+        if (shown.isEmpty()) {
+            deps.messages().sendError(player, PREFIX + "error.world", Values.number("id", id));
+            return;
+        }
+        deps.messages()
+                .sendMessage(
+                        player,
+                        MenuText.create()
+                                .locale(
+                                        PREFIX + "ghosts.near",
+                                        Values.number("id", id),
+                                        Values.number("shown", shown.getAsInt()),
+                                        Values.number("radius", radius))
+                                .text(
+                                        " <act_all><show>[<i18n:company.job.ghosts.all>]</act_all>"
+                                                + " <act_off><remove>[<i18n:words.off>]</act_off>",
+                                        Values.click(
+                                                "act_all",
+                                                ClickEvent.runCommand("/company job ghosts highlight " + id)),
+                                        Values.click("act_off", ClickEvent.runCommand("/company job ghosts off"))));
     }
 
     /**
-     * Which layer of a build job to show.
+     * Which ghosts of a build job to show.
      */
-    private enum Shift {
-        FIRST,
-        UP,
-        DOWN
+    private enum Mode {
+        NEAR,
+        HIGHLIGHT
     }
 
     /**
@@ -572,6 +675,12 @@ public final class CompanyJobCommand {
                                 Values.number("y", target.y()),
                                 Values.text("block", surface.toLowerCase(Locale.ROOT))));
             }
+        }
+        if (job.materials().dugToStock()) lines.add(MenuText.create().locale(PREFIX + "info.dugToStock"));
+        var fill = job.materials().fill();
+        if (fill != null) {
+            lines.add(MenuText.create()
+                    .locale(PREFIX + "info.fill", Values.text("block", fill.toLowerCase(Locale.ROOT))));
         }
         if (job.state() == JobState.TAKEN) {
             lines.add(MenuText.create().locale(PREFIX + "info.due", Values.text("time", left(job.due()))));
@@ -690,7 +799,7 @@ public final class CompanyJobCommand {
         var key =
                 switch (change) {
                     case NO_PERMISSION -> "error.permission";
-                    case UNKNOWN -> "error.unknown";
+                    case UNKNOWN, DRAFT -> "error.unknown";
                     case CLOSED -> "error.closed";
                     case LIMIT -> "error.limit";
                     case OWN -> "error.own";

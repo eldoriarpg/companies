@@ -62,10 +62,9 @@ import de.eldoria.companies.data.wrapper.company.SimpleCompany;
 import de.eldoria.companies.data.wrapper.inbox.InboxEntry;
 import de.eldoria.companies.data.wrapper.job.JobArea;
 import de.eldoria.companies.data.wrapper.nodes.Node;
-import de.eldoria.companies.data.wrapper.order.ReturnKind;
 import de.eldoria.companies.data.wrapper.price.Baseline;
-import de.eldoria.companies.events.player.ItemsReturnedEvent;
 import de.eldoria.companies.jobs.JobServices;
+import de.eldoria.companies.jobs.StockReturns;
 import de.eldoria.companies.menus.Values;
 import de.eldoria.companies.orders.CompanyOrderService;
 import de.eldoria.companies.orders.DeliveryService;
@@ -110,7 +109,6 @@ import de.eldoria.eldoutilities.localization.ILocalizer;
 import de.eldoria.eldoutilities.messages.MessageSender;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import org.bukkit.Bukkit;
-import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
@@ -122,9 +120,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
@@ -136,8 +132,6 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.IntSupplier;
 import java.util.function.Supplier;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 /**
@@ -465,7 +459,8 @@ public final class DashboardModule {
                         Times::now,
                         failure -> PlainText.of(failure.render(null, messages)),
                         player -> lastPlace(plugin, player),
-                        (player, items) -> toReturns(data.items().returns(), plugin.getLogger(), player, items))),
+                        StockReturns.of(data.items().returns(), plugin.getLogger()),
+                        data.items().orders())),
                 new AdminJobWrites(new AdminJobWrites.Sources(
                         data.jobs(),
                         names,
@@ -697,38 +692,6 @@ public final class DashboardModule {
                         },
                         Threading.mainThread(plugin))
                 .join();
-    }
-
-    /**
-     * @param returns the item returns
-     * @param logger  reports items that could not be stored
-     * @param player  the owner of the items
-     * @param items   the items, as amounts by material name
-     * @return the items that could not be stored
-     */
-    private static Map<String, Integer> toReturns(
-            ItemReturnService returns, Logger logger, UUID player, Map<String, Integer> items) {
-        Map<String, Integer> left = new LinkedHashMap<>();
-        items.forEach((name, amount) -> {
-            var stored = false;
-            try {
-                var type = Material.matchMaterial(name);
-                stored = type != null
-                        && type.isItem()
-                        && Boolean.TRUE.equals(returns.store(
-                                        player,
-                                        ReturnKind.OWNER,
-                                        new ItemStack(type),
-                                        amount,
-                                        ItemsReturnedEvent.Reason.JOB_STOCK,
-                                        null)
-                                .join());
-            } catch (RuntimeException e) {
-                logger.log(Level.WARNING, "Could not store " + amount + " " + name + " for " + player, e);
-            }
-            if (!stored) left.put(name, amount);
-        });
-        return left;
     }
 
     /**

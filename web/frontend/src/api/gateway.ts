@@ -1195,7 +1195,7 @@ export interface CompanyName {
 export type JobKind = 'dig' | 'terraform' | 'harvest' | 'build' | 'contract'
 
 /** Where a job is in its life. */
-export type JobState = 'open' | 'taken' | 'done' | 'disputed' | 'paid' | 'settled' | 'cancelled' | 'expired'
+export type JobState = 'draft' | 'open' | 'taken' | 'done' | 'disputed' | 'paid' | 'settled' | 'cancelled' | 'expired'
 
 /** A job as the Jobs page lists it. The owner is never named to companies, the company never to the owner. */
 export interface JobRow {
@@ -1219,6 +1219,10 @@ export interface JobRow {
     mine: boolean
     /** Whether the player's company holds it. */
     ours: boolean
+    /** The server whose world holds a draft's area, where it is posted; missing for other states. */
+    node?: string | null
+    /** How long a company has to finish it once taken; missing from older plugins. */
+    dueHours?: number
 }
 
 /** The lists of the Jobs page. */
@@ -1255,7 +1259,7 @@ export interface JobDetails {
     requestsLeft?: number
     /** The company's open request for more time, none without one. */
     request?: ExtensionRequest | null
-    /** What the blocks of a build job's blueprint cost; missing for other kinds and from older plugins. */
+    /** What the blocks of a build job's blueprint cost; missing for other kinds, for jobs whose owner supplies the materials and from older plugins. */
     materialCost?: MaterialCost | null
     /** How far the work was at the last check of its area; only from the server holding the area. */
     progress?: JobProgress | null
@@ -1263,6 +1267,14 @@ export interface JobDetails {
     cancelAsked?: boolean
     /** The steps of the review of its work, oldest first; only for the owner and its company. */
     reviews?: JobReview[]
+    /** Whether the owner supplies the materials through the stock; missing from older plugins. */
+    supplied?: boolean
+    /** What the stock of the owner's supplied draft still lacks, as amounts by material name. */
+    missing?: Record<string, number> | null
+    /** Whether the blocks the company digs go into the stock for the owner; missing from older plugins. */
+    dugToStock?: boolean
+    /** The block the owner supplies to fill a terraform job, null when the company brings its fill. */
+    fill?: string | null
 }
 
 /** The schematics a player uploaded for build jobs. */
@@ -1295,6 +1307,28 @@ export interface AreaList {
     /** The most areas a player may keep. */
     max: number
     areas: AreaRow[]
+    /** Whether the owner may have the blocks a company digs go into the stock; missing from older plugins. */
+    dugToStock?: boolean
+    /** Whether the owner may supply the fill of a terraform job; missing from older plugins. */
+    suppliedFill?: boolean
+}
+
+/** What a dig or terraform job on an area digs out and fills in, as the area stands. */
+export interface AreaCost {
+    /** What the dug blocks are worth at the server's prices. */
+    dugValue: number
+    /** How many blocks are dug out. */
+    dugBlocks: number
+    /** What the fill blocks cost at the server's prices. */
+    fillCost: number
+    /** How many blocks are filled in. */
+    fillBlocks: number
+    /** How many block types have no known price and are left out. */
+    unpriced: number
+    /** Whether the owner may have the dug blocks go into the stock. */
+    dugToStock: boolean
+    /** Whether the owner may supply the fill of a terraform job. */
+    suppliedFill: boolean
 }
 
 /** An area a player stored in game. */
@@ -1340,6 +1374,8 @@ export interface SchematicFit {
     cost: number
     /** How many block types have no known price and are left out. */
     unpriced: number
+    /** The block types nobody can place, left out when the owner supplies the materials; missing from older plugins. */
+    unmakeable?: string[]
 }
 
 /** The kinds of job posted on a stored area. */
@@ -1369,6 +1405,8 @@ export interface MaterialCost {
     total: number
     /** How many block types have no known price and are left out. */
     unpriced: number
+    /** The block types nobody can place, left out when the owner supplies the materials; missing from older plugins. */
+    unmakeable?: string[]
 }
 
 /** The open request of the company working on a job for more time. */
@@ -1488,7 +1526,11 @@ export interface WriteActions {
     'admin.nodes.remove': {args: {uid: string}, result: {nodes: AdminNode[]}}
     'admin.nodes.prices': {args: Record<string, never>, result: {sources: AdminPriceSource[]}}
     'events.join': {args: OfferRef, result: EventDetails}
-    'jobs.contract': {args: {title: string, description: string, price: number, hours: number, place?: boolean, area?: string}, result: JobDetails}
+    'jobs.contract': {args: {title: string, description: string, price: number, hours: number, place?: boolean, area?: string, draft?: boolean}, result: JobDetails}
+    'jobs.drafts.post': {args: {id: number, node?: string}, result: JobDetails}
+    'jobs.drafts.edit': {args: {id: number, title: string, description: string, price: number, hours: number}, result: JobDetails}
+    'jobs.drafts.delete': {args: {id: number}, result: {id: number}}
+    'jobs.drafts.supply': {args: {id: number}, result: JobDetails}
     'jobs.describe': {args: JobRef & {text: string}, result: JobDetails}
     'jobs.approve': {args: JobRef, result: JobDetails}
     'jobs.reject': {args: JobRef & {reason: string}, result: JobDetails}
@@ -1513,8 +1555,9 @@ export interface WriteActions {
     'jobs.areas.delete': {args: {name: string}, result: AreaList}
     'jobs.areas.preview': {args: {node: string, area: string}, result: AreaPreview}
     'jobs.areas.schematic': {args: {node: string, area: string, schematic: string, rotation: number}, result: SchematicFit}
-    'jobs.areas.build': {args: {node: string, area: string, schematic: string, rotation: number, x: number, z: number, title: string, price: number, hours: number, confirm: boolean}, result: JobDetails}
-    'jobs.areas.post': {args: {node: string, area: string, kind: AreaJobKind, title: string, price: number, hours: number, y?: number, surface?: string, unitPrice?: number}, result: JobDetails}
+    'jobs.areas.materials': {args: {node: string, area: string, kind: 'dig' | 'terraform', y?: number, surface?: string, fill?: string}, result: AreaCost}
+    'jobs.areas.build': {args: {node: string, area: string, schematic: string, rotation: number, x: number, z: number, title: string, price: number, hours: number, confirm: boolean, draft?: boolean, supplied?: boolean, dugToStock?: boolean}, result: JobDetails}
+    'jobs.areas.post': {args: {node: string, area: string, kind: AreaJobKind, title: string, price: number, hours: number, y?: number, surface?: string, unitPrice?: number, draft?: boolean, dugToStock?: boolean, fill?: string, confirm?: boolean}, result: JobDetails}
     'admin.jobs.disputes': {args: Record<string, never>, result: {disputes: DisputeRow[]}}
     'admin.jobs.settle': {args: JobRef & {percent: number}, result: {disputes: DisputeRow[]}}
     'events.leave': {args: OfferRef, result: EventDetails}

@@ -9,6 +9,7 @@ import de.eldoria.companies.data.wrapper.job.Job;
 import de.eldoria.companies.data.wrapper.job.JobArea;
 import org.bukkit.Bukkit;
 import org.bukkit.Color;
+import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.block.Block;
@@ -32,11 +33,15 @@ import org.joml.Vector3f;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.InstantSource;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.OptionalLong;
+import java.util.PriorityQueue;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.IntPredicate;
@@ -44,19 +49,38 @@ import java.util.function.IntPredicate;
 /**
  * Shows blueprints of build jobs as small glowing copies of their blocks, only to the player who asked.
  * <p>
- * Members of a company working on a build job see the blocks of one layer that are missing or wrong, at most
- * {@value #MAX_GHOSTS} of them; a ghost goes when its block is placed as asked and comes back when it is broken. An
- * owner about to post a build job sees a preview of the whole blueprint where it would stand, at most
- * {@value #MAX_PREVIEW} blocks from the bottom up, for {@value #PREVIEW_SECONDS} seconds; a preview can be shown once
- * every {@value #COOLDOWN_SECONDS} seconds. A player sees one set of ghosts at a time; they are removed when the player
- * asks for others, turns them off or leaves, when their job is no longer worked on, and when the plugin stops. Runs on
- * the main thread.
+ * Members of a company working on a build job see the blocks around them that are missing or wrong, within a radius,
+ * nearest first and at most {@value #MAX_GHOSTS} of them; the ghosts follow the member as they move, checked every
+ * second and only once they moved a block. A ghost goes when its block is placed as asked and comes back when it is
+ * broken. A highlight shows every missing or wrong block of the job instead, nearest first and at most
+ * {@value #MAX_HIGHLIGHT} of them, for {@value #HIGHLIGHT_SECONDS} seconds, once every {@value #COOLDOWN_SECONDS}
+ * seconds, after which the ghosts around them come back. Ghosts are shown only to a player in the job's world and
+ * only in loaded chunks; leaving the world removes them. An owner about to post a build job sees a preview of the
+ * whole blueprint where it would stand, at most {@value #MAX_PREVIEW} blocks from the bottom up, for
+ * {@value #PREVIEW_SECONDS} seconds; a preview can be shown once every {@value #COOLDOWN_SECONDS} seconds. A player
+ * sees one set of ghosts at a time; they are removed when the player asks for others, turns them off or leaves, when
+ * their job is no longer worked on, and when the plugin stops. Runs on the main thread.
  */
 public final class BuildGhosts implements Listener {
     /**
-     * The most ghost blocks of a layer shown at once to one player.
+     * The most ghost blocks around a player shown at once.
      */
     public static final int MAX_GHOSTS = 1024;
+
+    /**
+     * The most ghost blocks of a highlight.
+     */
+    public static final int MAX_HIGHLIGHT = 2048;
+
+    /**
+     * How long a highlight is shown.
+     */
+    public static final int HIGHLIGHT_SECONDS = 30;
+
+    /**
+     * How often the ghosts around players follow them, in ticks.
+     */
+    public static final long FOLLOW_TICKS = 20;
 
     /**
      * The most ghost blocks of a preview.
@@ -69,23 +93,32 @@ public final class BuildGhosts implements Listener {
     public static final int PREVIEW_SECONDS = 30;
 
     /**
-     * How long a player waits between two previews.
+     * How long a player waits between two previews, and between two highlights.
      */
     public static final int COOLDOWN_SECONDS = 10;
-
-    private static final int PREVIEW = -1;
 
     private final Plugin plugin;
     private final InstantSource clock;
     private final Spawner spawner;
     private final Map<UUID, Shown> shown = new ConcurrentHashMap<>();
     private final Map<UUID, Instant> previewed = new ConcurrentHashMap<>();
+    private final Map<UUID, Instant> highlighted = new ConcurrentHashMap<>();
+    private volatile BuildCheck.Counted counted = BuildCheck.Counted.NONE;
 
     /**
      * @param plugin the plugin owning the ghost blocks
      */
     public BuildGhosts(Plugin plugin) {
         this(plugin, InstantSource.system(), BuildGhosts::display);
+    }
+
+    /**
+     * Sets the positions of supplied jobs that count as placed whatever stands there, which show no ghost.
+     *
+     * @param counted the positions
+     */
+    public void counted(BuildCheck.Counted counted) {
+        this.counted = counted;
     }
 
     /**
@@ -117,74 +150,211 @@ public final class BuildGhosts implements Listener {
     }
 
     /**
-     * What a layer of a build job still lacks.
-     *
-     * @param y     the height of the layer
-     * @param asked how many blocks the blueprint asks for in it
-     * @param open  how many of them are missing or wrong
+     * What the ghosts a player sees are.
      */
-    public record Layer(int y, int asked, int open) {}
-
-    /**
-     * @param area      a build job's area
-     * @param blueprint its blueprint
-     * @param types     reads the world
-     * @param y         the height of a layer
-     * @return what the layer still lacks
-     */
-    public static Layer layer(JobArea area, Blueprint blueprint, BuildCheck.Types types, int y) {
-        var asked = 0;
-        var open = 0;
-        for (var x = area.minX(); x <= area.maxX(); x++) {
-            for (var z = area.minZ(); z <= area.maxZ(); z++) {
-                var wanted = blueprint.want(area, x, y, z);
-                if (wanted == null) continue;
-                asked++;
-                if (!types.matches(wanted, x, y, z)) open++;
-            }
-        }
-        return new Layer(y, asked, open);
+    private enum Kind {
+        PREVIEW,
+        NEAR,
+        HIGHLIGHT
     }
 
     /**
-     * @param area      a build job's area
-     * @param blueprint its blueprint
-     * @param types     reads the world
-     * @return the lowest layer that still lacks a block, the lowest layer when none does
-     */
-    public static int firstOpen(JobArea area, Blueprint blueprint, BuildCheck.Types types) {
-        for (var y = area.minY(); y <= area.maxY(); y++) {
-            if (layer(area, blueprint, types, y).open() > 0) return y;
-        }
-        return area.minY();
-    }
-
-    /**
-     * Shows a player the missing and wrong blocks of a layer, replacing what they saw before.
+     * Shows a player the missing and wrong blocks of a job around them, replacing what they saw before; they follow
+     * the player from then on.
      *
      * @param player    the player
      * @param job       a build job of this server
      * @param blueprint its blueprint
-     * @param y         the height of the layer, kept within the area
-     * @return what the layer still lacks, empty when the job's world is not loaded
+     * @param radius    how far around the player, in blocks
+     * @return how many ghosts are shown, empty when the job's world is not loaded or the player is not in it
      */
-    public Optional<Layer> show(Player player, Job job, Blueprint blueprint, int y) {
+    public OptionalInt show(Player player, Job job, Blueprint blueprint, int radius) {
+        var world = world(player, job);
+        if (world == null) return OptionalInt.empty();
         hide(player);
-        var area = job.area();
-        var world = plugin.getServer().getWorld(area.world());
-        if (world == null) return Optional.empty();
-        var layerY = Math.clamp(y, area.minY(), area.maxY());
-        var types = BuildCheck.of(world);
-        var current = new Shown(job.id(), layerY, area, blueprint, new HashMap<>(), null);
-        for (var x = area.minX(); x <= area.maxX() && current.ghosts().size() < MAX_GHOSTS; x++) {
-            for (var z = area.minZ(); z <= area.maxZ() && current.ghosts().size() < MAX_GHOSTS; z++) {
-                var wanted = blueprint.want(area, x, layerY, z);
-                if (wanted == null || types.matches(wanted, x, layerY, z)) continue;
-                spawn(player, world, current, x, layerY, z, wanted);
+        var current =
+                new Shown(Kind.NEAR, job.id(), job.area(), blueprint, new HashMap<>(), null, center(player), radius);
+        shown.put(player.getUniqueId(), current);
+        near(player, world, current);
+        return OptionalInt.of(current.ghosts().size());
+    }
+
+    /**
+     * Moves the ghosts around every player who moved a block since the last time.
+     */
+    public void follow() {
+        for (var entry : shown.entrySet()) {
+            var current = entry.getValue();
+            if (current.kind() != Kind.NEAR) continue;
+            var player = plugin.getServer().getPlayer(entry.getKey());
+            if (player == null) continue;
+            var world = plugin.getServer().getWorld(current.area().world());
+            if (world == null || !player.getWorld().equals(world)) {
+                if (shown.remove(entry.getKey(), current)) remove(current);
+                continue;
+            }
+            var center = center(player);
+            if (center == current.center()) continue;
+            var moved = current.at(center);
+            if (!shown.replace(entry.getKey(), current, moved)) continue;
+            near(player, world, moved);
+        }
+    }
+
+    private @Nullable World world(Player player, Job job) {
+        var world = plugin.getServer().getWorld(job.area().world());
+        return world != null && player.getWorld().equals(world) ? world : null;
+    }
+
+    private static long center(Player player) {
+        var at = player.getLocation();
+        return key(at.getBlockX(), at.getBlockY(), at.getBlockZ());
+    }
+
+    private void near(Player player, World world, Shown current) {
+        var at = player.getLocation();
+        var wantedHere = open(
+                world,
+                current,
+                at.getBlockX() - current.radius(),
+                at.getBlockY() - current.radius(),
+                at.getBlockZ() - current.radius(),
+                at.getBlockX() + current.radius(),
+                at.getBlockY() + current.radius(),
+                at.getBlockZ() + current.radius(),
+                at,
+                current.radius(),
+                MAX_GHOSTS);
+        var keep = new HashSet<Long>();
+        for (var spot : wantedHere) keep.add(key(spot[0], spot[1], spot[2]));
+        current.ghosts().entrySet().removeIf(ghost -> {
+            if (keep.contains(ghost.getKey()) && ghost.getValue().isValid()) return false;
+            ghost.getValue().remove();
+            return true;
+        });
+        for (var spot : wantedHere) {
+            if (current.ghosts().containsKey(key(spot[0], spot[1], spot[2]))) continue;
+            var wanted = current.blueprint().want(current.area(), spot[0], spot[1], spot[2]);
+            if (wanted != null) spawn(player, world, current, spot[0], spot[1], spot[2], wanted);
+        }
+    }
+
+    /**
+     * @param world   the job's world
+     * @param current the ghosts of the job
+     * @param minX    lowest x of the box
+     * @param minY    lowest y of the box
+     * @param minZ    lowest z of the box
+     * @param maxX    highest x of the box
+     * @param maxY    highest y of the box
+     * @param maxZ    highest z of the box
+     * @param from    the point
+     * @param radius  how far from the point, 0 for anywhere in the box
+     * @param most    the most positions
+     * @return the missing and wrong positions of the job within the box and in loaded chunks, nearest to the point
+     *     first, as x, y, z and the squared distance
+     */
+    private List<int[]> open(
+            World world,
+            Shown current,
+            int minX,
+            int minY,
+            int minZ,
+            int maxX,
+            int maxY,
+            int maxZ,
+            Location from,
+            int radius,
+            int most) {
+        var area = current.area();
+        var types = BuildCheck.counting(BuildCheck.of(world), current.job(), counted);
+        PriorityQueue<int[]> found = new PriorityQueue<>(
+                Comparator.<int[]>comparingInt(spot -> spot[3]).reversed());
+        var limit = (long) radius * radius;
+        for (var x = Math.max(minX, area.minX()); x <= Math.min(maxX, area.maxX()); x++) {
+            for (var y = Math.max(minY, area.minY()); y <= Math.min(maxY, area.maxY()); y++) {
+                for (var z = Math.max(minZ, area.minZ()); z <= Math.min(maxZ, area.maxZ()); z++) {
+                    if (!world.isChunkLoaded(x >> 4, z >> 4)) continue;
+                    var distance = distance(from, x, y, z);
+                    if (radius > 0 && distance > limit) continue;
+                    var wanted = current.blueprint().want(area, x, y, z);
+                    if (wanted == null || types.matches(wanted, x, y, z)) continue;
+                    found.add(new int[] {x, y, z, (int) Math.min(Integer.MAX_VALUE, distance)});
+                    if (found.size() > most) found.poll();
+                }
             }
         }
-        shown.put(player.getUniqueId(), current);
-        return Optional.of(layer(area, blueprint, types, layerY));
+        List<int[]> nearest = new ArrayList<>(found);
+        nearest.sort(Comparator.comparingInt(spot -> spot[3]));
+        return nearest;
+    }
+
+    private static long distance(Location from, int x, int y, int z) {
+        long dx = x - from.getBlockX(), dy = y - from.getBlockY(), dz = z - from.getBlockZ();
+        return dx * dx + dy * dy + dz * dz;
+    }
+
+    /**
+     * @param player a player
+     * @return the seconds the player waits before the next highlight, empty when they may see one now
+     */
+    public OptionalLong highlightCooldown(Player player) {
+        return waiting(highlighted.get(player.getUniqueId()));
+    }
+
+    /**
+     * Shows a player every missing and wrong block of a job, nearest first, for {@value #HIGHLIGHT_SECONDS} seconds,
+     * unless they wait for the cooldown or nothing is missing. It replaces what they saw before; the ghosts around them
+     * come back afterwards when they saw those of the same job.
+     *
+     * @param player    the player
+     * @param job       a build job of this server
+     * @param blueprint its blueprint
+     * @return how many ghosts are shown, 0 when nothing is missing, empty during the cooldown, when the world is not
+     *     loaded or the player is not in it
+     */
+    public OptionalInt highlight(Player player, Job job, Blueprint blueprint) {
+        if (highlightCooldown(player).isPresent()) return OptionalInt.empty();
+        var world = world(player, job);
+        if (world == null) return OptionalInt.empty();
+        var before = shown.get(player.getUniqueId());
+        var back = before != null && before.kind() == Kind.NEAR && before.job() == job.id() ? before.radius() : 0;
+        var area = job.area();
+        var current = new Shown(Kind.HIGHLIGHT, job.id(), area, blueprint, new HashMap<>(), null, center(player), 0);
+        var spots = open(
+                world,
+                current,
+                area.minX(),
+                area.minY(),
+                area.minZ(),
+                area.maxX(),
+                area.maxY(),
+                area.maxZ(),
+                player.getLocation(),
+                0,
+                MAX_HIGHLIGHT);
+        if (spots.isEmpty()) return OptionalInt.of(0);
+        hide(player);
+        highlighted.put(player.getUniqueId(), clock.instant());
+        for (var spot : spots) {
+            var wanted = blueprint.want(area, spot[0], spot[1], spot[2]);
+            if (wanted != null) spawn(player, world, current, spot[0], spot[1], spot[2], wanted);
+        }
+        var id = player.getUniqueId();
+        var ghosts = current.ghosts();
+        var task = plugin.getServer()
+                .getScheduler()
+                .runTaskLater(
+                        plugin,
+                        () -> {
+                            var held = shown.get(id);
+                            if (held == null || held.ghosts() != ghosts || !shown.remove(id, held)) return;
+                            remove(held);
+                            if (back > 0 && player.isOnline()) show(player, job, blueprint, back);
+                        },
+                        HIGHLIGHT_SECONDS * 20L);
+        shown.put(id, current.withTask(task));
+        return OptionalInt.of(current.ghosts().size());
     }
 
     /**
@@ -192,7 +362,10 @@ public final class BuildGhosts implements Listener {
      * @return the seconds the player waits before the next preview, empty when they may see one now
      */
     public OptionalLong cooldown(Player player) {
-        var last = previewed.get(player.getUniqueId());
+        return waiting(previewed.get(player.getUniqueId()));
+    }
+
+    private OptionalLong waiting(@Nullable Instant last) {
         if (last == null) return OptionalLong.empty();
         var left = Duration.between(clock.instant(), last.plusSeconds(COOLDOWN_SECONDS));
         return left.isPositive() ? OptionalLong.of(Math.max(1, left.toSeconds())) : OptionalLong.empty();
@@ -213,7 +386,7 @@ public final class BuildGhosts implements Listener {
         if (world == null) return OptionalInt.empty();
         hide(player);
         previewed.put(player.getUniqueId(), clock.instant());
-        var current = new Shown(PREVIEW, area.minY(), area, blueprint, new HashMap<>(), null);
+        var current = new Shown(Kind.PREVIEW, 0, area, blueprint, new HashMap<>(), null, center(player), 0);
         for (var y = area.minY(); y <= area.maxY() && current.ghosts().size() < MAX_PREVIEW; y++) {
             for (var x = area.minX(); x <= area.maxX() && current.ghosts().size() < MAX_PREVIEW; x++) {
                 for (var z = area.minZ(); z <= area.maxZ() && current.ghosts().size() < MAX_PREVIEW; z++) {
@@ -238,19 +411,9 @@ public final class BuildGhosts implements Listener {
     public boolean previewing(Player player, JobArea area, Blueprint blueprint) {
         var current = shown.get(player.getUniqueId());
         return current != null
-                && current.job() == PREVIEW
+                && current.kind() == Kind.PREVIEW
                 && current.area().equals(area)
                 && current.blueprint().equals(blueprint);
-    }
-
-    /**
-     * @param player a player
-     * @param job    id of a job
-     * @return the layer of the job the player sees, empty when they see none of it
-     */
-    public Optional<Integer> layerOf(Player player, int job) {
-        var current = shown.get(player.getUniqueId());
-        return current == null || current.job() != job ? Optional.empty() : Optional.of(current.y());
     }
 
     /**
@@ -269,7 +432,7 @@ public final class BuildGhosts implements Listener {
      */
     public void hidePreview(UUID player) {
         var current = shown.get(player);
-        if (current != null && current.job() == PREVIEW && shown.remove(player, current)) remove(current);
+        if (current != null && current.kind() == Kind.PREVIEW && shown.remove(player, current)) remove(current);
     }
 
     /**
@@ -280,7 +443,7 @@ public final class BuildGhosts implements Listener {
     public void prune(IntPredicate working) {
         shown.entrySet().removeIf(entry -> {
             var current = entry.getValue();
-            if (current.job() == PREVIEW || working.test(current.job())) return false;
+            if (current.kind() == Kind.PREVIEW || working.test(current.job())) return false;
             remove(current);
             return true;
         });
@@ -301,6 +464,7 @@ public final class BuildGhosts implements Listener {
     public void onQuit(PlayerQuitEvent event) {
         hide(event.getPlayer());
         previewed.remove(event.getPlayer().getUniqueId());
+        highlighted.remove(event.getPlayer().getUniqueId());
     }
 
     /**
@@ -329,20 +493,19 @@ public final class BuildGhosts implements Listener {
     }
 
     /**
-     * Removes the ghost of a block placed as asked and adds one for a block missing or wrong, for every player who
-     * sees the block's layer of a job.
+     * Removes the ghost of a block placed as asked, and adds one for a block missing or wrong around a player who sees
+     * the ghosts of its job near them.
      *
      * @param block the block
      */
     void refresh(Block block) {
         var world = block.getWorld();
         int x = block.getX(), y = block.getY(), z = block.getZ();
-        var types = BuildCheck.of(world);
+        var read = BuildCheck.of(world);
         for (var entry : shown.entrySet()) {
             var current = entry.getValue();
-            if (current.job() == PREVIEW || current.y() != y || !current.area().contains(world.getName(), x, y, z)) {
-                continue;
-            }
+            if (current.kind() == Kind.PREVIEW || !current.area().contains(world.getName(), x, y, z)) continue;
+            var types = BuildCheck.counting(read, current.job(), counted);
             var wanted = current.blueprint().want(current.area(), x, y, z);
             if (wanted == null) continue;
             var key = key(x, y, z);
@@ -353,6 +516,9 @@ public final class BuildGhosts implements Listener {
             }
             var player = plugin.getServer().getPlayer(entry.getKey());
             if (player != null
+                    && current.kind() == Kind.NEAR
+                    && player.getWorld().equals(world)
+                    && distance(player.getLocation(), x, y, z) <= (long) current.radius() * current.radius()
                     && !current.ghosts().containsKey(key)
                     && current.ghosts().size() < MAX_GHOSTS) {
                 spawn(player, world, current, x, y, z, wanted);
@@ -406,15 +572,33 @@ public final class BuildGhosts implements Listener {
         return ((long) x & 0x3FFFFFF) << 38 | ((long) z & 0x3FFFFFF) << 12 | ((long) y & 0xFFF);
     }
 
+    /**
+     * The ghosts a player sees.
+     *
+     * @param kind      what they are
+     * @param job       id of their job, 0 for a preview
+     * @param area      the area they lie in
+     * @param blueprint the blueprint they show
+     * @param ghosts    the ghost blocks, by position
+     * @param task      removes them after a while, for a preview or highlight
+     * @param center    where the player stood when the ghosts around them were last placed
+     * @param radius    how far around the player the ghosts reach, 0 for a preview or highlight
+     */
     private record Shown(
+            Kind kind,
             int job,
-            int y,
             JobArea area,
             Blueprint blueprint,
             Map<Long, Entity> ghosts,
-            @Nullable BukkitTask task) {
-        Shown withTask(BukkitTask task) {
-            return new Shown(job, y, area, blueprint, ghosts, task);
+            @Nullable BukkitTask task,
+            long center,
+            int radius) {
+        Shown withTask(@Nullable BukkitTask task) {
+            return new Shown(kind, job, area, blueprint, ghosts, task, center, radius);
+        }
+
+        Shown at(long center) {
+            return new Shown(kind, job, area, blueprint, ghosts, task, center, radius);
         }
     }
 }

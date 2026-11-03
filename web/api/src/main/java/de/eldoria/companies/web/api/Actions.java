@@ -721,6 +721,26 @@ public final class Actions {
     public static final String JOBS_AREAS_POST = "jobs.areas.post";
 
     /**
+     * Posts one of the player's drafts on the server whose world holds its area, named by {@code node}.
+     */
+    public static final String JOBS_DRAFTS_POST = "jobs.drafts.post";
+
+    /**
+     * Changes the title, description, price and time of one of the player's drafts.
+     */
+    public static final String JOBS_DRAFTS_EDIT = "jobs.drafts.edit";
+
+    /**
+     * Deletes one of the player's drafts; its stock goes to the player's item returns.
+     */
+    public static final String JOBS_DRAFTS_DELETE = "jobs.drafts.delete";
+
+    /**
+     * Takes what one of the player's supplied drafts still lacks from the player's item returns into its stock.
+     */
+    public static final String JOBS_DRAFTS_SUPPLY = "jobs.drafts.supply";
+
+    /**
      * Draws the top layer of a stored area and lists the schematics a build job on it may use, on the server whose
      * world holds it.
      */
@@ -730,6 +750,12 @@ public final class Actions {
      * Reads the size and the material cost of a schematic, turned, on the server of a stored area.
      */
     public static final String JOBS_AREAS_SCHEMATIC = "jobs.areas.schematic";
+
+    /**
+     * Reads what a dig or terraform job on a stored area would dig out and fill in, and what that is worth, on the
+     * server whose world holds it.
+     */
+    public static final String JOBS_AREAS_MATERIALS = "jobs.areas.materials";
 
     /**
      * Posts a build job of a schematic the owner placed and turned on a stored area, on the server whose world holds
@@ -891,8 +917,13 @@ public final class Actions {
             JOBS_AREAS_LIST,
             JOBS_AREAS_DELETE,
             JOBS_AREAS_POST,
+            JOBS_DRAFTS_POST,
+            JOBS_DRAFTS_EDIT,
+            JOBS_DRAFTS_DELETE,
+            JOBS_DRAFTS_SUPPLY,
             JOBS_AREAS_PREVIEW,
             JOBS_AREAS_SCHEMATIC,
+            JOBS_AREAS_MATERIALS,
             JOBS_AREAS_BUILD,
             ADMIN_JOBS_DISPUTES,
             ADMIN_JOBS_SETTLE);

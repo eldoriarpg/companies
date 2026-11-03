@@ -11,6 +11,7 @@ import de.eldoria.companies.data.wrapper.job.JobArea;
 import org.bukkit.Chunk;
 import org.bukkit.ChunkSnapshot;
 import org.bukkit.HeightMap;
+import org.bukkit.Material;
 import org.bukkit.Server;
 import org.bukkit.World;
 import org.jetbrains.annotations.Nullable;
@@ -235,6 +236,28 @@ public final class AreaWorld {
          * It asks for nothing there.
          */
         record Nothing() implements Placed {}
+    }
+
+    /**
+     * Reads the blocks of an area from snapshots of its chunks, taken without blocking the server, so they can be
+     * counted off the main thread.
+     *
+     * @param area the area
+     * @return a reader of its blocks as they stood, air outside the world's heights, null when its world is not on this
+     *     server
+     */
+    public CompletableFuture<BuildCheck.@Nullable Types> blocks(JobArea area) {
+        return loaded(area, Chunk::getChunkSnapshot).thenApply(loaded -> {
+            if (loaded == null) return null;
+            var chunks = loaded.chunks();
+            var min = loaded.world().getMinHeight();
+            var max = loaded.world().getMaxHeight();
+            return (x, y, z) -> {
+                var chunk = chunks.get(key(x >> 4, z >> 4));
+                if (chunk == null || y < min || y >= max) return Material.AIR;
+                return chunk.getBlockType(x & 15, y, z & 15);
+            };
+        });
     }
 
     /**

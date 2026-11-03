@@ -57,6 +57,46 @@ test.describe('jobs', () => {
         await expect(jobPage(page, info).getByTestId('job-description')).toHaveText('Stone, three blocks deep.')
     })
 
+    test('save a contract as a draft, change it and post it', async ({page}, info) => {
+        await openDashboard(page, 'JOBS01')
+        await openFromMenu(page, info, 'Jobs')
+        await page.getByTestId('contract-open').click()
+
+        const form = page.getByTestId('contract-form')
+        await form.getByLabel('Title').fill('Build a well')
+        await form.getByLabel('What should be done').fill('Stone, three blocks deep.')
+        await form.getByLabel('Price').fill('90')
+        await form.getByTestId('contract-draft').click()
+
+        await expect(page.getByTestId('jobs-mine').getByText('Build a well')).toBeVisible()
+        const detail = jobPage(page, info)
+        await expect(detail.getByTestId('job-draft')).toBeVisible()
+        await detail.getByTestId('job-edit').click()
+        await detail.getByLabel('Title').fill('Build a deep well')
+        await detail.getByLabel('Hours to finish once taken').fill('48')
+        await detail.getByTestId('job-edit').click()
+        await expect(page.getByTestId('jobs-mine').getByText('Build a deep well')).toBeVisible()
+        await detail.getByTestId('job-post').click()
+        await expect(detail.getByTestId('job-draft')).toHaveCount(0)
+        await expect(detail.getByTestId('job-cancel')).toBeVisible()
+    })
+
+    test('delete a draft and it leaves the list', async ({page}, info) => {
+        await openDashboard(page, 'JOBS01')
+        await openFromMenu(page, info, 'Jobs')
+        await page.getByTestId('contract-open').click()
+        const form = page.getByTestId('contract-form')
+        await form.getByLabel('Title').fill('Dig a pond')
+        await form.getByLabel('What should be done').fill('Round, two deep.')
+        await form.getByLabel('Price').fill('40')
+        await form.getByTestId('contract-draft').click()
+        await expect(page.getByTestId('jobs-mine').getByText('Dig a pond')).toBeVisible()
+
+        await jobPage(page, info).getByTestId('job-remove').click()
+
+        await expect(page.getByTestId('jobs-mine').getByText('Dig a pond')).toHaveCount(0)
+    })
+
     test('post a terraform job on a stored area', async ({page}, info) => {
         await openDashboard(page, 'JOBS01')
         await openFromMenu(page, info, 'Jobs')
@@ -68,9 +108,33 @@ test.describe('jobs', () => {
         await form.getByLabel('Title').fill('Level the field')
         await form.getByLabel('Price').fill('120')
         await form.getByLabel('Height of the top solid block').fill('68')
+        await form.getByTestId('job-areas-below-materials').getByRole('checkbox').check()
         await form.getByTestId('job-areas-post').click()
 
         await expect(page.getByTestId('jobs-mine').getByText('Level the field')).toBeVisible()
+    })
+
+    test('post a terraform job whose fill the owner supplies and whose dug blocks go to the stock', async ({page}, info) => {
+        await openDashboard(page, 'JOBS01')
+        await openFromMenu(page, info, 'Jobs')
+        const areas = page.getByTestId('job-areas')
+        await areas.getByTestId('job-areas-open-field').click()
+
+        const form = areas.getByTestId('job-areas-form')
+        await form.getByLabel('Kind').selectOption('terraform')
+        await form.getByLabel('Title').fill('Level the hill')
+        await form.getByLabel('Price').fill('100')
+        await form.getByLabel('Height of the top solid block').fill('68')
+        await expect(form.getByTestId('job-areas-cost')).toContainText('150')
+        await expect(form.getByTestId('job-areas-post')).toBeDisabled()
+        await form.getByTestId('job-areas-fill').getByRole('checkbox').check()
+        await expect(form.getByTestId('job-areas-below-materials')).toBeHidden()
+        await form.getByTestId('job-areas-dug').getByRole('checkbox').check()
+        await form.getByTestId('job-areas-post').click()
+
+        const detail = jobPage(page, info)
+        await expect(detail.getByTestId('job-materials')).toContainText('dirt')
+        await expect(detail.getByTestId('job-missing')).toContainText('150')
     })
 
     test('place a schematic on a stored area and post a build job below its cost', async ({page}, info) => {
@@ -95,6 +159,35 @@ test.describe('jobs', () => {
         await form.getByTestId('job-areas-post').click()
 
         await expect(page.getByTestId('jobs-mine').getByText('A small barn')).toBeVisible()
+    })
+
+    test('save a supplied build job, take its materials from the returns and post it', async ({page}, info) => {
+        await openDashboard(page, 'JOBS01')
+        await openFromMenu(page, info, 'Jobs')
+        const areas = page.getByTestId('job-areas')
+        await areas.getByTestId('job-areas-open-field').click()
+
+        const form = areas.getByTestId('job-areas-form')
+        await form.getByLabel('Kind').selectOption('build')
+        await form.getByLabel('Schematic').selectOption('barn')
+        await form.getByTestId('area-map').focus()
+        await page.keyboard.press('ArrowRight')
+        await form.getByLabel('Title').fill('A supplied barn')
+        await form.getByLabel('Price').fill('100')
+        await form.getByTestId('job-areas-supplied').getByRole('checkbox').check()
+        await expect(form.getByTestId('job-areas-below')).toBeHidden()
+        await expect(form.getByTestId('job-areas-unmakeable')).toContainText('spawner')
+        await form.getByTestId('job-areas-post').click()
+
+        const detail = jobPage(page, info)
+        await expect(detail.getByTestId('job-missing')).toContainText('40')
+        await expect(detail.getByTestId('job-post')).toBeDisabled()
+        await detail.getByTestId('job-supply').click()
+        await expect(detail.getByTestId('job-missing')).toContainText('Nothing is missing')
+        await expect(detail.getByTestId('job-supply')).toBeHidden()
+        await detail.getByTestId('job-post').click()
+
+        await expect(detail.getByTestId('job-missing')).toBeHidden()
     })
 
     test('take an open contract for the company and say it is done', async ({page}, info) => {

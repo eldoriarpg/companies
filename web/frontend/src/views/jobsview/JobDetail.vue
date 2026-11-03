@@ -9,12 +9,15 @@ import PrimaryButton from '@/components/button/PrimaryButton.vue'
 import SecondaryButton from '@/components/button/SecondaryButton.vue'
 import FigureValue from '@/components/display/FigureValue.vue'
 import ActionNotice from '@/components/feedback/ActionNotice.vue'
+import DecimalInput from '@/components/input/DecimalInput.vue'
 import NumberInput from '@/components/input/NumberInput.vue'
+import TextInput from '@/components/input/TextInput.vue'
+import MaterialList from './MaterialList.vue'
 import TextAreaInput from '@/components/input/TextAreaInput.vue'
 import MutedText from '@/components/typography/MutedText.vue'
 import SectionHeader from '@/components/typography/SectionHeader.vue'
 import {count, dateTime, money} from '~/util/format'
-import {jobSteps, needsHours, needsText, warns, type JobStep} from '~/util/jobs'
+import {jobSteps, lacking, needsHours, needsText, warns, type JobStep} from '~/util/jobs'
 
 /**
  * A job with the steps the player may take on it. A step that needs a reason, a description or a number of hours asks
@@ -30,6 +33,8 @@ const emit = defineEmits<{
   changed: [details: JobDetails]
   /** The plugin refused a step, so the job is read again. */
   stale: [job: number]
+  /** The job is gone, such as a deleted draft. */
+  removed: [job: number]
 }>()
 
 const {t, locale} = useI18n()
@@ -39,17 +44,24 @@ const steps = computed(() => jobSteps(props.details))
 const writing = ref<JobStep | null>(null)
 const text = ref('')
 const hours = ref<number | undefined>()
+const title = ref('')
+const price = ref<number | undefined>()
 
 /**
  * @param step a step
- * @returns whether the step waits for hours the job may still get before it is sent
+ * @returns whether the step waits for hours the job may still get, or for materials a supplied draft lacks, before it is sent
  */
 function blocked(step: JobStep): boolean {
+  if (step === 'post' && lacking(props.details)) return true
+  if (step === 'edit' && writing.value === 'edit') {
+    return title.value.trim() === '' || (price.value ?? 0) <= 0 || (hours.value ?? 0) < 1
+  }
   if (writing.value !== step || !needsHours(step)) return false
   const value = hours.value ?? 0
   return value < 1 || value > (props.details.hoursLeft ?? 0)
 }
 const stock = computed(() => Object.entries(props.details.stock))
+const missing = computed(() => Object.entries(props.details.missing ?? {}))
 const finishInGame = computed(() => job.value.ours && job.value.state === 'taken' && job.value.kind !== 'contract' && job.value.kind !== 'harvest')
 
 watch(() => job.value.id, () => {
@@ -103,10 +115,26 @@ function send(step: JobStep, id: number, written: string): Promise<JobDetails | 
       return action.run('jobs.cancel.refuse', {job: id})
     case 'collect':
       return action.run('jobs.collect', {job: id})
+    case 'post':
+      return action.run('jobs.drafts.post', {id, ...(job.value.node ? {node: job.value.node} : {})})
+    case 'edit':
+      return action.run('jobs.drafts.edit', {id, title: title.value.trim(), description: text.value, price: price.value ?? 0, hours: hours.value ?? 0})
+    case 'remove':
+      return action.run('jobs.drafts.delete', {id}).then(() => null)
+    case 'supply':
+      return action.run('jobs.drafts.supply', {id})
   }
 }
 
 async function take(step: JobStep): Promise<void> {
+  if (step === 'edit' && writing.value !== step) {
+    writing.value = step
+    title.value = job.value.title
+    price.value = job.value.price
+    hours.value = job.value.dueHours ?? undefined
+    text.value = props.details.description ?? ''
+    return
+  }
   if ((needsText(step) || needsHours(step)) && writing.value !== step) {
     writing.value = step
     text.value = step === 'describe' ? (props.details.description ?? '') : ''
@@ -118,6 +146,8 @@ async function take(step: JobStep): Promise<void> {
   if (result) {
     writing.value = null
     emit('changed', result)
+  } else if (step === 'remove' && !action.problem.value) {
+    emit('removed', id)
   } else if (action.problem.value?.kind === 'refused') {
     emit('stale', id)
   }
@@ -156,7 +186,7 @@ async function take(step: JobStep): Promise<void> {
     </section>
     <MutedText v-if="job.state === 'disputed'" tag="p" data-testid="job-dispute-reason">{{ t('jobs.dispute', {reason: details.dispute ?? ''}) }}</MutedText>
     <MutedText v-if="job.state === 'settled' && details.settled != null" tag="p">{{ t('jobs.settled', {percent: details.settled}) }}</MutedText>
-    <section v-if="stock.length > 0" class="flex flex-col gap-2" data-testid="job-stock">
+    <section v-if="stock.length > 0 && (job.kind === 'harvest' || details.dugToStock)" class="flex flex-col gap-2" data-testid="job-stock">
       <SectionHeader>{{ t('jobs.stock') }}</SectionHeader>
       <ul class="m-0 list-none border border-line bg-ground px-3 py-0.5">
         <li v-for="[material, amount] in stock" :key="material" class="flex justify-between gap-3 border-b border-line-soft py-2 text-sm last:border-b-0">
@@ -176,6 +206,15 @@ async function take(step: JobStep): Promise<void> {
         :max="details.hoursLeft ?? 0"
         data-testid="job-hours"
     />
+    <template v-if="writing === 'edit'">
+      <TextInput v-model="title" :label="t('jobs.contract.name')" :maxlength="64" data-testid="draft-title"/>
+      <DecimalInput v-model="price" :label="t('jobs.contract.price')" :min="0.01" data-testid="draft-price"/>
+      <NumberInput v-model="hours" :label="t('jobs.contract.hours')" :min="1" data-testid="draft-hours"/>
+      <TextAreaInput v-model="text" :label="t('jobs.contract.description')" :maxlength="512" :rows="3" data-testid="draft-description"/>
+    </template>
+    <MutedText v-if="details.dugToStock || details.fill" tag="p" data-testid="job-materials">{{ [details.dugToStock ? t('jobs.dugNote') : '', details.fill ? t('jobs.fillNote', {block: details.fill.toLowerCase()}) : ''].filter(Boolean).join(' ') }}</MutedText>
+    <MutedText v-if="job.state === 'draft'" tag="p" data-testid="job-draft">{{ t(details.supplied ? 'jobs.suppliedNote' : 'jobs.draftNote', {id: job.id}) }}</MutedText>
+    <MaterialList v-if="details.missing" :title="t('jobs.missing')" :items="missing" :empty="t('jobs.nothingMissing')" test-id="job-missing"/>
     <TextAreaInput
         v-if="writing && needsText(writing)"
         v-model="text"

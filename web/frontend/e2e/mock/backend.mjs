@@ -638,7 +638,7 @@ function jobsOf(state) {
  */
 function jobRow(job) {
     const row = {...job}
-    for (const field of ['description', 'dispute', 'disputeByOwner', 'rejected', 'request', 'extendedHours', 'requestsLeft', 'cancelAsked']) delete row[field]
+    for (const field of ['description', 'missing', 'supplied', 'dugToStock', 'fill', 'dispute', 'disputeByOwner', 'rejected', 'request', 'extendedHours', 'requestsLeft', 'cancelAsked']) delete row[field]
     return row
 }
 
@@ -662,9 +662,13 @@ function jobDetails(job) {
         hoursLeft: job.state === 'taken' ? 312 - (job.extendedHours ?? 0) : 0,
         requestsLeft: job.state === 'taken' ? (job.requestsLeft ?? 3) : 0,
         request: job.state === 'taken' ? (job.request ?? null) : null,
-        materialCost: job.kind === 'build' ? {total: 1840, unpriced: 0} : null,
+        materialCost: job.kind === 'build' && !job.supplied ? {total: 1840, unpriced: 0} : null,
         progress: job.state === 'taken' && job.kind !== 'contract' && job.kind !== 'harvest' ? {percent: 40, done: 400, total: 1000} : null,
         cancelAsked: job.state === 'taken' && Boolean(job.cancelAsked),
+        supplied: Boolean(job.supplied),
+        dugToStock: Boolean(job.dugToStock),
+        fill: job.fill ?? null,
+        missing: job.mine && job.supplied && job.state === 'draft' ? job.missing : null,
         reviews: job.rejected ? [{kind: 'done', reason: null, at: '2026-11-01T10:00:00Z'}, {kind: 'rejected', reason: job.rejected, at: '2026-11-01T12:00:00Z'}] : [],
     }
 }
@@ -765,7 +769,7 @@ function schematicList(state) {
  */
 function areaList(state) {
     state.areas ??= [{name: 'field', node: '00000000-0000-0000-0000-000000000001', world: 'world', center: '10 70 -4', width: 9, height: 4, length: 9, blocks: 324}]
-    return {max: 10, areas: state.areas}
+    return {max: 10, areas: state.areas, dugToStock: true, suppliedFill: true}
 }
 
 /**
@@ -941,9 +945,35 @@ function action(name, args, state, story = {}) {
             return jobsOf(state)[args.job] ? done(jobDetails(jobsOf(state)[args.job])) : refused(`There is no job #${args.job}.`)
         case 'jobs.contract': {
             const id = 20
-            jobsOf(state)[id] = {id, kind: 'contract', state: 'open', title: args.title, price: args.price, fee: 5, expires: '2026-11-06T12:00:00Z', blocks: 0, mine: true, ours: false, description: args.description}
+            jobsOf(state)[id] = args.draft
+                ? {id, kind: 'contract', state: 'draft', title: args.title, price: args.price, fee: 0, blocks: 0, mine: true, ours: false, description: args.description, node: '00000000-0000-0000-0000-000000000001'}
+                : {id, kind: 'contract', state: 'open', title: args.title, price: args.price, fee: 5, expires: '2026-11-06T12:00:00Z', blocks: 0, mine: true, ours: false, description: args.description}
             return done(jobDetails(jobsOf(state)[id]))
         }
+        case 'jobs.drafts.post': {
+            const draft = jobsOf(state)[args.id]
+            if (draft?.state !== 'draft') return refused('You have no draft with this number.')
+            if (draft.supplied && Object.keys(draft.missing).length > 0) return refused('The stock still lacks materials.')
+            Object.assign(draft, {state: 'open', fee: 5, expires: '2026-11-06T12:00:00Z', node: undefined})
+            return done(jobDetails(draft))
+        }
+        case 'jobs.drafts.edit': {
+            const draft = jobsOf(state)[args.id]
+            if (draft?.state !== 'draft') return refused('You have no draft with this number.')
+            Object.assign(draft, {title: args.title, price: args.price})
+            return done(jobDetails(draft))
+        }
+        case 'jobs.drafts.supply': {
+            const draft = jobsOf(state)[args.id]
+            if (draft?.state !== 'draft') return refused('You have no draft with this number.')
+            if (!draft.supplied) return refused(`Job #${args.id} does not take its materials from you.`)
+            draft.missing = {}
+            return done(jobDetails(draft))
+        }
+        case 'jobs.drafts.delete':
+            if (jobsOf(state)[args.id]?.state !== 'draft') return refused('You have no draft with this number.')
+            delete jobsOf(state)[args.id]
+            return done({id: args.id})
         case 'jobs.cancel':
             if (jobsOf(state)[args.job]?.state === 'taken') return cancelAsk(state, args, done, refused)
             return jobStep(state, name, args, done, refused)
@@ -984,19 +1014,29 @@ function action(name, args, state, story = {}) {
         }
         case 'jobs.areas.schematic':
             return args.schematic === 'barn'
-                ? done({width: args.rotation % 180 === 0 ? 5 : 3, height: 4, length: args.rotation % 180 === 0 ? 3 : 5, blocks: 48, cost: 150, unpriced: 0})
+                ? done({width: args.rotation % 180 === 0 ? 5 : 3, height: 4, length: args.rotation % 180 === 0 ? 3 : 5, blocks: 48, cost: 150, unpriced: 0, unmakeable: ['spawner']})
                 : refused(`There is no readable schematic ${args.schematic}.`)
         case 'jobs.areas.build': {
-            if (args.price < 150 && !args.confirm) return refused('The price is below what the blocks of this schematic cost.')
+            if (args.price < 150 && !args.confirm && !args.supplied) return refused('The price is below what the blocks of this schematic cost.')
             const id = 22
+            if (args.supplied) {
+                jobsOf(state)[id] = {id, kind: 'build', state: 'draft', title: args.title, price: args.price, fee: 0, blocks: 60, world: 'world', center: '10 70 -4', node: 'survival', mine: true, ours: false,
+                    supplied: true, missing: {OAK_PLANKS: 40, GLASS: 6}}
+                return done(jobDetails(jobsOf(state)[id]))
+            }
             jobsOf(state)[id] = {id, kind: 'build', state: 'open', title: args.title, price: args.price, fee: 5, expires: '2026-11-06T12:00:00Z', blocks: 60, world: 'world', center: '10 70 -4', mine: true, ours: false}
             return done(jobDetails(jobsOf(state)[id]))
         }
+        case 'jobs.areas.materials':
+            return done({dugValue: 40, dugBlocks: 20, fillCost: args.kind === 'terraform' ? 300 : 0, fillBlocks: args.kind === 'terraform' ? 150 : 0, unpriced: 0, dugToStock: true, suppliedFill: true})
         case 'jobs.areas.post': {
             const area = areaList(state).areas.find(stored => stored.name === args.area)
             if (!area) return refused(`You have no area ${args.area}.`)
+            if (args.kind === 'terraform' && !args.fill && !args.confirm && args.price < 260) return refused('What the company has to bring, less what it keeps, is worth more than the price.')
             const id = 21
-            jobsOf(state)[id] = {id, kind: args.kind, state: 'open', title: args.title, price: args.price, fee: 5, expires: '2026-11-06T12:00:00Z', blocks: area.blocks, world: area.world, center: area.center, mine: true, ours: false}
+            const supplied = Boolean(args.fill)
+            jobsOf(state)[id] = {id, kind: args.kind, state: supplied ? 'draft' : 'open', title: args.title, price: args.price, fee: supplied ? 0 : 5, expires: '2026-11-06T12:00:00Z', blocks: area.blocks, world: area.world, center: area.center, mine: true, ours: false,
+                supplied, missing: supplied ? {[args.fill.toUpperCase()]: 150} : undefined, dugToStock: Boolean(args.dugToStock), fill: supplied ? args.fill.toUpperCase() : null}
             return done(jobDetails(jobsOf(state)[id]))
         }
         case 'jobs.collect': {

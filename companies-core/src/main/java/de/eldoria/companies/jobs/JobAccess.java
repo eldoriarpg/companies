@@ -49,6 +49,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -96,7 +97,10 @@ import java.util.logging.Logger;
  * measuring ended. Only the working company may place blocks or empty buckets in a taken job's area, so nobody fills it
  * up while it is worked on. In a build job's area it may place only the block the blueprint asks for at a position, and
  * the blocks of the build whitelist anywhere to build up; a block of the right type placed turned another way is turned
- * as the blueprint asks on the next tick. A land hook whose access reaches beyond the job's area, such as the trust on
+ * as the blueprint asks on the next tick. In the area of a build job whose owner supplies the materials it places only
+ * magic blocks and the job chest, by their own rules, and the blocks of the build whitelist; a block placed from the
+ * stock counts as placed until a member breaks it again, and anyone else may break it without undoing that. A land
+ * hook whose access reaches beyond the job's area, such as the trust on
  * a whole plot, is held to the area: players who only have access through a job may not break, place, use buckets, use
  * blocks or touch entities outside the areas of the jobs they work on, though they may still open doors, use the item
  * in their hand and fight monsters. A disputed job's area is frozen until an admin settles it: nobody has access
@@ -133,6 +137,7 @@ public final class JobAccess implements Listener {
     private final Map<Work, Map<String, Integer>> harvested = new ConcurrentHashMap<>();
     private final Map<Integer, Set<Long>> placed = new ConcurrentHashMap<>();
     private final Map<Integer, Set<Long>> filled = new ConcurrentHashMap<>();
+    private final Map<Integer, Set<Long>> supplied = new ConcurrentHashMap<>();
     private final Map<JobMark, Boolean> marks = new ConcurrentHashMap<>();
     private final Set<Integer> cleared = ConcurrentHashMap.newKeySet();
     private final Set<Integer> measured = ConcurrentHashMap.newKeySet();
@@ -145,6 +150,9 @@ public final class JobAccess implements Listener {
     private volatile ScheduledExecutorService executor;
     private volatile Supplier<Set<Material>> whitelist = () -> Set.of(Material.SCAFFOLDING);
     private volatile BiConsumer<Player, Blueprint.@Nullable Want> refused = (player, want) -> {};
+    private volatile Consumer<Player> onlyMagic = player -> {};
+    private volatile boolean loaded;
+    private volatile BiConsumer<Job, Block> digging = (job, block) -> {};
 
     /**
      * @param jobs       job repository
@@ -195,6 +203,26 @@ public final class JobAccess implements Listener {
     }
 
     /**
+     * Sets how a supplied build job is held to its stock: in its area the working company builds with magic blocks,
+     * which place from the stock by their own rules, and places only the blocks of the build whitelist itself.
+     *
+     * @param onlyMagic tells a player who placed or poured anything else that only magic blocks build there
+     */
+    public void supplying(Consumer<Player> onlyMagic) {
+        this.onlyMagic = onlyMagic;
+    }
+
+    /**
+     * Sets what happens to a block a member broke as the job asks, in a job whose owner has the dug blocks go into its
+     * stock; it is called before the block drops.
+     *
+     * @param digging takes the job and the broken block
+     */
+    public void digging(BiConsumer<Job, Block> digging) {
+        this.digging = digging;
+    }
+
+    /**
      * Checks the access now and then regularly, and writes counted work regularly.
      *
      * @param executor runs the checks
@@ -239,7 +267,7 @@ public final class JobAccess implements Listener {
             Set<Integer> held = new HashSet<>();
             Set<Integer> waiting = new HashSet<>();
             for (var job : jobs.access(node)) {
-                if (job.kind() == JobKind.BUILD && !job.state().closed()) building.add(job.id());
+                if (blueprinted(job) && !job.state().closed()) building.add(job.id());
                 if (job.state() == JobState.TAKEN || job.state() == JobState.DONE || job.state() == JobState.DISPUTED) {
                     held.add(job.id());
                 }
@@ -247,7 +275,7 @@ public final class JobAccess implements Listener {
                     digging.add(job.id());
                     if (measure(job)) waiting.add(job.id());
                 }
-                if (job.kind() == JobKind.BUILD && job.state() == JobState.TAKEN) blueprints.of(job.id());
+                if (blueprinted(job) && job.state() == JobState.TAKEN) blueprints.of(job.id());
                 var company = job.company();
                 var taken = job.state() == JobState.TAKEN && company != null;
                 plans.add(new Plan(
@@ -297,11 +325,13 @@ public final class JobAccess implements Listener {
             for (var job : frozen) now.add(new Active(job, Set.of(), Set.of()));
             for (var entry : now) load(entry.job());
             active = List.copyOf(now);
+            loaded = true;
             blueprints.prune(building::contains);
             measured.retainAll(digging);
             tried.retainAll(digging);
             filled.keySet().retainAll(held);
             placed.keySet().retainAll(held);
+            supplied.keySet().retainAll(held);
             owners.keySet().retainAll(held);
             marks.keySet().removeIf(mark -> !held.contains(mark.job()));
             jobs.pruneMarks();
@@ -365,6 +395,7 @@ public final class JobAccess implements Listener {
         var stored = jobs.marks(id, company);
         placed.put(id, copy(stored.get(JobMark.Kind.PLACED)));
         filled.put(id, copy(stored.get(JobMark.Kind.FILLED)));
+        supplied.put(id, copy(stored.get(JobMark.Kind.SUPPLIED)));
         owners.put(id, company);
     }
 
@@ -496,6 +527,7 @@ public final class JobAccess implements Listener {
         marks.keySet().removeIf(mark -> mark.job() == job);
         placed.remove(job);
         filled.remove(job);
+        supplied.remove(job);
         owners.remove(job);
         cleared.add(job);
     }
@@ -516,6 +548,7 @@ public final class JobAccess implements Listener {
             event.setCancelled(true);
             return;
         }
+        if (event instanceof MagicBuilding.Placing) return;
         var misplaced = misplaced(event.getPlayer(), block);
         if (misplaced == null && event instanceof BlockMultiPlaceEvent multi) {
             for (var state : multi.getReplacedBlockStates()) {
@@ -525,7 +558,11 @@ public final class JobAccess implements Listener {
         }
         if (misplaced != null) {
             event.setCancelled(true);
-            refused.accept(event.getPlayer(), misplaced.want());
+            if (misplaced.supplied()) {
+                onlyMagic.accept(event.getPlayer());
+            } else {
+                refused.accept(event.getPlayer(), misplaced.want());
+            }
         }
     }
 
@@ -533,13 +570,19 @@ public final class JobAccess implements Listener {
      * @param player a player placing a block
      * @param block  the block as placed
      * @return what the blueprint asks for at the block's position when the block lies in the area of a taken build job
-     *     the player works on and is neither that nor a block of the build whitelist; null for any other block, a
-     *     blueprint not read yet and a player with the bypass permission
+     *     the player works on and is neither that nor a block of the build whitelist, and any block but those of the
+     *     whitelist in the area of a job whose owner supplies the materials; null for any other block, a blueprint not
+     *     read yet and a player with the bypass permission
      */
     private @Nullable Misplaced misplaced(Player player, Block block) {
         var world = block.getWorld().getName();
         for (var entry : active) {
             var job = entry.job();
+            if (job.kind() == JobKind.TERRAFORM && job.supplied()) {
+                var refused = filling(entry, player, block);
+                if (refused != null) return refused;
+                continue;
+            }
             if (job.kind() != JobKind.BUILD
                     || job.state() != JobState.TAKEN
                     || !job.area().contains(world, block.getX(), block.getY(), block.getZ())
@@ -550,11 +593,56 @@ public final class JobAccess implements Listener {
             if (blueprint.isEmpty()) return null;
             var want = blueprint.get().want(job.area(), block.getX(), block.getY(), block.getZ());
             var type = block.getType();
-            if ((want != null && want.type() == type) || whitelist.get().contains(type)) return null;
             if (player.hasPermission(Permission.Admin.JOBS_BYPASS)) return null;
-            return new Misplaced(want);
+            if (job.supplied() && counted(job.id(), key(block))) return new Misplaced(want, true);
+            if (whitelist.get().contains(type)) return null;
+            if (job.supplied()) return new Misplaced(want, true);
+            if (want != null && want.type() == type) return null;
+            return new Misplaced(want, false);
         }
         return null;
+    }
+
+    /**
+     * @param entry  a taken terraform job whose owner supplies the fill
+     * @param player a player placing a block
+     * @param block  the block as placed
+     * @return the fill block asked for when a member places anything else than the whitelist where the fill goes or a
+     *     block from the stock counts; null anywhere else, outside the area and with the bypass permission
+     */
+    private @Nullable Misplaced filling(Active entry, Player player, Block block) {
+        var job = entry.job();
+        if (job.state() != JobState.TAKEN
+                || !job.area().contains(block.getWorld().getName(), block.getX(), block.getY(), block.getZ())
+                || !entry.members().contains(player.getUniqueId())
+                || player.hasPermission(Permission.Admin.JOBS_BYPASS)) {
+            return null;
+        }
+        var want = wanted(job, block);
+        if (counted(job.id(), key(block))) return new Misplaced(want, true);
+        if (want == null || whitelist.get().contains(block.getType())) return null;
+        return new Misplaced(want, true);
+    }
+
+    /**
+     * @param job   a job a member broke a block of as it asks
+     * @param block the block, before it is broken
+     * @return whether the block goes into the stock: the job is taken, its owner chose so, and for a build job the
+     *     blueprint digs the position out
+     */
+    private boolean digsToStock(Job job, Block block) {
+        if (!job.materials().dugToStock() || job.state() != JobState.TAKEN) return false;
+        if (job.kind() != JobKind.BUILD) return true;
+        var wanted = wanted(job, block);
+        return wanted != null && wanted.type().isAir();
+    }
+
+    /**
+     * @param job a job
+     * @return whether it has a blueprint: a build job, or a terraform job whose owner supplies the fill
+     */
+    public static boolean blueprinted(Job job) {
+        return job.kind() == JobKind.BUILD || (job.kind() == JobKind.TERRAFORM && job.supplied());
     }
 
     /**
@@ -606,7 +694,8 @@ public final class JobAccess implements Listener {
      * @param player a player
      * @param block  a block
      * @return true when the block lies in the area of a taken build or terraform job the player does not work on, where
-     *     only the working company may break blocks, so nobody undoes its work; never with the bypass permission
+     *     only the working company may break blocks, so nobody undoes its work; never with the bypass permission, and
+     *     never for a block placed from the stock of a supplied job, which stays counted as placed
      */
     private boolean shaping(Player player, Block block) {
         var world = block.getWorld().getName();
@@ -616,6 +705,7 @@ public final class JobAccess implements Listener {
                     && job.state() == JobState.TAKEN
                     && job.area().contains(world, block.getX(), block.getY(), block.getZ())
                     && !entry.members().contains(player.getUniqueId())) {
+                if (job.supplied() && counted(job.id(), key(block))) return false;
                 return !player.hasPermission(Permission.Admin.JOBS_BYPASS);
             }
         }
@@ -630,11 +720,48 @@ public final class JobAccess implements Listener {
      */
     @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
     public void onEmpty(PlayerBucketEmptyEvent event) {
-        if (held(event.getPlayer(), event.getBlock(), true)
-                || (event.getBucket() == Material.LAVA_BUCKET && danger(event.getPlayer(), event.getBlock()))
-                || harvesting(event.getPlayer(), event.getBlock())) {
+        var player = event.getPlayer();
+        if (held(player, event.getBlock(), true)
+                || (event.getBucket() == Material.LAVA_BUCKET && danger(player, event.getBlock()))
+                || harvesting(player, event.getBlock())) {
             event.setCancelled(true);
+            return;
         }
+        if (supplying(player, event.getBlock())) {
+            event.setCancelled(true);
+            onlyMagic.accept(player);
+        }
+    }
+
+    /**
+     * @param player a player
+     * @param block  a block
+     * @return true when the block lies in the area of a taken build job whose owner supplies the materials and the
+     *     player works on it without the bypass permission, so only magic blocks build there
+     */
+    private boolean supplying(Player player, Block block) {
+        return supplied(player, block).isPresent() && !player.hasPermission(Permission.Admin.JOBS_BYPASS);
+    }
+
+    /**
+     * @param player a player
+     * @param block  a block
+     * @return the taken build job whose owner supplies the materials, or terraform job whose owner supplies the fill,
+     *     the player works on and whose area holds the block
+     */
+    public Optional<Active> supplied(Player player, Block block) {
+        var world = block.getWorld().getName();
+        for (var entry : active) {
+            var job = entry.job();
+            if (blueprinted(job)
+                    && job.supplied()
+                    && job.state() == JobState.TAKEN
+                    && job.area().contains(world, block.getX(), block.getY(), block.getZ())
+                    && entry.members().contains(player.getUniqueId())) {
+                return Optional.of(entry);
+            }
+        }
+        return Optional.empty();
     }
 
     /**
@@ -914,6 +1041,7 @@ public final class JobAccess implements Listener {
             }
             if (dug(entry.job(), block)) return;
             pending.merge(new Work(entry.job().id(), company, worker), 1, Integer::sum);
+            if (digsToStock(entry.job(), block)) digging.accept(entry.job(), block);
             return;
         }
     }
@@ -1109,9 +1237,77 @@ public final class JobAccess implements Listener {
      * @return its position packed into one number, as x and z in 26 bits and y in 12 bits each
      */
     static long key(Block block) {
-        return ((long) block.getX() & 0x3FFFFFF) << 38
-                | ((long) block.getZ() & 0x3FFFFFF) << 12
-                | ((long) block.getY() & 0xFFF);
+        return key(block.getX(), block.getY(), block.getZ());
+    }
+
+    /**
+     * @param x x of a block
+     * @param y y of a block
+     * @param z z of a block
+     * @return its position packed into one number, as {@link #key(Block)}
+     */
+    static long key(int x, int y, int z) {
+        return ((long) x & 0x3FFFFFF) << 38 | ((long) z & 0x3FFFFFF) << 12 | ((long) y & 0xFFF);
+    }
+
+    /**
+     * @param job id of a job
+     * @param key a position, as {@link #key(Block)} packs it
+     * @return whether a block was placed there from the job's stock and counts as placed
+     */
+    public boolean counted(int job, long key) {
+        var positions = supplied.get(job);
+        return positions != null && positions.contains(key);
+    }
+
+    /**
+     * Notes a block a member placed from the stock of a supplied job: it counts as placed and, once for each position,
+     * as their work, and breaking it again is no work.
+     *
+     * @param entry  the job
+     * @param block  the block as placed
+     * @param worker the member
+     */
+    public void placedFromStock(Active entry, Block block, UUID worker) {
+        var job = entry.job();
+        var company = job.company();
+        if (company == null) return;
+        var key = key(block);
+        if (supplied.computeIfAbsent(job.id(), id -> ConcurrentHashMap.newKeySet())
+                .add(key)) {
+            mark(job, JobMark.Kind.SUPPLIED, key, true);
+        }
+        if (placed.computeIfAbsent(job.id(), id -> ConcurrentHashMap.newKeySet())
+                .add(key)) {
+            mark(job, JobMark.Kind.PLACED, key, true);
+        }
+        if (filled.computeIfAbsent(job.id(), id -> ConcurrentHashMap.newKeySet())
+                .add(key)) {
+            mark(job, JobMark.Kind.FILLED, key, true);
+            pending.merge(new Work(job.id(), company, worker), 1, Integer::sum);
+        }
+    }
+
+    /**
+     * Opens a position of a supplied job again, as a member broke the block placed there from the stock.
+     *
+     * @param job   the job
+     * @param block the block
+     * @return whether a block placed from the stock counted there
+     */
+    public boolean takenBack(Job job, Block block) {
+        var key = key(block);
+        var positions = supplied.get(job.id());
+        if (positions == null || !positions.remove(key)) return false;
+        mark(job, JobMark.Kind.SUPPLIED, key, false);
+        return true;
+    }
+
+    /**
+     * @return whether a check found the jobs of this server's areas since the plugin started
+     */
+    public boolean loaded() {
+        return loaded;
     }
 
     /**
@@ -1166,7 +1362,7 @@ public final class JobAccess implements Listener {
 
     private record Crops(int job, int company) {}
 
-    private record Misplaced(Blueprint.@Nullable Want want) {}
+    private record Misplaced(Blueprint.@Nullable Want want, boolean supplied) {}
 
     private record Plan(Job job, Set<UUID> members, Set<UUID> before) {}
 

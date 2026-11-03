@@ -14,7 +14,10 @@ import de.eldoria.companies.data.wrapper.job.Job;
 import de.eldoria.companies.data.wrapper.job.JobArea;
 import de.eldoria.companies.data.wrapper.job.JobHarvest;
 import de.eldoria.companies.data.wrapper.job.JobLand;
+import de.eldoria.companies.data.wrapper.job.JobMaterials;
 import de.eldoria.companies.data.wrapper.job.StoredArea;
+import de.eldoria.companies.data.wrapper.order.ReturnKind;
+import de.eldoria.companies.jobs.Blueprint;
 import de.eldoria.companies.jobs.JobService;
 import de.eldoria.companies.util.Permission;
 import de.eldoria.companies.util.Times;
@@ -22,6 +25,8 @@ import de.eldoria.companies.web.api.Actions;
 import de.eldoria.companies.web.api.Protocol;
 import de.eldoria.companies.web.api.action.ActionRequest;
 import de.eldoria.companies.web.api.action.ActionResult;
+import org.bukkit.Material;
+import org.bukkit.inventory.ItemStack;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -80,6 +85,84 @@ class JobWritesTest {
         assertTrue(job.path("mine").asBoolean());
         assertEquals("Paint the barn red", result.data().path("description").asString());
         assertEquals(900.0, world.wallets.get(owner), 0.001);
+    }
+
+    @Test
+    void aContractIsSavedAsADraftThenPostedOrDeleted() {
+        var jobs = Set.of(Permission.Orders.JOBS);
+        var drafted = perform(owner, Actions.JOBS_CONTRACT, draft(contract()), jobs);
+
+        assertTrue(drafted.ok(), drafted.message());
+        var job = drafted.data().path("job");
+        assertEquals("draft", job.path("state").asString());
+        assertTrue(job.path("node").isMissingNode() || job.path("node").isNull());
+        assertEquals(1000.0, world.wallets.get(owner), 0.001);
+        var id = job.path("id").asInt();
+        var edited = perform(
+                owner,
+                Actions.JOBS_DRAFTS_EDIT,
+                "{\"id\":" + id + ",\"title\":\"Paint it blue\",\"price\":120,\"hours\":48}",
+                jobs);
+        assertTrue(edited.ok(), edited.message());
+        assertEquals("Paint it blue", edited.data().path("job").path("title").asString());
+
+        var posted = perform(owner, Actions.JOBS_DRAFTS_POST, "{\"id\":" + id + "}", jobs);
+        assertTrue(posted.ok(), posted.message());
+        assertEquals("open", posted.data().path("job").path("state").asString());
+        assertTrue(world.wallets.get(owner) < 1000.0);
+
+        var second = perform(owner, Actions.JOBS_CONTRACT, draft(contract()), jobs)
+                .data()
+                .path("job")
+                .path("id")
+                .asInt();
+        assertEquals(
+                "order.job.error.noDraft",
+                perform(worker, Actions.JOBS_DRAFTS_DELETE, "{\"id\":" + second + "}", jobs)
+                        .reason());
+        assertTrue(perform(owner, Actions.JOBS_DRAFTS_DELETE, "{\"id\":" + second + "}", jobs)
+                .ok());
+        assertEquals(
+                "order.job.error.noDraft",
+                perform(owner, Actions.JOBS_DRAFTS_POST, "{\"id\":" + second + "}", jobs)
+                        .reason());
+    }
+
+    @Test
+    void aSuppliedDraftTakesItsMaterialsFromTheItemReturns() {
+        var blueprint = Blueprint.of(
+                List.of(new Blueprint.Cell(0, 0, 0, Material.STONE), new Blueprint.Cell(1, 0, 0, Material.STONE)));
+        var draft = ((JobService.Posted.Done) world.jobServices
+                        .service()
+                        .saveDraft(
+                                owner,
+                                JobKind.BUILD,
+                                "Wall",
+                                100,
+                                24,
+                                world.jobServices.node(),
+                                new JobArea("world", 0, 64, 0, 1, 64, 0),
+                                JobService.Details.build(blueprint),
+                                true))
+                .job();
+        var jobs = Set.of(Permission.Orders.JOBS);
+        var info = perform(owner, Actions.JOBS_INFO, "{\"job\":" + draft.id() + "}", jobs);
+        assertTrue(info.data().path("supplied").asBoolean());
+        assertEquals(2, info.data().path("missing").path("STONE").asInt());
+        world.orders
+                .submitItemReturn(owner, ReturnKind.OWNER, new ItemStack(Material.STONE), 5)
+                .asFuture()
+                .join();
+
+        var supplied = perform(owner, Actions.JOBS_DRAFTS_SUPPLY, "{\"id\":" + draft.id() + "}", jobs);
+
+        assertTrue(supplied.ok(), supplied.message());
+        assertTrue(supplied.data().path("missing").isEmpty());
+        assertEquals(2, supplied.data().path("stock").path("STONE").asInt());
+    }
+
+    private static String draft(String args) {
+        return args.substring(0, args.length() - 1) + ",\"draft\":true}";
     }
 
     @Test
@@ -258,6 +341,39 @@ class JobWritesTest {
         assertEquals("error.permission.postJob", forbidden.reason());
         assertEquals(1, deleted.data().path("areas").size());
         assertEquals("error.permission.postJob", hidden.reason());
+    }
+
+    @Test
+    void anAreaJobCountsWhatItDigsAndFillsAndTakesItsMaterialChoices() {
+        world.server.addSimpleWorld("world");
+        world.jobSettings.unownedWorlds(List.of("world"));
+        world.jobs.saveArea(owner, new StoredArea("field", HERE, FIELD), Times.now());
+        var terraform = "\"area\":\"field\",\"kind\":\"terraform\",\"y\":62";
+
+        var counted =
+                perform(owner, Actions.JOBS_AREAS_MATERIALS, "{" + terraform + "}", Set.of(Permission.Orders.JOBS));
+        var posted = perform(
+                owner,
+                Actions.JOBS_AREAS_POST,
+                "{" + terraform + ",\"title\":\"Level\",\"price\":100,\"hours\":24,\"fill\":\"dirt\","
+                        + "\"dugToStock\":true}",
+                Set.of(Permission.Orders.JOBS));
+        world.jobSettings.suppliedFill(false);
+        var refused = perform(
+                owner,
+                Actions.JOBS_AREAS_POST,
+                "{" + terraform + ",\"title\":\"Level\",\"price\":100,\"hours\":24,\"fill\":\"dirt\"}",
+                Set.of(Permission.Orders.JOBS));
+
+        assertEquals(300, counted.data().path("fillBlocks").asInt());
+        assertEquals(0, counted.data().path("dugBlocks").asInt());
+        assertTrue(counted.data().path("suppliedFill").asBoolean());
+        var draft = world.jobs.job(posted.data().path("job").path("id").asInt()).orElseThrow();
+        assertEquals(JobState.DRAFT, draft.state());
+        assertTrue(draft.supplied());
+        assertEquals(new JobMaterials(true, "DIRT"), draft.materials());
+        assertEquals(300, posted.data().path("missing").path("DIRT").asInt());
+        assertEquals("order.job.error.choice", refused.reason());
     }
 
     @Test

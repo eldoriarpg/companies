@@ -19,6 +19,7 @@ import de.eldoria.companies.data.wrapper.job.JobExtension;
 import de.eldoria.companies.data.wrapper.job.JobHarvest;
 import de.eldoria.companies.data.wrapper.job.JobLand;
 import de.eldoria.companies.data.wrapper.job.JobMark;
+import de.eldoria.companies.data.wrapper.job.JobMaterials;
 import de.eldoria.companies.data.wrapper.job.JobReview;
 import de.eldoria.companies.data.wrapper.job.JobReviewEntry;
 import de.eldoria.companies.data.wrapper.job.JobTarget;
@@ -54,7 +55,7 @@ public class MariaDbJobData extends AJobData {
                    min_z, max_x, max_y, max_z, land, land_ref, due_hours, created, expires, taken, due, closed,
                    closed_by, granted, done_at, done_by, rejected, dispute_by, dispute, disputed_at, settled,
                    target_y, target_block, unit_price, paid_cents, extended_hours, extension_requests, extension_hours,
-                   extension_reason, extension_asked, charged, cancel_asked
+                   extension_reason, extension_asked, charged, cancel_asked, supplied, dug_to_stock, fill_block
             FROM jobs
             """;
 
@@ -85,8 +86,8 @@ public class MariaDbJobData extends AJobData {
         var insert = """
                 INSERT INTO jobs(owner_uuid, kind, title, description, price, fee, state, node, world, min_x, min_y,
                                  min_z, max_x, max_y, max_z, land, land_ref, due_hours, created, expires, target_y,
-                                 target_block, unit_price, charged)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                 target_block, unit_price, charged, supplied, dug_to_stock, fill_block)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 RETURNING id""";
         var area = job.area();
         var target = job.target();
@@ -98,7 +99,7 @@ public class MariaDbJobData extends AJobData {
                         .bind(job.description())
                         .bind(job.price())
                         .bind(job.fee())
-                        .bind(JobState.OPEN.name())
+                        .bind(job.state().name())
                         .bind(job.node(), UUID_BYTES)
                         .bind(area.world())
                         .bind(area.minX())
@@ -115,7 +116,10 @@ public class MariaDbJobData extends AJobData {
                         .bind(target == null ? null : target.y())
                         .bind(target == null ? null : target.surface())
                         .bind(harvest == null ? null : harvest.unitPrice())
-                        .bind(job.charged()))
+                        .bind(job.charged())
+                        .bind(job.supplied())
+                        .bind(job.materials().dugToStock())
+                        .bind(job.materials().fill()))
                 .map(row -> row.getInt(1))
                 .first();
     }
@@ -138,8 +142,10 @@ public class MariaDbJobData extends AJobData {
 
     @Override
     public List<Job> ofOwner(UUID owner, int limit) {
-        return query(JOB + "WHERE owner_uuid = ? ORDER BY id DESC LIMIT ?")
-                .single(call().bind(owner, UUID_BYTES).bind(limit))
+        return query(JOB + "WHERE owner_uuid = ? ORDER BY CASE WHEN state = ? THEN 0 ELSE 1 END, id DESC LIMIT ?")
+                .single(call().bind(owner, UUID_BYTES)
+                        .bind(JobState.DRAFT.name())
+                        .bind(limit))
                 .map(this::parse)
                 .all();
     }
@@ -510,11 +516,111 @@ public class MariaDbJobData extends AJobData {
 
     @Override
     public int openOf(UUID owner) {
+        return countOf(owner, JobState.OPEN);
+    }
+
+    @Override
+    public int countOf(UUID owner, JobState state) {
         return query("SELECT COUNT(1) AS count FROM jobs WHERE owner_uuid = ? AND state = ?")
-                .single(call().bind(owner, UUID_BYTES).bind(JobState.OPEN.name()))
+                .single(call().bind(owner, UUID_BYTES).bind(state.name()))
                 .map(row -> row.getInt("count"))
                 .first()
                 .orElse(0);
+    }
+
+    @Override
+    public boolean publish(Job job) {
+        @Language("mariadb")
+        var update = """
+                UPDATE jobs
+                SET state       = ?,
+                    title       = ?,
+                    description = ?,
+                    price       = ?,
+                    fee         = ?,
+                    due_hours   = ?,
+                    charged     = ?,
+                    land        = ?,
+                    land_ref    = ?,
+                    created     = ?,
+                    expires     = ?
+                WHERE id = ?
+                  AND state = ?""";
+        return query(update)
+                .single(call().bind(JobState.OPEN.name())
+                        .bind(job.title())
+                        .bind(job.description())
+                        .bind(job.price())
+                        .bind(job.fee())
+                        .bind(job.dueHours())
+                        .bind(job.charged())
+                        .bind(job.land().name())
+                        .bind(job.landRef())
+                        .bind(job.created(), time())
+                        .bind(job.expires(), time())
+                        .bind(job.id())
+                        .bind(JobState.DRAFT.name()))
+                .update()
+                .changed();
+    }
+
+    @Override
+    public boolean editDraft(int id, String title, @Nullable String description, double price, int dueHours) {
+        @Language("mariadb")
+        var update = """
+                UPDATE jobs
+                SET title       = ?,
+                    description = ?,
+                    price       = ?,
+                    due_hours   = ?
+                WHERE id = ?
+                  AND state = ?""";
+        return query(update)
+                .single(call().bind(title)
+                        .bind(description)
+                        .bind(price)
+                        .bind(dueHours)
+                        .bind(id)
+                        .bind(JobState.DRAFT.name()))
+                .update()
+                .changed();
+    }
+
+    @Override
+    public boolean deleteDraft(int id) {
+        var errors = new ArrayList<SQLException>();
+        var conf = Transactions.open(errors);
+        try (conf) {
+            if (!lockDraft(conf, id, false) || !errors.isEmpty()) {
+                Transactions.rollback(conf, errors);
+                return false;
+            }
+            var stocked = conf.query("SELECT COUNT(*) AS stocked FROM job_stock WHERE job_id = ? AND amount > 0")
+                    .single(call().bind(id))
+                    .map(row -> row.getInt("stocked"))
+                    .first()
+                    .orElse(0);
+            if (stocked > 0) {
+                Transactions.rollback(conf, errors);
+                return false;
+            }
+            var deleted = conf.query("DELETE FROM jobs WHERE id = ? AND state = ?")
+                    .single(call().bind(id).bind(JobState.DRAFT.name()))
+                    .delete()
+                    .changed();
+            if (!deleted) return false;
+            conf.query("DELETE FROM job_blueprints WHERE job_id = ?")
+                    .single(call().bind(id))
+                    .delete();
+            conf.query("DELETE FROM job_stock WHERE job_id = ?")
+                    .single(call().bind(id))
+                    .delete();
+            if (!errors.isEmpty()) {
+                Transactions.rollback(conf, errors);
+                return false;
+            }
+            return true;
+        }
     }
 
     @Override
@@ -801,6 +907,54 @@ public class MariaDbJobData extends AJobData {
         }
     }
 
+    @Override
+    public Optional<Map<String, Integer>> supply(int job, Map<String, Integer> needs, Map<String, Integer> offered) {
+        var errors = new ArrayList<SQLException>();
+        var conf = Transactions.open(errors);
+        Map<String, Integer> taken = new LinkedHashMap<>();
+        try (conf) {
+            if (!lockDraft(conf, job, true) || !errors.isEmpty()) {
+                Transactions.rollback(conf, errors);
+                return Optional.empty();
+            }
+            Map<String, Integer> stock = new LinkedHashMap<>();
+            conf.query("SELECT material, amount FROM job_stock WHERE job_id = ?")
+                    .single(call().bind(job))
+                    .map(row -> Map.entry(row.getString("material"), row.getInt("amount")))
+                    .all()
+                    .forEach(entry -> stock.put(entry.getKey(), entry.getValue()));
+            offered.forEach((material, amount) -> {
+                var take = Math.min(amount, needs.getOrDefault(material, 0) - stock.getOrDefault(material, 0));
+                if (take > 0) taken.put(material, take);
+            });
+            addStock(conf, job, taken);
+            if (!errors.isEmpty()) {
+                Transactions.rollback(conf, errors);
+                return Optional.empty();
+            }
+        }
+        return Optional.of(taken);
+    }
+
+    /**
+     * Locks the row of a draft until the transaction ends.
+     *
+     * @param conf         open transaction
+     * @param job          id of the draft
+     * @param suppliedOnly whether only a draft whose owner supplies the materials counts
+     * @return true when the job is such a draft
+     */
+    protected boolean lockDraft(ConnectedQueryConfiguration conf, int job, boolean suppliedOnly) {
+        @Language("mariadb")
+        var query = "SELECT id FROM jobs WHERE id = ? AND state = ?" + (suppliedOnly ? " AND supplied" : "")
+                + " FOR UPDATE";
+        return conf.query(query)
+                .single(call().bind(job).bind(JobState.DRAFT.name()))
+                .map(row -> row.getInt("id"))
+                .first()
+                .isPresent();
+    }
+
     private static void addStock(ConnectedQueryConfiguration conf, int job, Map<String, Integer> items) {
         for (var item : items.entrySet()) {
             if (item.getValue() <= 0) continue;
@@ -984,7 +1138,9 @@ public class MariaDbJobData extends AJobData {
                         row.getObject("extension_hours") == null ? null : row.getInt("extension_hours"),
                         row.getString("extension_reason"),
                         readTime(row, "extension_asked")),
-                row.getBoolean("charged"));
+                row.getBoolean("charged"),
+                row.getBoolean("supplied"),
+                new JobMaterials(row.getBoolean("dug_to_stock"), row.getString("fill_block")));
     }
 
     @Override

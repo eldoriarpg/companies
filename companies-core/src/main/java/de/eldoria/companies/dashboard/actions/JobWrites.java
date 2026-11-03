@@ -10,17 +10,21 @@ import de.eldoria.companies.components.company.CompanyPermission;
 import de.eldoria.companies.components.job.JobKind;
 import de.eldoria.companies.components.job.JobState;
 import de.eldoria.companies.configuration.elements.jobs.JobSettings;
+import de.eldoria.companies.data.repository.AOrderData;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.dashboard.StoredSession;
 import de.eldoria.companies.data.wrapper.job.Job;
 import de.eldoria.companies.data.wrapper.job.JobArea;
 import de.eldoria.companies.data.wrapper.job.JobLand;
+import de.eldoria.companies.data.wrapper.job.JobMaterials;
 import de.eldoria.companies.data.wrapper.job.JobReview;
 import de.eldoria.companies.data.wrapper.job.JobTarget;
 import de.eldoria.companies.data.wrapper.job.StoredArea;
 import de.eldoria.companies.jobs.AreaChecks;
+import de.eldoria.companies.jobs.AreaMaterials;
 import de.eldoria.companies.jobs.AreaWorld;
 import de.eldoria.companies.jobs.Blueprint;
+import de.eldoria.companies.jobs.BlueprintItems;
 import de.eldoria.companies.jobs.JobService;
 import de.eldoria.companies.jobs.JobServices;
 import de.eldoria.companies.jobs.SchematicUploads;
@@ -31,6 +35,7 @@ import de.eldoria.companies.web.api.Actions;
 import de.eldoria.companies.web.api.action.ActionRequest;
 import de.eldoria.companies.web.api.action.ActionResult;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
+import org.bukkit.Material;
 import org.jetbrains.annotations.Nullable;
 import tools.jackson.databind.JsonNode;
 
@@ -94,7 +99,12 @@ public final class JobWrites {
             Actions.JOBS_AREAS_POST,
             Actions.JOBS_AREAS_PREVIEW,
             Actions.JOBS_AREAS_SCHEMATIC,
-            Actions.JOBS_AREAS_BUILD);
+            Actions.JOBS_AREAS_MATERIALS,
+            Actions.JOBS_AREAS_BUILD,
+            Actions.JOBS_DRAFTS_POST,
+            Actions.JOBS_DRAFTS_EDIT,
+            Actions.JOBS_DRAFTS_DELETE,
+            Actions.JOBS_DRAFTS_SUPPLY);
 
     /**
      * The most jobs of each list.
@@ -206,7 +216,12 @@ public final class JobWrites {
             case Actions.JOBS_AREAS_POST -> postOnArea(request, jobs, session, args);
             case Actions.JOBS_AREAS_PREVIEW -> preview(request, jobs, session, args);
             case Actions.JOBS_AREAS_SCHEMATIC -> schematicFit(request, jobs, session, args);
+            case Actions.JOBS_AREAS_MATERIALS -> areaMaterials(request, jobs, session, args);
             case Actions.JOBS_AREAS_BUILD -> build(request, jobs, session, args);
+            case Actions.JOBS_DRAFTS_POST -> postDraft(request, jobs, session, args);
+            case Actions.JOBS_DRAFTS_EDIT -> editDraft(request, jobs, player, args);
+            case Actions.JOBS_DRAFTS_DELETE -> deleteDraft(request, jobs, player, args);
+            case Actions.JOBS_DRAFTS_SUPPLY -> supply(request, jobs, player, args);
             case Actions.JOBS_CANCEL_ACCEPT ->
                 forCompany(
                         request,
@@ -321,6 +336,23 @@ public final class JobWrites {
             if (last.isEmpty()) return answers.refused(request, OWNER + "error.noPlace");
             place = last.get();
         }
+        if (args.path("draft").asBoolean(false)) {
+            return posted(
+                    request,
+                    jobs,
+                    session.player(),
+                    JobKind.CONTRACT,
+                    jobs.service()
+                            .saveDraft(
+                                    session.player(),
+                                    JobKind.CONTRACT,
+                                    title,
+                                    args.path("price").asDouble(0),
+                                    args.path("hours").asInt(0),
+                                    node,
+                                    place,
+                                    JobService.Details.contract(description)));
+        }
         var posted = jobs.service()
                 .post(
                         session.player(),
@@ -404,7 +436,9 @@ public final class JobWrites {
                                     area.maxZ() - area.minZ() + 1,
                                     area.volume());
                         })
-                        .toList());
+                        .toList(),
+                sources.settings().get().dugToStock(),
+                sources.settings().get().suppliedFill());
     }
 
     /**
@@ -445,7 +479,136 @@ public final class JobWrites {
                 return answers.refused(request, "dashboard.unsupported");
             }
         }
-        return checkedPost(request, jobs, session.player(), kind, area, args, details);
+        if (kind == JobKind.HARVEST) return checkedPost(request, jobs, session.player(), kind, area, args, details);
+        var fill = fillBlock(args);
+        var unfit = fill.refused();
+        if (unfit != null) return answers.refused(request, unfit);
+        var dugToStock = args.path("dugToStock").asBoolean(false);
+        var supplied = fill.chosen();
+        AreaMaterials scanned = null;
+        if (kind == JobKind.TERRAFORM) {
+            var read = scan(jobs, kind, area, details.target(), fill.block());
+            if (read.failed()) return answers.refused(request, OWNER + "error.failed");
+            scanned = read.materials();
+            if (scanned == null) {
+                return answers.refused(
+                        request, CommandFailure.of(OWNER + "error.noWorld", Values.text("world", area.world())));
+            }
+            var cost = cost(jobs, scanned, dugToStock, supplied);
+            if (cost > args.path("price").asDouble(0) && !args.path("confirm").asBoolean(false)) {
+                return answers.refused(
+                        request, CommandFailure.of(OWNER + "error.belowMaterials", Values.number("cost", cost)));
+            }
+        }
+        var materials = new JobMaterials(dugToStock, supplied ? fill.block().name() : null);
+        var blueprint = supplied && scanned != null ? scanned.blueprint(area) : null;
+        if (supplied && blueprint == null) return answers.refused(request, OWNER + "error.nothingToFill");
+        return checkedPost(
+                request, jobs, session.player(), kind, area, args, details.with(materials, blueprint), supplied);
+    }
+
+    /**
+     * The fill block a terraform job is posted with.
+     *
+     * @param block   the block, the default fill when none was chosen
+     * @param chosen  whether the owner supplies the fill
+     * @param refused why the named block can not fill, null when it can
+     */
+    private record Fill(
+            Material block, boolean chosen, @Nullable CommandFailure refused) {}
+
+    private static Fill fillBlock(JsonNode args) {
+        var name = args.path("fill").asString("");
+        if (name.isEmpty()) return new Fill(AreaMaterials.DEFAULT_FILL, false, null);
+        var material = TerraformCheck.block(name);
+        if (material == null) {
+            return new Fill(
+                    AreaMaterials.DEFAULT_FILL,
+                    false,
+                    CommandFailure.of(OWNER + "error.block", Values.text("block", name)));
+        }
+        return new Fill(material, true, null);
+    }
+
+    /**
+     * What reading an area came to.
+     *
+     * @param materials what the job digs and fills, null when the area's world is not on this server
+     * @param failed    whether the area could not be read in time
+     */
+    private record Scan(@Nullable AreaMaterials materials, boolean failed) {}
+
+    /**
+     * @return what an area job digs and fills, as the area stands
+     */
+    private static Scan scan(JobServices jobs, JobKind kind, JobArea area, @Nullable JobTarget target, Material fill) {
+        try {
+            var types = jobs.world()
+                    .blocks(area)
+                    .orTimeout(WORLD_SECONDS, TimeUnit.SECONDS)
+                    .join();
+            return new Scan(types == null ? null : AreaMaterials.of(kind, area, target, fill, types), false);
+        } catch (CompletionException e) {
+            return new Scan(null, true);
+        }
+    }
+
+    /**
+     * @return what the materials of a job cost the company beyond its price: the fill it brings, less the dug blocks it
+     *     keeps
+     */
+    private static double cost(JobServices jobs, AreaMaterials scanned, boolean dugToStock, boolean supplied) {
+        var fill = supplied ? 0 : jobs.costs().value(scanned.fill()).total();
+        var dug = dugToStock ? 0 : jobs.costs().value(scanned.dug()).total();
+        return fill - dug;
+    }
+
+    /**
+     * Reads what a dig or terraform job on one of the player's stored areas would dig out and fill in.
+     */
+    private ActionResult areaMaterials(ActionRequest request, JobServices jobs, StoredSession session, JsonNode args) {
+        if (!mayPost(session)) return answers.refused(request, "error.permission.postJob");
+        var found = storedHere(request, jobs, session, args);
+        if (found.refused() != null) return found.refused();
+        var area = found.area().area();
+        var kind = "terraform".equals(args.path("kind").asString("")) ? JobKind.TERRAFORM : JobKind.DIG;
+        JobTarget target = null;
+        if (kind == JobKind.TERRAFORM) {
+            if (!args.path("y").isInt()) return answers.refused(request, "dashboard.unsupported");
+            var named = args.path("surface").asString("");
+            var surface = named.isEmpty() ? null : TerraformCheck.block(named);
+            if (!named.isEmpty() && surface == null) {
+                return answers.refused(request, CommandFailure.of(OWNER + "error.block", Values.text("block", named)));
+            }
+            target = new JobTarget(args.path("y").asInt(), surface == null ? null : surface.name());
+        }
+        var fill = fillBlock(args);
+        var unfit = fill.refused();
+        if (unfit != null) return answers.refused(request, unfit);
+        var read = scan(jobs, kind, area, target, fill.block());
+        if (read.failed()) return answers.refused(request, OWNER + "error.failed");
+        var scanned = read.materials();
+        if (scanned == null) {
+            return answers.refused(
+                    request, CommandFailure.of(OWNER + "error.noWorld", Values.text("world", area.world())));
+        }
+        var dug = jobs.costs().value(scanned.dug());
+        var filled = jobs.costs().value(scanned.fill());
+        var settings = sources.settings().get();
+        return answers.data(
+                request,
+                new AreaCost(
+                        dug.total(),
+                        scanned.dug().values().stream()
+                                .mapToInt(Integer::intValue)
+                                .sum(),
+                        filled.total(),
+                        scanned.fill().values().stream()
+                                .mapToInt(Integer::intValue)
+                                .sum(),
+                        dug.unpriced().size() + filled.unpriced().size(),
+                        settings.dugToStock(),
+                        settings.suppliedFill()));
     }
 
     /**
@@ -514,7 +677,11 @@ public final class JobWrites {
                         size[2],
                         read.blocks(),
                         cost.total(),
-                        cost.unpriced().size()));
+                        cost.unpriced().size(),
+                        BlueprintItems.of(read).unmakeable().stream()
+                                .map(type -> type.getKey().getKey())
+                                .sorted()
+                                .toList()));
     }
 
     /**
@@ -551,7 +718,9 @@ public final class JobWrites {
             case AreaWorld.Placed.Done done -> {
                 var cost = jobs.costs().of(done.blueprint());
                 var price = args.path("price").asDouble(0);
-                if (cost.above(price) && !args.path("confirm").asBoolean(false)) {
+                if (cost.above(price)
+                        && !args.path("confirm").asBoolean(false)
+                        && !args.path("supplied").asBoolean(false)) {
                     yield answers.refused(
                             request, CommandFailure.of(OWNER + "error.belowCost", Values.number("cost", cost.total())));
                 }
@@ -562,7 +731,9 @@ public final class JobWrites {
                         JobKind.BUILD,
                         done.area(),
                         args,
-                        JobService.Details.build(done.blueprint()));
+                        JobService.Details.build(done.blueprint())
+                                .with(new JobMaterials(args.path("dugToStock").asBoolean(false), null), null),
+                        args.path("supplied").asBoolean(false));
             }
         };
     }
@@ -578,6 +749,70 @@ public final class JobWrites {
             JobArea area,
             JsonNode args,
             JobService.Details details) {
+        return checkedPost(request, jobs, player, kind, area, args, details, false);
+    }
+
+    private ActionResult checkedPost(
+            ActionRequest request,
+            JobServices jobs,
+            UUID player,
+            JobKind kind,
+            JobArea area,
+            JsonNode args,
+            JobService.Details details,
+            boolean supplied) {
+        if (supplied || args.path("draft").asBoolean(false)) {
+            return posted(
+                    request,
+                    jobs,
+                    player,
+                    kind,
+                    jobs.service()
+                            .saveDraft(
+                                    player,
+                                    kind,
+                                    args.path("title").asString(""),
+                                    args.path("price").asDouble(0),
+                                    args.path("hours").asInt(0),
+                                    jobs.node(),
+                                    area,
+                                    details,
+                                    supplied));
+        }
+        return withLand(
+                request,
+                jobs,
+                player,
+                area,
+                land -> posted(
+                        request,
+                        jobs,
+                        player,
+                        kind,
+                        jobs.service()
+                                .post(
+                                        player,
+                                        kind,
+                                        args.path("title").asString(""),
+                                        args.path("price").asDouble(0),
+                                        args.path("hours").asInt(0),
+                                        jobs.node(),
+                                        area,
+                                        land.land(),
+                                        land.ref(),
+                                        details)));
+    }
+
+    /**
+     * Checks on the main thread that an area may hold a job of the player and hands on the land it lies on, or answers
+     * why not.
+     */
+    private ActionResult withLand(
+            ActionRequest request,
+            JobServices jobs,
+            UUID player,
+            JobArea area,
+            Function<AreaChecks.Checked.Land, ActionResult> then) {
         AreaChecks.Checked checked;
         try {
             checked = jobs.checks().checkOnMain(player, area);
@@ -602,25 +837,66 @@ public final class JobWrites {
                                 OWNER + "error.foreign",
                                 Values.text("land", Objects.requireNonNullElse(foreign.ref(), "?"))));
             case AreaChecks.Checked.Unowned unowned -> answers.refused(request, OWNER + "error.unowned");
-            case AreaChecks.Checked.Land land ->
-                posted(
+            case AreaChecks.Checked.Land land -> then.apply(land);
+        };
+    }
+
+    /**
+     * Posts one of the player's drafts on this server; an area's land is checked again where it lies now.
+     */
+    private ActionResult postDraft(ActionRequest request, JobServices jobs, StoredSession session, JsonNode args) {
+        if (!mayPost(session)) return answers.refused(request, "error.permission.postJob");
+        var player = session.player();
+        var id = args.path("id").asInt(0);
+        var draft = jobs.data().job(id).filter(job -> job.owner().equals(player) && job.state() == JobState.DRAFT);
+        if (draft.isEmpty()) return answers.refused(request, OWNER + "error.noDraft");
+        var job = draft.get();
+        if (!job.kind().area()) {
+            return posted(request, jobs, player, job.kind(), jobs.service().publish(player, id, JobLand.NONE, null));
+        }
+        if (!job.node().equals(jobs.node())) {
+            return answers.refused(request, CommandFailure.of(OWNER + "error.otherServer", number(id)));
+        }
+        return withLand(
+                request,
+                jobs,
+                player,
+                job.area(),
+                land -> posted(
                         request,
                         jobs,
                         player,
-                        kind,
-                        jobs.service()
-                                .post(
-                                        player,
-                                        kind,
-                                        args.path("title").asString(""),
-                                        args.path("price").asDouble(0),
-                                        args.path("hours").asInt(0),
-                                        jobs.node(),
-                                        area,
-                                        land.land(),
-                                        land.ref(),
-                                        details));
-        };
+                        job.kind(),
+                        jobs.service().publish(player, id, land.land(), land.ref())));
+    }
+
+    private ActionResult editDraft(ActionRequest request, JobServices jobs, UUID player, JsonNode args) {
+        var id = args.path("id").asInt(0);
+        var description = args.path("description").asString("").strip();
+        var kind = jobs.data().job(id).map(Job::kind).orElse(JobKind.CONTRACT);
+        return posted(
+                request,
+                jobs,
+                player,
+                kind,
+                jobs.service()
+                        .editDraft(
+                                player,
+                                id,
+                                args.path("title").asString(""),
+                                description.isEmpty() ? null : description,
+                                args.path("price").asDouble(0),
+                                args.path("hours").asInt(0)));
+    }
+
+    private ActionResult deleteDraft(ActionRequest request, JobServices jobs, UUID player, JsonNode args) {
+        var id = args.path("id").asInt(0);
+        var draft = jobs.data().job(id).filter(job -> job.owner().equals(player) && job.state() == JobState.DRAFT);
+        if (draft.isEmpty()) return answers.refused(request, OWNER + "error.noDraft");
+        if (!jobs.service().deleteDraft(player, id, sources.returns())) {
+            return answers.refused(request, CommandFailure.of(OWNER + "error.draftKept", number(id)));
+        }
+        return answers.data(request, Map.of("id", id));
     }
 
     /**
@@ -761,6 +1037,7 @@ public final class JobWrites {
                     case UNKNOWN, NOT_YOURS -> "error.unknown";
                     case ASKED -> "error.cancelAsked";
                     case TAKEN -> "error.taken";
+                    case DRAFT -> "error.draft";
                     case DISPUTED -> "error.disputed";
                     case REASON -> "error.reason";
                     case TOO_LONG -> "error.description";
@@ -893,7 +1170,9 @@ public final class JobWrites {
                 harvest == null ? null : harvest.paid(),
                 job.owner().equals(player),
                 company.map(found -> Integer.valueOf(found.id()).equals(job.company()))
-                        .orElse(false));
+                        .orElse(false),
+                job.state() == JobState.DRAFT && job.kind().area() ? job.node() : null,
+                job.dueHours());
     }
 
     private JobDetails details(JobServices jobs, Job job, UUID player, Optional<CompanyProfile> company) {
@@ -902,8 +1181,12 @@ public final class JobWrites {
         var target = job.target();
         var doneAt = review.doneAt();
         var disputeBy = review.disputeBy();
-        Map<String, Integer> stock =
-                mine && job.kind() == JobKind.HARVEST ? jobs.data().stock(job.id()) : Map.of();
+        Map<String, Integer> stock = mine
+                        && (job.kind() == JobKind.HARVEST
+                                || job.supplied()
+                                || job.materials().dugToStock())
+                ? jobs.data().stock(job.id())
+                : Map.of();
         var settings = sources.settings().get();
         var extension = job.extension();
         var asked = job.state() == JobState.TAKEN ? extension.askedHours() : null;
@@ -936,7 +1219,7 @@ public final class JobWrites {
                                 asked,
                                 Objects.requireNonNullElse(extension.reason(), ""),
                                 instant(extension.askedAt())),
-                job.kind() == JobKind.BUILD
+                job.kind() == JobKind.BUILD && !job.supplied()
                         ? jobs.costs()
                                 .of(job.id())
                                 .map(cost -> new MaterialCost(
@@ -957,7 +1240,29 @@ public final class JobWrites {
                                         entry.reason(),
                                         instant(entry.at())))
                                 .toList()
-                        : List.of());
+                        : List.of(),
+                job.supplied(),
+                job.supplied() && mine && job.state() == JobState.DRAFT ? missing(jobs, job.id()) : null,
+                job.materials().dugToStock(),
+                job.materials().fill());
+    }
+
+    private static Map<String, Integer> missing(JobServices jobs, int id) {
+        Map<String, Integer> missing = new LinkedHashMap<>();
+        jobs.supplies().missing(id).forEach((type, amount) -> missing.put(type.name(), amount));
+        return missing;
+    }
+
+    private ActionResult supply(ActionRequest request, JobServices jobs, UUID player, JsonNode args) {
+        var id = args.path("id").asInt(0);
+        var draft = jobs.data().job(id).filter(job -> job.owner().equals(player) && job.state() == JobState.DRAFT);
+        if (draft.isEmpty()) return answers.refused(request, OWNER + "error.noDraft");
+        if (!draft.get().supplied()) {
+            return answers.refused(request, CommandFailure.of(OWNER + "error.notSupplied", number(id)));
+        }
+        jobs.supplies().fromReturns(player, id, sources.orders());
+        var company = sources.companyOf().apply(player).join();
+        return answers.data(request, details(jobs, jobs.data().job(id).orElse(draft.get()), player, company));
     }
 
     private static boolean ours(Job job, Optional<CompanyProfile> company) {
@@ -1000,6 +1305,7 @@ public final class JobWrites {
      * @param lastPlace where a player was last seen, as a block; empty when it is not known
      * @param returns   puts items into a player's item returns, as amounts by material name, and answers what could
      *                  not be stored
+     * @param orders    the item returns materials are taken from
      */
     public record Sources(
             Supplier<@Nullable JobServices> jobs,
@@ -1009,7 +1315,8 @@ public final class JobWrites {
             Supplier<LocalDateTime> now,
             Function<CommandFailure, String> render,
             Function<UUID, Optional<JobArea>> lastPlace,
-            BiFunction<UUID, Map<String, Integer>, Map<String, Integer>> returns) {}
+            BiFunction<UUID, Map<String, Integer>, Map<String, Integer>> returns,
+            AOrderData orders) {}
 
     /**
      * A job as listed.
@@ -1029,6 +1336,9 @@ public final class JobWrites {
      * @param paid      what a harvest job paid so far, null for other kinds
      * @param mine      whether the player owns it
      * @param ours      whether the player's company holds it
+     * @param node      the server whose world holds a draft's area, where it is posted; null for other states and
+     *                  for drafts without an area
+     * @param dueHours  how long a company has to finish it once taken
      */
     public record JobRow(
             int id,
@@ -1045,7 +1355,9 @@ public final class JobWrites {
             @Nullable Double unitPrice,
             @Nullable Double paid,
             boolean mine,
-            boolean ours) {}
+            boolean ours,
+            @Nullable UUID node,
+            int dueHours) {}
 
     /**
      * The lists of the Jobs page.
@@ -1089,6 +1401,10 @@ public final class JobWrites {
      * @param progress       how far the work was at the last check of its area, null when this server did not check it
      * @param cancelAsked    whether the owner asks the company working on it to let it be cancelled
      * @param reviews        the steps of the review of its work, oldest first; only for the owner and its company
+     * @param supplied       whether the owner supplies the materials through the stock
+     * @param missing        what the stock of a supplied draft still lacks, by material; only for its owner
+     * @param dugToStock     whether the blocks the company digs go into the stock for the owner
+     * @param fill           the block the owner supplies to fill a terraform job, null when the company brings its fill
      */
     public record JobDetails(
             JobRow job,
@@ -1110,7 +1426,11 @@ public final class JobWrites {
             @Nullable MaterialCost materialCost,
             @Nullable Progress progress,
             boolean cancelAsked,
-            List<Review> reviews) {}
+            List<Review> reviews,
+            boolean supplied,
+            @Nullable Map<String, Integer> missing,
+            boolean dugToStock,
+            @Nullable String fill) {}
 
     /**
      * A step of the review of a job's work.
@@ -1152,10 +1472,12 @@ public final class JobWrites {
     /**
      * The areas a player stored for area jobs.
      *
-     * @param max   the most areas a player may keep
-     * @param areas the player's areas, sorted by name
+     * @param max          the most areas a player may keep
+     * @param areas        the player's areas, sorted by name
+     * @param dugToStock   whether the owner may have the blocks a company digs go into the stock
+     * @param suppliedFill whether the owner may supply the fill of a terraform job
      */
-    public record AreaList(int max, List<AreaRow> areas) {}
+    public record AreaList(int max, List<AreaRow> areas, boolean dugToStock, boolean suppliedFill) {}
 
     /**
      * The top layer of a stored area and the schematics a build job on it may use.
@@ -1178,6 +1500,26 @@ public final class JobWrites {
             List<String> own) {}
 
     /**
+     * What a dig or terraform job on an area digs out and fills in, as the area stands.
+     *
+     * @param dugValue      what the dug blocks are worth at the server's prices
+     * @param dugBlocks     how many blocks are dug out
+     * @param fillCost      what the fill blocks cost at the server's prices
+     * @param fillBlocks    how many blocks are filled in
+     * @param unpriced      how many block types have no known price and are left out
+     * @param dugToStock    whether the owner may have the dug blocks go into the stock
+     * @param suppliedFill  whether the owner may supply the fill of a terraform job
+     */
+    public record AreaCost(
+            double dugValue,
+            int dugBlocks,
+            double fillCost,
+            int fillBlocks,
+            int unpriced,
+            boolean dugToStock,
+            boolean suppliedFill) {}
+
+    /**
      * A schematic, turned, as a build job would ask for it.
      *
      * @param width    its size along x
@@ -1185,9 +1527,11 @@ public final class JobWrites {
      * @param length   its size along z
      * @param blocks   how many blocks it asks for
      * @param cost     what its blocks cost at the server's prices
-     * @param unpriced how many block types have no known price and are left out
+     * @param unpriced   how many block types have no known price and are left out
+     * @param unmakeable the block types nobody can place, left out when the owner supplies the materials
      */
-    public record SchematicFit(int width, int height, int length, int blocks, double cost, int unpriced) {}
+    public record SchematicFit(
+            int width, int height, int length, int blocks, double cost, int unpriced, List<String> unmakeable) {}
 
     /**
      * A stored area.

@@ -47,6 +47,7 @@ public final class JobProgress {
     private final UUID node;
     private final Blueprints blueprints;
     private final IntSupplier matchPercent;
+    private volatile BuildCheck.Counted counted = BuildCheck.Counted.NONE;
     private final Map<Integer, Cached> cache = new ConcurrentHashMap<>();
     private final Map<Integer, DigCheck.Progress> last = new ConcurrentHashMap<>();
     private final Map<Integer, CompletableFuture<Optional<DigCheck.Progress>>> running = new ConcurrentHashMap<>();
@@ -62,6 +63,15 @@ public final class JobProgress {
         this.node = node;
         this.blueprints = blueprints;
         this.matchPercent = matchPercent;
+    }
+
+    /**
+     * Sets the positions of supplied jobs that count as placed whatever stands there.
+     *
+     * @param counted the positions
+     */
+    public void counted(BuildCheck.Counted counted) {
+        this.counted = counted;
     }
 
     /**
@@ -108,7 +118,11 @@ public final class JobProgress {
                 .thenApplyAsync(
                         ignored -> blueprint == null
                                 ? DigCheck.progress(area, blocks(job, world))
-                                : BuildCheck.progress(area, blueprint, BuildCheck.of(world), percent),
+                                : BuildCheck.progress(
+                                        area,
+                                        blueprint,
+                                        BuildCheck.counting(BuildCheck.of(world), job.id(), counted),
+                                        percent),
                         mainThread)
                 .whenCompleteAsync(
                         (result, err) -> {
@@ -146,12 +160,16 @@ public final class JobProgress {
     /**
      * @param job   a job with an area
      * @param world the world of its area
-     * @return the reader of whether each block is as the job asks
+     * @return the reader of whether each block is as the job asks; a fill block placed from the stock of a terraform
+     *     job counts as placed whatever stands there
      */
-    private static DigCheck.Blocks blocks(Job job, World world) {
+    private DigCheck.Blocks blocks(Job job, World world) {
         var target = job.target();
-        if (job.kind() == JobKind.TERRAFORM && target != null) return TerraformCheck.of(world, target);
-        return DigCheck.of(world);
+        if (job.kind() != JobKind.TERRAFORM || target == null) return DigCheck.of(world);
+        var terraform = TerraformCheck.of(world, target);
+        var known = counted;
+        var id = job.id();
+        return (x, y, z) -> known.counted(id, JobAccess.key(x, y, z)) || terraform.cleared(x, y, z);
     }
 
     private record Cached(DigCheck.Progress progress, Instant at) {}

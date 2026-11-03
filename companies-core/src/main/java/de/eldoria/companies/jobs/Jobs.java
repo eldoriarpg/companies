@@ -354,7 +354,20 @@ public final class Jobs {
         var ghosts = new BuildGhosts(plugin);
         plugin.getServer().getPluginManager().registerEvents(ghosts, plugin);
         var costs = new MaterialCosts(blueprints, type -> price(orders, type, plugin));
+        var supplies = new Supplies(jobs, blueprints);
+        service.supplies(supplies);
         var barTexts = MessageSender.getPluginMessageSender(plugin);
+        var magicItems = new MagicItems(plugin);
+        var stocks = new JobStocks(jobs, plugin.getLogger());
+        var magic = new MagicBuilding(plugin, access, blueprints, stocks, magicItems, ghosts, barTexts);
+        plugin.getServer().getPluginManager().registerEvents(magic, plugin);
+        service.closing(stocks::close);
+        var dug = new DugStocks(plugin.getServer(), stocks);
+        plugin.getServer().getPluginManager().registerEvents(dug, plugin);
+        access.digging(dug::dug);
+        stocks.late(service::returnLate);
+        progress.counted(access::counted);
+        ghosts.counted(access::counted);
         var bars = new ProgressBars(
                 plugin,
                 access::active,
@@ -390,7 +403,11 @@ public final class Jobs {
                 tool,
                 checks,
                 schematics,
-                new AreaWorld(plugin.getServer(), mainThread));
+                new AreaWorld(plugin.getServer(), mainThread),
+                supplies,
+                magicItems,
+                stocks,
+                magic);
     }
 
     private static double price(AOrderData orders, Material type, Plugin plugin) {
@@ -414,6 +431,10 @@ public final class Jobs {
     public static void schedule(
             JobServices services, boolean primary, ScheduledExecutorService executor, Plugin plugin) {
         services.access().schedule(executor);
+        services.magic().schedule();
+        plugin.getServer()
+                .getScheduler()
+                .runTaskTimer(plugin, services.ghosts()::follow, BuildGhosts.FOLLOW_TICKS, BuildGhosts.FOLLOW_TICKS);
         plugin.getServer()
                 .getScheduler()
                 .runTaskTimer(

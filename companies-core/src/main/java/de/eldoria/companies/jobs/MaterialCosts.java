@@ -7,12 +7,10 @@ package de.eldoria.companies.jobs;
 
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
-import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -21,10 +19,10 @@ import java.util.function.Function;
 import java.util.function.ToDoubleFunction;
 
 /**
- * What the blocks of a blueprint cost: for each item the blocks are placed with, the items needed times the price of
- * one, the price Companies goes by for the material (orders, or the shops' baseline below enough orders). The second
- * half of a block of two (a door's top, a bed's head, a tall plant's top) needs no item of its own, and a double slab
- * needs two. The cost of a job is kept for {@value #KEEP_MINUTES} minutes. Blocks; call it off the main thread.
+ * What the blocks of a blueprint cost: for each item the blocks are placed with, as {@link BlueprintItems} counts them,
+ * the items needed times the price of one, the price Companies goes by for the material (orders, or the shops' baseline
+ * below enough orders). Blocks no item places are listed as unpriced. Fluids are left out, as companies never have to
+ * pour them. The cost of a job is kept for {@value #KEEP_MINUTES} minutes. Blocks; call it off the main thread.
  */
 public final class MaterialCosts {
     /**
@@ -44,7 +42,7 @@ public final class MaterialCosts {
      * @param prices     the price of one item of a material, 0 when none is known
      */
     public MaterialCosts(Blueprints blueprints, ToDoubleFunction<Material> prices) {
-        this(blueprints, prices, MaterialCosts::placedWith);
+        this(blueprints, prices, BlueprintItems::placedWith);
     }
 
     /**
@@ -59,20 +57,6 @@ public final class MaterialCosts {
         this.blueprints = blueprints;
         this.prices = prices;
         this.items = items;
-    }
-
-    /**
-     * @param want a block of a blueprint
-     * @return the item it is placed with, such as redstone for a wire or a torch for a wall torch, null for none
-     */
-    static @Nullable Material placedWith(Blueprint.Want want) {
-        Material item;
-        try {
-            item = Bukkit.createBlockData(want.data()).getPlacementMaterial();
-        } catch (RuntimeException e) {
-            item = want.type();
-        }
-        return item.isItem() && !item.isAir() ? item : null;
     }
 
     /**
@@ -103,26 +87,33 @@ public final class MaterialCosts {
      * @return what its blocks cost
      */
     public Cost of(Blueprint blueprint) {
-        Map<Material, Integer> needed = new LinkedHashMap<>();
-        List<Material> unpriced = new ArrayList<>();
-        for (var entry : blueprint.wants().entrySet()) {
-            var want = entry.getKey();
-            var states = Blueprint.states(want.data());
-            if ("upper".equals(states.get("half")) || "head".equals(states.get("part"))) continue;
-            var item = items.apply(want);
-            if (item == null) {
-                if (!unpriced.contains(want.type())) unpriced.add(want.type());
-                continue;
-            }
-            var each = "double".equals(states.get("type")) ? 2 : 1;
-            needed.merge(item, entry.getValue() * each, Integer::sum);
-        }
+        var needs = BlueprintItems.of(blueprint, items);
+        List<Material> unpriced = new ArrayList<>(needs.byHand());
+        unpriced.addAll(needs.unmakeable());
         var total = 0.0;
-        for (var entry : needed.entrySet()) {
+        for (var entry : needs.items().entrySet()) {
             var price = prices.applyAsDouble(entry.getKey());
             if (price > 0) {
                 total += price * entry.getValue();
             } else if (!unpriced.contains(entry.getKey())) {
+                unpriced.add(entry.getKey());
+            }
+        }
+        return new Cost(total, unpriced);
+    }
+
+    /**
+     * @param items items by type, such as the blocks an area job digs or fills with
+     * @return what they are worth; types that are no item or have no known price are unpriced
+     */
+    public Cost value(Map<Material, Integer> items) {
+        List<Material> unpriced = new ArrayList<>();
+        var total = 0.0;
+        for (var entry : items.entrySet()) {
+            var price = entry.getKey().isItem() ? prices.applyAsDouble(entry.getKey()) : 0;
+            if (price > 0) {
+                total += price * entry.getValue();
+            } else {
                 unpriced.add(entry.getKey());
             }
         }

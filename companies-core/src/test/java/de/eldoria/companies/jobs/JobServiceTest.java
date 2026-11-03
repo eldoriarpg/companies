@@ -20,6 +20,7 @@ import de.eldoria.companies.data.wrapper.job.Job;
 import de.eldoria.companies.data.wrapper.job.JobArea;
 import de.eldoria.companies.data.wrapper.job.JobExtension;
 import de.eldoria.companies.data.wrapper.job.JobLand;
+import de.eldoria.companies.data.wrapper.job.JobMaterials;
 import de.eldoria.companies.data.wrapper.job.JobReviewEntry;
 import de.eldoria.companies.data.wrapper.job.JobTarget;
 import de.eldoria.companies.events.job.JobEndEvent;
@@ -122,6 +123,279 @@ class JobServiceTest {
         assertEquals(10.0, job.fee());
         assertEquals(790.0, balances.get(owner), 0.001);
         assertEquals(NOW.atOffset(ZoneOffset.UTC).toLocalDateTime().plusDays(7), job.expires());
+    }
+
+    @Test
+    void aDraftChargesNothingHoldsNoLandAndIsPostedLater() {
+        var draft = drafted(200);
+
+        assertEquals(JobState.DRAFT, draft.state());
+        assertEquals(0.0, draft.fee());
+        assertEquals(1000.0, balances.get(owner), 0.001);
+        assertEquals(0, jobs.openOf(owner));
+        assertTrue(jobs.overlapping(AREA).isEmpty());
+        assertEquals(JobService.Refusal.NO_DRAFT, refusal(service.publish(worker, draft.id(), JobLand.REGION, "home")));
+
+        var posted = assertInstanceOf(
+                        JobService.Posted.Done.class, service.publish(owner, draft.id(), JobLand.REGION, "home"))
+                .job();
+
+        assertEquals(draft.id(), posted.id());
+        assertEquals(JobState.OPEN, posted.state());
+        assertEquals(10.0, posted.fee());
+        assertEquals("home", posted.landRef());
+        assertEquals(790.0, balances.get(owner), 0.001);
+        assertEquals(JobService.Refusal.NO_DRAFT, refusal(service.publish(owner, draft.id(), JobLand.REGION, "home")));
+    }
+
+    @Test
+    void aDraftEditedWhilePostedOpensAsItWasCharged() {
+        var draft = drafted(200);
+        var editing = new SqLiteJobData() {
+            @Override
+            public boolean publish(Job job) {
+                editDraft(job.id(), "Palace", null, 100_000, 24);
+                return super.publish(job);
+            }
+        };
+        jobs = editing;
+        service();
+
+        var posted = assertInstanceOf(
+                        JobService.Posted.Done.class, service.publish(owner, draft.id(), JobLand.REGION, "home"))
+                .job();
+
+        assertEquals(200.0, posted.price());
+        assertEquals("Cellar", posted.title());
+        assertEquals(790.0, balances.get(owner), 0.001);
+    }
+
+    @Test
+    void aSuppliedBuildIsPostedOnlyWithItsMaterialsAndGivesItsStockBackWhenItEnds() {
+        var blueprint = Blueprint.of(
+                List.of(new Blueprint.Cell(0, 0, 0, Material.STONE), new Blueprint.Cell(1, 0, 0, Material.SPAWNER)));
+        var area = new JobArea("world", 0, 64, 0, 1, 64, 0);
+        service.supplies(new Supplies(jobs, new Blueprints(jobs, Logger.getAnonymousLogger())));
+        Map<UUID, Map<String, Integer>> returned = new HashMap<>();
+        service.stockReturns((player, items) -> {
+            returned.put(player, items);
+            return Map.of();
+        });
+        var draft = assertInstanceOf(
+                        JobService.Posted.Done.class,
+                        service.saveDraft(
+                                owner,
+                                JobKind.BUILD,
+                                "Wall",
+                                100,
+                                24,
+                                NODE,
+                                area,
+                                JobService.Details.build(blueprint),
+                                true))
+                .job();
+
+        assertTrue(draft.supplied());
+        assertEquals(
+                1, Blueprint.decode(jobs.blueprint(draft.id()).orElseThrow()).blocks());
+        assertEquals(JobService.Refusal.MATERIALS, refusal(service.publish(owner, draft.id(), JobLand.REGION, "home")));
+        jobs.stock(draft.id(), Map.of("STONE", 3));
+        var posted = assertInstanceOf(
+                        JobService.Posted.Done.class, service.publish(owner, draft.id(), JobLand.REGION, "home"))
+                .job();
+        assertTrue(posted.supplied());
+
+        assertEquals(JobService.Change.DONE, service.cancel(owner, "Owner", posted.id()));
+        assertEquals(Map.of(owner, Map.of("STONE", 3)), returned);
+        assertEquals(Map.of(), jobs.stock(posted.id()));
+        assertEquals(
+                JobService.Refusal.BLUEPRINT,
+                refusal(service.saveDraft(
+                        owner, JobKind.DIG, "Hole", 100, 24, NODE, AREA, JobService.Details.NONE, true)));
+    }
+
+    @Test
+    void aSuppliedBuildGivenBackKeepsItsStockForTheNextCompany() {
+        var blueprint = Blueprint.of(List.of(new Blueprint.Cell(0, 0, 0, Material.STONE)));
+        var area = new JobArea("world", 0, 64, 0, 0, 64, 0);
+        service.supplies(new Supplies(jobs, new Blueprints(jobs, Logger.getAnonymousLogger())));
+        Map<UUID, Map<String, Integer>> returned = new HashMap<>();
+        service.stockReturns((player, items) -> {
+            returned.put(player, items);
+            return Map.of();
+        });
+        var draft = assertInstanceOf(
+                        JobService.Posted.Done.class,
+                        service.saveDraft(
+                                owner,
+                                JobKind.BUILD,
+                                "Post",
+                                100,
+                                24,
+                                NODE,
+                                area,
+                                JobService.Details.build(blueprint),
+                                true))
+                .job();
+        jobs.stock(draft.id(), Map.of("STONE", 1));
+        var posted = assertInstanceOf(
+                        JobService.Posted.Done.class, service.publish(owner, draft.id(), JobLand.REGION, "home"))
+                .job();
+        slots = 2;
+
+        assertEquals(JobService.Change.DONE, service.take(company, manager, posted.id()));
+        assertEquals(JobService.Change.DONE, service.giveBack(company, manager, posted.id()));
+
+        assertEquals(Map.of(), returned);
+        assertEquals(Map.of("STONE", 1), jobs.stock(posted.id()));
+    }
+
+    @Test
+    void materialChoicesFollowTheSettingsAndTheKindOfJob() {
+        var dug = JobService.Details.NONE.with(new JobMaterials(true, null), null);
+        var posted = assertInstanceOf(
+                        JobService.Posted.Done.class,
+                        service.post(owner, JobKind.DIG, "Pit", 100, 24, NODE, AREA, JobLand.REGION, "home", dug))
+                .job();
+        assertTrue(jobs.job(posted.id()).orElseThrow().materials().dugToStock());
+
+        var filled = JobService.Details.shape(new JobTarget(62, null))
+                .with(
+                        new JobMaterials(false, "DIRT"),
+                        Blueprint.of(List.of(new Blueprint.Cell(0, 0, 0, Material.DIRT))));
+        var harvest = JobService.Details.harvest(1).with(new JobMaterials(true, null), null);
+        var other = new JobArea("world", 20, 60, 20, 29, 64, 29);
+        assertEquals(
+                JobService.Refusal.CHOICE,
+                refusal(service.post(
+                        owner, JobKind.TERRAFORM, "Flat", 100, 24, NODE, other, JobLand.REGION, "home", filled)));
+        assertEquals(
+                JobService.Refusal.CHOICE,
+                refusal(service.post(
+                        owner, JobKind.HARVEST, "Wheat", 100, 24, NODE, other, JobLand.REGION, "home", harvest)));
+        assertEquals(
+                JobService.Refusal.CHOICE,
+                refusal(service.saveDraft(owner, JobKind.TERRAFORM, "Flat", 100, 24, NODE, other, filled, false)));
+        settings.dugToStock(false);
+        assertEquals(
+                JobService.Refusal.CHOICE,
+                refusal(service.post(owner, JobKind.DIG, "Pit", 100, 24, NODE, other, JobLand.REGION, "home", dug)));
+    }
+
+    @Test
+    void aSuppliedTerraformDraftTakesItsFillAndTheDugStockGoesBackAtTheEnd() {
+        var area = new JobArea("world", 30, 60, 30, 31, 61, 30);
+        service.supplies(new Supplies(jobs, new Blueprints(jobs, Logger.getAnonymousLogger())));
+        Map<UUID, Map<String, Integer>> returned = new HashMap<>();
+        service.stockReturns((player, items) -> {
+            returned.put(player, items);
+            return Map.of();
+        });
+        var scanned = AreaMaterials.of(
+                JobKind.TERRAFORM, area, new JobTarget(61, null), Material.DIRT, (x, y, z) -> Material.AIR);
+        var details = JobService.Details.shape(new JobTarget(61, null))
+                .with(new JobMaterials(true, "DIRT"), scanned.blueprint(area));
+
+        var draft = assertInstanceOf(
+                        JobService.Posted.Done.class,
+                        service.saveDraft(owner, JobKind.TERRAFORM, "Flat", 100, 24, NODE, area, details, true))
+                .job();
+
+        assertTrue(draft.supplied());
+        assertEquals("DIRT", draft.materials().fill());
+        assertEquals(JobService.Refusal.MATERIALS, refusal(service.publish(owner, draft.id(), JobLand.REGION, "home")));
+        jobs.stock(draft.id(), Map.of("DIRT", 4));
+        var posted = assertInstanceOf(
+                        JobService.Posted.Done.class, service.publish(owner, draft.id(), JobLand.REGION, "home"))
+                .job();
+        jobs.stock(posted.id(), Map.of("STONE", 3));
+        assertEquals(JobService.Change.DONE, service.cancel(owner, "Owner", posted.id()));
+        assertEquals(Map.of(owner, Map.of("DIRT", 4, "STONE", 3)), returned);
+    }
+
+    @Test
+    void aDraftCanOnlyBePostedOrDeleted() {
+        var draft = drafted(200);
+
+        assertEquals(JobService.Change.DRAFT, service.cancel(owner, "Owner", draft.id()));
+    }
+
+    @Test
+    void aDraftIsPostedOnlyWhenItsAreaIsFreeAndTheOwnerPays() {
+        var draft = drafted(200);
+        posted(100);
+
+        assertEquals(JobService.Refusal.OVERLAP, refusal(service.publish(owner, draft.id(), JobLand.REGION, "home")));
+        balances.put(owner, 50.0);
+        var other = assertInstanceOf(
+                        JobService.Posted.Done.class,
+                        service.saveDraft(
+                                owner,
+                                JobKind.DIG,
+                                "Pond",
+                                200,
+                                24,
+                                NODE,
+                                new JobArea("world", 50, 60, 50, 52, 62, 52),
+                                JobService.Details.NONE))
+                .job();
+        assertEquals(JobService.Refusal.FUNDS, refusal(service.publish(owner, other.id(), JobLand.REGION, "home")));
+        assertEquals(JobState.DRAFT, jobs.job(other.id()).orElseThrow().state());
+    }
+
+    @Test
+    void draftsAreLimitedEditedAndDeletedWithTheirStock() {
+        settings.maxDrafts(1);
+        var draft = drafted(200);
+
+        assertEquals(
+                JobService.Refusal.DRAFTS,
+                refusal(service.saveDraft(owner, JobKind.DIG, "More", 200, 24, NODE, AREA, JobService.Details.NONE)));
+        var edited = assertInstanceOf(
+                        JobService.Posted.Done.class,
+                        service.editDraft(owner, draft.id(), "Bigger cellar", "Deeper", 300, 48))
+                .job();
+        assertEquals("Bigger cellar", edited.title());
+        assertEquals(300.0, edited.price());
+        assertEquals(48, edited.dueHours());
+        assertEquals(JobService.Refusal.PRICE, refusal(service.editDraft(owner, draft.id(), "Free", null, 0, 48)));
+
+        jobs.stock(draft.id(), Map.of("STONE", 5));
+        Map<UUID, Map<String, Integer>> returned = new HashMap<>();
+        assertFalse(service.deleteDraft(worker, draft.id(), (player, items) -> Map.of()));
+        assertTrue(service.deleteDraft(owner, draft.id(), (player, items) -> {
+            returned.put(player, items);
+            return Map.of();
+        }));
+        assertEquals(Map.of(owner, Map.of("STONE", 5)), returned);
+        assertTrue(jobs.job(draft.id()).isEmpty());
+    }
+
+    @Test
+    void itemsHandedInWhileADraftIsDeletedGoBackToo() {
+        var draft = drafted(200);
+        jobs.stock(draft.id(), Map.of("STONE", 5));
+        List<Map<String, Integer>> returned = new ArrayList<>();
+
+        assertTrue(service.deleteDraft(owner, draft.id(), (player, items) -> {
+            if (returned.isEmpty()) jobs.stock(draft.id(), Map.of("GLASS", 2));
+            returned.add(items);
+            return Map.of();
+        }));
+
+        assertEquals(List.of(Map.of("STONE", 5), Map.of("GLASS", 2)), returned);
+        assertTrue(jobs.job(draft.id()).isEmpty());
+    }
+
+    @Test
+    void aDraftWhoseStockCanNotBeReturnedIsKept() {
+        var draft = drafted(200);
+        jobs.stock(draft.id(), Map.of("STONE", 5));
+
+        assertFalse(service.deleteDraft(owner, draft.id(), (player, items) -> items));
+
+        assertEquals(Map.of("STONE", 5), jobs.stock(draft.id()));
+        assertEquals(JobState.DRAFT, jobs.job(draft.id()).orElseThrow().state());
     }
 
     @Test
@@ -1327,6 +1601,13 @@ class JobServiceTest {
 
     private static LocalDateTime local(Instant instant) {
         return instant.atOffset(ZoneOffset.UTC).toLocalDateTime();
+    }
+
+    private Job drafted(double price) {
+        return assertInstanceOf(
+                        JobService.Posted.Done.class,
+                        service.saveDraft(owner, JobKind.DIG, "Cellar", price, 24, NODE, AREA, JobService.Details.NONE))
+                .job();
     }
 
     private Job posted(double price) {

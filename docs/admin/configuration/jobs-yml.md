@@ -32,6 +32,10 @@ approveAreaJobs: false
 schematicUploads: false
 maxSchematics: 10
 maxAreas: 10
+maxDrafts: 5
+buildGhostRadius: 8
+dugToStock: true
+suppliedFill: true
 ```
 
 | Key | Values | Default | Description | Takes effect |
@@ -56,6 +60,10 @@ maxAreas: 10
 | `schematicUploads` | true/false | `false` | Players may upload their own schematics for build jobs on the dashboard. Each upload is cleaned of the contents of containers, command blocks, creatures and other unwanted contents before it is kept. Uploads are at most 512 KB and must fit `buildMaxVolume`. Needs FastAsyncWorldEdit. Switched off, kept uploads can still be used for build jobs. Also on the integrations page of the setup. | reload |
 | `maxSchematics` | number | `10` | The most schematics a player may keep uploaded. | reload |
 | `maxAreas` | number | `10` | The most areas a player may keep stored for jobs (`/order job area`). | reload |
+| `maxDrafts` | number | `5` | The most drafts of jobs a player may keep. Drafts are not counted as open jobs. | reload |
+| `dugToStock` | true/false | `true` | The owner of a dig, terraform or build job may have the blocks the company digs go into the job's stock, which comes back to them when the job ends. | reload |
+| `suppliedFill` | true/false | `true` | The owner of a terraform job may supply the blocks it is filled with through the stock, placed with magic blocks. | reload |
+| `buildGhostRadius` | number (blocks) | `8` | How far around a member the missing and wrong blocks of a build job show as ghost blocks, from 1 to 32. | reload |
 
 The fee of a job is the order fee of [order.yml](./order-yml.md), lowered by the fee reductions of server events. A
 company's order slots count its jobs; giving one back or running out of time costs the order penalties of

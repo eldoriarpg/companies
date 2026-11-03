@@ -29,8 +29,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Blueprints of build jobs: placed around the owner, read by position, checked and shown layer by layer, and stored as
- * text.
+ * Blueprints of build jobs: placed around the owner, read by position, checked, and stored as text.
  */
 class BlueprintTest {
     private static final Blueprint HUT = Blueprint.of(List.of(
@@ -77,6 +76,78 @@ class BlueprintTest {
     }
 
     @Test
+    void theFluidSourcesOfASchematicAreKeptApartAndStored() {
+        var pool = Blueprint.of(List.of(
+                new Blueprint.Cell(0, 0, 0, Material.STONE),
+                new Blueprint.Cell(1, 0, 0, Material.WATER, "minecraft:water[level=0]"),
+                new Blueprint.Cell(2, 0, 0, Material.WATER, "minecraft:water[level=4]"),
+                new Blueprint.Cell(3, 0, 0, Material.LAVA, "minecraft:lava[level=0]")));
+
+        assertEquals(1, pool.blocks());
+        assertEquals(
+                List.of(new Blueprint.Fluid(1, 0, 0, Material.WATER), new Blueprint.Fluid(3, 0, 0, Material.LAVA)),
+                pool.fluids());
+        var stored = Blueprint.decode(pool.encode());
+        assertEquals(pool.fluids(), stored.fluids());
+        assertEquals(pool, stored);
+    }
+
+    @Test
+    void aSourceBelowTheGroundIsDugOutAndKeptAtItsPlacedSpot() {
+        var well = Blueprint.of(List.of(
+                new Blueprint.Cell(0, 0, 0, Material.STONE),
+                new Blueprint.Cell(0, -1, 0, Material.WATER, "minecraft:water[level=0]"),
+                new Blueprint.Cell(5, 9, 5, Material.LAVA, "minecraft:lava[level=0]")));
+        BuildCheck.Types ground = (x, y, z) -> y < 64 ? Material.DIRT : Material.AIR;
+
+        var placed = well.dug("world", 0, 64, 0, ground, (x, z) -> 63);
+
+        assertEquals(1, placed.digs());
+        assertEquals(
+                List.of(new Blueprint.Fluid(0, 0, 0, Material.WATER), new Blueprint.Fluid(5, 10, 5, Material.LAVA)),
+                placed.fluids());
+        assertEquals(new JobArea("world", 0, 63, 0, 5, 73, 5), placed.area("world", 0, 64, 0));
+        var stored = Blueprint.decode(placed.encode());
+        assertEquals(placed, stored);
+        assertEquals(1, stored.digs());
+    }
+
+    @Test
+    void aBubbleColumnIsAWaterSourceAndFluidsMakeBlueprintsDiffer() {
+        var dry = Blueprint.of(List.of(new Blueprint.Cell(0, 0, 0, Material.STONE)));
+        var wet = Blueprint.of(List.of(
+                new Blueprint.Cell(0, 0, 0, Material.STONE),
+                new Blueprint.Cell(0, 1, 0, Material.BUBBLE_COLUMN, "minecraft:bubble_column[drag=true]")));
+
+        assertEquals(List.of(new Blueprint.Fluid(0, 1, 0, Material.WATER)), wet.fluids());
+        assertFalse(dry.equals(Blueprint.of(
+                List.of(new Blueprint.Cell(0, 0, 0, Material.STONE), new Blueprint.Cell(0, 0, 1, Material.WATER)))));
+    }
+
+    @Test
+    void aBlueprintStoredBeforeFluidsWereKeptHasNone() throws IOException {
+        var bytes = new ByteArrayOutputStream();
+        try (var out = new DataOutputStream(new GZIPOutputStream(bytes))) {
+            out.writeInt(-2);
+            out.writeInt(1);
+            out.writeInt(1);
+            out.writeInt(1);
+            out.writeInt(1);
+            out.writeUTF("minecraft:stone");
+            out.writeShort(1);
+        }
+
+        var stored = Blueprint.decode(Base64.getEncoder().encodeToString(bytes.toByteArray()));
+
+        assertEquals(List.of(), stored.fluids());
+        assertEquals(1, stored.blocks());
+        assertEquals(
+                Blueprint.decode(Blueprint.of(List.of(new Blueprint.Cell(0, 0, 0, Material.STONE)))
+                        .encode()),
+                stored);
+    }
+
+    @Test
     void aStoredBlueprintReadsTheSameAgainstItsArea() {
         var area = HUT.area("world", 10, 64, 10);
 
@@ -108,16 +179,6 @@ class BlueprintTest {
         assertEquals(5, missingGlass.total());
         assertFalse(missingTwo.done());
         assertEquals("10 66 12", missingTwo.leftText());
-    }
-
-    @Test
-    void layersCountWhatTheyStillLackAndTheLowestOpenOneComesFirst() {
-        var area = HUT.area("world", 10, 64, 10);
-        BuildCheck.Types onlyGround = (x, y, z) -> y == 64 ? Material.STONE : Material.AIR;
-
-        assertEquals(new BuildGhosts.Layer(64, 3, 0), BuildGhosts.layer(area, HUT, onlyGround, 64));
-        assertEquals(new BuildGhosts.Layer(65, 1, 1), BuildGhosts.layer(area, HUT, onlyGround, 65));
-        assertEquals(65, BuildGhosts.firstOpen(area, HUT, onlyGround));
     }
 
     @Test

@@ -48,6 +48,9 @@ import java.util.UUID;
  * @param harvest     the item price and what was paid of a harvest job, null for other kinds
  * @param extension   the extra time the company holding the job got, and its open request for more
  * @param charged     whether the owner paid price and fee; an uncharged job, posted by a plugin, refunds nothing
+ * @param supplied    whether the owner supplied the materials of a build job, or the fill of a terraform job, through
+ *                    its stock
+ * @param materials   where dug blocks go and whether the owner supplies the fill of a terraform job
  */
 public record Job(
         int id,
@@ -75,7 +78,9 @@ public record Job(
         @Nullable JobTarget target,
         @Nullable JobHarvest harvest,
         JobExtension extension,
-        boolean charged) {
+        boolean charged,
+        boolean supplied,
+        JobMaterials materials) {
     /**
      * The longest title.
      */
@@ -142,7 +147,9 @@ public record Job(
                 null,
                 null,
                 JobExtension.NONE,
-                true);
+                true,
+                false,
+                JobMaterials.COMPANY);
     }
 
     /**
@@ -176,7 +183,9 @@ public record Job(
                 target,
                 harvest,
                 extension,
-                charged);
+                charged,
+                supplied,
+                materials);
     }
 
     /**
@@ -210,7 +219,9 @@ public record Job(
                 target,
                 harvest,
                 extension,
-                charged);
+                charged,
+                supplied,
+                materials);
     }
 
     /**
@@ -244,7 +255,9 @@ public record Job(
                 target,
                 harvest,
                 extension,
-                charged);
+                charged,
+                supplied,
+                materials);
     }
 
     /**
@@ -278,7 +291,9 @@ public record Job(
                 target,
                 harvest,
                 extension,
-                charged);
+                charged,
+                supplied,
+                materials);
     }
 
     /**
@@ -312,7 +327,117 @@ public record Job(
                 target,
                 harvest,
                 extension,
-                charged);
+                charged,
+                supplied,
+                materials);
+    }
+
+    /**
+     * @param state the state
+     * @return the job in that state
+     */
+    public Job withState(JobState state) {
+        return new Job(
+                id,
+                owner,
+                kind,
+                title,
+                description,
+                price,
+                fee,
+                state,
+                company,
+                node,
+                area,
+                land,
+                landRef,
+                dueHours,
+                created,
+                expires,
+                taken,
+                due,
+                closed,
+                closedBy,
+                granted,
+                review,
+                target,
+                harvest,
+                extension,
+                charged,
+                supplied,
+                materials);
+    }
+
+    /**
+     * @param supplied whether the owner supplies the materials through its stock
+     * @return the job with that choice
+     */
+    public Job withSupplied(boolean supplied) {
+        return new Job(
+                id,
+                owner,
+                kind,
+                title,
+                description,
+                price,
+                fee,
+                state,
+                company,
+                node,
+                area,
+                land,
+                landRef,
+                dueHours,
+                created,
+                expires,
+                taken,
+                due,
+                closed,
+                closedBy,
+                granted,
+                review,
+                target,
+                harvest,
+                extension,
+                charged,
+                supplied,
+                materials);
+    }
+
+    /**
+     * @param materials where dug blocks go and whether the owner supplies the fill
+     * @return the job with those choices
+     */
+    public Job withMaterials(JobMaterials materials) {
+        return new Job(
+                id,
+                owner,
+                kind,
+                title,
+                description,
+                price,
+                fee,
+                state,
+                company,
+                node,
+                area,
+                land,
+                landRef,
+                dueHours,
+                created,
+                expires,
+                taken,
+                due,
+                closed,
+                closedBy,
+                granted,
+                review,
+                target,
+                harvest,
+                extension,
+                charged,
+                supplied,
+                materials);
     }
 
     /**

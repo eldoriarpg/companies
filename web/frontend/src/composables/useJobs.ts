@@ -47,5 +47,19 @@ export function useJobs(api: GatewayApi = gatewayApi()) {
         if (detail.value?.job.id === id) changed(detail.value)
     }
 
-    return {list, status: readonly(status), detail, detailStatus: readonly(detailStatus), load, open, changed, refresh}
+    /**
+     * Drops a job that is gone, such as a deleted draft, from the lists and closes its details.
+     *
+     * @param id the job's id
+     */
+    async function forget(id: number): Promise<void> {
+        const current = list.value
+        if (current) {
+            const keep = (rows: JobRow[]) => rows.filter(entry => entry.id !== id)
+            list.value = {...current, open: keep(current.open), mine: keep(current.mine), company: keep(current.company)}
+        }
+        if (detail.value?.job.id === id) await open(null)
+    }
+
+    return {list, status: readonly(status), detail, detailStatus: readonly(detailStatus), load, open, changed, refresh, forget}
 }

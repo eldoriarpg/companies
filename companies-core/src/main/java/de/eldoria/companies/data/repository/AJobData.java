@@ -52,7 +52,8 @@ public abstract class AJobData {
     /**
      * @param owner a player
      * @param limit how many to return at most
-     * @return the player's jobs, the newest first, whatever their state
+     * @return the player's jobs, whatever their state: the drafts first, so none drops out of the list, then the
+     *     newest first
      */
     public abstract List<Job> ofOwner(UUID owner, int limit);
 
@@ -255,6 +256,43 @@ public abstract class AJobData {
     public abstract int openOf(UUID owner);
 
     /**
+     * @param owner the player who posted or saved them
+     * @param state a state
+     * @return how many of the player's jobs are in that state
+     */
+    public abstract int countOf(UUID owner, JobState state);
+
+    /**
+     * Posts a draft: it becomes open as the job given, with the title, price, time, fee and land it was charged for,
+     * whatever an edit stored meanwhile, and its time to be taken starts.
+     *
+     * @param job the posted job, with the id of the draft
+     * @return true when it was still a draft and is open now
+     */
+    public abstract boolean publish(Job job);
+
+    /**
+     * Changes what a draft asks for.
+     *
+     * @param id          id of the draft
+     * @param title       its title
+     * @param description its description, null for none
+     * @param price       its price
+     * @param dueHours    how long a company has to finish it
+     * @return true when it was still a draft
+     */
+    public abstract boolean editDraft(int id, String title, @Nullable String description, double price, int dueHours);
+
+    /**
+     * Deletes a draft with its blueprint, only once its stock is empty. The draft is locked meanwhile, so items handed
+     * in after the stock was taken out keep it from being deleted rather than being deleted with it.
+     *
+     * @param id id of the draft
+     * @return true when it was still a draft with an empty stock and is gone
+     */
+    public abstract boolean deleteDraft(int id);
+
+    /**
      * @param now the current time
      * @return the open jobs that expired
      */
@@ -384,6 +422,19 @@ public abstract class AJobData {
      * @param items the items, as amounts by material name
      */
     public abstract void stock(int job, Map<String, Integer> items);
+
+    /**
+     * Puts what a supplied draft still lacks of the offered items into its stock, while it is a supplied draft. The
+     * draft is locked meanwhile, so hand-ins, posting and deleting it run one after the other and nothing is taken
+     * beyond what is needed.
+     *
+     * @param job     id of the draft
+     * @param needs   what its blueprint takes, as amounts by material name
+     * @param offered the items offered, as amounts by material name
+     * @return what was taken, by material name; empty when it is no supplied draft or the items could not be stored
+     */
+    public abstract Optional<Map<String, Integer>> supply(
+            int job, Map<String, Integer> needs, Map<String, Integer> offered);
 
     /**
      * Stores the blueprint of a build job.

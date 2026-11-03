@@ -41,6 +41,10 @@ public class JobSettings {
     private boolean schematicUploads = false;
     private int maxSchematics = 10;
     private int maxAreas = 10;
+    private int maxDrafts = 5;
+    private int buildGhostRadius = 8;
+    private boolean dugToStock = true;
+    private boolean suppliedFill = true;
 
     public JobSettings() {}
 
@@ -300,5 +304,50 @@ public class JobSettings {
 
     public void maxAreas(int maxAreas) {
         this.maxAreas = maxAreas;
+    }
+
+    /**
+     * @return the most drafts of jobs a player may keep, at least 1
+     */
+    public int maxDrafts() {
+        return Math.max(1, maxDrafts);
+    }
+
+    public void maxDrafts(int maxDrafts) {
+        this.maxDrafts = maxDrafts;
+    }
+
+    /**
+     * @return how far around a member the missing blocks of a build job show as ghosts, in blocks, from 1 to 32
+     */
+    public int buildGhostRadius() {
+        return Math.clamp(buildGhostRadius, 1, 32);
+    }
+
+    public void buildGhostRadius(int buildGhostRadius) {
+        this.buildGhostRadius = buildGhostRadius;
+    }
+
+    /**
+     * @return whether the owner of a dig, terraform or build job may have the blocks the company digs go into the
+     *     job's stock instead of to the company
+     */
+    public boolean dugToStock() {
+        return dugToStock;
+    }
+
+    public void dugToStock(boolean dugToStock) {
+        this.dugToStock = dugToStock;
+    }
+
+    /**
+     * @return whether the owner of a terraform job may supply the blocks it is filled with through its stock
+     */
+    public boolean suppliedFill() {
+        return suppliedFill;
+    }
+
+    public void suppliedFill(boolean suppliedFill) {
+        this.suppliedFill = suppliedFill;
     }
 }
