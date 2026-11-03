@@ -73,7 +73,7 @@ export const SESSIONS = {
 export const FEATURES = [
     'orders.browse', 'orders.accept', 'orders.own', 'company.members', 'company.applications', 'company.profile',
     'company.treasury', 'inbox', 'rankings', 'market', 'orders.create', 'orders.deliver', 'company.create',
-    'company.disband',
+    'company.disband', 'company.perks',
 ]
 
 const MEMBERS = [
@@ -186,6 +186,11 @@ export function snapshot(session, delivered = false) {
                 {id: 4, provider: 'worldguard', ref: 'harbour-shop', name: '', world: 'world', source: 'RENTED', price: 120, rentUntil: '2026-11-07T12:00:00Z', renews: true},
             ],
             home: {world: 'world', x: 120, y: 64, z: -48},
+            perks: [
+                {id: 'builder-tool', name: "Builder's tool", description: 'Places what the blueprint asks for', price: 4000, minLevel: 2, state: 'OWNED', bought: '2026-10-30T12:00:00Z'},
+                {id: 'fast-delivery', name: 'Fast delivery', description: 'Deliveries count twice', price: 2500, minLevel: 3, state: 'AVAILABLE'},
+                {id: 'second-home', name: 'Second home', description: 'A second company home', price: 9000, minLevel: 9, state: 'LOCKED'},
+            ],
         },
         orders: [
             {

@@ -106,6 +106,7 @@ groups:
     - -companies.admin.level
     - -companies.admin.rename
     - -companies.admin.treasury
+    - -companies.admin.perks
     - -companies.admin.areas
     - -companies.admin.areas.bypass
     - -companies.admin.jobs.bypass

@@ -29,6 +29,7 @@ public final class Requirements {
             Permission.Admin.GRANT,
             Permission.Admin.BOARDS,
             Permission.Admin.TREASURY,
+            Permission.Admin.PERKS,
             Permission.Admin.NODES,
             Permission.Admin.OFFERS,
             Permission.Admin.EVENTS,

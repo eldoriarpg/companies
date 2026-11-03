@@ -25,7 +25,7 @@ import java.util.OptionalInt;
  * <p>
  * Members see their own company with the progress towards the next level and the number of orders it works on. Other
  * players see the public profile without either. Both show the description, the tag and name in the company colour,
- * and the join mode.
+ * the join mode and the perks the company may use.
  *
  * @param id          id of the company
  * @param name        name of the company
@@ -40,6 +40,7 @@ import java.util.OptionalInt;
  * @param color       colour of the tag and name
  * @param joinMode    how players become members
  * @param editable    whether the viewer may edit the profile
+ * @param perks       the names of the perks the company may use, in the order it got them
  */
 public record ProfileView(
         int id,
@@ -54,7 +55,8 @@ public record ProfileView(
         Optional<String> tag,
         Optional<TextColor> color,
         JoinMode joinMode,
-        boolean editable) {
+        boolean editable,
+        List<String> perks) {
 
     /**
      * The profile a member sees of their own company.
@@ -107,7 +109,30 @@ public record ProfileView(
                 profile.tag(),
                 profile.color().flatMap(ProfileColors::resolve),
                 profile.joinMode(),
-                editable);
+                editable,
+                List.of());
+    }
+
+    /**
+     * @param perks the names of the perks the company may use, in the order it got them
+     * @return this profile showing the perks
+     */
+    public ProfileView withPerks(List<String> perks) {
+        return new ProfileView(
+                id,
+                name,
+                level,
+                next,
+                founded,
+                leader,
+                memberCount,
+                orderCount,
+                description,
+                tag,
+                color,
+                joinMode,
+                editable,
+                List.copyOf(perks));
     }
 
     /**

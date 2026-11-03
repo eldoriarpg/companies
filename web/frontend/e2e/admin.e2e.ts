@@ -94,6 +94,22 @@ test.describe('admin', () => {
         await expect(page.getByTestId('admin-company-done')).toBeFocused()
     })
 
+    test('grants a company a perk and takes one away', async ({page}, info) => {
+        await openDashboard(page, 'ADMN01')
+        await openAdmin(page, info)
+        await page.getByRole('tab', {name: 'Companies'}).click()
+        await page.getByLabel('Company name').fill('Stonebridge Builders')
+        await page.getByRole('button', {name: 'Open', exact: true}).click()
+
+        const perks = page.getByTestId('admin-perks').getByRole('listitem')
+        await expect(perks).toHaveCount(2)
+        await perks.nth(1).getByRole('button', {name: 'Grant'}).click()
+        await expect(page.getByText('Stonebridge Builders got the perk Fast delivery.')).toBeVisible()
+        await expect(perks.nth(1).getByRole('button', {name: 'Take'})).toBeVisible()
+        await perks.first().getByRole('button', {name: 'Take'}).click()
+        await expect(page.getByText("The perk Builder's tool was taken from Stonebridge Builders.")).toBeVisible()
+    })
+
     test('saves a level from one form, adds one and removes it', async ({page}, info) => {
         await openDashboard(page, 'ADMN01')
         await openAdmin(page, info)

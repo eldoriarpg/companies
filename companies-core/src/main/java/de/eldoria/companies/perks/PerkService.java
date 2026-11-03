@@ -6,6 +6,7 @@
 package de.eldoria.companies.perks;
 
 import de.eldoria.companies.components.company.CompanyPermission;
+import de.eldoria.companies.components.company.ISimpleCompany;
 import de.eldoria.companies.components.company.PerkDefinition;
 import de.eldoria.companies.configuration.elements.perks.PerkSettings;
 import de.eldoria.companies.data.repository.APerkData;
@@ -32,12 +33,12 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 /**
- * The perks companies buy: which are registered, what they cost and from which level, which a company owns and
- * whether it may use them. A perk is offered while it is registered and {@code perks.yml} does not switch it off. A
- * company owns a perk once bought; it may use it while the perk is offered and the company has reached its minimum
- * level, and keeps it paused otherwise. Buying needs {@link CompanyPermission#MANAGE_PERKS} and is paid from the
- * treasury; a free perk is stored without a payment. The methods that read the database block; call them off the
- * main thread.
+ * The perks companies buy: which are registered, what they cost and from which level, which a company owns and whether
+ * it may use them. A perk is offered while it is registered and {@code perks.yml} does not switch it off. A company
+ * owns a perk once bought; it may use it while the perk is offered and the company has reached its minimum level, and
+ * keeps it paused otherwise. Buying needs {@link CompanyPermission#MANAGE_PERKS} and is paid from the treasury; a free
+ * perk is stored without a payment. Admins grant and take perks without payment or refund. The methods that read the
+ * database block; call them off the main thread.
  */
 public final class PerkService {
     private final APerkData data;
@@ -153,7 +154,7 @@ public final class PerkService {
      * @param company a company
      * @return the perks it owns, oldest first, with whether it may use each now
      */
-    public List<CompanyPerk> perks(CompanyProfile company) {
+    public List<CompanyPerk> perks(ISimpleCompany company) {
         return data.perks(company.id()).stream()
                 .map(owned -> new CompanyPerk(owned.company(), owned.perk(), owned.bought(), usable(company, owned)))
                 .toList();
@@ -164,12 +165,12 @@ public final class PerkService {
      * @param perk    id of a perk
      * @return whether the company owns the perk and may use it now
      */
-    public boolean usable(CompanyProfile company, String perk) {
+    public boolean usable(ISimpleCompany company, String perk) {
         var id = perk.toLowerCase(Locale.ROOT);
         return data.perks(company.id()).stream().anyMatch(owned -> owned.perk().equals(id) && usable(company, owned));
     }
 
-    private boolean usable(CompanyProfile company, OwnedPerk owned) {
+    private boolean usable(ISimpleCompany company, OwnedPerk owned) {
         return registered(owned.perk())
                 .filter(this::offered)
                 .filter(perk -> company.level() >= minLevel(perk))
@@ -218,7 +219,7 @@ public final class PerkService {
      * @param company a company
      * @return every registered perk that is offered or that the company owns, in the order they were registered
      */
-    public List<Offer> offers(CompanyProfile company) {
+    public List<Offer> offers(ISimpleCompany company) {
         Map<String, OwnedPerk> owned = new LinkedHashMap<>();
         for (var perk : data.perks(company.id())) owned.put(perk.perk(), perk);
         List<Offer> offers = new ArrayList<>();
@@ -331,6 +332,56 @@ public final class PerkService {
                     }
                     return new Bought(Outcome.TREASURY, result);
                 });
+    }
+
+    /**
+     * How an admin's grant or take ended.
+     */
+    public enum Granted {
+        /**
+         * The company owns the perk now, or no longer.
+         */
+        DONE,
+        /**
+         * No perk with this id is registered.
+         */
+        UNKNOWN,
+        /**
+         * Nothing changed: the company owned the perk already, or did not own it.
+         */
+        UNCHANGED
+    }
+
+    /**
+     * Gives a company a registered perk without payment, whether it is offered or not.
+     *
+     * @param company the company
+     * @param id      id of the perk, matched ignoring case
+     * @param actor   the admin, null for the console
+     * @return how it ended
+     */
+    public Granted grant(ISimpleCompany company, String id, @Nullable UUID actor) {
+        var perk = registered(id);
+        if (perk.isEmpty()) return Granted.UNKNOWN;
+        if (!data.add(company.id(), perk.get().id(), now.get())) return Granted.UNCHANGED;
+        events.accept(
+                new CompanyPerkChangeEvent(company, perk.get().id(), CompanyPerkChangeEvent.Change.GRANTED, actor));
+        return Granted.DONE;
+    }
+
+    /**
+     * Takes a perk from a company, without refund. A perk no longer registered can be taken as well.
+     *
+     * @param company the company
+     * @param id      id of the perk, matched ignoring case
+     * @param actor   the admin, null for the console
+     * @return how it ended
+     */
+    public Granted take(ISimpleCompany company, String id, @Nullable UUID actor) {
+        var key = id.toLowerCase(Locale.ROOT);
+        if (!data.remove(company.id(), key)) return Granted.UNCHANGED;
+        events.accept(new CompanyPerkChangeEvent(company, key, CompanyPerkChangeEvent.Change.TAKEN, actor));
+        return Granted.DONE;
     }
 
     private boolean owns(int company, String perk) {

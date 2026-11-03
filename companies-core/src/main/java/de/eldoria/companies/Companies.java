@@ -1290,7 +1290,8 @@ public class Companies extends EldoPlugin {
                                 commands.services().companies(),
                                 commands.services().disbandService(),
                                 commands.services().treasury(),
-                                () -> Money.currencyName(commands.services().economy())),
+                                () -> Money.currencyName(commands.services().economy()),
+                                commands.services().perks()),
                         new DashboardModule.OrderServices(
                                 commands.services().orderCreation(),
                                 commands.services().series(),

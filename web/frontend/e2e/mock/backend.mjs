@@ -871,6 +871,19 @@ function action(name, args, state, story = {}) {
             return done({company: args.company, owner: args.player})
         case 'admin.companies.delete':
             return done({company: args.company})
+        case 'admin.companies.perks':
+            state.adminPerks ??= {'builder-tool': true, 'fast-delivery': false}
+            return done({company: args.company, perks: [
+                {id: 'builder-tool', name: "Builder's tool", owned: state.adminPerks['builder-tool'], offered: true},
+                {id: 'fast-delivery', name: 'Fast delivery', owned: state.adminPerks['fast-delivery'], offered: true},
+            ]})
+        case 'admin.companies.perks.grant':
+        case 'admin.companies.perks.take': {
+            const owned = name === 'admin.companies.perks.grant'
+            state.adminPerks ??= {'builder-tool': true, 'fast-delivery': false}
+            state.adminPerks[args.perk] = owned
+            return done({perk: args.perk, owned})
+        }
         case 'admin.levels.list':
             return done({editable: true, levels: levels(state)})
         case 'admin.levels.create': {
@@ -1208,6 +1221,9 @@ function action(name, args, state, story = {}) {
         case 'company.treasury.withdraw':
             if (args.amount > 18450) return refused('The treasury does not hold that much.')
             return done({balance: 18450 - args.amount})
+        case 'company.perks.buy':
+            if (args.perk !== 'fast-delivery') return refused('Your company can not buy this perk.')
+            return done({perk: args.perk})
         case 'company.treasury.share':
             if (args.percent > 25) return refused('The share may be at most 25%.')
             return done({share: args.percent, balance: 18450})

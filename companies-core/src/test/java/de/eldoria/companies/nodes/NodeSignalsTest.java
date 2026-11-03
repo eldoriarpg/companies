@@ -15,6 +15,7 @@ import de.eldoria.companies.events.company.CompanyAreasChangeEvent;
 import de.eldoria.companies.events.company.CompanyInviteEvent;
 import de.eldoria.companies.events.company.CompanyJoinEvent;
 import de.eldoria.companies.events.company.CompanyMemberPermissionEvent;
+import de.eldoria.companies.events.company.CompanyPerkChangeEvent;
 import de.eldoria.companies.events.order.OrderRemovedEvent;
 import de.eldoria.companies.events.player.ItemsReturnedEvent;
 import de.eldoria.companies.nodes.NodeMessage.BoardsChanged;
@@ -114,6 +115,13 @@ class NodeSignalsTest {
                 List.of(new CacheInvalidate(
                         NodeCaches.PLAYER, player.getUniqueId().toString())),
                 bus.published);
+    }
+
+    @Test
+    void changedPerksOutdateTheCompany() {
+        signals.onPerks(new CompanyPerkChangeEvent(company(), "fast", CompanyPerkChangeEvent.Change.BOUGHT, null));
+
+        assertEquals(List.of(new CacheInvalidate(NodeCaches.COMPANY, "7")), bus.published);
     }
 
     @Test

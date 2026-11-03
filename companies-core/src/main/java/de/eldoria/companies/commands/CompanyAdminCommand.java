@@ -13,6 +13,7 @@ import de.eldoria.companies.commands.companyadmin.EventCommand;
 import de.eldoria.companies.commands.companyadmin.JobAdminCommand;
 import de.eldoria.companies.commands.companyadmin.NodeCommand;
 import de.eldoria.companies.commands.companyadmin.OffersCommand;
+import de.eldoria.companies.commands.companyadmin.PerksAdminCommand;
 import de.eldoria.companies.commands.companyadmin.Reload;
 import de.eldoria.companies.commands.companyadmin.Rename;
 import de.eldoria.companies.commands.companyadmin.SettingsCommand;
@@ -110,6 +111,9 @@ final class CompanyAdminCommand {
     @Subcommand
     final AreaAdminCommand area;
 
+    @Subcommand
+    final PerksAdminCommand perks;
+
     CompanyAdminCommand(CommandDependencies deps) {
         this.deps = deps;
         level = new LevelCommand(deps);
@@ -133,6 +137,7 @@ final class CompanyAdminCommand {
         event = new EventCommand(deps);
         job = new JobAdminCommand(deps);
         area = new AreaAdminCommand(deps);
+        perks = new PerksAdminCommand(deps);
     }
 
     /**

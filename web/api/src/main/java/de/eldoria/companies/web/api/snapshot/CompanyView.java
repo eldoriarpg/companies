@@ -29,6 +29,7 @@ import java.util.List;
  * @param palette the colours of the server's palette a company may choose from
  * @param areas its areas, none from a peer that sends no areas
  * @param home its home, none when it has set none
+ * @param perks the perks of the server as the company sees them, none from a peer that sends no perks
  */
 public record CompanyView(
         int id,
@@ -46,4 +47,5 @@ public record CompanyView(
         @Nullable String colorName,
         @Nullable List<PaletteColor> palette,
         @Nullable List<AreaView> areas,
-        @Nullable HomeView home) {}
+        @Nullable HomeView home,
+        @Nullable List<PerkView> perks) {}

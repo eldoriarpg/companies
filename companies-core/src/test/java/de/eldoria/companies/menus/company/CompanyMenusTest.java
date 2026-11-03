@@ -129,6 +129,18 @@ class CompanyMenusTest {
     }
 
     @Test
+    void theProfileNamesThePerksTheCompanyMayUseUnparsed() {
+        var menu = new ProfileMenu(messages, economy(), new NoNavigation());
+        var without = ProfileView.external(profile(), new CompanySettings());
+
+        var shown =
+                plain(menu.chat(owner, without.withPerks(List.of("<red>Builder's tool", "Fast delivery")), actions));
+
+        assertTrue(shown.contains("company.profile.perks: <red>Builder's tool, Fast delivery"), shown);
+        assertFalse(plain(menu.chat(owner, without, actions)).contains("company.profile.perks"));
+    }
+
+    @Test
     void theProfileShowsTagNameAndDescriptionUnparsed() {
         var details = new CompanyDetails("<red>We dig.", "ACME", "gold", JoinMode.APPLICATIONS);
         var view = ProfileView.external(profile().withDetails(details), new CompanySettings());

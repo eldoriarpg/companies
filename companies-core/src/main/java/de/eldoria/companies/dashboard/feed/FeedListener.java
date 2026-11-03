@@ -18,6 +18,7 @@ import de.eldoria.companies.events.company.CompanyLeaveEvent;
 import de.eldoria.companies.events.company.CompanyLevelChangeEvent;
 import de.eldoria.companies.events.company.CompanyMemberPermissionEvent;
 import de.eldoria.companies.events.company.CompanyOwnerTransferEvent;
+import de.eldoria.companies.events.company.CompanyPerkChangeEvent;
 import de.eldoria.companies.events.company.CompanyProfileEditEvent;
 import de.eldoria.companies.events.company.CompanyRenameEvent;
 import de.eldoria.companies.events.company.TreasuryTransactionEvent;
@@ -202,6 +203,16 @@ public final class FeedListener implements Listener {
      */
     @EventHandler(priority = EventPriority.MONITOR)
     public void onAreas(CompanyAreasChangeEvent event) {
+        feed.companyChanged(event.company().id());
+    }
+
+    /**
+     * A company got or lost a perk: its company view changes for every member.
+     *
+     * @param event the change
+     */
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onPerks(CompanyPerkChangeEvent event) {
         feed.companyChanged(event.company().id());
     }
 

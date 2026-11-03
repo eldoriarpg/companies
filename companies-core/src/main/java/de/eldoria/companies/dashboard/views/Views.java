@@ -28,6 +28,7 @@ import de.eldoria.companies.data.wrapper.offer.OfferMark;
 import de.eldoria.companies.orders.SystemOwner;
 import de.eldoria.companies.orders.criteria.CriteriaText;
 import de.eldoria.companies.orders.offers.OfferMarks;
+import de.eldoria.companies.perks.PerkService;
 import de.eldoria.companies.services.events.EventPreviews;
 import de.eldoria.companies.web.api.Protocol;
 import de.eldoria.companies.web.api.snapshot.AlertView;
@@ -49,6 +50,8 @@ import de.eldoria.companies.web.api.snapshot.OrderLineView;
 import de.eldoria.companies.web.api.snapshot.OrderState;
 import de.eldoria.companies.web.api.snapshot.OwnOrderView;
 import de.eldoria.companies.web.api.snapshot.PaletteColor;
+import de.eldoria.companies.web.api.snapshot.PerkStateView;
+import de.eldoria.companies.web.api.snapshot.PerkView;
 import de.eldoria.companies.web.api.snapshot.PlayerView;
 import de.eldoria.companies.web.api.snapshot.RankingEntry;
 import de.eldoria.companies.web.api.snapshot.RankingPage;
@@ -260,7 +263,33 @@ public final class Views {
                 company.color().orElse(null),
                 palette(),
                 areas(company.id()),
-                home(company.id()));
+                home(company.id()),
+                perks(company));
+    }
+
+    private List<PerkView> perks(ICompanyProfile company) {
+        return sources.perks().offers(company).stream().map(this::perk).toList();
+    }
+
+    private PerkView perk(PerkService.Offer offer) {
+        var bought = offer.bought();
+        return new PerkView(
+                offer.perk().id(),
+                offer.perk().name(),
+                offer.perk().description(),
+                offer.price().doubleValue(),
+                offer.minLevel(),
+                perkState(offer.state()),
+                bought == null ? null : instant(bought));
+    }
+
+    private static PerkStateView perkState(PerkService.State state) {
+        return switch (state) {
+            case OWNED -> PerkStateView.OWNED;
+            case PAUSED -> PerkStateView.PAUSED;
+            case AVAILABLE -> PerkStateView.AVAILABLE;
+            case LOCKED -> PerkStateView.LOCKED;
+        };
     }
 
     private List<AreaView> areas(int company) {
@@ -838,6 +867,7 @@ public final class Views {
      * @param clock           the current time
      * @param marked          whether the server marks the orders it placed itself
      * @param offers          the event offers orders are chunks of
+     * @param perks           the perks companies buy
      */
     public record Sources(
             CompaniesApi api,
@@ -851,5 +881,6 @@ public final class Views {
             ZoneId zone,
             Clock clock,
             BooleanSupplier marked,
-            OfferMarks offers) {}
+            OfferMarks offers,
+            PerkService perks) {}
 }

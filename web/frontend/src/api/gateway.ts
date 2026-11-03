@@ -552,6 +552,21 @@ export interface AdminTreasury {
     entries: TreasuryLogEntry[]
 }
 
+/** A perk as an admin sees it on a company: whether the company owns it and whether the server offers it. */
+export interface AdminPerk {
+    id: string
+    /** The perk's name; its id for a perk no longer registered. */
+    name: string
+    owned: boolean
+    offered: boolean
+}
+
+/** The perks of a company as an admin sees them. */
+export interface AdminPerks {
+    company: string
+    perks: AdminPerk[]
+}
+
 /** A company level as an admin edits it. The name is MiniMessage text as written in `company.yml`. */
 export interface AdminLevel {
     level: number
@@ -1446,6 +1461,9 @@ export interface WriteActions {
     'admin.companies.rename': {args: CompanyName & {name: string}, result: CompanyName}
     'admin.companies.transfer-owner': {args: CompanyName & PlayerName, result: CompanyName & {owner: string}}
     'admin.companies.delete': {args: CompanyName, result: CompanyName}
+    'admin.companies.perks': {args: CompanyName, result: AdminPerks}
+    'admin.companies.perks.grant': {args: CompanyName & {perk: string}, result: {perk: string, owned: boolean}}
+    'admin.companies.perks.take': {args: CompanyName & {perk: string}, result: {perk: string, owned: boolean}}
     'admin.levels.list': {args: Record<string, never>, result: AdminLevels}
     'admin.levels.info': {args: LevelRef, result: AdminLevel}
     'admin.levels.create': {args: {position?: number}, result: AdminLevel}
@@ -1562,6 +1580,7 @@ export interface WriteActions {
     'company.treasury.deposit': {args: {amount: number}, result: {balance: number}}
     'company.treasury.withdraw': {args: {amount: number}, result: {balance: number}}
     'company.treasury.share': {args: {percent: number}, result: {share: number, balance: number}}
+    'company.perks.buy': {args: {perk: string}, result: {perk: string}}
 }
 
 /** A player an action named, by id. */

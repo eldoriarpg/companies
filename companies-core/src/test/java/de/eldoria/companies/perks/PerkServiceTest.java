@@ -198,6 +198,31 @@ class PerkServiceTest {
     }
 
     @Test
+    void anAdminGrantsAndTakesPerksWithoutPayment() {
+        var admin = UUID.randomUUID();
+
+        assertEquals(PerkService.Granted.DONE, perks.grant(level(1), "Builder-Tool", admin));
+        assertEquals(PerkService.Granted.UNCHANGED, perks.grant(level(1), "builder-tool", admin));
+        assertEquals(PerkService.Granted.UNKNOWN, perks.grant(level(1), "no-such-perk", admin));
+        assertEquals(List.of(), paid);
+        assertFalse(perks.usable(level(1), "builder-tool"));
+
+        new SqLitePerkData().add(company, "gone-perk", NOW);
+        assertEquals(PerkService.Granted.DONE, perks.take(level(1), "gone-perk", null));
+        assertEquals(PerkService.Granted.DONE, perks.take(level(1), "builder-tool", admin));
+        assertEquals(PerkService.Granted.UNCHANGED, perks.take(level(1), "builder-tool", admin));
+
+        assertEquals(
+                List.of(
+                        CompanyPerkChangeEvent.Change.GRANTED,
+                        CompanyPerkChangeEvent.Change.TAKEN,
+                        CompanyPerkChangeEvent.Change.TAKEN),
+                events.stream()
+                        .map(event -> ((CompanyPerkChangeEvent) event).change())
+                        .toList());
+    }
+
+    @Test
     void perkIdsAreChecked() {
         assertThrowsIllegal(() -> new PerkDefinition("Builder Tool", "x", "x", 1, 1));
         assertThrowsIllegal(() -> new PerkDefinition("tool", "x", "x", -1, 1));

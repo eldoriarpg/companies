@@ -69,6 +69,7 @@ Only operators have these by default.
 | `companies.admin.rename` | op | Rename companies with `/companyadmin rename`. |
 | `companies.admin.transferOwner` | op | Make another member the owner of a company with `/companyadmin transferowner`. |
 | `companies.admin.treasury` | op | Look at company treasuries and add or remove money with `/companyadmin treasury`. |
+| `companies.admin.perks` | op | Grant [perks](../companies/perks.md) to companies and take them with `/companyadmin perks`. |
 | `companies.updates` | op | Hear about new versions when joining, and download them. |
 
 Every admin permission also makes `/companyadmin` visible. Each subcommand then checks its own permission. The same
@@ -84,7 +85,7 @@ These give every permission listed below them. On their own, they do nothing.
 | `companies.*` | op | `companies.orders.*`, `companies.company.*`, `companies.boards.use`, `companies.dashboard.use`, `companies.admin.*`, `companies.updates` |
 | `companies.orders.*` | op | `companies.orders.create`, `companies.orders.repeat`, `companies.orders.solo`, `companies.orders.jobs` |
 | `companies.company.*` | op | `companies.company.create`, `companies.company.join`, `companies.company.home` |
-| `companies.admin.*` | op | `companies.admin`, `companies.admin.boards`, `companies.admin.calcLevel`, `companies.admin.dashboard`, `companies.admin.debug`, `companies.admin.delete`, `companies.admin.events`, `companies.admin.grant`, `companies.admin.areas`, `companies.admin.areas.bypass`, `companies.admin.jobs`, `companies.admin.jobs.bypass`, `companies.admin.level`, `companies.admin.nodes`, `companies.admin.offers`, `companies.admin.orders`, `companies.admin.player`, `companies.admin.reload`, `companies.admin.rename`, `companies.admin.transferOwner`, `companies.admin.treasury` |
+| `companies.admin.*` | op | `companies.admin`, `companies.admin.boards`, `companies.admin.calcLevel`, `companies.admin.dashboard`, `companies.admin.debug`, `companies.admin.delete`, `companies.admin.events`, `companies.admin.grant`, `companies.admin.areas`, `companies.admin.areas.bypass`, `companies.admin.jobs`, `companies.admin.jobs.bypass`, `companies.admin.level`, `companies.admin.nodes`, `companies.admin.offers`, `companies.admin.orders`, `companies.admin.player`, `companies.admin.reload`, `companies.admin.rename`, `companies.admin.transferOwner`, `companies.admin.treasury`, `companies.admin.perks` |
 
 :::note
 The player permissions have the default "everyone". So players have them even without `companies.*`. To block a feature, set the permission to `false` for that player or group.

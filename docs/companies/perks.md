@@ -25,6 +25,9 @@ The list marks each perk:
 - **available:** your company can buy it. Members with `manage_perks` get a buy button.
 - **locked:** your company needs a higher level first.
 
+The dashboard's company page lists the perks the same way, and members with `manage_perks` buy them there after
+confirming the price. The perks your company may use are named on its profile, `/company profile`.
+
 The price is taken from the treasury, never from your own money, so the treasury has to be switched on and hold enough.
 The purchase shows in the treasury's log. A perk is bought once and kept; when the company is disbanded, its perks are
-gone with it.
+gone with it. Admins can give a company a perk or take one with `/companyadmin perks`, without payment or refund.

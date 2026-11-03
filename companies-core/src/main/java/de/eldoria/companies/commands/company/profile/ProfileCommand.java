@@ -10,9 +10,11 @@ import de.eldoria.companies.commands.company.member.MemberCommand;
 import de.eldoria.companies.commands.suggest.CompanyNames;
 import de.eldoria.companies.commands.support.PlayerOnly;
 import de.eldoria.companies.commands.support.Senders;
+import de.eldoria.companies.components.company.PerkDefinition;
 import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.data.wrapper.company.CompanyProfile;
 import de.eldoria.companies.data.wrapper.company.CompanyStats;
+import de.eldoria.companies.data.wrapper.perk.CompanyPerk;
 import de.eldoria.companies.menus.company.ProfileMenu;
 import de.eldoria.companies.menus.company.ProfileView;
 import de.eldoria.companies.services.ProfileService;
@@ -25,6 +27,7 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.logging.Level;
@@ -186,18 +189,29 @@ public final class ProfileCommand {
     }
 
     private void showExternal(Player player, CompanyProfile profile) {
-        var view = ProfileView.external(profile, deps.configuration().companySettings());
+        var view = ProfileView.external(profile, deps.configuration().companySettings())
+                .withPerks(perks(profile));
         deps.services().menus().show(player, menu(), view);
     }
 
     private void showOwn(Player player, CompanyProfile profile, int orderCount, @Nullable CompanyStats stats) {
         var view = ProfileView.own(
-                profile,
-                deps.configuration().companySettings(),
-                stats,
-                orderCount,
-                ProfileService.mayEdit(profile, player));
+                        profile,
+                        deps.configuration().companySettings(),
+                        stats,
+                        orderCount,
+                        ProfileService.mayEdit(profile, player))
+                .withPerks(perks(profile));
         deps.services().menus().show(player, menu(), view);
+    }
+
+    private List<String> perks(CompanyProfile profile) {
+        var perks = deps.services().perks();
+        return perks.perks(profile).stream()
+                .filter(CompanyPerk::usable)
+                .flatMap(owned -> perks.registered(owned.perk()).stream())
+                .map(PerkDefinition::name)
+                .toList();
     }
 
     private ProfileMenu menu() {

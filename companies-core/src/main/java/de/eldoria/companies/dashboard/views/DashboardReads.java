@@ -118,6 +118,7 @@ public final class DashboardReads {
             Features.JOBS,
             Features.ADMIN_JOBS,
             Features.COMPANY_DISBAND,
+            Features.COMPANY_PERKS,
             Features.INBOX,
             Features.RANKINGS,
             Features.MARKET);

@@ -49,6 +49,7 @@ public final class SessionPermissions {
             Permission.Admin.NODES,
             Permission.Admin.OFFERS,
             Permission.Admin.ORDERS,
+            Permission.Admin.PERKS,
             Permission.Admin.PLAYER,
             Permission.Admin.RELOAD,
             Permission.Admin.RENAME,

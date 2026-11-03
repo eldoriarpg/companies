@@ -122,3 +122,20 @@ test.describe('company areas', () => {
         await expect(areas.getByTitle('harbour-shop')).toHaveText('#4 harbour-shop')
     })
 })
+
+/** The server's perks as the company sees them, and buying one from the treasury. */
+test.describe('company perks', () => {
+    test('lists the perks with their state and buys an available one after asking', async ({page}) => {
+        const panel = page.getByLabel('Perks')
+        const perks = panel.getByTestId('perks').getByRole('listitem')
+        await expect(perks).toHaveCount(3)
+        await expect(perks.first()).toContainText('Owned')
+        await expect(perks.nth(2)).toContainText('Locked')
+        await expect(perks.nth(2).getByRole('button', {name: 'Buy'})).toHaveCount(0)
+
+        await perks.nth(1).getByRole('button', {name: 'Buy'}).click()
+        await expect(perks.nth(1)).toContainText('Buy Fast delivery for')
+        await perks.nth(1).getByRole('button', {name: 'Buy from the treasury'}).click()
+        await expect(panel).toContainText('Your company bought Fast delivery.')
+    })
+})

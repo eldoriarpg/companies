@@ -373,6 +373,8 @@ You see `/companyadmin` if you have any of the `companies.admin` permissions. Ea
 | `/companyadmin delete confirm` | `companies.admin.delete` | no | Confirms the delete. |
 | `/companyadmin rename <company> <name>` | `companies.admin.rename` | no | Renames a company. Put the old name in quotes if it has spaces. |
 | `/companyadmin transferowner <company> <player>` | `companies.admin.transferOwner` | no | Makes a member the owner of a company. |
+| `/companyadmin perks grant <company> <perk>` | `companies.admin.perks` | no | Gives a company a perk without payment. |
+| `/companyadmin perks take <company> <perk>` | `companies.admin.perks` | no | Takes a perk from a company, without refund. |
 
 ### Levels
 

@@ -310,7 +310,8 @@ paper {
                 "companies.admin.reload",
                 "companies.admin.rename",
                 "companies.admin.transferOwner",
-                "companies.admin.treasury"
+                "companies.admin.treasury",
+                "companies.admin.perks"
             )
         }
         register("companies.admin") {
@@ -376,6 +377,9 @@ paper {
         }
         register("companies.admin.treasury") {
             description = "Allows inspecting company treasuries and adding or removing money"
+        }
+        register("companies.admin.perks") {
+            description = "Allows granting perks to companies and taking them away"
         }
     }
 }

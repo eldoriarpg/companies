@@ -12,12 +12,14 @@ import Alert from '@/components/feedback/Alert.vue'
 import TextInput from '@/components/input/TextInput.vue'
 import SectionHeader from '@/components/typography/SectionHeader.vue'
 import AdminCompanyChanges from './AdminCompanyChanges.vue'
+import AdminPerksPanel from './AdminPerksPanel.vue'
 import AdminTreasuryPanel from './AdminTreasuryPanel.vue'
 
 /**
- * Any company for an admin, as `/companyadmin treasury`, `rename`, `transferowner` and `delete` offer it: its
- * treasury with the latest movements, money given or taken, a free rename, a new owner from its members, and its
- * dissolution. The company is named once at the top; each tool needs the permission of its command.
+ * Any company for an admin, as `/companyadmin treasury`, `rename`, `transferowner`, `perks` and `delete` offer it: its
+ * treasury with the latest movements, money given or taken, a free rename, a new owner from its members, its perks
+ * granted or taken, and its dissolution. The company is named once at the top; each tool needs the permission of its
+ * command.
  */
 const {t} = useI18n()
 const opening = useAction()
@@ -79,6 +81,7 @@ async function deleted(text: string): Promise<void> {
       </div>
       <AdminTreasuryPanel v-if="treasury" v-model="treasury"/>
       <AdminCompanyChanges v-if="company" :key="company" :company="company" @changed="changed" @deleted="deleted"/>
+      <AdminPerksPanel v-if="company" :key="`perks-${company}`" :company="company" @changed="changed"/>
     </div>
   </div>
 </template>
