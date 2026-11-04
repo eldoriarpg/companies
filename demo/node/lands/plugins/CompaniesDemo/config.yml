@@ -7,7 +7,11 @@ commands:
   enabled: true
   allowed: [demo, company, comp, order, companyadmin, plot, plots, p, balance, bal, money, pay, baltop, balancetop,
             help, list, msg, tell, r, claim, trust, untrust, trustlist, abandonclaim, claimslist, trapped]
+pay:
+  maxAmount: 1000
+  commands: [pay, xconomy:pay]
 messages:
+  pay: '<red>Visitors pay at most <max> at once.'
   usage: '<gray>/demo guide</gray> gives the guide, <gray>/demo admin</gray> takes the admin sandbox, <gray>/demo admin off</gray> ends it.'
   players: 'Only players use /demo.'
   permission: '<red>You may not use the admin sandbox.'

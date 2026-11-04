@@ -18,9 +18,11 @@ import net.luckperms.api.LuckPermsProvider;
 import org.bukkit.configuration.MemoryConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.time.Clock;
 import java.time.Duration;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.Set;
@@ -30,8 +32,9 @@ import java.util.logging.Level;
 
 /**
  * The helper of the Companies demo network. On every server it offers {@code /demo} with the guide book and the admin
- * sandbox and, where {@code commands.enabled}, keeps visitors to the commands of its allow list. The server with {@code
- * groups} sets up the LuckPerms groups of the demo on each start, since the nightly reset empties their database.
+ * sandbox and, where {@code commands.enabled}, keeps visitors to the commands of its allow list; payments above
+ * {@code pay.maxAmount} are refused. The server with {@code groups} sets up the LuckPerms groups of the demo on each
+ * start, since the nightly reset empties their database.
  * <p>
  * The server whose config has {@code seed.enabled} creates the starting state of the demo after every reset, which
  * empties the Companies database. On each start it first writes the market history, which has no API, over a connection
@@ -43,6 +46,7 @@ import java.util.logging.Level;
 public final class CompaniesDemo extends JavaPlugin {
     private static final long RETRY_TICKS = 20L * 10;
     private static final int ATTEMPTS = 30;
+    private static final String DEFAULT_PAY_CAP = "1000";
 
     @Override
     public void onEnable() {
@@ -72,6 +76,14 @@ public final class CompaniesDemo extends JavaPlugin {
                                     getConfig().getString("messages.refused", "")),
                             this);
         }
+        getServer()
+                .getPluginManager()
+                .registerEvents(
+                        new PayCap(
+                                Set.copyOf(getConfig().getStringList("pay.commands")),
+                                payCap(),
+                                getConfig().getString("messages.pay", "")),
+                        this);
         setUpGroups(new DemoGroups(luckPerms));
         if (!getConfig().getBoolean("seed.enabled")) return;
         var section = getConfig().getConfigurationSection("seed");
@@ -91,6 +103,14 @@ public final class CompaniesDemo extends JavaPlugin {
         var market = new MarketSeeder(store, Clock.systemUTC());
         getServer().getScheduler().runTaskAsynchronously(this, () -> seedMarket(market, plan));
         attempt(new Seeder(new ApiWrites(), getLogger()), plan, 1);
+    }
+
+    private BigDecimal payCap() {
+        var text = Objects.requireNonNullElse(getConfig().getString("pay.maxAmount"), DEFAULT_PAY_CAP);
+        var cap = PayCap.amount(text);
+        if (cap != null) return cap;
+        getLogger().warning("pay.maxAmount is no amount: " + text + "; using " + DEFAULT_PAY_CAP);
+        return new BigDecimal(DEFAULT_PAY_CAP);
     }
 
     private void setUpGroups(DemoGroups groups) {

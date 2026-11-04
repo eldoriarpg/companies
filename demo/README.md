@@ -45,7 +45,10 @@ and since the reset forgets who joined, once a day.
 
 Visitors use only the commands of `commands.allowed` in the `CompaniesDemo` config of each node: Companies' own,
 `/demo`, the plot and economy commands they need, and chat. Every other command is refused and left out of tab
-completion; `companiesdemo.commands.all` (ops by default) lifts the list.
+completion; `companiesdemo.commands.all` (ops by default) lifts the list. A payment is capped at `pay.maxAmount`
+(1000), read with XConomy's abbreviations `k`, `m` and `b`; `companiesdemo.pay.unlimited` (ops and `demo-admin`) lifts
+the cap. Only the commands of `pay.commands` are capped (XConomy's `pay`, also with its prefix), so it has to name every
+pay command the allow list lets through.
 
 `/demo admin` makes a visitor a member of the LuckPerms group `demo-admin` for 30 minutes (`sandbox.minutes`; a pause
 before the next one with `sandbox.pauseMinutes`, none by default); `/demo admin off` ends it early. The group gets the

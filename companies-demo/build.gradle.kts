@@ -26,6 +26,10 @@ bukkit {
             description = "Use every command, not only those of the demo's allow list"
             default = Default.OP
         }
+        register("companiesdemo.pay.unlimited") {
+            description = "Pay any amount with /pay, not only up to pay.maxAmount"
+            default = Default.OP
+        }
         register("companiesdemo.admin") {
             description = "Switch the admin sandbox on with /demo admin"
             default = Default.TRUE
