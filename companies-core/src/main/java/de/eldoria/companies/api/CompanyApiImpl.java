@@ -5,6 +5,7 @@
  */
 package de.eldoria.companies.api;
 
+import de.eldoria.companies.api.write.DisbandResult;
 import de.eldoria.companies.api.write.FoundProblem;
 import de.eldoria.companies.api.write.FoundRequest;
 import de.eldoria.companies.api.write.FoundResult;
@@ -47,10 +48,12 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 /**
- * Reads companies from the repositories; adds members, founds companies and sets homes through the services the
- * commands use. Refusals are told apart by the message key the service refused with.
+ * Reads companies from the repositories; adds members, founds and disbands companies and sets homes through the
+ * services the commands use. Refusals are told apart by the message key the service refused with.
  */
 final class CompanyApiImpl implements CompanyApi {
+    private static final String DISBAND_FAILED = "company.disband.failed";
+
     private final ACompanyData companyData;
     private final AStatsData stats;
     private final ATreasuryData treasuries;
@@ -209,6 +212,20 @@ final class CompanyApiImpl implements CompanyApi {
             case "error.insufficientCurrency" -> FoundProblem.NO_MONEY;
             case "error.cancelledByIntegration" -> FoundProblem.CANCELLED;
             default -> FoundProblem.FAILED;
+        };
+    }
+
+    @Override
+    public CompletableFuture<DisbandResult> disband(int company, UUID actor) {
+        return writes.run(services -> CompletableFuture.supplyAsync(
+                () -> disbanded(services.disband().disbandOwned(actor, company)), executor));
+    }
+
+    private static DisbandResult disbanded(ActionResult<CompanyProfile> result) {
+        return switch (result) {
+            case ActionResult.Done<CompanyProfile> done -> DisbandResult.DISBANDED;
+            case ActionResult.Refused<CompanyProfile>(var failure) ->
+                DISBAND_FAILED.equals(failure.localeKey()) ? DisbandResult.FAILED : DisbandResult.NOT_OWNER;
         };
     }
 

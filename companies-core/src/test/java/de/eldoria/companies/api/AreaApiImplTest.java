@@ -76,7 +76,7 @@ class AreaApiImplTest {
         var services = new AreaServices(providers, areas, null, null, null, UUID.randomUUID(), () -> "lands");
         var writes = new WriteAccess();
         writes.open(new CompaniesApiImpl.Writes(
-                null, null, null, null, null, null, new AreaOffers(services), null, null, Runnable::run));
+                null, null, null, null, null, null, new AreaOffers(services), null, null, null, null, Runnable::run));
         api = new AreaApiImpl(providers, areas, writes, Logger.getAnonymousLogger(), executor);
     }
 

@@ -144,6 +144,8 @@ class JobApiImplTest {
                         null,
                         null),
                 () -> settings,
+                null,
+                null,
                 Runnable::run));
         api = new JobApiImpl(jobs, companies, writes, server::getOfflinePlayer, executor);
     }

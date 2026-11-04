@@ -45,7 +45,15 @@ and since the reset forgets who joined, once a day.
 
 Visitors use only the commands of `commands.allowed` in the `CompaniesDemo` config of each node: Companies' own,
 `/demo`, the plot and economy commands they need, and chat. Every other command is refused and left out of tab
-completion; `companiesdemo.commands.all` (ops by default) lifts the list.
+completion; `companiesdemo.commands.all` (ops by default) lifts the list. A payment is capped at `pay.maxAmount`
+(1000), read with XConomy's abbreviations `k`, `m` and `b`; `companiesdemo.pay.unlimited` (ops and `demo-admin`) lifts
+the cap. Only the commands of `pay.commands` are capped (XConomy's `pay`, also with its prefix), so it has to name every
+pay command the allow list lets through.
+
+`/demo reset-me` gives a visitor a clean start: run once, it says what goes, run again within 30 seconds, it disbands
+the company the visitor owns (its members lose it, as with `/company disband`) and cancels their open orders, the price
+paid back. Orders a company or worker took stay with them, and so does a membership in a company someone else owns.
+The next reset waits `reset.cooldownMinutes` (10).
 
 `/demo admin` makes a visitor a member of the LuckPerms group `demo-admin` for 30 minutes (`sandbox.minutes`; a pause
 before the next one with `sandbox.pauseMinutes`, none by default); `/demo admin off` ends it early. The group gets the
@@ -53,6 +61,10 @@ admin tools of Companies to look at orders, players, events, offers and job disp
 syncing, settings writes, owner transfers, nodes, the dashboard key, debug, grants, the level editor, renames, treasury
 changes, area offers, the two bypasses and boards, so a demo admin can neither create money nor take other visitors'
 land. Starting or ending the sandbox ends the player's dashboard sessions, so the next login shows what they may do now.
+A node keeps who took the sandbox in `plugins/CompaniesDemo/sandbox-players.yml`, so a restart still ends the sessions
+when the sandbox runs out: when the server starts and whenever a player joins, a running sandbox is planned again for
+its end, and one that ended meanwhile has its sessions ended at once. Players the file never kept are left alone; the
+nightly reset deletes the file.
 `hub` sets up the groups `default` (the chat commands of the allow list) and `demo-admin` from its config on every
 start, since the reset empties the LuckPerms database. The nightly reset undoes what demo admins changed.
 
@@ -90,8 +102,8 @@ needs `DOCKER_SOCKET=/run/user/<uid>/docker.sock` there or in the environment. T
 Every night at `RESET_AT` (Europe/Berlin, avoid 02:00 to 03:00, which is skipped once a year), after warnings 10 and 1
 minutes before, the `reset` service stops both nodes, recreates the `companies`, `luckperms` and `economy` databases,
 empties Redis, replaces the `seed` paths of `reset/paths` (worlds, regions, plots, claims, holograms, warps) with the
-seed, deletes the `wipe` paths (player data, caches, ops and bans) and starts `hub`, then `lands`. A failed reset
-still starts the nodes again. The gateway and its database are left alone.
+seed, deletes the `wipe` paths (player data, caches, ops, bans and the sandbox file) and starts `hub`, then `lands`. A
+failed reset still starts the nodes again. The gateway and its database are left alone.
 
 The service controls the nodes through the Docker socket, which gives it full control of the Docker host. Run the
 demo on a host or rootless Docker daemon of its own.

@@ -70,8 +70,14 @@ commands:
   enabled: true
   allowed: [demo, company, comp, order, companyadmin, plot, plots, p, balance, bal, money, pay, baltop, balancetop,
             help, list, msg, tell, r]
+reset:
+  cooldownMinutes: 10
+pay:
+  maxAmount: 1000
+  commands: [pay, xconomy:pay]
 messages:
-  usage: '<gray>/demo guide</gray> gives the guide, <gray>/demo admin</gray> takes the admin sandbox, <gray>/demo admin off</gray> ends it.'
+  pay: '<red>Visitors pay at most <max> at once.'
+  usage: '<gray>/demo guide</gray> gives the guide, <gray>/demo admin</gray> takes the admin sandbox, <gray>/demo admin off</gray> ends it, <gray>/demo reset-me</gray> removes your company and open orders.'
   players: 'Only players use /demo.'
   permission: '<red>You may not use the admin sandbox.'
   failed: '<red>That did not work, try again in a moment.'
@@ -82,6 +88,19 @@ messages:
     wait: '<yellow>You were a demo admin lately. Try again later.'
     disabled: '<green>You are no demo admin anymore.'
     none: '<yellow>You are no demo admin.'
+  reset:
+    ask: '<yellow><gray>/demo reset-me</gray> removes what is yours:'
+    company: '<gray>- your company <white><company></white> (members: <members>)'
+    orders: '<gray>- your <orders> open orders, their price paid back'
+    confirm: '<yellow>Run <gray>/demo reset-me</gray> again within <seconds> seconds to confirm.'
+    nothing: '<yellow>You own no company and have no open orders.'
+    done: '<green>Your reset is done.'
+    disbanded: '<gray>Disbanded <white><company></white>.'
+    notDisbanded: '<red>Could not disband <company>; try again in a moment.'
+    cancelled: '<gray>Cancelled <orders> open orders.'
+    taken: '<gray><orders> orders stay: a company or worker has taken them.'
+    member: '<gray>You stay a member of <white><company></white>; only its owner disbands it.'
+    wait: '<yellow>You reset lately. Try again in <minutes> minutes.'
 groups:
   default:
     - essentials.msg
@@ -89,6 +108,7 @@ groups:
     - essentials.list
     - essentials.help
   demo-admin:
+    - companiesdemo.pay.unlimited
     - companies.admin
     - companies.admin.calcLevel
     - companies.admin.events
@@ -123,3 +143,4 @@ guide:
     - "<bold>Dashboard</bold>\n\n<dark_gray>/company dashboard</dark_gray>\ngives a link and a code. Open it on phone or PC."
     - "<bold>Two servers</bold>\n\n<dark_gray>/server hub</dark_gray> is the spawn, <dark_gray>/server lands</dark_gray> has plots and claims.\n\nCompanies and orders are shared."
     - "<bold>Admin tools</bold>\n\n<dark_gray>/demo admin</dark_gray>\nmakes you a demo admin for 30 minutes.\n\n<dark_gray>/demo guide</dark_gray>\ngives this book again."
+    - "<bold>Start over</bold>\n\n<dark_gray>/demo reset-me</dark_gray>\nremoves your company and your open orders, once you confirm it."

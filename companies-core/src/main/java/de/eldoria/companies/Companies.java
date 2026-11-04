@@ -819,6 +819,8 @@ public class Companies extends EldoPlugin {
                     new AreaOffers(areaServices),
                     jobServices,
                     configuration::jobSettings,
+                    disbandService,
+                    ownerOrders,
                     Threading.mainThread(this)));
 
         registerListener(new GuessedOutcomes(orderData, Times.UTC, Threading.VIRTUAL, getLogger()));

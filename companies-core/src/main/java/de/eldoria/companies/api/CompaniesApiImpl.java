@@ -22,10 +22,12 @@ import de.eldoria.companies.data.repository.AStatsData;
 import de.eldoria.companies.data.repository.ATreasuryData;
 import de.eldoria.companies.jobs.JobServices;
 import de.eldoria.companies.orders.OrderCreationService;
+import de.eldoria.companies.orders.OwnerOrderService;
 import de.eldoria.companies.perks.PerkService;
 import de.eldoria.companies.prices.PriceSources;
 import de.eldoria.companies.prices.TradeLog;
 import de.eldoria.companies.services.CompanyService;
+import de.eldoria.companies.services.DisbandService;
 import de.eldoria.companies.services.ItemReturnService;
 import de.eldoria.companies.services.MembershipService;
 import de.eldoria.companies.services.events.ServerEventService;
@@ -265,6 +267,8 @@ public final class CompaniesApiImpl implements CompaniesApi {
      * @param areaOffers   offers areas of the server
      * @param jobs         posts jobs
      * @param jobSettings  the current settings of jobs
+     * @param disband      disbands companies for their owners
+     * @param ownerOrders  cancels orders for their owners
      * @param mainThread   runs what has to run on the main thread, such as asking the area plugins
      */
     public record Writes(
@@ -277,5 +281,7 @@ public final class CompaniesApiImpl implements CompaniesApi {
             AreaOffers areaOffers,
             JobServices jobs,
             Supplier<JobSettings> jobSettings,
+            DisbandService disband,
+            OwnerOrderService ownerOrders,
             Executor mainThread) {}
 }
