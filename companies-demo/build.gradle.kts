@@ -11,6 +11,7 @@ dependencies {
     compileOnly(libs.luckperms)
     bukkitLibrary(libs.mariadb)
     testImplementation(project(":companies-api"))
+    testImplementation(libs.luckperms)
 }
 
 bukkit {

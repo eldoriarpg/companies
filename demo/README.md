@@ -61,6 +61,10 @@ admin tools of Companies to look at orders, players, events, offers and job disp
 syncing, settings writes, owner transfers, nodes, the dashboard key, debug, grants, the level editor, renames, treasury
 changes, area offers, the two bypasses and boards, so a demo admin can neither create money nor take other visitors'
 land. Starting or ending the sandbox ends the player's dashboard sessions, so the next login shows what they may do now.
+A node keeps who took the sandbox in `plugins/CompaniesDemo/sandbox-players.yml`, so a restart still ends the sessions
+when the sandbox runs out: when the server starts and whenever a player joins, a running sandbox is planned again for
+its end, and one that ended meanwhile has its sessions ended at once. Players the file never kept are left alone; the
+nightly reset deletes the file.
 `hub` sets up the groups `default` (the chat commands of the allow list) and `demo-admin` from its config on every
 start, since the reset empties the LuckPerms database. The nightly reset undoes what demo admins changed.
 
@@ -98,8 +102,8 @@ needs `DOCKER_SOCKET=/run/user/<uid>/docker.sock` there or in the environment. T
 Every night at `RESET_AT` (Europe/Berlin, avoid 02:00 to 03:00, which is skipped once a year), after warnings 10 and 1
 minutes before, the `reset` service stops both nodes, recreates the `companies`, `luckperms` and `economy` databases,
 empties Redis, replaces the `seed` paths of `reset/paths` (worlds, regions, plots, claims, holograms, warps) with the
-seed, deletes the `wipe` paths (player data, caches, ops and bans) and starts `hub`, then `lands`. A failed reset
-still starts the nodes again. The gateway and its database are left alone.
+seed, deletes the `wipe` paths (player data, caches, ops, bans and the sandbox file) and starts `hub`, then `lands`. A
+failed reset still starts the nodes again. The gateway and its database are left alone.
 
 The service controls the nodes through the Docker socket, which gives it full control of the Docker host. Run the
 demo on a host or rootless Docker daemon of its own.

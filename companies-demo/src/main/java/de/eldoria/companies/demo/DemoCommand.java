@@ -101,7 +101,8 @@ final class DemoCommand implements BasicCommand {
 
     private CompletableFuture<Void> enable(Player player) {
         return sandbox.enable(player.getUniqueId()).thenAccept(result -> {
-            if (result == AdminSandbox.Result.ENABLED) sessions.revokeLater(player.getName(), sandbox.length());
+            if (result == AdminSandbox.Result.ENABLED)
+                sessions.started(player.getUniqueId(), player.getName(), sandbox.length());
             player.sendRichMessage(
                     text(
                             switch (result) {

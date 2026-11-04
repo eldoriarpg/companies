@@ -7,6 +7,7 @@ hub wipe plugins/Essentials/userdata
 hub wipe plugins/Essentials/usermap.bin
 hub wipe plugins/Essentials/uuids.bin
 hub wipe plugins/WorldEdit/sessions
+hub wipe plugins/CompaniesDemo/sandbox-players.yml
 hub wipe usercache.json
 hub wipe ops.json
 hub wipe whitelist.json
@@ -24,6 +25,7 @@ lands wipe plugins/Essentials/userdata
 lands wipe plugins/Essentials/usermap.bin
 lands wipe plugins/Essentials/uuids.bin
 lands wipe plugins/WorldEdit/sessions
+lands wipe plugins/CompaniesDemo/sandbox-players.yml
 lands wipe usercache.json
 lands wipe ops.json
 lands wipe whitelist.json

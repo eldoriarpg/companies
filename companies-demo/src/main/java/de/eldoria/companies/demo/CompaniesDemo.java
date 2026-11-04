@@ -61,8 +61,12 @@ public final class CompaniesDemo extends JavaPlugin {
                 luckPerms,
                 Duration.ofMinutes(getConfig().getInt("sandbox.minutes", 30)),
                 Duration.ofMinutes(getConfig().getInt("sandbox.pauseMinutes", 0)));
-        var sessions = new SandboxSessions(this);
-        sessions.listen(luckPerms);
+        var sessions = new SandboxSessions(
+                this,
+                luckPerms,
+                new SandboxLedger(getDataFolder().toPath().resolve("sandbox-players.yml"), getLogger()),
+                Clock.systemUTC());
+        sessions.listen();
         getServer().getPluginManager().registerEvents(sessions, this);
         var guideSection = getConfig().getConfigurationSection("guide");
         var guide = GuideBook.of(guideSection == null ? new MemoryConfiguration() : guideSection);
