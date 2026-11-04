@@ -13,18 +13,23 @@ import org.bukkit.entity.Player;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
  * {@code /demo}: {@code guide} gives the guide book, {@code admin} takes the admin sandbox, {@code admin off} ends it
- * early. Its texts are MiniMessage from the {@code messages} section of the config.
+ * early, {@code reset-me} removes the player's company and open orders once confirmed. Its texts are MiniMessage from
+ * the {@code messages} section of the config.
  */
 final class DemoCommand implements BasicCommand {
     private final AdminSandbox sandbox;
     private final SandboxSessions sessions;
     private final GuideBook guide;
+    private final ResetMe resetMe;
+    private final Executor async;
     private final ConfigurationSection messages;
     private final Logger logger;
 
@@ -32,6 +37,8 @@ final class DemoCommand implements BasicCommand {
      * @param sandbox  the admin sandbox
      * @param sessions ends the dashboard sessions when the sandbox runs out
      * @param guide    the guide book
+     * @param resetMe  the clean start
+     * @param async    runs the clean start off the main thread
      * @param messages the texts
      * @param logger   told about failures
      */
@@ -39,11 +46,15 @@ final class DemoCommand implements BasicCommand {
             AdminSandbox sandbox,
             SandboxSessions sessions,
             GuideBook guide,
+            ResetMe resetMe,
+            Executor async,
             ConfigurationSection messages,
             Logger logger) {
         this.sandbox = sandbox;
         this.sessions = sessions;
         this.guide = guide;
+        this.resetMe = resetMe;
+        this.async = async;
         this.messages = messages;
         this.logger = logger;
     }
@@ -56,6 +67,16 @@ final class DemoCommand implements BasicCommand {
         }
         if (args.length == 1 && args[0].equalsIgnoreCase("guide")) {
             guide.give(player);
+            return;
+        }
+        if (args.length == 1 && args[0].equalsIgnoreCase("reset-me")) {
+            CompletableFuture.supplyAsync(() -> resetMe.request(player.getUniqueId()), async)
+                    .thenAccept(step -> tell(player, step))
+                    .exceptionally(err -> {
+                        logger.log(Level.WARNING, "Could not reset " + player.getName(), err);
+                        player.sendRichMessage(text("failed"));
+                        return null;
+                    });
             return;
         }
         if (args.length >= 1 && args[0].equalsIgnoreCase("admin")) {
@@ -98,13 +119,63 @@ final class DemoCommand implements BasicCommand {
                 .thenAccept(removed -> player.sendRichMessage(text(removed ? "admin.disabled" : "admin.none")));
     }
 
+    private void tell(Player player, ResetMe.Step step) {
+        switch (step) {
+            case ResetMe.Step.Ask(var plan) -> {
+                player.sendRichMessage(text("reset.ask"));
+                plan.company()
+                        .filter(ResetMe.Company::owned)
+                        .ifPresent(company -> player.sendRichMessage(
+                                text("reset.company"),
+                                Placeholder.unparsed("company", company.name()),
+                                Placeholder.unparsed("members", Integer.toString(company.members()))));
+                if (!plan.open().isEmpty())
+                    send(player, "reset.orders", plan.open().size());
+                stays(player, plan.taken(), plan.company().filter(company -> !company.owned()));
+                player.sendRichMessage(
+                        text("reset.confirm"),
+                        Placeholder.unparsed("seconds", Long.toString(ResetMe.CONFIRM.toSeconds())));
+            }
+            case ResetMe.Step.Done(var report) -> {
+                player.sendRichMessage(text("reset.done"));
+                report.disbanded().ifPresent(company -> named(player, "reset.disbanded", company));
+                report.kept().ifPresent(company -> named(player, "reset.notDisbanded", company));
+                if (report.cancelled() > 0) send(player, "reset.cancelled", report.cancelled());
+                stays(player, report.taken(), report.member());
+            }
+            case ResetMe.Step.Nothing(var plan) -> {
+                player.sendRichMessage(text("reset.nothing"));
+                stays(player, plan.taken(), plan.company().filter(company -> !company.owned()));
+            }
+            case ResetMe.Step.Wait(var left) ->
+                player.sendRichMessage(
+                        text("reset.wait"),
+                        Placeholder.unparsed(
+                                "minutes",
+                                Long.toString(Math.max(1, left.plusSeconds(59).toMinutes()))));
+        }
+    }
+
+    private void stays(Player player, int taken, Optional<ResetMe.Company> member) {
+        if (taken > 0) send(player, "reset.taken", taken);
+        member.ifPresent(company -> named(player, "reset.member", company));
+    }
+
+    private void send(Player player, String key, int orders) {
+        player.sendRichMessage(text(key), Placeholder.unparsed("orders", Integer.toString(orders)));
+    }
+
+    private void named(Player player, String key, ResetMe.Company company) {
+        player.sendRichMessage(text(key), Placeholder.unparsed("company", company.name()));
+    }
+
     private String text(String key) {
         return messages.getString(key, key);
     }
 
     @Override
     public Collection<String> suggest(CommandSourceStack source, String[] args) {
-        if (args.length <= 1) return List.of("guide", "admin");
+        if (args.length <= 1) return List.of("guide", "admin", "reset-me");
         if (args.length == 2 && args[0].equalsIgnoreCase("admin")) return List.of("off");
         return List.of();
     }

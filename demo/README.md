@@ -50,6 +50,11 @@ completion; `companiesdemo.commands.all` (ops by default) lifts the list. A paym
 the cap. Only the commands of `pay.commands` are capped (XConomy's `pay`, also with its prefix), so it has to name every
 pay command the allow list lets through.
 
+`/demo reset-me` gives a visitor a clean start: run once, it says what goes, run again within 30 seconds, it disbands
+the company the visitor owns (its members lose it, as with `/company disband`) and cancels their open orders, the price
+paid back. Orders a company or worker took stay with them, and so does a membership in a company someone else owns.
+The next reset waits `reset.cooldownMinutes` (10).
+
 `/demo admin` makes a visitor a member of the LuckPerms group `demo-admin` for 30 minutes (`sandbox.minutes`; a pause
 before the next one with `sandbox.pauseMinutes`, none by default); `/demo admin off` ends it early. The group gets the
 admin tools of Companies to look at orders, players, events, offers and job disputes, without deleting, reloading or

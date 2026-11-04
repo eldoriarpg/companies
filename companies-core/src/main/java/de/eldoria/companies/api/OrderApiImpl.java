@@ -5,6 +5,7 @@
  */
 package de.eldoria.companies.api;
 
+import de.eldoria.companies.api.write.CancelOrderResult;
 import de.eldoria.companies.api.write.CreateOrderResult;
 import de.eldoria.companies.api.write.OrderLineRequest;
 import de.eldoria.companies.api.write.OrderRequest;
@@ -16,8 +17,10 @@ import de.eldoria.companies.components.order.IOrderDraft;
 import de.eldoria.companies.components.order.OrderSource;
 import de.eldoria.companies.components.order.OrderState;
 import de.eldoria.companies.data.repository.AOrderData;
+import de.eldoria.companies.data.wrapper.order.FullOrder;
 import de.eldoria.companies.orders.OrderCreationService;
 import de.eldoria.companies.orders.SystemOwner;
+import de.eldoria.companies.services.ActionResult;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
@@ -31,9 +34,13 @@ import java.util.concurrent.Executor;
 import java.util.function.Function;
 
 /**
- * Reads orders from the repository and creates them through the order creation, like {@code /order create}.
+ * Reads orders from the repository, creates them through the order creation, like {@code /order create}, and cancels
+ * them for their owners, like {@code /order cancel}.
  */
 final class OrderApiImpl implements OrderApi {
+    private static final String UNKNOWN_ORDER = "error.unknownOrder";
+    private static final String NOT_YOUR_ORDER = "error.notYourOrder";
+
     private final AOrderData orderData;
     private final WriteAccess writes;
     private final Function<UUID, OfflinePlayer> players;
@@ -113,6 +120,28 @@ final class OrderApiImpl implements OrderApi {
                                 request.charge(),
                                 request.respectLimits()))
                 .handleAsync(this::result, executor);
+    }
+
+    @Override
+    public CompletableFuture<CancelOrderResult> cancel(int order, UUID owner) {
+        if (SystemOwner.is(owner)) {
+            return CompletableFuture.failedFuture(
+                    new IllegalArgumentException("The owner id " + owner + " is reserved for the server."));
+        }
+        return writes.run(services -> services.ownerOrders().cancel(owner, order))
+                .thenApplyAsync(OrderApiImpl::cancelled, executor);
+    }
+
+    private static CancelOrderResult cancelled(ActionResult<FullOrder> result) {
+        return switch (result) {
+            case ActionResult.Done<FullOrder> done -> CancelOrderResult.CANCELLED;
+            case ActionResult.Refused<FullOrder>(var failure) ->
+                switch (failure.localeKey()) {
+                    case UNKNOWN_ORDER -> CancelOrderResult.UNKNOWN;
+                    case NOT_YOUR_ORDER -> CancelOrderResult.NOT_OWNER;
+                    default -> CancelOrderResult.CLAIMED;
+                };
+        };
     }
 
     private CreateOrderResult result(OrderCreationService.Outcome outcome, Throwable err) {

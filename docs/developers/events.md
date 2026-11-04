@@ -134,7 +134,7 @@ reason `INVALID`.
 | `CompanyMemberPermissionEvent`    | A member granted or revoked permissions of another member. Not fired when nothing changed         | Async                    | No          | `member()`, `actor()`, `previous()`, `current()`                   |
 | `CompanyLevelUpEvent`             | The level of a company went up                                                                    | Async                    | No          | `oldLevel()`, `newLevel()`                                         |
 | `CompanyLevelDownEvent`           | The level of a company went down                                                                  | Async                    | No          | `oldLevel()`, `newLevel()`                                         |
-| `CompanyDisbandEvent`             | A company was disbanded. Its orders were released and its treasury was emptied                    | Async                    | No          | `company()`                                                        |
+| `CompanyDisbandEvent`             | A company was disbanded, also by the API. Its orders were released, its treasury emptied          | Async                    | No          | `company()`                                                        |
 | `TreasuryTransactionEvent`        | Money moved into or out of a treasury, after it was saved                                         | Either, usually off main | No          | `kind()`, `amount()`, `balance()`, `actor()`                       |
 
 Every company event also has `company()`.
@@ -199,7 +199,7 @@ paid, not taxed and nothing goes to the treasury.
 | `OrderRemovedEvent.Reason` | Meaning                                                                     |
 |----------------------------|-----------------------------------------------------------------------------|
 | `PURGED`                   | Nobody claimed the order in time. The owner got back what they paid        |
-| `CANCELLED`                | The owner cancelled the unclaimed order                                     |
+| `CANCELLED`                | The owner cancelled the unclaimed order, also through the API               |
 | `ADMIN`                    | An admin deleted the order                                                  |
 
 A claimed order that the company gives back fires `OrderCanceledEvent`. One that runs out of time fires

@@ -211,6 +211,8 @@ class CompaniesApiImplTest {
                 .setHome(new HomeRequest(
                         miners, new Location(server.addSimpleWorld("late"), 0, 64, 0), owner.getUniqueId())));
         assertNotReady(api.orders().create(stoneRequest(true)));
+        assertNotReady(api.companies().disband(miners, owner.getUniqueId()));
+        assertNotReady(api.orders().cancel(1, owner.getUniqueId()));
         assertNotReady(api.players().grantItems(owner.getUniqueId(), new ItemStack(Material.STONE), 3));
         assertEquals(100.0, balance());
     }
@@ -484,6 +486,8 @@ class CompaniesApiImplTest {
                 null,
                 null,
                 JobSettings::new,
+                null,
+                null,
                 Runnable::run));
     }
 

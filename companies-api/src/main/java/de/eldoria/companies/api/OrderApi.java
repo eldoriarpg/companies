@@ -5,6 +5,7 @@
  */
 package de.eldoria.companies.api;
 
+import de.eldoria.companies.api.write.CancelOrderResult;
 import de.eldoria.companies.api.write.CreateOrderResult;
 import de.eldoria.companies.api.write.OrderRequest;
 import de.eldoria.companies.components.order.IFullOrder;
@@ -18,7 +19,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * Reads and creates orders.
+ * Reads, creates and cancels orders.
  * <p>
  * Every future completes off the main thread; see {@link CompaniesApi} for how to get back onto it. Orders are
  * anonymous towards players: never show the owner of an order to the company working on it, or the company to the
@@ -90,4 +91,19 @@ public interface OrderApi {
      * @return future of the created order or the reason it was not created
      */
     CompletableFuture<CreateOrderResult> create(OrderRequest request);
+
+    /**
+     * Cancels an order the way its owner does with {@code /order cancel}: only an order no one has taken yet. The
+     * price goes back to the owner, unless the order was created without charging them; a copy of a repeating order
+     * stops the repeating order. Fires {@link de.eldoria.companies.events.order.OrderRemovedEvent}.
+     * <p>
+     * This is a write operation: before Companies is ready the future completes exceptionally with an
+     * {@link ApiNotReadyException}. An owner id reserved for the server fails the future with an
+     * {@link IllegalArgumentException}.
+     *
+     * @param order id of the order
+     * @param owner id of the player who placed it
+     * @return future of the outcome
+     */
+    CompletableFuture<CancelOrderResult> cancel(int order, UUID owner);
 }

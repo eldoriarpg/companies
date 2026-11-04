@@ -5,6 +5,7 @@
  */
 package de.eldoria.companies.api;
 
+import de.eldoria.companies.api.write.DisbandResult;
 import de.eldoria.companies.api.write.FoundRequest;
 import de.eldoria.companies.api.write.FoundResult;
 import de.eldoria.companies.api.write.HomeRequest;
@@ -26,7 +27,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * Reads companies and adds members to them.
+ * Reads companies, adds members to them, founds and disbands them.
  * <p>
  * Every future completes off the main thread; see {@link CompaniesApi} for how to get back onto it.
  */
@@ -163,6 +164,21 @@ public interface CompanyApi {
      * @return future of the new company, or why it was not founded
      */
     CompletableFuture<FoundResult> found(FoundRequest request);
+
+    /**
+     * Disbands a company the way its owner does with {@code /company disband}: only the owner disbands it. Orders the
+     * company had taken are released, and the owner gets the treasury and what the server pays back for the areas the
+     * company bought ({@code sellBackPercent}). Members lose the company. Fires
+     * {@link de.eldoria.companies.events.company.CompanyDisbandEvent}.
+     * <p>
+     * This is a write operation: before Companies is ready the future completes exceptionally with an
+     * {@link ApiNotReadyException}.
+     *
+     * @param company id of the company
+     * @param actor   id of the player disbanding it, who must own it
+     * @return future of the outcome
+     */
+    CompletableFuture<DisbandResult> disband(int company, UUID actor);
 
     /**
      * Sets the home of a company, replacing its former one. A company with areas sets it inside one of them while

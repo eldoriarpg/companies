@@ -165,8 +165,8 @@ also happens while Companies runs without an economy, and after Companies was di
 
 These are the write operations:
 
-- `companies().addMember(...)`, `companies().found(...)`, `companies().setHome(...)`
-- `orders().create(...)`
+- `companies().addMember(...)`, `companies().found(...)`, `companies().disband(...)`, `companies().setHome(...)`
+- `orders().create(...)`, `orders().cancel(...)`
 - `players().grantItems(...)`
 - `events().create(...)`, `events().end(...)`, `events().cancel(...)`
 - `jobs().post(...)`, `jobs().take(...)`, `jobs().giveBack(...)`, `jobs().cancel(...)`, `jobs().finish(...)`,
@@ -176,8 +176,8 @@ These are the write operations:
 `ApiNotReadyException` extends `IllegalStateException`. Depending on the write it arrives wrapped in a
 `CompletionException` or as is, so unwrap it as below. A request Companies refuses completes normally with a result
 that says why. The future fails for errors, such as a world that was unloaded meanwhile or a database that does not
-answer. Invalid arguments throw an `IllegalArgumentException` when you build the request; `orders().create` fails its
-future with one for an owner id reserved for the server:
+answer. Invalid arguments throw an `IllegalArgumentException` when you build the request; `orders().create` and
+`orders().cancel` fail their future with one for an owner id reserved for the server:
 
 ```java
 api.orders().create(request).whenComplete((result, error) -> {
@@ -222,6 +222,7 @@ handled on the primary server. See [Several servers](../admin/multiserver.md) fo
 | `registerPerk(PerkDefinition perk)`       | `void`                                           | Adds a perk companies can buy, see below. New in 2.1                                                  |
 | `addMember(int company, UUID player)`     | `CompletableFuture<JoinResult>`                  | **Write.** Adds the player to the company                                                             |
 | `found(FoundRequest request)`             | `CompletableFuture<FoundResult>`                 | **Write.** Founds a company. New in 2.1                                                               |
+| `disband(int company, UUID actor)`        | `CompletableFuture<DisbandResult>`               | **Write.** Disbands a company for its owner. New in 2.1                                               |
 | `setHome(HomeRequest request)`            | `CompletableFuture<HomeResult>`                  | **Write.** Sets the home of a company. New in 2.1                                                     |
 
 Some details:
@@ -287,6 +288,25 @@ api.companies().found(new FoundRequest(player.getUniqueId(), "Stonebridge", fals
 });
 ```
 
+### Disband a company
+
+`disband` does what `/company disband` does once the owner confirmed it. The actor must own the company; the owner
+need not be online.
+
+- Orders the company had taken are released and open again for other companies.
+- The owner gets the treasury and what the server pays back for the areas the company bought (`sellBackPercent`).
+- Every member loses the company. Companies fires `CompanyDisbandEvent`.
+
+The future completes with `DISBANDED`, `NOT_OWNER` (the actor does not own the company, or no company has the id) or
+`FAILED` (the database refused it; the treasury stays with the company, but the orders it had taken are released
+anyway).
+
+```java
+api.companies().disband(companyId, player.getUniqueId()).thenAccept(result -> {
+    if (result != DisbandResult.DISBANDED) getLogger().info("Could not disband: " + result);
+});
+```
+
 ### Set the home
 
 `setHome` sets the home of a company on this server, replacing its former one. `HomeRequest` takes the company id,
@@ -312,6 +332,7 @@ api.companies().setHome(new HomeRequest(companyId, player.getLocation(), player.
 | `bySoloWorker(UUID worker, OrderState min, OrderState max)` | same                                       | Orders the player took to work on alone, with a state from `min` to `max` |
 | `materialPrice(Material material)`                    | `CompletableFuture<? extends IMaterialPrice>`    | Average, lowest and highest price paid for the material, all 0 if it was never ordered, and its shop baseline. `price()` is the one Companies goes by |
 | `create(OrderRequest request)`                        | `CompletableFuture<CreateOrderResult>`           | **Write.** Creates an order                          |
+| `cancel(int order, UUID owner)`                       | `CompletableFuture<CancelOrderResult>`           | **Write.** Cancels an order for its owner. New in 2.1 |
 
 The order states are, in this order: `UNCLAIMED`, `CLAIMED`, `DELIVERED` and `RECEIVED`. To get every active order
 of a player, ask for `UNCLAIMED` to `DELIVERED`:
@@ -446,6 +467,21 @@ A rule the order breaks does not fail the future. The future completes with a `C
 
 If the order cannot be saved, the money is refunded and the future fails. The cause is an
 `IllegalStateException` with the message "The order could not be saved".
+
+### Cancel an order
+
+`cancel` does what `/order cancel` does: it removes an order of the owner that nobody has taken yet. The owner need
+not be online. The price goes back to the owner unless the order was created with `charge(false)`; a copy of a
+repeating order stops the repeating order. Companies fires `OrderRemovedEvent`.
+
+The future completes with a `CancelOrderResult`: `CANCELLED`, `UNKNOWN` (no order has the id), `NOT_OWNER` (someone
+else placed it) or `CLAIMED` (a company or a solo worker took it; it stays).
+
+```java
+api.orders().cancel(orderId, player.getUniqueId()).thenAccept(result -> {
+    if (result == CancelOrderResult.CLAIMED) player.sendMessage("A company works on this order already.");
+});
+```
 
 ## Players: `players()`
 

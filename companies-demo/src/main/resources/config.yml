@@ -17,6 +17,8 @@ sandbox:
 commands:
   enabled: false
   allowed: [demo]
+reset:
+  cooldownMinutes: 10
 pay:
   maxAmount: 1000
   commands: [pay, xconomy:pay]
@@ -27,7 +29,7 @@ guide:
   onFirstJoin: false
   pages: []
 messages:
-  usage: '<gray>/demo guide</gray> gives the guide, <gray>/demo admin</gray> takes the admin sandbox, <gray>/demo admin off</gray> ends it.'
+  usage: '<gray>/demo guide</gray> gives the guide, <gray>/demo admin</gray> takes the admin sandbox, <gray>/demo admin off</gray> ends it, <gray>/demo reset-me</gray> removes your company and open orders.'
   players: 'Only players use /demo.'
   permission: '<red>You may not use the admin sandbox.'
   failed: '<red>That did not work, try again in a moment.'
@@ -39,3 +41,16 @@ messages:
     wait: '<yellow>You were a demo admin lately. Try again later.'
     disabled: '<green>You are no demo admin anymore.'
     none: '<yellow>You are no demo admin.'
+  reset:
+    ask: '<yellow><gray>/demo reset-me</gray> removes what is yours:'
+    company: '<gray>- your company <white><company></white> (members: <members>)'
+    orders: '<gray>- your <orders> open orders, their price paid back'
+    confirm: '<yellow>Run <gray>/demo reset-me</gray> again within <seconds> seconds to confirm.'
+    nothing: '<yellow>You own no company and have no open orders.'
+    done: '<green>Your reset is done.'
+    disbanded: '<gray>Disbanded <white><company></white>.'
+    notDisbanded: '<red>Could not disband <company>; try again in a moment.'
+    cancelled: '<gray>Cancelled <orders> open orders.'
+    taken: '<gray><orders> orders stay: a company or worker has taken them.'
+    member: '<gray>You stay a member of <white><company></white>; only its owner disbands it.'
+    wait: '<yellow>You reset lately. Try again in <minutes> minutes.'
