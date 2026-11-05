@@ -93,7 +93,7 @@ services:
     networks: [data]
 
   redis:
-    image: redis:7.4-alpine
+    image: redis:8.10-alpine
     restart: unless-stopped
     command: ["redis-server", "--save", "", "--appendonly", "no"]
     healthcheck:
@@ -102,7 +102,7 @@ services:
     networks: [data]
 
   postgres:
-    image: postgres:17-alpine
+    image: postgres:18-alpine
     restart: unless-stopped
     environment:
       POSTGRES_PASSWORD_FILE: /run/secrets/gateway_db

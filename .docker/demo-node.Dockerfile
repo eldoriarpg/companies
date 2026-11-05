@@ -5,7 +5,7 @@ RUN ./gradlew :companies-paper:shadowJar :companies-demo:jar --no-daemon -x test
     && cp companies-paper/build/libs/companies-paper-*-all.jar /companies.jar \
     && cp "$(ls companies-demo/build/libs/companies-demo-*.jar | grep -v -e sources -e javadoc)" /companies-demo.jar
 
-FROM eclipse-temurin:21-jdk AS plotsquared
+FROM eclipse-temurin:25-jdk AS plotsquared
 ADD --keep-git-dir=true https://github.com/IntellectualSites/PlotSquared.git#18a4a4126126759c5a7d9c443079f1e537d802f4 /build
 WORKDIR /build
 RUN ./gradlew :plotsquared-bukkit:shadowJar --no-daemon \

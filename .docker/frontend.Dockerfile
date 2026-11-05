@@ -1,11 +1,11 @@
-FROM node:24-alpine AS build
+FROM node:26-alpine AS build
 WORKDIR /build
 COPY web/frontend/package*.json ./
 RUN npm ci --ignore-scripts
 COPY web/frontend/ .
 RUN npx nuxi prepare && npx nuxi build
 
-FROM node:24-alpine
+FROM node:26-alpine
 WORKDIR /app
 COPY --from=build /build/.output ./
 EXPOSE 4000
