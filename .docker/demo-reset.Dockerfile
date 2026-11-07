@@ -1,4 +1,4 @@
-FROM alpine:3.22
+FROM alpine:3.24
 RUN apk add --no-cache bash coreutils docker-cli flock mariadb-client redis tar tzdata
 COPY demo/reset/demo-reset.sh /usr/local/bin/demo-reset.sh
 COPY demo/reset/paths /reset/paths
