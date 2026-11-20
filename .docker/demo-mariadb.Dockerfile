@@ -1,4 +1,4 @@
-FROM mariadb:11.8
+FROM mariadb:13.0
 COPY demo/mariadb/databases.sql /docker-entrypoint-initdb.d/databases.sql
 LABEL org.opencontainers.image.title="Companies Demo Database" \
       org.opencontainers.image.licenses="AGPL-3.0-only" \
