@@ -11,12 +11,12 @@ WORKDIR /build
 RUN ./gradlew :plotsquared-bukkit:shadowJar --no-daemon \
     && cp "$(ls Bukkit/build/libs/plotsquared-bukkit-*.jar | grep -v -e sources -e javadoc)" /plotsquared.jar
 
-FROM alpine:3.22 AS plugins
+FROM alpine:3.24 AS plugins
 RUN apk add --no-cache curl
 COPY demo/node/plugins.txt demo/node/fetch-plugins.sh /
 RUN /fetch-plugins.sh /plugins.txt
 
-FROM itzg/minecraft-server:2026.10.1-java25
+FROM itzg/minecraft-server:2026.11.0-java25
 COPY --from=plugins /demo /demo
 COPY --from=companies /companies.jar /demo/hub/plugins/Companies.jar
 COPY --from=companies /companies.jar /demo/lands/plugins/Companies.jar
